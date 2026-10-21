@@ -15,13 +15,27 @@
     </sc-for>
   </div>
   <div style="flex:1"></div>
+  <sc-if value="{{ onFull }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:12px">
+      <div style="display:flex;align-items:center;padding:0 4px 6px"><span style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#7d7d83">ONLINE · 3</span><span style="margin-left:auto;font-size:12px;color:#9a9a9f">All</span></div>
+      <sc-for list="{{ online }}" as="o" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:10px;padding:6px;border-radius:7px">
+        <span style="position:relative;width:24px;height:24px;border-radius:50%;background:{{ o.c }};color:#0d1214;display:grid;place-items:center;font-size:11px;font-weight:600;flex:none">{{ o.i }}<span style="position:absolute;right:-2px;bottom:-2px;width:8px;height:8px;border-radius:50%;background:{{ o.dot }};border:2px solid #16171a"></span></span>
+        <div style="display:flex;flex-direction:column;min-width:0;flex:1"><span style="font-size:13px;line-height:16px">{{ o.n }}</span><span style="font-size:11px;line-height:15px;color:#9a9a9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.s }}</span></div>
+      </div></sc-for>
+    </div>
+  </sc-if>
+  <sc-if value="{{ onCompact }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:6px;padding:0 4px 12px"><span style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#7d7d83">ONLINE</span><div style="display:flex;margin-left:auto"><sc-for list="{{ online }}" as="o" hint-placeholder-count="3"><span style="width:22px;height:22px;border-radius:50%;background:{{ o.c }};color:#0d1214;display:grid;place-items:center;font-size:10px;font-weight:600;border:2px solid #16171a;margin-left:-6px">{{ o.i }}</span></sc-for></div><span style="font:500 11px 'IBM Plex Mono',monospace;color:#9a9a9f">3</span></div>
+  </sc-if>
+  <sc-if value="{{ onOff }}" hint-placeholder-val="{{ false }}"><div style="padding:0 4px 12px;display:flex;flex-direction:column;gap:4px"><span style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#7d7d83">ONLINE</span><span style="font-size:12px;line-height:1.45;color:#9a9a9f">Not available while Home Hub is offline.</span></div></sc-if>
   <div title="hub.example.com:8443" style="border:1px solid #2a2b30;background:#1b1c1f;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px">
     <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px"><span style="display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;border-radius:50%;background:{{ dot }}"></span>Home Hub</span><span style="font-size:12px;color:#9a9a9f">Switch</span></div>
     <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9a9a9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">hub.example.com:8443</div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;padding:14px 4px 0">
     <div style="width:28px;height:28px;border-radius:50%;background:#6f9cff;color:#0d1214;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">M</div>
-    <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px;line-height:16px">Max</span><span style="font-size:12px;line-height:16px;color:#9a9a9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Desktop-LivingRoom</span></div>
+    <div style="display:flex;flex-direction:column;min-width:0;flex:1"><span style="font-size:13px;line-height:16px">Max</span><span style="font-size:12px;line-height:16px;color:#9a9a9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Desktop-LivingRoom</span></div>
+    <sc-if value="{{ r4 }}" hint-placeholder-val="{{ false }}"><div title="Notifications" style="position:relative;width:32px;height:32px;box-sizing:border-box;border-radius:7px;border:1px solid {{ bellLine }};display:grid;place-items:center;flex:none"><span style="width:12px;height:11px;border:1.5px solid #ececea;border-bottom:0;border-radius:6px 6px 1px 1px;box-sizing:border-box;margin-top:-2px"></span><span style="position:absolute;left:9px;bottom:9px;width:14px;height:1.5px;background:#ececea"></span><sc-if value="{{ hasBell }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#3cbfd8;color:#0d1214;font:600 10px/16px 'IBM Plex Mono',monospace;text-align:center;border:2px solid #16171a">{{ bell }}</span></sc-if></div></sc-if>
   </div>
 </div>
 </x-dc>
@@ -32,7 +46,10 @@ class Component extends DCLogic {
     const list = [['Library'],['Runs','1'],['Emulation'],['Controllers'],['Settings']];
     if (this.props.plugin) list.splice(2,0,[this.props.plugin,'',true]);
     const items = list.map(([l,b,sub]) => ({label:l,badge:b||'',pl:sub?'30px':'10px',bg:l===active?'#24252a':'transparent',fg:l===active?'#ececea':'#9a9a9f'}));
-    return { items, dot: this.props.offline ? '#8d8b85' : '#5fd28a' };
+    const p = this.props, r4 = !!p.r4, off = !!p.offline, on = p.online ?? 'full';
+    const online = [['Lena','Playing Harbor Rally','#f07ab8','#6fd39a'],['Jonas','In Multiview','#a6d65a','#6fd39a'],['Sam','Idle · 12 min','#b39cf5','#e5b45a']].map(([n,s,c,dot])=>({n,i:n[0],s,c,dot}));
+    return { items, dot: off ? '#8d8b85' : '#5fd28a', r4, online, onFull: r4 && !off && on==='full', onCompact: r4 && !off && on==='compact', onOff: r4 && off,
+      bell: p.bell ?? '', hasBell: !!p.bell, bellLine: p.bellOpen ? '#3cbfd8' : '#2a2b30' };
   }
 }
 </script>

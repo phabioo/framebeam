@@ -214,3 +214,114 @@ Source: `#3q-2` (266-307, Network, light 1440 x 1240), `#3q-2-dark` (308-331, Se
 - General: Hub name "Home Hub" ("Shown to Players when they connect"); Theme segment "System | Light | Dark", help "System follows the browser until you pick Light or Dark." (default System, H9); "Allow users to upload games" "Off: only admins upload ROMs."
 - Saves (new page, "moved from Network", H33): intro "How many older versions of each slot the Hub keeps. Snapshots and versions in an open conflict are never removed."; rows "Keep newest versions · Per slot · 20", "Keep daily versions · Days of which the newest version is kept · 30", "Keep weekly versions · Weeks of which the newest version is kept · 26" (flags `-save-keep-recent|daily|weekly`).
 - Diagnostics: "Diagnostics bundle", "One zip with logs, version, network settings, installed cores and paired Players. Contains IP addresses and host names; passwords, tokens and TURN secrets are removed.", button "Download bundle" on one line (H36).
+
+## Round 4 (2026-10-21)
+
+Source `source/round-4-a.dc.html` (6a-hub, 6b, 6c-hub, 6d-hub, 6f), `round-4-b.dc.html` (3j-3, 6j, 6k, 6l), `round-4-c.dc.html` (3s-5), `round-4-d.dc.html` (6q-hub, 6t-2), `round-4-e.dc.html` (7a, 7b) and the rules in `round-4-sheet.dc.html` (0-3 E, handoff table); artboards 1440 x 900 light unless noted (7b is dark on purpose). Table with line ranges: [README.md](README.md#round-4-screens-2026-10-21-features-before-10); decisions 24-35 and open points bl-bq: [decisions.md](decisions.md); new color `#e6f3f6`: [tokens.md](tokens.md#additions-of-round-4-2026-10-21). Round 3 rules (date rule, row actions, pill colors, 880 px settings content, responsive tables) apply. Plugin screens of the same handoff (recap): [plugins.md](plugins.md#round-4-2026-10-21). Mock names and the data folder paths (`/mnt/backup/…/home-hub`, `/srv/framebeam/hubdata`) are illustrative.
+
+### 0-3 E Hub navigation (Round 4)
+Source: `round-4-sheet#0-3-hubnav` (243-299); component `source/hub-nav.dc.html` with `r4` (props `active`, `dark`, `member`, `savesBadge`, `statusBadge`, `reportsBadge`, `ver`). Round 3 screens keep the old nav (without `r4`).
+
+- Sidebar 232. Admin order in three groups: Play (no eyebrow): Library, Saves, Runs, Plugins · SETUP: Systems & Cores, Clients, Users · ADMIN: Status, Reports, Settings (10 items, 2 eyebrows). Eyebrow mono 10 `#6b6a65`, 16 above. Item padding 9 10, 14px, active surface `#fff` with border `#e2e0da`.
+- Badges (12): Saves "1 conflict" (amber `#8a5a00`), Status carries the one most urgent problem ("Backup failed", "Disk 92 %"; amber), Reports "2 new" (cyan `#1a7f96`). Reports is its own page under ADMIN because it is an inbox (decision 24).
+- Footer: "Max · Admin" 13, mono 11 "Home Hub · 0.16.4 · What’s new" (link opens 6a-hub notes), "Sign out". Members see only Play + Settings (their own profile, theme, Discord, privacy); ADMIN and SETUP are hidden, not disabled (footer "Lena", "Home Hub · 0.16.4").
+- 390: "☰" drawer with the same groups ("FrameBeam Hub ×", Library, "Saves · Runs · Plugins", SETUP, ADMIN "Status · Reports 2 new", Settings).
+- Screenshots are not a page: a tab "Games | Screenshots" in Library (3j-3, 6j) and sections on the game, run and user pages. Backups and Storage are Settings sub-pages (below).
+- Settings column 300 (cards as in 3q-2) now has three groups: HUB: General, Network & TURN, Security, Updates (badge: available version, cyan); DATA: Backups (badge "Failed", amber), Storage, Saves retention; INTEGRATIONS: Metrics, Setup assistant. The Diagnostics page of 3q-2 is not in the drawn list (open point bp).
+
+### 6a-hub What's new (Hub)
+Source: `round-4-a#6a-hub` (60-77), `#6a-hub-2` (79-97). Wave 0.
+
+- Banner on the first Hub page after an update, admins only, dismissible ("×"): white surface, info border `#a6d9e6`, radius 10, padding 12 16, cyan dot 8: "Home Hub was updated to 0.16.4 today 03:12 · from 0.15.3 · Backups and a Status page are new" with link "What’s new".
+- Notes page (all users; from the banner or the sidebar footer): "← Back to Library", title "What’s new in 0.16.4" 28/600, line "Stable · today 03:12 · changes since 0.15.3, including the 0.16.0 betas", version picker "0.16.4 · current ▾"; groups ADDED / CHANGED / FIXED as in the Player (tag column 64: Player, Hub, Both), max 880; footer "Full release notes ↗" and "Players update on their own; Players 0.15.x keep working with this Hub."
+
+### 6b Backups
+Source: `round-4-a#6b` `#6b-2` `#6b-3` (template 105-146, data 484-486), `#6b-states` (150-165, label 6b-4), `#6b-5` (168-184), `#6b-6` (186-195). Wave 1. Decision 26: the Hub never deletes backups because the disk is full; it only warns. Only "Keep last N" removes the oldest, after a new backup succeeded.
+
+- Settings → Backups, settings column 300, content 880, control column 360. Header "Backups" ("Database, saves and snapshots, save states, plugins. ROMs only if you include them.") and primary "Back up now" (disabled while running: tooltip "A backup is running", or when no folder is writable).
+- Status card on top (white card, border `#e4e2dc`): ok "✓ Last backup ok today 03:00 · 1.4 GB · took 2 min" + "Next tomorrow 03:00"; running (6b-2, border `#a6d9e6`): "Backing up · saves and snapshots", progress bar, "840 MB of 1.4 GB · about 1 min left", "Cancel", "Started by Max today 18:40. Players keep playing; saves arriving now go into the next backup."; restored (6b-3, border `#b7dcc4`, pill green `#e2f3e8` / `#1e6b3a`): "✓ Restored · Home Hub runs the backup from 14 Oct 03:00 · restarted today 18:55", "To undo, restore the safety backup from today 18:52." with "Restore safety backup…" and "×".
+- SCHEDULE rows (SettingsRow): "Back up automatically" (segment Off | Daily | Weekly; "Runs while Players keep playing. Takes 1–3 min without ROMs."), "Time" (03:00; "Hub time zone Europe/Berlin. Weekly adds a weekday."), "Keep" (stepper "Last − 7 + backups"; "Older backups are deleted after a new one succeeds. Safety backups are kept until you delete them."), "Include ROMs" (toggle; "Adds about 38.2 GB to every backup. With 7 kept: about 277 GB."), "Backup folder" ("A folder the Hub can write to, ideally on another disk. 412 GB free." mono path, "Change…").
+- BACKUPS · n list: columns 170 | 90 | 1fr | 100 | 30, row 52: date (date rule), size, contents ("Database · saves · states · plugins", "· ROMs"), tag pill ("with ROMs" grey; "Safety backup" new light cyan `#e6f3f6` / `#1a7f96`; "Restored · with ROMs" green `#e2f3e8` / `#1e6b3a`), "Download", "⋯" (Restore…, Copy file path, Delete backup… red). Selected row ⋯ open: surface `#faf9f6`, border `#1a7f96`.
+- 6b-4 card states (replace the status card; the Status page and sidebar show the same text): no folder (pill "Off", "Choose a backup folder to turn backups on", "Choose folder…"); folder not writable (pill "Cannot write", “The Hub runs as user “framebeam” and needs write access. Check that the disk is mounted, or choose another folder.”, "Check again", "Change…"); backup failed (pill "Backup failed", "Backup failed today 03:00", "Not enough space on /mnt/backup: needs 1.4 GB, 0.3 GB free. The last good backup is from yesterday 03:00.", "Show log", "Try again"; amber card `#fff7e6` / `#ecd9ae`; the Hub only warns, decision 26); restore failed (pill "Not restored", "Restore of 14 Oct stopped · nothing was changed", "The backup file is damaged (checksum mismatch in saves.tar). Home Hub runs as before; the safety backup from 18:52 is kept.", "Show log").
+- 6b-5 dialog "Restore the backup from 14 Oct 03:00?": "Home Hub goes back to the state of 14 Oct. Everything that changed since then is replaced:" rows Database (users, devices, runs, plugin settings, Hub settings; "2 users and 1 device added since 14 Oct disappear."), Saves and snapshots, Save states, Plugins, ROMs; info box "A safety backup of today comes first · About 1.4 GB in /mnt/backup/…/home-hub. Restore it to undo this."; "✓ 3 Players are connected; they disconnect for about a minute and running Sessions end."; buttons "Cancel", red primary "Restore and restart".
+- 6b-6 restoring page (full page, Hub restarts, reloads by itself; result is 6b-3): "Restoring Home Hub" with steps ✓ "Safety backup made · today 18:52 · 1.4 GB", ● "Restoring database and saves · step 2 of 3 · about 1 min", ○ "Restarting Home Hub · Players reconnect by themselves"; "Keep this page open; it reloads when Home Hub is back. If nothing happens after 5 minutes, check the Hub log on the server."
+
+### 6c-hub Updates, roll back (Hub)
+Source: `round-4-a#6c-hub` `#6c-hub-2` (template 247-282, data 519-520). Wave 1.
+
+- Settings → Updates: status "Home Hub 0.16.4 is up to date · Stable · installed today 03:12 · checked today 17:52" + link "What’s new in 0.16.4"; channel segment Off | Stable | Beta; EARLIER VERSIONS · 3 ("A database backup is made first. Saves, states and ROMs are not changed. The Hub restarts (about 1 min)."), rows with a version column 80 (mono), "used 2 Oct – today", "Running", button "Go back…".
+- Confirmation 540 "Go back to Home Hub 0.16.3?": First (a database backup goes to the backup folder, about 40 MB), Database (changes made by 0.16.4 are undone: backup schedule and reports are removed, kept in the backup), Saves, states, ROMs (not changed), Players (3 connected Players disconnect for about 1 min; Players 0.16.4 keep working with 0.16.3), Updates (paused until you resume them); "Cancel", "Back up and go back".
+- 6c-hub-2 after going back: amber card "Running 0.16.3 · automatic updates paused until you resume them" / "Went back from 0.16.4 today 18:57 by Max. Database backup from 18:56 is in Backups." with "Update to 0.16.4" and "Resume updates"; the same banner shows on Status. 0.16.4 is listed "skipped · available".
+
+### 6d-hub Reports
+Source: `round-4-a#6d-hub` (330-358), `#6d-hub-2` (359-371). Wave 1.
+
+- Page "Reports" ("Problem reports sent from Players. Kept until you delete them."); chips All · 5 | New · 2 | Seen · 3. List columns 70 | 1fr | 150 | 110 | 30 (STATUS, REPORT, FROM, SENT, ⋯), row 56; status pill New (`#e6f3f6` / `#1a7f96`) or Seen (grey `#ebe9e3` / `#55544f`); title 600 while New, meta line ("Linked to “Session ended unexpectedly”", "Connection check attached"); selected row `inset 3px 0 0 #1a7f96` on `#f3f9fa`.
+- Detail panel 400: "New · #12 · today 18:44", title, "From Max · Desktop-LivingRoom", "Player 0.16.4 · Windows 11", "Linked to Session ended unexpectedly · 18:41", the description, ATTACHED · 2.4 MB with rows (name, size, "Download"), "Download all (.zip)", "Mark as seen"; note "Opening a report does not mark it seen. Delete is in ⋯."
+- 6d-hub-2: empty "No reports yet" / "Players send them from Settings → Diagnostics → Report a problem, or from an error message."; 390 shows cards (title, "Max · today 18:44 · 2.4 MB", status pill, "⋯").
+
+### 6f Hub Status
+Source: `round-4-a#6f` (402-440), `#6f-390` (441-459). Wave 1. Admin only; refreshes every 10 s.
+
+- Header "Status" with "Home Hub · 0.16.4 · up 12 days 4 h · hub.example.com:8443" and "Updated 18:52:10". Problem banner for the single most urgent problem (amber `#fff7e6` / `#ecd9ae`, amber pill "Backup failed", then "today 03:00 · not enough space on /mnt/backup (needs 1.4 GB, 0.3 GB free)", button "Open Backups"); the sidebar badge carries the same text.
+- Four metric cards: CPU 18 %, MEMORY 2.1 GB (of 8 GB), DISK · DATA 412 GB (of 1 TB, "Storage →"), DISK · BACKUP 99.7 % ("0.3 GB free on /mnt/backup", amber bar `#c08a1e`); numbers 24 mono, bars 6 high (`#1a7f96`).
+- Grid 1.2fr | 1fr: ACTIVE SESSIONS · 2 · 3 VIEWERS with "TURN relay 2 of 40 · 7.8 Mbit/s" (rows: avatar, "Lena · Harbor Rally", "Hub users · for 1 h 12 min", "2 viewers", pill Relayed cyan or Direct green); CONNECTED PLAYERS · 4 (device, user, version mono, state "in Session" / "watching" / "idle · update available"; an outdated version is amber `#8a5a00`); LAST ERRORS · 24 H with "Download log" (time mono, source, message); METRICS ENDPOINT (Off; "For your own monitoring tools, read-only. When on: https://hub.example.com:8443/metrics with a separate token. Settings → Metrics.").
+- 390: stacked, 2-column metrics, cards padding 12, "☰ Status 18:52:10".
+
+### 3j-3 Hub Library (Round 4)
+Source: `round-4-b#3j-3` (277-297). Wave 2. Extends 3j-2.
+
+- Tabs "Games | Screenshots · 31" under the header (search "Search games", "Upload ROM"). Chips: "All · 10" (active `#1d1d1b`), "★ Favourites · 3", collections, "+ Collection"; sort "Recently played ▾".
+- Table columns 30 | 1fr | 140 | 170 | 110 | 150 | 120 | 30 (★, GAME, SYSTEM, COLLECTIONS, PLAY TIME, LAST PLAYED, saves action, ⋯), row 52: star (☆ `#b9b7b0` / ★ `#c08a1e`, tooltip "Add to favourites"), collection pills, play time ("12 h 40 min", "—" never), last played (date rule), "Upload save", "⋯".
+- Note: "Favourites, collections and play time are per user. Admins see their own here; other users’ numbers are on their user page (6k)." Same data as the Player (3c-8).
+
+### 6j Hub Screenshots
+Source: `round-4-b#6j` (300-316), `#6j-2` (317-332). Wave 2.
+
+- Library tab Screenshots: filters Game (All games), Run (e.g. "Harbor Nuzlocke", active border `#1a7f96`), User (Everyone); line "12 of 31 · newest first". Grid 4 columns, 3:2 tiles with user dot (player colour) and "name · date", run tag chip.
+- Open view: "‹ ›" browse (← → keys), "5 of 31 · Esc closes", image + panel 300: game title with "⋯" (Delete screenshot…, owner and admins), "By Lena · Lena-PC", "Taken today 14:03", "Game time 12 h 40 min", "Size 1280 × 960 · 412 KB", Run select ("Harbor Nuzlocke ▾", "Tagged automatically while the run was active."), buttons "Download" and "Copy link".
+- Empty gallery: "No screenshots yet" / "Press F12 in a game (gamepad: hold Select + Y). Screenshots upload to Home Hub with the next save sync."
+
+### 6k Hub user, Play time
+Source: `round-4-b#6k` (336-354). Wave 2. Users → Lena: tabs Account | Devices · 2 | Play time | Screenshots · 14.
+
+- Four stat cards (value 22/600): TOTAL "96 h 30 min" (since 3 Sep), LAST PLAYED "now" ("Harbor Rally on Lena-PC"), SESSIONS "64" (41 shared with others), RUNS "2" (1 active · Harbor Nuzlocke). Table GAME | SYSTEM | PLAY TIME | SESSIONS | LAST PLAYED (row 48).
+- Note: "Play time counts while a game runs and is not paused; watching a Session does not count. Lena can hide this from other members (“Show my play time”); admins always see it." No leaderboards, no comparison between users.
+
+### 6l Hub Storage
+Source: `round-4-b#6l` (369-405). Wave 2. Settings → Storage (DATA group).
+
+- Header "Storage": "Data folder /srv/framebeam/hubdata · FrameBeam data 349 GB · disk 412 GB of 1 TB used (grey = free and other files) · measured today 18:30", button "Measure again". Stacked usage bar (14 high) with legend in 2 columns: ROMs, Saves and snapshots, Save states, Backups (in data folder), Cores, Screenshots, Plugins, Upload temp (value in GB, colour dot).
+- CLEAN-UP SUGGESTIONS · 3 · FREES ABOUT 9.6 GB (rows 12 × 20): "Delete 14 snapshots older than 90 days" (“6 games, 3 users · current saves and run snapshots are kept”, 2.1 GB, "Delete…"), "Clear upload temp" (3 unfinished uploads, 7.5 GB, "Clear…"), "Remove 2 cores no system uses" (0.04 GB, "Remove…"). Line "Never suggested: the current save of a slot, snapshots marked by a run plugin, anything in an active run."
+- LARGEST GAMES table (title, system, ROM, saves, total).
+- Confirmation 500 (red primary), e.g. "Delete 14 snapshots older than 90 days?" / "From 6 games and 3 users, all made before 23 Jul. Frees 2.1 GB. The current save of every slot stays, and so do snapshots that SoulLink or another run plugin made." / "Deleted snapshots cannot be restored, except from a backup made before today (last: yesterday 03:00)." with link "Show the 14 snapshots", "Cancel", "Delete 14 snapshots". Confirmations name counts, what stays and the backup undo path.
+
+### 3s-5 Hub Saves, States (Round 4)
+Source: `round-4-c#3s-5` (126-153), `#3s-5-2` (154-161). Wave 3. Extends 3s-4.
+
+- Saves → Lumen Drift · Max · Game Boy Advance · mGBA: slot tabs "Main · 14 versions", "Speedrun · 1 version", new tab "States · 4". Intro: "States are made in the Player (F6). They hold the whole emulator, so they only load with the same core; they never replace a save. Upload is not offered here."
+- Table columns 84 | 70 | 1fr | 140 | 140 | 100 | 30 (thumbnail 84 × 56, SLOT, MADE with device, GAME TIME, CORE, Download, ⋯): rows Auto, 1, 2 ("“Lighthouse”"), 3; core cell "mGBA 0.10.3", an older core shows "mGBA 0.10.2" with a "may not load" pill (amber). "⋯": Rename, Delete state… (red). Note: states count toward Storage "Save states" (6l) and are in every backup.
+- 3s-5-2 history of Main: v15 "✓ Current"; v14 diamond node "◆ Snapshot" with label “by SoulLink · before Gym 3” and meta "today 18:05 · Plugin snapshot · SoulLink & Nuzlocke 1.4", "Restore"; plugin snapshots are not removed by retention or clean-up.
+
+### 6q-hub Hub Users with status
+Source: `round-4-d#6q-hub` (82-101). Wave 4. Users page of 3n-2 with a STATUS column (USER | STATUS | ROLE | action | ⋯): dot (green `#1e6b3a`, amber `#c08a1e` idle, grey offline), text ("Playing Lumen Drift", "Playing Harbor Rally · shared", "In Multiview", "Online"), role, "Watch" (opens 7b in the browser) where shared. Privacy: for a user with "Show what I play" off only Online / Idle / Offline is shown, to admins too; the game is never shown.
+
+### 6t-2 Hub run Chat history
+Source: `round-4-d#6t-2` (198-209, labelled 4jh-4 · chat). Wave 4. Run detail tab "Chat · 214" (tabs Board | Recap | Log | Chat, see [plugins.md](plugins.md#4jh-4-4j-4-run-recap-round-4)): read-only, searchable, export.
+
+- Toolbar: search field "Search chat", person filter "Everyone ▾", button "Export .txt". Day header "TODAY"; rows: time mono, name in the light player colour (system source "SoulLink" grey `#6b6a65`), text. Footer: "Kept as long as the run." The drawn second sentence “Session chat outside a run is not stored” is superseded by decision 33 (Session chat outside runs is kept 24 h on the Hub, then deleted automatically).
+
+### 7a Hub setup assistant
+Source: `round-4-e#7a` `#7a-2` (template 131-157, data 301-302), `#7a-3` (159-166). Wave 6. Shown after the first admin is created; skippable per step and overall; reopen from Settings → Setup assistant. Card 880 centred; header "Set up Home Hub" with "Skip setup · you can reopen it in Settings"; stepper of 6 bars (4 high, `#1a7f96` up to the current step, others `#e4e2dc`) with number or ✓ and label: Systems, Cores, ROM folders, Internet access, Backups, Done. Footer: "Back", skip note (“2 systems still without a core”, “Players at home work without this”), "Skip this step", primary "Next · {step}". Keys: Enter = Next, Esc = Skip setup (with confirmation).
+
+- Step 2 Cores ("Which cores should Home Hub offer?" / "You chose Game Boy, Game Boy Color, Game Boy Advance, Nintendo DS and Nintendo 3DS. Pick one core per system; Players download them on first start."): table CORE | SYSTEMS | SIZE with checkboxes (mGBA, Gambatte, melonDS DS, Azahar from the libretro buildbot); nothing is preselected ("Cores come from the libretro buildbot; you can add or change them later in Systems & Cores.").
+- Step 4 Internet access ("Can Players outside your home reach Home Hub?" / "Needed for friends who are not on your network. Skip if everyone plays at home."): Public address (`hub.example.com:8443`, "Test port"); checks grid 22 | 180 | 1fr: Port 8443 (TCP) ✓ "Reachable from the internet", Relay ports (UDP) ! amber "49160–49199 not reachable" ("Forward the range as UDP to this machine in your router. Without it, Players on strict networks cannot connect."), Certificate ✓ "Valid for hub.example.com"; "Built-in TURN relay" toggle ("Recommended: lets Players connect when a direct connection fails. Needs UDP 49160–49199 forwarded."). TURN settings that come from environment variables or flags are shown read-only here, like Settings → Network today (decision 34).
+- 7a-3 Done: "Home Hub is ready" with a summary list (✓ Systems "5 systems", ✓ Cores, ✓ ROM folders "/srv/roms · 38 games found", ! Internet access "Relay ports not reachable" with "Fix", – Backups "Skipped" with "Set up") and buttons "Invite users", "Open Library".
+
+### 7b Watch in the browser
+Source: `round-4-e#7b` (170-192), `#7b-390` (194-204), `#7b-states` (205-213, label 7b-2). Wave 6. Hub web page, dark theme forced for video; entry from Users/Sessions "Watch" (6q-hub).
+
+- 1440: header "← Sessions", "Watching Lena · Multiview", connection pill "● Relayed · 52 ms"; right: volume "♪ 60", "Quality: Auto ▾", fullscreen "⛶", "Open in Player". Video area with a tile switcher (thumbnails 180 × 100: tile 1 Max, tile 2 Lena (selected, 2px cyan), tile 3 Jonas) and caption "Tile 2 · Lena · Harbor Rally"; "1 2 3 switch tiles · sound follows the big tile". Side panel 320: tabs Chat | People · 4, messages (name in player colour + text), input "Message · Enter sends"; note “Browser viewers can chat; voice and Ask to play need the Player.” Voice in the browser is a later item (decision 31).
+- 390 portrait: back "← Lena · Harbor Rally", pill "Relayed", "⋯"; tile chips ("Tile 2 · Lena", "1 · Max", "3 · Jonas"), big controls 36-44 (volume "♪ 60", quality "Low · saves data", "⛶"), chat below with a "Message" field.
+- States (video area): connecting ("Connecting to Lena’s Session…" / "Usually 2–5 s. Trying direct first, then the relay."); relayed only ("Watching through the relay" / "Your network blocks direct connections; this adds about 30 ms. Quality may drop to Medium.", link "Why?"); ended ("Lena stopped sharing" / "The Session ended 18:52. Chat stays readable until you leave.", "Back to Sessions"); not allowed ("This Session is invite only" / "Lena shares Harbor Rally with invited people only. Ask her in the Player to invite you.", "Back to Sessions").
+- Keys: 1 2 3 tiles, M mute, F fullscreen, Enter chat.

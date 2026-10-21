@@ -463,6 +463,241 @@ Source: `#3y-2` (179-190), 1440 x 900. Fixes P34, P39; decisions 20, 21.
 - Pause card centred (380 wide, padding 24 32, radius 14, surface rgba(18,19,21,.92), border `#34353a`): "Paused" 22/600; "Viewers see “Paused by Max”. Saved to “Main” · today 18:52" (13, `#9a9a9f`; the first sentence only while the game is shared); buttons "Resume" (accent) and "Leave fullscreen" (outline); hint "Esc or Resume continues · F11 leaves fullscreen" (12, `#7a7a80`).
 - Behavior (decision 21): Esc pauses in a window and in fullscreen and opens this overlay; a second Esc or "Resume" continues; F11 toggles fullscreen. The diagnostics section of 3y stays for the unpaused fullscreen.
 
+## Round 4 (2026-10-21)
+
+Source `source/round-4-a.dc.html` (6a, 6c, 6d, 6e), `round-4-b.dc.html` (6g, 3e-4, 6h, 3c-8, 6i, 6k-2), `round-4-c.dc.html` (6m, 3c-3-4, 6n, 6o, 6p), `round-4-d.dc.html` (3g-4, 6q-6x, 3r-4, 3y-3), `round-4-e.dc.html` (6z, 7c) and the rules in `round-4-sheet.dc.html` (space plan 0-3, handoff table in the script `handoff`); dark theme. Hub and plugin screens of the same handoff are in [hub.md](hub.md#round-4-2026-10-21) and [plugins.md](plugins.md#round-4-2026-10-21). Table with all artboards and line ranges: [README.md](README.md#round-4-screens-2026-10-21-features-before-10); decisions 24-35 and open points bl-bq: [decisions.md](decisions.md); the only new color: [tokens.md](tokens.md#additions-of-round-4-2026-10-21). Mock names (Max, Lena, Jonas, Sam, Home Hub, Lumen Drift, Harbor Rally, Coral Saga: Ember, `hub.example.com`, versions 0.16.x) are illustrative. Round 4 builds on the Round 3 page rules (880 px content, 280 px control column, SettingsRow, date rule). The Settings navigation grows by "Voice" and "Notifications" (order: General, Hubs & library, Updates, Network, Voice, Notifications, Diagnostics, Plugins).
+
+### Space plan 0-3 (Round 4)
+Decided before any screen: every new control lands in one of five places, the in-game header, a panel tab, the OSD, the Player sidebar or the Hub sidebar (decision 35).
+
+#### 0-3 A In-game header and R4Header
+Source: `round-4-sheet#0-3-header` (22-115), component `source/r4-header.dc.html`. Replaces GameHeader for every Round 4 screen. 1440: 56 high, padding 0 16, surface `#111214`, bottom border 1px `#1e1f22`; groups padding 2, buttons 30 high, side padding 9-10; 1280: icons only, Reset moves into "⋯".
+
+- Zone 1 title: "← Library" (compact "←"), game title 15/600, share pill ("Not shared" / "Shared · 2 watching" / "Invite only · 2"; compact "Shared · 2"), then up to 3 avatars (22, 20 in the sheet, speaking ring 2px `#6fd39a` outside a 2px gap); more than 3 shows "+2"; click opens the People tab. Chat unread is not shown here. Optional chip after the pill (Round 4 uses "✎ Memory edited" amber `#2a2414` / `#e5b45a`, "Developer mode" grey `#26272b` / `#c9c8c4`).
+- Zone 2 your game: Pause, Speed-up with speed, Reset. Save states are no header button: hotkeys with OSD, the "⋯" menu and the States tab.
+- Zone 3 audio and view: Screen layout "▾" (DS/3DS only, hidden for one-screen systems; menu 6i), Volume with its value (click opens slider and mixer popover, 6g/6v), Microphone (only while voice is on in this Session: "Hold V" / "Live" / "Mic off" / "Muted by host", 6w).
+- Zone 4 window: Fullscreen (F11), Panel toggle carrying the unread count of Chat and People requests (cyan pill 16 high, `#3cbfd8` on `#0d1214`; grey `#2c2d32` for counts only; max "9+"), "⋯" for everything else. Diagnostics left the header: it is a panel tab (F3 still opens it).
+- "⋯" menu (230 wide): THIS GAME: Save state F6, Load state F8, Take screenshot F12, Reset Lumen Drift…, Settings for this game…; TOGETHER: Ready check…, Pause for everyone Shift+Esc; HELP: Hotkeys…, Report a problem…
+- Multiview mode: mode segment (PiP | Row | Grid 2×2 per decision 22) replaces the layout button; watch mode (watching only): "Watching {who} · {game}", connection pill "Direct · 18 ms" (green) or "Relayed · 48 ms" (cyan), "Leave".
+- Placement of every action (Button = always in the header, ⋯ = overflow, Key = hotkey with OSD; gamepad column = hold Select + the button, decision 24; the keyboard column acts only while the key is not bound to the game):
+
+| Action | 1440 / 1280 | Keyboard | Gamepad (hold Select +) | Feedback |
+|---|---|---|---|---|
+| Pause / resume | Button / icon | Esc | Start | Pause card (3y-2) |
+| Speed-up | Button / icon | Space (hold or toggle) | R2 | "▶▶ 4×" while on |
+| Reset | Button / ⋯ | none on purpose | none | confirm popover |
+| Volume | Button + value / icon | + / − , M mute | D-pad ↑ / ↓, X mute | "♪ Volume 72 %", "Muted" |
+| Mixer | in the volume popover | none | none | 6v |
+| Mic mute | Button (voice on) | Shift+M | R3 click | "Mic off" / "Mic on" |
+| Push-to-talk | Button shows state | hold V | hold R3 (if PTT; read as Select + R3, open point bm) | button "Live" |
+| Chat | Panel tab | Enter opens input | A on the input opens the on-screen keyboard | unread on panel toggle |
+| People | Panel tab + avatars | none | L1 / R1 in the panel | request count on panel toggle |
+| Save state | ⋯ + States tab | F6 (slot), Shift+F6 next slot | R1 | "▣ State 2 saved" |
+| Load state | ⋯ + States tab | F8 | L1 | "State 2 loaded · Undo" 6 s |
+| Undo load | OSD action | Shift+F8 | L1 again within 6 s | restores the Auto state |
+| Rewind | key only | hold Backspace | hold L2 | "◀◀ Rewinding" + bar |
+| Screenshot | ⋯ | F12 | Y | "Screenshot saved" 1.5 s |
+| Ready check | ⋯ + People tab | none | none | overlay 6s |
+| Pause for everyone | ⋯ | Shift+Esc | Start (hold 1 s) | "Lena paused for everyone" |
+| Screen layout | Button ▾ / icon | F7 cycles (Shift+F7 swap) | → (6i: Select + →) | "Layout: Side by side" |
+| Panel | Button + badge | F4 | Select double-tap (the one exception) | |
+| Fullscreen | Button / icon | F11 | B | |
+| Diagnostics | Panel tab / panel ⋯ | F3 | none | |
+| Save snapshot (file to Hub) | Session tab button | F5 | none | unchanged, decision 24 |
+
+#### 0-3 B Side panel tabs
+Source: `#0-3-panel` (117-148). Panel 340 (1280: 300); tab row 40, side padding 8, tabs 13px, padding 8 (300: 6), active 600 with a 2px `#3cbfd8` underline, icon tabs 32, "⋯" without badge, menu 230.
+
+- Order: Session · (Multiview) · People · Chat · States | Diagnostics · plugin tabs. Never more than 4 text tabs. Multiview sits after Session only while Multiview is on; States hides on a remote tile (states belong to your game).
+- Default tab Session; opening from the unread badge jumps to Chat, from avatars to People. Session tab keeps Sharing, Save and Quit; participants moved to People ("Invite a hub user…" stays in Sharing).
+- Overflow: at 340 two icon tabs (Diagnostics, one plugin), the rest in "⋯"; at 300 all icon tabs fold into "⋯" and a selected overflow tab shows as the fifth tab until you leave it.
+- Badges: cyan = unread chat or a request waiting for you; grey = count only (People). States dimmed (label `#5e5e63`) when off by run rule; inside: "Save states are off in this run · rule set by Max".
+- Gamepad: Select double-tap opens the panel and focuses the active tab; L1 / R1 switch tabs; B returns focus to the game; focus ring 2px cyan, inset 4.
+
+#### 0-3 C OSD and the zones over the game
+Source: `#0-3-osd` (150-191). One OSD style for everything.
+
+- Pill 36 high, radius 18, surface `#111214` at 88 %, line `#34353a`, text 13/500, optional icon (`#a3a3a8`), key badge, bar 96 × 4 (`#3cbfd8`). Amber variant only for "off by run rule" and "may not load": text `#e5b45a`, line `#4a3d1c`. No red.
+- Position: top centre of the game area (not the window), 16 px below its top edge; the same in fullscreen and on a Multiview tile (tile-scoped events only, 13 → 12 px). Stack of max 2, newest on top, gap 8; the same kind replaces in place (volume, state slot); persistent ones (paused, rewinding) stay first.
+- Duration: 1.5 s plain, 3 s with names, 6 s with an action (Undo), persistent while held or paused; fade 120 ms in / 200 ms out, Reduce motion = no fade.
+- Zones: OSD top centre; plugin toasts bottom right (4g-2, max 3); chat bubbles bottom left (max 3); HUD corners (4e-5). Toasts and bubbles stack upwards from 102 px above the edge when a HUD corner widget is shown, from 16 px otherwise. Bottom centre stays free for the fullscreen toolbar (3y-2) and gamepad hints (7c). Notifications (6r) never use the OSD; in fullscreen only mentions show, as a chat bubble.
+- Specimens: "♪ Volume 72 %" with bar, "♪ Muted" (M), "◰ Screenshot saved", "▣ State 2 saved" (F6), "▣ State 2 loaded · Undo" (Shift+F8, 6 s), "◀◀ Rewinding · 18 s left" with bar, "▶▶ Speed-up 4×" (icon cyan), "● Lena paused for everyone" (dot in player colour), "◆ SoulLink saved a snapshot · before Gym 3" (3 s), "⊘ Save states are off in this run · rule set by Max" (amber, 3 s).
+
+#### 0-3 D Player sidebar: Online block and bell
+Source: `#0-3-sidebar` (193-241); component `source/player-nav.dc.html` with `r4`. Order: nav · flexible space · Online block · Hub card · user row; nothing new above the nav.
+
+- Online block above the Hub card: eyebrow mono "ONLINE · 3" with link "All" (opens 6q). Max 3 rows ordered playing first, then in Multiview, then idle; offline people only in "All". Row 36: avatar 24 in the player colour with status dot 8 (green `#6fd39a`/`#5fd28a` active, amber `#e5b45a` idle, grey offline), name 13, status 11 ("Playing Harbor Rally", "In Multiview", "Idle · 12 min"). Hover or focus shows one action: Watch if shared, otherwise Invite; Message is in the row "⋯" (0-2 rule).
+- Below 860 px window height (1280 × 800) the block folds to one row of avatars with the count; a click opens the Online popover.
+- Bell: in the user row at the right edge, 32 × 32, cyan count badge 16; opens the notification list (6r) as a popover to the right; no bell in the header. Tab order: nav → Online → Hub card → bell. Focus ring 2px cyan.
+- Hub offline: Online shows one grey line "Not available while Home Hub is offline."; the bell keeps local notifications (update, backup failed) but no Hub count; Hub card shows "Retry" and "offline · 4 min".
+
+### 6a What's new (Player)
+Source: `round-4-a#6a` / `#6a-2` (template 26-56, data 472-473). Wave 0. Shown once after an update, over the dimmed Library (1440 × 900; 6a-2 at 1280 × 800).
+
+- Sheet 600 wide, max 720 high, centred. Eyebrow "WHAT’S NEW" mono 11 cyan, title "FrameBeam 0.16.4" 24/600, meta "Stable · today · changes since 0.15.3, including the 0.16.0 – 0.16.3 betas" (a stable release sums up the betas since the previous stable).
+- Groups ADDED · n, CHANGED · n, FIXED · n; item 14/21 with a tag column 56 (Player, Hub, Both). Long notes scroll with a fade at the bottom edge. Links "Full release notes ↗" and "Also in Settings → Updates"; primary "Got it" (footer padding 16 × 28).
+- 6a-2: very short notes ("Stable · 28 Oct · one fix", one FIXED item) still look intentional, same sheet.
+- Keys: Enter or A = Got it, Esc closes, arrows scroll. Reopen from Settings → Updates ("What’s new in 0.16.4") and from the bell.
+
+### 6c Updates, roll back (Player)
+Source: `round-4-a#6c` / `#6c-3` (template 202-224, data 506-508), `#6c-2` (228-243). Wave 1. Settings → Updates, content 880, control column 280.
+
+- Status row "Player 0.16.4 is up to date · Stable channel · checked today 17:52" with link "What’s new in 0.16.4"; Update channel segment Off | Stable | Beta; "Install updates automatically" ("Never while a game is running.").
+- EARLIER VERSIONS · 3: "Go back if something stopped working after an update. Settings stay; saves and states are on Home Hub and are not touched. The Player keeps the last 3 versions (412 MB)." Rows: version mono, state ("installed today 03:20", "used 2 Oct – today"), outline button "Go back…" (focus ring 2px cyan with 2px gap); the running version shows "Running".
+- 6c-2 dialog 560: "Go back to 0.16.3?" / "The Player closes, installs 0.16.3 and starts again. About 30 s." with rows Settings (kept; newer settings are ignored and come back after the update), Saves and states (not touched), Plugins (amber line when one needs the newer Player: "SoulLink & Nuzlocke needs 0.16.4 and is turned off until you update."), Updates (paused). Buttons "Cancel", "Go back to 0.16.3". While a game runs the primary is muted and the dialog says "⊘ Lumen Drift is running. Quit the game first; it saves and syncs."
+- 6c-3 after going back: amber card (`#1d1a12` / `#4a3d1c`) "Running 0.16.3 · automatic updates paused until you resume them" / "You went back from 0.16.4 today 18:52. 0.16.4 stays available." with "Update to 0.16.4" and "Resume updates"; the automatic-updates toggle is off ("Paused after going back. “Resume updates” turns it on again."); list shows 0.16.4 as "skipped · available"; the affected plugin row reads "SoulLink & Nuzlocke is off · Needs Player 0.16.4. Turns on again after you update." with link "Settings → Plugins".
+- Not drawn (decision 32): rolling back one plugin on its own, "Use previous version" on the plugin row and in the plugin detail (4a-3, 4a-4); runs keep their pinned plugin version.
+
+### 6d Report a problem (Player)
+Source: `round-4-a#6d` (288-313), `#6d-states` (314-327, label 6d-2). Wave 1. Dialog 580 over the Library, opened from an error banner ("Session with Lena ended unexpectedly · today 18:41 · the game was saved" with "Connection check" and "Report a problem"), from Settings → Diagnostics and from the in-game "⋯".
+
+- Title "Report a problem", sub "Goes to the admins of Home Hub. They see it under Reports." Field "What happened?" (textarea 96 high), chip "Linked: “Session ended unexpectedly” · today 18:41". ATTACHED · 2.4 MB with link "See what is included"; rows 34 high, 13px, checkbox + name + size: Logs of the last 3 days (2.1 MB), Settings (no passwords, no Hub token; 18 KB), Connection check from today 18:43 (4 KB), System info: Windows version, GPU, driver (2 KB, unchecked by default). Line "Never included: passwords, the Hub pairing token, ROMs, saves."
+- Footer: "Save as file…" (left), "Cancel", primary "Send to Home Hub". Keys: Ctrl+Enter sends, Esc cancels.
+- Footer states (6d-2): sending ("Sending to Home Hub…", "1.0 of 2.4 MB. You can keep using the Player.", progress bar, "Cancel"); sent ("✓ Report sent · #12", "The admins of Home Hub see it under Reports. Nothing else to do.", "Done"); Hub offline ("⊘ Home Hub is offline", "Save the report as a file and send it later, or keep the dialog open; it sends when the Hub is back.", "Save as file…", disabled "Send to Home Hub"); failed ("Could not send", "Upload stopped at 40 % (connection lost). Your text is kept.", "Save as file…", primary "Try again").
+
+### 6e Connection check
+Source: `round-4-a#6e` (376-397). Wave 1. Dialog 600 "Connection check · This device · Desktop-LivingRoom · to Home Hub", opened from Settings → Network, Settings → Diagnostics, a failed Session and the "Relayed" pill.
+
+- Five steps in a list (columns 22 | 150 | 1fr): Hub reachable → STUN → TURN relay → NAT type → Test connection. Each shows an icon (✓ green `#6fd39a` on `#17291f`, "!" amber, ✕ grey `#26272b`, running = 2px cyan ring, waiting and skipped = 1.5px grey ring), the result (13) and a plain explanation (12).
+- Outcomes (summary card, 12 × 14, below the steps): running ("step 3 of 5", button "Cancel"); direct possible (green card "Your network allows direct connections" / "Sessions go straight between Players. The relay is ready as a fallback."); only relayed (amber `#1d1a12` / `#4a3d1c`: "Only relayed connections are possible here" / "This works but adds delay (about 30 ms more). Common on office and mobile networks. Turning on UPnP on your router, or using another network, usually allows direct connections."; NAT row "Symmetric NAT" amber); Hub not reachable (grey card "Home Hub cannot be reached", the other steps "Skipped", extra button "Edit Hub address…").
+- Actions "Copy result", "Add to problem report", "Run again" (right, primary when the Hub was unreachable). Keys: R = Run again, Ctrl+C copies the result.
+
+### 6g Volume
+Source: `round-4-b#6g` (24-56), `#6g-2` (58-86). Wave 2. Header Volume button, popover and OSD (1440 × 900).
+
+- Header button: icon + value ("72") at 1440, icon only at 1280 (value in the tooltip). States: normal, muted (grey `#8e8e94`, slash on the icon, label "Muted"), focus (ring `0 0 0 2px #111214, 0 0 0 4px #3cbfd8`), open (`#15262b`, text `#3cbfd8`).
+- Popover 300: "Volume 72 %" with slider (4px track, 16px knob with focus ring) and mute button (♪), hints "M mute", "+ / − 5 %", "Select + ↑ ↓", entry "Mixer: My game · Voice · Plugin sounds ›" (opens 6v), status "Muted in the background: on · Sound settings". A or Enter on the focused button opens it.
+- OSD while changing: "♪ Volume 72 %" with bar (updates in place), "♪ Muted M", "♪ Volume 100 % max".
+- Multiview tile label (12 on `#111214` at 82 %, top right): "Muted" only when muted on purpose (mixer, M on that tile); tiles that are silent only because audio plays elsewhere show nothing; the tile with the audio shows "♪ Audio here" (3r-3); master mute shows "Muted" on every tile and in the header.
+- Settings rows (SettingsRow): "Mute when the window is in the background" (toggle, default on; "Sessions you watch stay audible unless you mute them."), "Volume steps" (segment 2 % | 5 % | 10 %, default 5 %), "Show volume on screen" (toggle).
+
+### 3e-4 Emulation, Display tab (Round 4)
+Source: `round-4-b#3e-4` (90-109), `#3e-4-2` (110-118). Wave 2. Emulation page of 3e-3: system list, header "Nintendo DS · melonDS DS 1.4 · saved on this device only" with "Reset all to default"; tabs Display | Core options | Firmware | Audio.
+
+- Display tab sections (eyebrow mono 11, 20 above): PICTURE (Integer scaling toggle; Aspect ratio segment Core | 4:3 | Stretch; Screen layout select, "Default for DS games. Change in game with F7; a game can keep its own (6h)."), RUN-AHEAD (segment Off | 1 frame | 2 frames with meta "CPU +35 %"; "Hides input delay by running a few frames ahead. Uses more CPU. Allowed in runs."), REWIND (toggle; "Hold Backspace (gamepad: hold Select + L2) … Can be turned off by a run rule."; Rewind length segment 10 s | 30 s | 60 s with meta "about 180 MB memory"), RENDERER (segment OpenGL | Vulkan; Vulkan disabled with the reason "Vulkan: melonDS DS offers OpenGL only", reset column empty).
+- 3e-4-2 rows that differ per system (same SettingsRow, only rows the core uses): Nintendo 3DS · Azahar: Run-ahead disabled ("Azahar cannot run ahead: 3DS games are too heavy to run twice"), Rewind length 10 s with meta "about 1.1 GB memory" and badge "high memory", Renderer Vulkan offered ("applies on next start"); Game Boy / Color / Advance · mGBA: no Screen layout row, Renderer row hidden (software), Aspect "Core: 10:9 for Game Boy, 3:2 for Game Boy Advance".
+
+### 6h Settings for this game
+Source: `round-4-b#6h` (122-137). Wave 2. Sheet 560 from the right over a 60 % scrim, opened from the detail badge "3 changes" (3c-8) or from the in-game "⋯" → Settings for this game….
+
+- Header "Settings for Lumen Drift" with "×", sub "Game Boy Advance · mGBA · 3 changes from your defaults" and "Reset all 3". Tabs Display (2) | Controls (1) | Screen layout with change counts (active underline cyan).
+- SettingsRow list: unchanged rows read "Uses default (On).", changed rows "Changed for this game · default Core." with the cyan dot and "Reset". Controller profile row "Uses default (Xbox pad · Standard). Set on the Controls tab." Footer "Changed for this game · Reset goes back to your default for Game Boy Advance". Keys: Esc closes, L1 / R1 switch tabs.
+
+### 3c-8 Player Library (Round 4)
+Source: `round-4-b#3c-8` / `#3c-8-2` / `#3c-8-4` (template 140-196, data 446-448), `#3c-8-states` (199-213, label 3c-8-3), `#6k-2` (355-363). Wave 2. Builds on 3c-6 (header row, chips, grid max 1680, detail 340).
+
+- Continue row above the grid: card 1.6fr "CONTINUE · Lumen Drift · Main · v14 · 2 h ago" with button "Continue" (plus 1-2 recent tiles 1fr, "yesterday", "16 Oct"). Gamepad: Continue gets first focus (ring 2px `#3cbfd8`, gap 2); Enter on Continue starts.
+- Chips: "All · 10", "★ Favourites · 3", collections ("Couch co-op · 4", "Nuzlocke · 2"), "+ Collection" (13px, active = filled `#ececea`). Sort "Recently played ▾" (falls back to Name when nothing was played). Tile: star 26 top right (☆ grey `#7d7d83` / ★ amber `#e5b45a`; tooltip "Add to favourites · F"), system badge, play time line ("12 h 40 min · 2 h ago", "Never played"). Selected tile border 2px cyan.
+- Detail 340: star, title, "Game Boy Advance · mGBA", collection chips with "+ Collection" opening the popover ADD TO COLLECTION (checkbox rows, name + count, "Create"), badge "3 changes" (opens 6h), facts Play time / Sessions / Save ("Main · v14 · synced") / States ("3 of 4 slots"), SCREENSHOTS · 8 strip with "All on Home Hub ↗", buttons "Play · Main v14" (primary) and "Play and share Session".
+- 3c-8-2 (1280 × 800): chips shorten ("★ 3", "+"), 2 columns, popover open. 3c-8-4: Favourites chip with none ("☆ No favourites yet" / "Star a game on its tile or in the detail. Favourites are yours only and follow you to every Player on Home Hub." / "Show all games").
+- 3c-8-3 states: empty collection ("Short sessions is empty", Rename / Delete collection…); first start (no Continue strip until you have played once); Continue when the save is not on this device ("Downloads the save from Home Hub first (“Getting save…”), then starts. Never starts an older local save without asking."); collection "⋯" (Rename, Delete collection…; deleting never deletes games; collections are per user and sync through Home Hub).
+- 6k-2 game detail facts: played (Play time, Last played, Sessions · since 3 Sep), never played (Play time —, Last played never, Added 14 Oct), in a run (In this run 9 h 15 min, Total 31 h, Run started 2 Oct). Key F = favourite.
+
+### 6i DS and 3DS screen layouts
+Source: `round-4-b#6i` (218-248), `#6i-2` (249-272). Wave 2 (1280 × 800 and 1440).
+
+- Layout menu from the header button "▾" (300 wide, rows 36, layout glyph 22): Stacked, Side by side (✓), Large top small bottom, Top screen only, Bottom screen only, divider, "Swap screens Shift+F7", "Bottom screen in its own window", footer "Saved for Clocktower Kids. Default for all DS games: Emulation → Nintendo DS." OSD "Layout: Side by side F7". F7 cycles, Select + → cycles.
+- 6i-2: the bottom screen in a second window on monitor 2 (4:3, resizable, touch works with mouse or touch screen); the header shows the pill "Bring back"; the main window's top screen fills it. "Bring back", closing the second window, F7 or any layout puts the screen back in the main window; an unplugged monitor does the same with the OSD "Bottom screen is back in the main window"; position and size are remembered per game.
+
+### 6m Save states
+Source: `round-4-c#6m` (23-54), `#6m-2` (56-75), `#6m-3` (77-90). Wave 3. A save is what the game writes; a state is a picture of the whole emulator and lives on Home Hub; loading a state never changes a save until the game saves again; every load makes an Auto state first so it can be undone.
+
+- States tab (panel 340): header "STATES · 3 OF 4 ✓ on Home Hub". Rows: thumbnail 72 × 48, number, name ("Slot 2 · “Lighthouse”"), meta "just now · game time 12 h 40 min", tags "Auto" (grey) / "New" (cyan `#15262b` / `#3cbfd8`); padding 8, radius 9; selected `#15262b` with a `#3cbfd8` border; empty slot "Empty · select and press F6". Auto first (decision 27: the last 3 Auto states, newest first; the drawing shows one row), then slots 1-4. Buttons 36: "Save to 2 F6", "Load 2 F8", "⋯" (Rename, Download, Delete state… red). Hint "Shift+F6 next slot · Shift+F8 undo load · gamepad Select + R1 / L1"; note "States are not your save. Main v14 changes only when the game saves."
+- 6m-2: loading from the panel asks inline (card: "Load state 1 from today 17:02?" / "Replaces the running game (1 h 29 min of play). Your progress is kept as Auto first; Undo for 6 s or load Auto any time." / "Cancel", "Load state 1"; checkbox "Don’t ask again (F8 never asks)"). F8 loads at once. Both make an Auto state ("before loading state 1") and show the OSD "▣ State 1 loaded · Undo Shift+F8" with a ring counting the 6 s. After Undo: "↶ Back to where you were"; the Auto state stays until the next load replaces it (oldest of the three).
+- 6m-3 states: no states ("Empty" rows, "Save to 1 · F6"); off by run rule (amber banner "Save states are off in this run · rule set by Max" / "Harbor Nuzlocke. Your states stay; you can use them again after the run.", rows at 45 %, buttons disabled, hint "F6 and F8 show the same text as amber OSD"); state from an older core (row text amber "May not load, made with melonDS DS 1.3. If it fails, nothing changes.", button "Try to load 2"); Home Hub offline (banner "Saved on this device only" / "Uploads to Home Hub when it is back. States from other devices are not available now.", row "just now · waiting to upload", gamepad focus ring).
+
+### 3c-3-4 Player Saves and states
+Source: `round-4-c#3c-3-4` (93-123). Wave 3. Library → game → "Saves and states" (replaces the Saves view title of 3c-3); content grid 1.15fr | 1fr.
+
+- Left SAVE · WHAT THE GAME WRITES with slot select "Main ▾": SaveRow history (v15 current, v14 diamond "◆ Snapshot" with label "by SoulLink · before Gym 3" and reason "Plugin snapshot", plain versions, thinned row "10 older versions"); text "Versions arrive each time the game saves. Restore makes an older version current; the newer ones stay."
+- Right STATES · WHOLE EMULATOR AT ONE MOMENT: rows (thumbnail 64 × 42, Auto/1-4, name, meta "today 18:40 · 12 h 40 min", action "Play from state" or "Try to load" with "may not load" amber for an older core, "⋯"); text "Made with F6 or from the States tab. Loading one never changes the save above until the game saves again." and "“Play from state” starts the game and loads it; the save in Main is used as well."
+
+### 6n Rewind
+Source: `round-4-c#6n` (165-178). Wave 3. Hold Backspace or Select + L2.
+
+- OSD "◀◀ Rewinding · 18 s left" with a bar (120 × 4) that empties from the right; the game runs backwards at 2× while held, audio muted; release resumes from here and nothing is saved until the game saves. Start of the buffer: "Start of rewind · 30 s", bar empty, stays on the first frame (length: Emulation → Display → Rewind length). Off by run rule: amber "Rewind is off in this run · rule set by Max" for 3 s on each key press, the game keeps running.
+- Viewer side: the stream goes back and the tile shows "◀◀ Max is rewinding" (12px, picture saturate .4). In a run with rewind off the host cannot rewind, so viewers never see it.
+
+### 6o, 6p Memory writes and plugin snapshots
+Source: `round-4-c#6o` (181-211), `#6o-2` (213-249). Wave 3. Plugin part (run log, board, permission): [plugins.md](plugins.md#6o-2-memory-edits-in-runs-round-4).
+
+- 6o: after a plugin writes game memory, the amber OSD "✎ Creature Editor changed game memory · Undo to snapshot" for 6 s, then the header chip "✎ Memory edited" (12/500, `#2a2414` / `#e5b45a`) until the next save; chip focusable, Enter opens the popover (340, amber line `#4a3d1c`): "Game memory was changed", lines "✎ 18:31 · Creature Editor set Mossling level 14 → 20", "A snapshot “before Creature Editor · 18:31” was made first. Undo loads it and replaces 1 min of play.", "Logged in Harbor Nuzlocke · run board shows “Editor used”.", buttons "Keep changes" and "Undo to snapshot".
+- 6p: OSD "◆ SoulLink saved a snapshot · before Gym 3" (3 s, never stacked with a toast for the same event). The snapshot label "by SoulLink · before Gym 3" shows in the Player saves view and in the Hub history; plugin snapshots are exempt from retention and clean-up.
+
+### 3g-4 In-game header and panel (Round 4)
+Source: `round-4-d#3g-4` / `#3g-4-2` (template 24-57, data 346-348). Wave 4. Header = R4Header (0-3 A), panel tabs per 0-3 B.
+
+- 3g-4 (1440 × 900): Session sharing own game, voice push-to-talk, 2 unread; panel 340, Session tab: SHARING ("Shared · 2 watching", segment Private | Hub users | Invite only, "+ Invite a hub user…", "Stop sharing"), SAVE ("Saves and states →", "Main v14 ✓ synced", "◆ Save snapshot F5"), "Quit game" with "Saves and syncs first". Tabs: Session, People 3 (grey), Chat 2 (cyan), States, then icons (diagnostics, plugin).
+- 3g-4-2 (1280 × 800): icons only, panel 300 with "⋯", OSD "♪ Volume 72 %", People tab: "IN THIS SESSION · 3" with "Ready check"; rows (padding 8, avatar 28 in the player colour, name, role "Host" / "Viewer", line: host "Encoding 6.0 Mbit/s · 60 fps", viewers "Relayed · 48 ms · gets High 1280 × 960" / "Direct · 18 ms · picked Medium", speaking ring, "⋯"). Note "Quality = what the viewer receives. You send one stream; each viewer gets the best their connection allows unless they pick lower."
+
+### 6q Online popover
+Source: `round-4-d#6q` (62-81). Wave 4. From "All" in the Online block, over the Library. Popover 340, rows 44, avatar 28, status dot 9; header "On Home Hub · 3 online · 1 offline".
+
+- Row: avatar, name, status ("Playing Harbor Rally · shared", "In Multiview · watching Lena", "Idle · 12 min", "Offline · 2 h ago" at 60 %), one action (outline button: Watch if shared, otherwise Invite; none for you and offline people), "⋯" (Message). Footer "Show what I play: On · Settings → General" (privacy line). Keys: arrows move, Enter = the row action, menu key = "⋯". Users with "Show what I play" off show only Online / Idle / Offline. Hub counterpart: [hub.md](hub.md#6q-hub-hub-users-with-status).
+
+### 6r Notifications
+Source: `round-4-d#6r` (105-125), `#6r-2` (126-136). Wave 4.
+
+- Bell popover 400 anchored to the bell (1280 × 800, Online folded): header "Notifications", "Mark all read", "⚙" (opens 6r-2); sections NEW and EARLIER; row grid `8 | 28 | 1fr | auto`: unread dot cyan, icon (avatar 28 round or tile 28 radius 6: "SN", "↑", "!"), text 13 + sub 12 ("just now · Invite"), one action button (Watch, Open run, What’s new, Open Status; cyan outline when unread); unread row surface `#212226`. Examples: "Lena invited you to watch Harbor Rally", "Lena’s Tidepup fainted · your Mossling is linked", "Player 0.16.5 is available", "Backup failed on Home Hub · not enough space" (admins only, amber icon). Earlier notifications are kept 14 days.
+- Empty "Nothing new"; Hub offline: only notifications from this Player (update, local errors); Hub notifications arrive when it is back. Bell focusable in the sidebar tab order.
+- 6r-2 Settings → Notifications (SettingsRow, segment Toast | List only | Off): Invites (Toast), Sessions started (List only), Run events (Toast), Updates (List only), Hub problems (Toast; admins only); toggle "Quiet in fullscreen" (on: only mentions (@Max) show, as a chat bubble; everything else waits in the bell); toggle "Sound for toasts" (off).
+
+### 6s Ready check and pause for everyone
+Source: `round-4-d#6s` (140-157), `#6s-2` (158-171). Wave 4. Who may ask: decision 28 (anyone in runs, only the host in Sessions).
+
+- Participant view (card 460 over the dimmed game): "Ready?" / "Lena asked · Harbor Nuzlocke · before Gym 3"; countdown ring 52 with the seconds left (30 s); rows 42 per person with status pill: Ready (`#17291f` / `#6fd39a`), Not ready (amber `#2a2414` / `#e5b45a`), No answer yet (grey `#26272b` / `#a3a3a8`); buttons "Not yet" (B) and "I’m ready" (A, primary). Text "Your game is paused while the check runs. When everyone is ready, Lena presses Start and all games resume together after 3 · 2 · 1. No answer after 30 s counts as not ready." Keys A / B.
+- 6s-2 host view: "3 of 4 ready" → card "Sam is not ready" / "Lena, Jonas and you are ready. Start anyway or wait; the check closes after 30 s." with "Cancel check", "Start without Sam", "Wait"; all ready: OSD "Starting in 3" (cyan dot) counting 3 · 2 · 1.
+- Pause for everyone (Shift+Esc): OSD "● Lena paused for everyone" (dot in the player colour) on your game and, tile-scoped, on that Multiview tile; card "Paused by Lena" / "All games in Harbor Nuzlocke are paused. Lena or the run creator (Max) can resume." with "Resume for everyone"; someone who may not resume sees "⊘ Only Lena or Max can resume. Ask in Chat." with "Open chat". Setting card: "Who can ask “Ready?” and pause for everyone" segment Host only | Everyone; "Resume: the person who paused or the host."
+
+### 6t Chat
+Source: `round-4-d#6t` (174-195). Wave 4. Chat tab of the panel (1440, input focused). Hub history: [hub.md](hub.md#6t-2-hub-run-chat-history).
+
+- Header "Run chat · Harbor Nuzlocke · 4 people" and "Bubbles: on". Messages: avatar 20 in the player colour, "name · time" 11, text 13 in a bubble (radius 8, padding 6 10, surface `#1a1b1e`, border `#26272b`; own messages `#232428`); mention (@Max) border `#3cbfd8`; pings are emphasised bubbles (☠ "Down!" amber `#2a2414` / `#4a3d1c` with the speaker ring when the person is talking, "Gym next" cyan `#15262b` / `#1f4650`). System lines from plugins are centred grey text ("SoulLink · Lena’s Tidepup fainted · Mossling linked", "Today 18:02 · Jonas joined").
+- Ping chips (28 high, number keys while the input is empty): ☠ Down! (1), Gym next (2), Wait for me (3), GG (4), "+ Custom". Input 38 high ("Enter sends · Esc back to game"). Keys go to the chat while it has focus; the game keeps running. Gamepad: A on the field opens the on-screen keyboard (7c).
+- Bubbles appear on tiles (3r-4) and in fullscreen (3y-3), fade after 6 s, switchable ("Bubbles"). Session chat outside runs: decision 33.
+
+### 6u People, quality and invite role
+Source: `round-4-d#6u` (211-234). Wave 4.
+
+- Viewer side of the People tab: host card "L Lena · host · Harbor Rally · speaking"; YOUR STREAM segment (4 cells) Auto | High | Medium | Low; "Now: 1280 × 960 · 60 fps · 4.1 Mbit/s · Relayed · 48 ms. Low saves data on a phone hotspot." and "Same control on the tile: hover → ⋯ → Quality."; button "Ask to play…" (6x).
+- Invite dialog 412: "Invite to Lumen Drift", person row "Sam · online · idle", "Sam can" with two radio cards: "Can watch" (Sees and hears the game, can chat and talk. Sends no input.) and "Can ask to play" (Like watch, plus “Ask to play”. You still decide each time (6x).); "Cancel", "Send invite".
+
+### 6v Mixer
+Source: `round-4-d#6v` (239-259). Wave 4. Panel inside the volume popover (6g), opened by "Mixer ›"; 360 wide, row columns `24 | 1fr | 110 | 28` (icon, label + sub, slider, mute). Multiview with 3 tiles.
+
+- "‹ Mixer · Master 72 %". Channels: My game (80 %), each tile with the player avatar ("Lena · tile 2" · "100 % · remembered for Lena"; muted tile at 60 % opacity, cyan mute), Voice ("70 % · lowers game while someone speaks"), Plugin sounds ("SoulLink & Nuzlocke", 40 %). Toggle "Mix all tiles" ("Off: only the tile with “♪ Audio here” plays"). Tile labels show the per-tile volume ("♪ 80 %") or "Muted". Values are remembered per person. Keys: arrows adjust the focused slider, M mutes the focused channel.
+
+### 6w Voice
+Source: `round-4-d#6w` (263-277), `#6w-2` (278-287). Wave 4. Decision 30 corrects the drawing: voice flows directly between Players over the same peer connection as the video (TURN relay only as the fallback); it does not go through the Hub.
+
+- Settings → Voice (SettingsRow): intro "Talk with people in your Session or run. Voice goes directly between Players like the video." (drawing: “… goes through Home Hub like the video”, wrong); Microphone (select "Headset Microphone (USB)", level meter 8 high with the voice-activation threshold line 2 × 14); Talk (segment Push-to-talk | Voice activation); Push-to-talk key (buttons "V", "R3 (hold)": click, then press the key or button); Noise suppression (on); "Lower game volume while someone speaks" (on; game and tiles go down by half); "Join voice automatically" (off; "In runs and invite-only Sessions. Off: press the mic button to join.").
+- 6w-2 header mic states: push-to-talk idle "Hold V" (Shift+M turns the mic off; the speaker's avatar gets the 2px `#6fd39a` ring in header, People tab, tiles and fullscreen); talking "Live" (`#15262b` / `#3cbfd8`, cyan fill; own ring is green for others; game volume drops if "Lower game volume" is on); "Mic off" (slashed; Shift+M / Select + R3; others see a slashed mic next to your name; you still hear everyone); "Muted by host" (amber; only the host can undo it, ask in Chat); "No mic" (grey; you can listen, connecting a microphone makes the button appear without a restart); "Blocked" (permission denied: “Windows blocks the microphone for FrameBeam. Open Settings → Privacy → Microphone.”; Linux: the PipeWire portal prompt again).
+
+### 6x Hand over the controller
+Source: `round-4-d#6x` (291-303). Wave 4. Request → host decides → indicator on both sides → take back. Off in runs unless the rule allows it. Latency rule: decision 29.
+
+- Cards 330 (border `#1f4650`; amber `#4a3d1c` for rule off). Host, request arrives: "Lena wants to play as Player 2" / "Harbor Rally supports 2 players. Lena is relayed (48 ms): her inputs arrive about 3 frames late." with "Decline", "Hand over Player 1", primary "Allow Player 2". Above 120 ms RTT the card shows a clear amber warning; the host still decides.
+- Indicator chip (cyan `#15262b` with a player-colour dot): host "Lena controls Player 2" (card: "Your controller stays Player 1. Take back any time; Lena gets a notice.", "Take back"); handed over Player 1: chip "Lena controls Player 1 · you watch", card "Your controller is paused" / "Press Start on your controller or “Take back” to play again. The save stays yours."; viewer: chip "You control Player 2 · 48 ms", card "Your controller sends to Max’s game" / "Latency 48 ms. Esc menu → Give back control. Max can take back at any time." with "Give back". Start on the host pad takes back.
+- Viewer ask dialog "Ask Max to play?" / "Pick what to ask for. Max decides." with "Cancel", "As Player 2". In a run with the rule off: "Handing over is off in this run · rule set by Max" / "Harbor Nuzlocke: every player plays their own game. “Ask to play” is hidden for viewers."
+
+### 3r-4 and 3y-3 Multiview and fullscreen (Round 4)
+Source: `round-4-d#3r-4` (306-320), `#3y-3` (322-337). Wave 4. Extend 3r-3 and 3y-2.
+
+- 3r-4 Grid 2×2 (1440): gap 12; tile label with avatar 20 in the player colour; right label ("♪ Audio here" cyan, "Muted", "Low · relayed" grey); speaking ring 2px `#6fd39a` (gap 1) on the speaker's avatar; per-tile chat bubbles (12px, newest at full opacity, older .55, fade); a paused tile (Lena) shows the tile-scoped OSD "Lena paused for everyone" 44 px from the tile top (14 otherwise) and the frozen picture. Selected tile border 2px cyan.
+- 3y-3 fullscreen: toolbar at the top (top 20; Pause, "♪ 72", "● Live", "Chat 2", "Leave fullscreen F11"; shown on mouse move); OSD below the toolbar (84 from the top while the toolbar shows, 16 otherwise); chat bubbles bottom left with a cyan outline for mentions ("Lena @Max heal first, then gym"); voice avatars bottom right; "Enter replies · bubbles fade after 6 s · Settings: Chat bubbles in fullscreen". Only mentions break the fullscreen quiet (6r).
+
+### 6z Privacy and Discord status
+Source: `round-4-e#6z` (106-126). Wave 5. Plugin part (splits widget): [plugins.md](plugins.md#6z-splits-widget-round-4).
+
+- Settings → General, PRIVACY (SettingsRow): "Show what I play" (toggle; “Others on Home Hub see the game you play in Online and Users. Off: only Online / Idle / Offline.”), "Discord status" (segment Show game | Show run | Off, default Show run), "Show play time to other members" (toggle; admins always see it, 6k).
+- Previews (cards): SHOW GAME "Playing Coral Saga: Ember · via FrameBeam · 1 h 12 min"; SHOW RUN "Harbor Nuzlocke · day 19 · 3 badges · 6 alive"; OFF "Nothing is sent · Also when Discord is closed". Note: Discord must be running on this device; otherwise the row shows "Discord not found" and nothing is sent; no account linking, no logo.
+
+### 7c Handheld, 1280 x 800, gamepad only
+Source: `round-4-e#7c` (217-239), `#7c-2` (240-257). Wave 6.
+
+- Library: focus ring 3px `#3cbfd8` with a 3px gap and the focused tile scaled 1.03; chips filtered with L1 / R1 (chips show "L1" and "R1" glyphs at their ends); search ("Y") opens the on-screen keyboard (keys 44 × 38, rows qwertyuiop / asdfghjkl / zxcvbnm, Space 260, Done 120; hint "Search · B close · X backspace · Y space · Start done"); the detail column becomes a sheet (A). Hint bar 56 at the bottom: A Play, X Favourite, Y Search, B Back, ☰ Details, L1 R1 Chips; labels follow the connected pad (Xbox / PlayStation / Steam Deck).
+- 7c-2 in game: holding Select shows the full hotkey map as an overlay (release to close): Start Pause, R2 Speed-up, ↑ ↓ Volume, X Mute, R1 Save state, L1 Load state, hold L2 Rewind, Y Screenshot, → Screen layout, B Fullscreen, R3 Mic on/off, ↓ Splits plugin: split (grey, plugin-defined). Select double-tap puts focus on the header; the hint bar (A Open, B Back to game, ← → Move, L1 R1 Panel tabs) shows only while the header or panel has focus and is hidden during play.
+
 ## Components (revision v4)
 Component sources are the `.dc.html` files in `source/` (README, "Component sheets"). Values below are taken from them and from the sheets.
 

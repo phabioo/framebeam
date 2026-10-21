@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<header style="height:56px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 16px;background:#111214;border-bottom:1px solid #1e1f22;color:#ecebe7;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;white-space:nowrap">
+  <sc-if value="{{ full }}" hint-placeholder-val="{{ true }}"><span style="height:32px;display:flex;align-items:center;padding:0 8px;color:#a3a3a8">← Library</span></sc-if>
+  <sc-if value="{{ compact }}" hint-placeholder-val="{{ false }}"><span style="width:32px;height:32px;display:grid;place-items:center;color:#a3a3a8;font-size:15px">←</span></sc-if>
+  <span style="width:1px;height:20px;background:#2c2d32;flex:none"></span>
+  <sc-if value="{{ multi }}" hint-placeholder-val="{{ false }}">
+    <span style="font-size:15px;font-weight:600">Multiview</span>
+    <div style="display:flex;gap:2px;padding:3px;border-radius:7px;background:#1a1b1e"><sc-for list="{{ modes }}" as="m" hint-placeholder-count="3"><span style="padding:5px 11px;border-radius:5px;background:{{ m.bg }};color:{{ m.fg }};font-weight:{{ m.w }}">{{ m.l }}</span></sc-for></div>
+  </sc-if>
+  <sc-if value="{{ single }}" hint-placeholder-val="{{ true }}">
+    <span style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;max-width:{{ titleMax }}">{{ title }}</span>
+    <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:500;background:{{ pillBg }};color:{{ pillFg }};flex:none"><span style="width:6px;height:6px;border-radius:50%;background:{{ pillFg }}"></span>{{ shareText }}</span>
+  </sc-if>
+  <sc-if value="{{ hasChip }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:500;background:{{ chipBg }};color:{{ chipFg }};flex:none">{{ chip }}</span></sc-if>
+  <sc-if value="{{ hasAv }}" hint-placeholder-val="{{ false }}"><div title="People" style="display:flex;align-items:center;gap:6px;padding-left:4px"><sc-for list="{{ av }}" as="a" hint-placeholder-count="2"><span style="width:22px;height:22px;border-radius:50%;background:{{ a.c }};color:#0d1214;display:grid;place-items:center;font-size:11px;font-weight:600;box-shadow:{{ a.ring }};opacity:{{ a.op }}">{{ a.i }}</span></sc-for></div></sc-if>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+    <sc-if value="{{ own }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b">
+      <span style="height:30px;display:flex;align-items:center;gap:7px;padding:0 {{ pad }};border-radius:7px;font-weight:500"><span style="display:flex;gap:2px"><span style="width:3px;height:10px;border-radius:1px;background:currentColor"></span><span style="width:3px;height:10px;border-radius:1px;background:currentColor"></span></span><sc-if value="{{ full }}" hint-placeholder-val="{{ true }}">Pause</sc-if></span>
+      <span style="height:30px;display:flex;align-items:center;gap:7px;padding:0 {{ pad }};font-weight:500"><span style="display:flex"><span style="width:0;height:0;border-left:6px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent"></span><span style="width:0;height:0;border-left:6px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent"></span></span><sc-if value="{{ full }}" hint-placeholder-val="{{ true }}">Speed-up</sc-if><span style="font:500 12px 'IBM Plex Mono'">4×</span></span>
+      <sc-if value="{{ full }}" hint-placeholder-val="{{ true }}"><span style="height:30px;display:flex;align-items:center;gap:7px;padding:0 10px;font-weight:500"><span style="font-size:14px">↺</span>Reset</span></sc-if>
+    </div></sc-if>
+    <sc-if value="{{ watch }}" hint-placeholder-val="{{ false }}"><span style="height:32px;display:flex;align-items:center;padding:0 12px;border-radius:7px;border:1px solid #3a3b40;font-weight:500">Leave</span></sc-if>
+    <sc-if value="{{ notMulti }}" hint-placeholder-val="{{ true }}"><div style="display:flex;gap:2px;padding:3px;border-radius:7px;background:#1a1b1e"><span style="padding:5px 12px;border-radius:5px;background:#2c2d32;font-weight:500">Session</span><span style="padding:5px 12px;color:#a3a3a8">Multiview</span></div></sc-if>
+    <sc-if value="{{ multi }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:2px;padding:3px;border-radius:7px;background:#1a1b1e"><span style="padding:5px 12px;color:#a3a3a8">Session</span><span style="padding:5px 12px;border-radius:5px;background:#2c2d32;font-weight:500">Multiview</span></div></sc-if>
+    <div style="display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b">
+      <sc-if value="{{ layout }}" hint-placeholder-val="{{ false }}"><span title="Screen layout · F7" style="height:30px;display:flex;align-items:center;gap:6px;padding:0 9px"><span style="display:flex;flex-direction:column;gap:2px"><span style="width:10px;height:6px;border-radius:1px;border:1.5px solid currentColor"></span><span style="width:10px;height:6px;border-radius:1px;border:1.5px solid currentColor"></span></span><span style="font-size:9px;color:#7d7d83">▾</span></span></sc-if>
+      <span title="Volume · M mutes" style="height:30px;display:flex;align-items:center;gap:7px;padding:0 9px;border-radius:7px;background:{{ volBg }};color:{{ volFg }}"><span style="display:flex;align-items:center"><span style="width:3px;height:6px;background:currentColor;border-radius:1px"></span><span style="width:0;height:0;border-right:6px solid currentColor;border-top:6px solid transparent;border-bottom:6px solid transparent;margin-left:-1px"></span><span style="width:4px;height:8px;border:1.5px solid currentColor;border-left:0;border-radius:0 8px 8px 0;margin-left:2px;box-sizing:border-box;opacity:{{ waveOp }}"></span></span><sc-if value="{{ volLabel }}" hint-placeholder-val="{{ true }}"><span style="font:500 12px 'IBM Plex Mono'">{{ volText }}</span></sc-if></span>
+      <sc-if value="{{ hasMic }}" hint-placeholder-val="{{ false }}"><span title="{{ micTip }}" style="height:30px;display:flex;align-items:center;gap:7px;padding:0 9px;border-radius:7px;background:{{ micBg }};color:{{ micFg }};position:relative"><span style="width:7px;height:11px;border:1.5px solid currentColor;border-radius:4px;box-sizing:border-box;background:{{ micFill }}"></span><sc-if value="{{ micSlash }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:6px;top:14px;width:16px;height:1.5px;background:currentColor;transform:rotate(-45deg)"></span></sc-if><sc-if value="{{ micLabel }}" hint-placeholder-val="{{ true }}"><span style="font-size:12px">{{ micText }}</span></sc-if></span></sc-if>
+    </div>
+    <div style="display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:#16171a;border:1px solid #26272b">
+      <span title="Fullscreen · F11" style="height:30px;display:flex;align-items:center;gap:7px;padding:0 9px"><span style="width:11px;height:11px;box-sizing:border-box;border:1.5px dashed currentColor;border-radius:2px"></span><sc-if value="{{ full }}" hint-placeholder-val="{{ true }}"><span style="font:500 10px 'IBM Plex Mono';padding:1px 4px;border-radius:3px;border:1px solid #3a3b40;color:#a3a3a8">F11</span></sc-if></span>
+      <span title="Panel · F4" style="height:30px;display:flex;align-items:center;gap:6px;padding:0 9px;border-radius:7px;background:{{ panBg }};color:{{ panFg }}"><span style="width:13px;height:11px;border:1.5px solid currentColor;border-radius:2px;box-sizing:border-box;display:flex;justify-content:flex-end"><span style="width:4px;background:currentColor"></span></span><sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}"><span style="min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:#3cbfd8;color:#0d1214;font:600 10px/16px 'IBM Plex Mono';text-align:center">{{ unread }}</span></sc-if></span>
+    </div>
+    <span style="width:32px;height:32px;box-sizing:border-box;display:grid;place-items:center;border-radius:7px;border:1px solid {{ moreLine }};background:{{ moreBg }};font-size:15px">⋯</span>
+  </div>
+</header>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:56},&quot;compact&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;session&quot;,&quot;multiview&quot;,&quot;watch&quot;],&quot;default&quot;:&quot;session&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;title&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Lumen Drift&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;share&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;not&quot;,&quot;shared&quot;,&quot;invite&quot;],&quot;default&quot;:&quot;shared&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;watchers&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;people&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Lena,Jonas&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;speaking&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Lena&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;voice&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;off&quot;,&quot;ptt&quot;,&quot;live&quot;,&quot;muted&quot;,&quot;host&quot;,&quot;open&quot;],&quot;default&quot;:&quot;off&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;vol&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:72,&quot;tsType&quot;:&quot;number&quot;},&quot;muted&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;unread&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;open&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;&quot;,&quot;vol&quot;,&quot;mic&quot;,&quot;panel&quot;,&quot;more&quot;],&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;layout&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;chip&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;mvMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;PiP&quot;,&quot;Side by side&quot;,&quot;Grid 2×2&quot;],&quot;default&quot;:&quot;Grid 2×2&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;relayed&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props, compact = !!p.compact, mode = p.mode ?? 'session', multi = mode === 'multiview', watch = mode === 'watch';
+    const share = p.share ?? 'shared';
+    const pill = { not: ['Not shared', '#1a1b1e', '#8e8e94'], shared: ['Shared · ' + (p.watchers ?? (compact ? '2' : '2 watching')), '#17291f', '#6fd39a'], invite: ['Invite only · ' + (p.watchers ?? '2'), '#17291f', '#6fd39a'], watch: [p.conn ?? 'Direct · 18 ms', '#17291f', '#6fd39a'], relayed: [p.conn ?? 'Relayed · 48 ms', '#15262b', '#3cbfd8'] }[watch ? (p.relayed ? 'relayed' : 'watch') : share];
+    const C = { Max: '#6f9cff', Lena: '#f07ab8', Jonas: '#a6d65a', Sam: '#b39cf5' };
+    const speak = p.speaking ?? 'Lena';
+    const av = (p.people ?? 'Lena,Jonas').split(',').filter(Boolean).map(n => ({ i: n[0], c: C[n] || '#8e8e94', ring: n === speak ? '0 0 0 2px #111214,0 0 0 4px #6fd39a' : '0 0 0 2px #111214', op: 1 }));
+    const voice = p.voice ?? 'off';
+    const mic = { ptt: ['Hold V', 'transparent', '#ecebe7', 'transparent', false, 'Push-to-talk · hold V'], live: ['Live', '#15262b', '#3cbfd8', '#3cbfd8', false, 'Talking'], muted: ['Mic off', 'transparent', '#a3a3a8', 'transparent', true, 'Microphone off · Shift+M'], host: ['Muted by host', '#2a2414', '#e5b45a', 'transparent', true, 'Muted by Max'], open: ['On', 'transparent', '#ecebe7', 'transparent', false, 'Voice activation'] }[voice] || ['', 'transparent', '#ecebe7', 'transparent', false, ''];
+    const muted = !!p.muted, open = p.open ?? '';
+    const mv = p.mvMode ?? 'Grid 2×2';
+    return {
+      full: !compact, compact, multi, single: !multi, notMulti: !multi, watch, own: !watch, pad: compact ? '9px' : '10px',
+      title: watch ? 'Watching ' + (p.title ?? 'Lena · Harbor Rally') : (p.title ?? 'Lumen Drift'), titleMax: compact ? '170px' : '260px',
+      shareText: pill[0], pillBg: pill[1], pillFg: pill[2],
+      modes: ['PiP', 'Side by side', 'Grid 2×2'].map(l => ({ l, bg: l === mv ? '#2c2d32' : 'transparent', fg: l === mv ? '#ecebe7' : '#a3a3a8', w: l === mv ? 500 : 400 })),
+      hasChip: !!p.chip, chip: p.chip ?? '', chipBg: p.chipBg ?? '#2a2414', chipFg: p.chipFg ?? '#e5b45a',
+      hasAv: p.people !== '' && !multi, av,
+      layout: !!p.layout,
+      volText: muted ? 'Muted' : String(p.vol ?? 72), volLabel: !compact || muted, waveOp: muted ? 0 : 1,
+      volBg: open === 'vol' ? '#15262b' : 'transparent', volFg: open === 'vol' ? '#3cbfd8' : muted ? '#a3a3a8' : '#ecebe7',
+      hasMic: voice !== 'off', micText: mic[0], micBg: open === 'mic' ? '#15262b' : mic[1], micFg: mic[2], micFill: mic[3], micSlash: mic[4], micTip: mic[5], micLabel: !compact,
+      hasUnread: !!p.unread, unread: p.unread ?? '', panBg: p.unread || open === 'panel' ? '#15262b' : 'transparent', panFg: p.unread || open === 'panel' ? '#3cbfd8' : '#ecebe7',
+      moreLine: open === 'more' ? '#3cbfd8' : '#2c2d32', moreBg: open === 'more' ? '#15262b' : '#1a1b1e'
+    };
+  }
+}
+</script>
+</body>
+</html>

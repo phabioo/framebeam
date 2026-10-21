@@ -10,12 +10,12 @@ Language note: the source texts are English throughout (the earlier German texts
 
 Reading note: read only the necessary file or section. Open the source HTML only for details in the given line range (lines = screen container from `data-screen-label` to the end; anchors `#3x` = block ID in the source). The screens appear in the source in this order: 3a-3f, 3p, 3g, 3h, 3r, 3i, 3t-3y, 3j, 3k, 3s, 3l, 3m, 3n, 3o, 3q.
 
-- `tokens.md`: colors (plus the additions of Round 3), typography, spacing, radii, shadows, layout dimensions (Player dark, Hub light).
-- `player.md`: screens 3a-3i, 3p, 3r, 3t-3y and the revisions 3c-2 to 3c-5, 3e-2, 3f-2/3, 3g-2/3, 3h-2, 3i-2, 3p-2, 3r-2, 3t-2, 3x-2, the Round 3 screens 3a-3, 3c-6, 3c-7, 3p-3, 3e-3, 3f-4, 3r-3, 3h-3, 3i-3, 3y-2 (2026-10-12) plus the component specs (FrameBeam Player, Qt 6 QML).
-- `hub.md`: screens 3j-3o, 3q, 3s the revision 3s-2/3 and the Round 3 screens 3l-2 to 3l-4, 3j-2, 3s-4, 3m-2, 3n-2, 3q-2 (FrameBeam Hub web interface, `html/template` + htmx).
-- `plugins.md`: plugin platform screens (4a-4j, 4ih, 4jh, 3f-4), building-block catalog, map view, HUD, tab and tile-strip specs (plugin handoff 2026-10-11; design only, plugin API v1 is not implemented), plus 4a-3, 4a-4, 4f-3, 4j-3, 4i-3 and 4jh-3 of Round 3.
+- `tokens.md`: colors (plus the additions of Rounds 3 and 4), typography, spacing, radii, shadows, layout dimensions (Player dark, Hub light).
+- `player.md`: screens 3a-3i, 3p, 3r, 3t-3y and the revisions 3c-2 to 3c-5, 3e-2, 3f-2/3, 3g-2/3, 3h-2, 3i-2, 3p-2, 3r-2, 3t-2, 3x-2, the Round 3 screens 3a-3, 3c-6, 3c-7, 3p-3, 3e-3, 3f-4, 3r-3, 3h-3, 3i-3, 3y-2 (2026-10-12), the Round 4 Player screens (2026-10-21: space plan 0-3, 6a-6x, 3e-4, 3c-8, 3g-4, 3r-4, 3y-3, 7c) plus the component specs (FrameBeam Player, Qt 6 QML).
+- `hub.md`: screens 3j-3o, 3q, 3s, the revision 3s-2/3, the Round 3 screens 3l-2 to 3l-4, 3j-2, 3s-4, 3m-2, 3n-2, 3q-2 and the Round 4 Hub screens (6a-hub, 6b, 6c-hub, 6d-hub, 6f, 3j-3, 6j, 6k, 6l, 3s-5, 6q-hub, 6t-2, 7a, 7b; FrameBeam Hub web interface, `html/template` + htmx).
+- `plugins.md`: plugin platform screens (4a-4j, 4ih, 4jh, 3f-4), building-block catalog, map view, HUD, tab and tile-strip specs (plugin handoff 2026-10-11; design only, plugin API v1 is not implemented), plus 4a-3, 4a-4, 4f-3, 4j-3, 4i-3 and 4jh-3 of Round 3 and 4d-6, 4jh-4/4j-4, the plugin parts of 6o and 6z of Round 4.
 - `logo.md`: logo concept, tones, sizes, wordmark.
-- `decisions.md`: decisions (incl. Round 3: decisions 20-23, open points bg-bk), deviations from the architecture, open points per handoff round (incl. the defaults decided for the revision handoff of 2026-10-08).
+- `decisions.md`: decisions (incl. Round 3: decisions 20-23, open points bg-bk; Round 4: decisions 24-35, open points bl-bq), deviations from the architecture, open points per handoff round (incl. the defaults decided for the revision handoff of 2026-10-08).
 
 ## Screens
 
@@ -105,9 +105,97 @@ Claude Design handoff "Round 3", answering the 0.14 UI scan (finding IDs H = Hub
 
 Not drawn separately: Player Settings at 3840 (follows 3p-3, decision bi). Reference only and not copied: the SoulLink artboards (5a-5i, 5e-5g, `SoulLinkPanel`, `RunScreen`, `HubRunWizard`) belong to the `framebeam-plugin-soullink` repository.
 
+### Round 4 screens (2026-10-21, features before 1.0)
+
+Claude Design handoff "Round 4", answering the briefs for the feature waves 0-6 (milestones 0.16 to 0.22 in [../roadmap.md](../roadmap.md); wave n = 0.(16+n)). Files in `source/`: `round-4-a.dc.html` (571 lines, waves 0-1), `round-4-b.dc.html` (490, wave 2), `round-4-c.dc.html` (308, wave 3), `round-4-d.dc.html` (435, wave 4), `round-4-e.dc.html` (329, waves 5-6), the sheet `round-4-sheet.dc.html` (space plan 0-3 A-E, full handoff table in its script `handoff` at 411-459, tokens at 459, open questions `open` at 460), the new component `r4-header.dc.html` and the changed nav components `hub-nav.dc.html` and `player-nav.dc.html`. Anchors `#id` are block IDs; screens drawn from a data list (`sc-for`) show the template range and the data lines. Block IDs and labels differ in four places: `#6b-states` is labelled 6b-4, `#6d-states` 6d-2, `#3c-8-states` 3c-8-3, `#7b-states` 7b-2. v4, Round 3 and plugin tokens stay; the rules 0-2 of Round 3 apply. Decisions 24-35 and open points bl-bq: [decisions.md](decisions.md#decisions-fabio-2026-10-21-round-4-features-before-10); the only new color value: [tokens.md](tokens.md#additions-of-round-4-2026-10-21). Mock values (Lumen Drift, Harbor Rally, Coral Saga: Ember, people, devices, `hub.example.com`, versions 0.16.x) are placeholders. The sheet's `place` table, `strips` and `osd` data are the source for the space plan sections in [player.md](player.md#space-plan-0-3-round-4).
+
+Fabio's answers of 2026-10-21 override the drawing where they differ: gamepad hold-Select rule, F5/F6/F8 (decision 24), SoulLink HUD toggle (25), backups never deleted on a full disk (26), three Auto states (27), who may ask "Ready?" (28), handover warning at 120 ms (29), voice goes directly between Players (30, the drawing's "through the Hub relay" in 6w is wrong), chat only in the browser (31), single plugin rollback (32), 24 h Session chat (33), read-only TURN variables in the setup assistant (34).
+
+| Screen | Specification | Source (file, anchor, lines) | Wave / version |
+|---|---|---|---|
+| 0-3 A In-game header (zones, placement table) | [player.md](player.md#0-3-a-in-game-header-and-r4header) | `round-4-sheet`: `#0-3-header` 22-115, data `zones` 318, `overflow` 325, `place` 330 | all |
+| 0-3 B Side panel tabs | [player.md](player.md#0-3-b-side-panel-tabs) | `round-4-sheet`: `#0-3-panel` 117-148, data `strips` 352 | all |
+| 0-3 C OSD and zones over the game | [player.md](player.md#0-3-c-osd-and-the-zones-over-the-game) | `round-4-sheet`: `#0-3-osd` 150-191, data `osd` 366 | all |
+| 0-3 D Player sidebar: Online block and bell | [player.md](player.md#0-3-d-player-sidebar-online-block-and-bell) | `round-4-sheet`: `#0-3-sidebar` 193-241, data `sides` 386 | 4 (0.20) |
+| 0-3 E Hub navigation | [hub.md](hub.md#0-3-e-hub-navigation-round-4) | `round-4-sheet`: `#0-3-hubnav` 243-299, data `hubNav` 399 | 1 (0.17) |
+| 6a What's new (Player), 6a-2 short | [player.md](player.md#6a-whats-new-player) | `round-4-a`: `#6a` `#6a-2` template 26-56, data 472-473 | 0 (0.16) |
+| 6a-hub Banner after a Hub update, 6a-hub-2 notes page | [hub.md](hub.md#6a-hub-whats-new-hub) | `round-4-a`: `#6a-hub` 60-77, `#6a-hub-2` 79-97 | 0 (0.16) |
+| 6b Backups, 6b-2 running, 6b-3 restored | [hub.md](hub.md#6b-backups) | `round-4-a`: `#6b` `#6b-2` `#6b-3` template 105-146, data 484-486 | 1 (0.17) |
+| 6b-4 Backup card states | [hub.md](hub.md#6b-backups) | `round-4-a`: `#6b-states` 150-165 | 1 (0.17) |
+| 6b-5 Restore confirmation | [hub.md](hub.md#6b-backups) | `round-4-a`: `#6b-5` 168-184 | 1 (0.17) |
+| 6b-6 Restore in progress | [hub.md](hub.md#6b-backups) | `round-4-a`: `#6b-6` 186-195 | 1 (0.17) |
+| 6c Player Updates, earlier versions; 6c-3 after going back | [player.md](player.md#6c-updates-roll-back-player) | `round-4-a`: `#6c` `#6c-3` template 202-224, data 506-508 | 1 (0.17) |
+| 6c-2 Player Go back confirmation (+ disabled) | [player.md](player.md#6c-updates-roll-back-player) | `round-4-a`: `#6c-2` 228-243 | 1 (0.17) |
+| 6c-hub Hub Updates, earlier versions + confirmation; 6c-hub-2 after going back | [hub.md](hub.md#6c-hub-updates-roll-back-hub) | `round-4-a`: `#6c-hub` `#6c-hub-2` template 247-282, data 519-520 | 1 (0.17) |
+| 6d Report a problem (Player) | [player.md](player.md#6d-report-a-problem-player) | `round-4-a`: `#6d` 288-313 | 1 (0.17) |
+| 6d-2 Report dialog footer states | [player.md](player.md#6d-report-a-problem-player) | `round-4-a`: `#6d-states` 314-327 | 1 (0.17) |
+| 6d-hub Hub Reports | [hub.md](hub.md#6d-hub-reports) | `round-4-a`: `#6d-hub` 330-358 | 1 (0.17) |
+| 6d-hub-2 Reports empty and 390 | [hub.md](hub.md#6d-hub-reports) | `round-4-a`: `#6d-hub-2` 359-371 | 1 (0.17) |
+| 6e Connection check (4 outcomes) | [player.md](player.md#6e-connection-check) | `round-4-a`: `#6e` 376-397 | 1 (0.17) |
+| 6f Hub Status | [hub.md](hub.md#6f-hub-status) | `round-4-a`: `#6f` 402-440 | 1 (0.17) |
+| 6f-390 Hub Status phone | [hub.md](hub.md#6f-hub-status) | `round-4-a`: `#6f-390` 441-459 | 1 (0.17) |
+| 6g Volume popover, OSD | [player.md](player.md#6g-volume) | `round-4-b`: `#6g` 24-56 | 2 (0.18) |
+| 6g-2 Volume states, tile label, Settings rows | [player.md](player.md#6g-volume) | `round-4-b`: `#6g-2` 58-86 | 2 (0.18) |
+| 3e-4 Emulation, Display tab | [player.md](player.md#3e-4-emulation-display-tab-round-4) | `round-4-b`: `#3e-4` 90-109 | 2 (0.18) |
+| 3e-4-2 Rows that differ per system | [player.md](player.md#3e-4-emulation-display-tab-round-4) | `round-4-b`: `#3e-4-2` 110-118 | 2 (0.18) |
+| 6h Settings for this game | [player.md](player.md#6h-settings-for-this-game) | `round-4-b`: `#6h` 122-137 | 2 (0.18) |
+| 3c-8 Library: Continue, favourites, collections; 3c-8-2 at 1280 + popover; 3c-8-4 empty favourites | [player.md](player.md#3c-8-player-library-round-4) | `round-4-b`: `#3c-8` `#3c-8-2` `#3c-8-4` template 140-196, data 446-448 | 2 (0.18) |
+| 3c-8-3 Library states | [player.md](player.md#3c-8-player-library-round-4) | `round-4-b`: `#3c-8-states` 199-213 | 2 (0.18) |
+| 6i DS/3DS screen layouts | [player.md](player.md#6i-ds-and-3ds-screen-layouts) | `round-4-b`: `#6i` 218-248 | 2 (0.18) |
+| 6i-2 Bottom screen in its own window | [player.md](player.md#6i-ds-and-3ds-screen-layouts) | `round-4-b`: `#6i-2` 249-272 | 2 (0.18) |
+| 3j-3 Hub Library (favourites, collections, play time) | [hub.md](hub.md#3j-3-hub-library-round-4) | `round-4-b`: `#3j-3` 277-297 | 2 (0.18) |
+| 6j Hub Screenshots gallery | [hub.md](hub.md#6j-hub-screenshots) | `round-4-b`: `#6j` 300-316 | 2 (0.18) |
+| 6j-2 Screenshot open, empty gallery | [hub.md](hub.md#6j-hub-screenshots) | `round-4-b`: `#6j-2` 317-332 | 2 (0.18) |
+| 6k Hub user page, Play time | [hub.md](hub.md#6k-hub-user-play-time) | `round-4-b`: `#6k` 336-354 | 2 (0.18) |
+| 6k-2 Player game detail facts | [player.md](player.md#3c-8-player-library-round-4) | `round-4-b`: `#6k-2` 355-363 | 2 (0.18) |
+| 6l Hub Storage | [hub.md](hub.md#6l-hub-storage) | `round-4-b`: `#6l` 369-405 | 2 (0.18) |
+| 6m Save states, States tab | [player.md](player.md#6m-save-states) | `round-4-c`: `#6m` 23-54 | 3 (0.19) |
+| 6m-2 Load, Undo | [player.md](player.md#6m-save-states) | `round-4-c`: `#6m-2` 56-75 | 3 (0.19) |
+| 6m-3 States tab states | [player.md](player.md#6m-save-states) | `round-4-c`: `#6m-3` 77-90 | 3 (0.19) |
+| 3c-3-4 Player Saves and states | [player.md](player.md#3c-3-4-player-saves-and-states) | `round-4-c`: `#3c-3-4` 93-123 | 3 (0.19) |
+| 3s-5 Hub Saves, States tab | [hub.md](hub.md#3s-5-hub-saves-states-round-4) | `round-4-c`: `#3s-5` 126-153 | 3 (0.19) |
+| 3s-5-2 Hub history with plugin snapshot | [hub.md](hub.md#3s-5-hub-saves-states-round-4) | `round-4-c`: `#3s-5-2` 154-161 | 3 (0.19) |
+| 6n Rewind OSD | [player.md](player.md#6n-rewind) | `round-4-c`: `#6n` 165-178 | 3 (0.19) |
+| 6o Memory write: OSD, chip, popover | [player.md](player.md#6o-6p-memory-writes-and-plugin-snapshots) | `round-4-c`: `#6o` 181-211 | 3 (0.19) |
+| 6o-2 Run log entry, board marker, off by run rule; 6p plugin snapshot OSD | [plugins.md](plugins.md#6o-2-memory-edits-in-runs-round-4) and [player.md](player.md#6o-6p-memory-writes-and-plugin-snapshots) | `round-4-c`: `#6o-2` 213-249 (the handoff table points 6p here) | 3 (0.19) |
+| 3g-4 In-game header and panel, 3g-4-2 at 1280 (People tab) | [player.md](player.md#3g-4-in-game-header-and-panel-round-4) | `round-4-d`: `#3g-4` `#3g-4-2` template 24-57, data 346-348 | 4 (0.20) |
+| 6q Online popover | [player.md](player.md#6q-online-popover) | `round-4-d`: `#6q` 62-81 | 4 (0.20) |
+| 6q-hub Hub Users with status | [hub.md](hub.md#6q-hub-hub-users-with-status) | `round-4-d`: `#6q-hub` 82-101 | 4 (0.20) |
+| 6r Bell popover | [player.md](player.md#6r-notifications) | `round-4-d`: `#6r` 105-125 | 4 (0.20) |
+| 6r-2 Settings, Notifications | [player.md](player.md#6r-notifications) | `round-4-d`: `#6r-2` 126-136 | 4 (0.20) |
+| 6s Ready check | [player.md](player.md#6s-ready-check-and-pause-for-everyone) | `round-4-d`: `#6s` 140-157 | 4 (0.20) |
+| 6s-2 Host view, pause for everyone, setting | [player.md](player.md#6s-ready-check-and-pause-for-everyone) | `round-4-d`: `#6s-2` 158-171 | 4 (0.20) |
+| 6t Chat tab | [player.md](player.md#6t-chat) | `round-4-d`: `#6t` 174-195 | 4 (0.20) |
+| 6t-2 (4jh-4 chat) Hub run Chat history | [hub.md](hub.md#6t-2-hub-run-chat-history) | `round-4-d`: `#6t-2` 198-209 | 4 (0.20) |
+| 6u People tab (viewer), invite with role | [player.md](player.md#6u-people-quality-and-invite-role) | `round-4-d`: `#6u` 211-234 | 4 (0.20) |
+| 6v Mixer | [player.md](player.md#6v-mixer) | `round-4-d`: `#6v` 239-259 | 4 (0.20) |
+| 6w Settings, Voice | [player.md](player.md#6w-voice) | `round-4-d`: `#6w` 263-277 | 4 (0.20) |
+| 6w-2 Voice states | [player.md](player.md#6w-voice) | `round-4-d`: `#6w-2` 278-287 | 4 (0.20) |
+| 6x Controller handover | [player.md](player.md#6x-hand-over-the-controller) | `round-4-d`: `#6x` 291-303 | 4 (0.20) |
+| 3r-4 Multiview Grid 2x2 with chat and voice | [player.md](player.md#3r-4-and-3y-3-multiview-and-fullscreen-round-4) | `round-4-d`: `#3r-4` 306-320 | 4 (0.20) |
+| 3y-3 Fullscreen with chat and voice | [player.md](player.md#3r-4-and-3y-3-multiview-and-fullscreen-round-4) | `round-4-d`: `#3y-3` 322-337 | 4 (0.20) |
+| 4d-6 Developer console (Memory) | [plugins.md](plugins.md#4d-6-developer-console-round-4) | `round-4-e`: `#4d-6` 23-49 | 5 (0.21) |
+| 4d-6-2 Console Log, State, developer mode off | [plugins.md](plugins.md#4d-6-developer-console-round-4) | `round-4-e`: `#4d-6-2` 50-67 | 5 (0.21) |
+| 4jh-4 Hub run Recap | [plugins.md](plugins.md#4jh-4-4j-4-run-recap-round-4) | `round-4-e`: `#4jh-4` template 71-102, data 290 | 5 (0.21) |
+| 4j-4 Player run Recap | [plugins.md](plugins.md#4jh-4-4j-4-run-recap-round-4) | `round-4-e`: `#4j-4` template 71-102, data 291 | 5 (0.21) |
+| 6z Privacy, Discord status; splits widget | [player.md](player.md#6z-privacy-and-discord-status) and [plugins.md](plugins.md#6z-splits-widget-round-4) | `round-4-e`: `#6z` 106-126 | 5 (0.21) |
+| 7a Hub setup assistant (Cores, Internet access) | [hub.md](hub.md#7a-hub-setup-assistant) | `round-4-e`: `#7a` `#7a-2` template 131-157, data 301-302 | 6 (0.22) |
+| 7a-3 Setup assistant, Done | [hub.md](hub.md#7a-hub-setup-assistant) | `round-4-e`: `#7a-3` 159-166 | 6 (0.22) |
+| 7b Watch in the browser (1440) | [hub.md](hub.md#7b-watch-in-the-browser) | `round-4-e`: `#7b` 170-192 | 6 (0.22) |
+| 7b-390 Watch on a phone | [hub.md](hub.md#7b-watch-in-the-browser) | `round-4-e`: `#7b-390` 194-204 | 6 (0.22) |
+| 7b-2 Watch states | [hub.md](hub.md#7b-watch-in-the-browser) | `round-4-e`: `#7b-states` 205-213 | 6 (0.22) |
+| 7c Handheld Library (1280 x 800) | [player.md](player.md#7c-handheld-1280-x-800-gamepad-only) | `round-4-e`: `#7c` 217-239 | 6 (0.22) |
+| 7c-2 Handheld in game, hotkey map | [player.md](player.md#7c-handheld-1280-x-800-gamepad-only) | `round-4-e`: `#7c-2` 240-257 | 6 (0.22) |
+
+Component notes (Round 4):
+
+- `source/r4-header.dc.html` (R4Header, 77 lines) is the single in-game header of Round 4 and replaces `game-header.dc.html` for all new screens (the older components stay for the v4 and Round 3 screens). Props: `compact` (1280, icons only), `mode` (`session` | `multiview` | `watch`), `share` (`not` | `shared` | `invite`), `watchers`, `conn` / `relayed` (watch mode), `title`, `people` (comma list, max 3 avatars shown), `speaking` (name that gets the speaking ring), `voice` (`off` | `ptt` | `live` | `muted` | `host` | `open`), `muted`, `vol`, `unread`, `open` (`vol` | `mic` | `panel` | `more`), `mvMode`, `chip` / `chipBg` / `chipFg` (e.g. "✎ Memory edited", "Developer mode"), `layout`. Specification: [player.md](player.md#0-3-a-in-game-header-and-r4header).
+- `source/hub-nav.dc.html` and `source/player-nav.dc.html` gained the opt-in prop `r4` (default off: the Round 3 screens render unchanged). HubNav with `r4`: groups Play / SETUP / ADMIN, new props `member`, `savesBadge`, `statusBadge`, `reportsBadge`, `ver` (default "0.16.4"), footer link "What's new". PlayerNav with `r4`: Online block (`online`: `full` | `compact`, `offline`), bell in the user row (`bell`, `bellOpen`). Specification: [hub.md](hub.md#0-3-e-hub-navigation-round-4), [player.md](player.md#0-3-d-player-sidebar-online-block-and-bell).
+- The imported Round 4 files `dc-import` HubNav, PlayerNav, R4Header, SettingsRow and SaveRow under their repository names (`hub-nav`, `player-nav`, `r4-header`, `settings-row`, `save-row`); the links inside them point to the repository file names.
+
 ### Component sheets
 
-Shared parts of the revision are real components (imported by the v4 file as `dc-import`, names renamed to the file names): `source/settings-row.dc.html` (SettingsRow), `source/save-row.dc.html` (SaveRow, dark and light), `source/pad-glyph.dc.html` (PadGlyph), `source/input-test.dc.html` (InputTest), `source/hub-nav.dc.html` and `source/player-nav.dc.html` (sidebars of Round 3), `source/game-header.dc.html` (GameHeader), `source/game-panel.dc.html` (GamePanel), `source/diag-overlay.dc.html` (DiagOverlay), `source/support.js` (design runtime shared by all `.dc.html` files, not product code) and the existing `source/framebeam-mark.dc.html`. Sheets in v4: in-game components (GameHeader variants, anchored popovers, GamePanel, tiles and Now running) at lines 229-289; SettingsRow, core-agnostic options, SaveRow, sort and Ready first, D-pad and glyphs at lines 1001-1101. Specs per component: [player.md](player.md#components-revision-v4); new tokens: [tokens.md](tokens.md).
+Shared parts of the revision are real components (imported by the v4 file as `dc-import`, names renamed to the file names): `source/settings-row.dc.html` (SettingsRow), `source/save-row.dc.html` (SaveRow, dark and light), `source/pad-glyph.dc.html` (PadGlyph), `source/input-test.dc.html` (InputTest), `source/hub-nav.dc.html` and `source/player-nav.dc.html` (sidebars; with the `r4` option since Round 4), `source/r4-header.dc.html` (in-game header of Round 4), `source/game-header.dc.html` (GameHeader), `source/game-panel.dc.html` (GamePanel), `source/diag-overlay.dc.html` (DiagOverlay), `source/support.js` (design runtime shared by all `.dc.html` files, not product code) and the existing `source/framebeam-mark.dc.html`. Sheets in v4: in-game components (GameHeader variants, anchored popovers, GamePanel, tiles and Now running) at lines 229-289; SettingsRow, core-agnostic options, SaveRow, sort and Ready first, D-pad and glyphs at lines 1001-1101. Specs per component: [player.md](player.md#components-revision-v4); new tokens: [tokens.md](tokens.md).
 
 ### Plugin screens (2026-10-11)
 

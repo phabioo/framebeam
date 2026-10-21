@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>body{margin:0;background:#d9d7d0;font-family:'IBM Plex Sans',sans-serif}a{color:#1a7f96}a:hover{color:#125f70}</style>
+</helmet>
+<section style="padding:64px;display:flex;flex-direction:column;gap:64px;color:#1d1d1b">
+<div style="display:flex;flex-direction:column;gap:10px;width:1440px">
+  <div style="font:500 13px 'IBM Plex Mono';color:#5b5a56;letter-spacing:.04em">ROUND 4 · E · WAVE 5 PLUGINS · WAVE 6 PLATFORM</div>
+  <div style="font-size:32px;font-weight:600">Developer console, run recap, Discord and splits, Hub setup, watch in the browser, handheld</div>
+  <div style="font-size:15px;color:#3a3936;line-height:1.55">Complete handoff and open questions: <a href="round-4-sheet.dc.html#handoff">Round 4 Sheet</a>.</div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">4d-6 DEVELOPER CONSOLE</div>
+<div id="4d-6" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">4d-6</span><span style="font-size:15px">Docked at the bottom · Memory tab · developer mode only · Ctrl+Shift+D toggles · ⇱ pops out into its own window · 1440 × 900</span></div>
+  <div style="width:1440px;height:900px;background:#0b0b0c;color:#ecebe7;display:grid;grid-template-rows:56px minmax(0,1fr) 360px;overflow:hidden;border-radius:4px">
+    <dc-import name="r4-header" title="Coral Saga: Ember" share="not" people="" chip="Developer mode" chip-bg="#26272b" chip-fg="#c9c8c4" hint-size="100%,56px"></dc-import>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px"><div style="width:520px;height:312px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div><div style="width:416px;height:312px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div></div>
+    <div style="background:#111214;border-top:1px solid #2c2d32;display:flex;flex-direction:column;min-height:0;font-size:13px">
+      <div style="display:flex;align-items:stretch;height:38px;border-bottom:1px solid #1e1f22;padding:0 12px;gap:2px">
+        <sc-for list="{{ devTabs }}" as="t" hint-placeholder-count="4"><span style="display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:2px solid {{ t.u }};color:{{ t.fg }};font-weight:{{ t.w }}">{{ t.l }}<span style="font:500 10px 'IBM Plex Mono';color:#5e5e63">{{ t.k }}</span></span></sc-for>
+        <span style="margin-left:16px;display:flex;align-items:center;gap:8px;color:#a3a3a8">Plugin<span style="height:26px;padding:0 10px;border-radius:6px;border:1px solid #3a3b40;display:flex;align-items:center;gap:6px;color:#ecebe7">SoulLink &amp; Nuzlocke 1.4 · local ▾</span></span>
+        <span style="margin-left:auto;display:flex;align-items:center;gap:6px"><span style="height:26px;padding:0 10px;border-radius:6px;border:1px solid #3a3b40;display:flex;align-items:center">↻ Reload plugin <span style="font:500 10px 'IBM Plex Mono';color:#7d7d83;margin-left:6px">Ctrl+R</span></span><span title="Pop out" style="width:26px;height:26px;border-radius:6px;border:1px solid #3a3b40;display:grid;place-items:center">⇱</span><span title="Close · Ctrl+Shift+D" style="width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:#a3a3a8">×</span></span>
+      </div>
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px">
+        <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px;min-height:0">
+          <div style="display:flex;gap:8px;align-items:center"><span style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #3a3b40;display:flex;align-items:center;gap:6px">Region: ARM9 main RAM ▾</span><div style="height:28px;width:200px;border-radius:6px;border:1px solid #3a3b40;display:flex;align-items:center;padding:0 8px;font-family:'IBM Plex Mono';font-size:12px;color:#a3a3a8">Go to 0x0223 4A00</div><div style="height:28px;width:220px;border-radius:6px;border:1px solid #3cbfd8;display:flex;align-items:center;padding:0 8px;font-family:'IBM Plex Mono';font-size:12px">Find value: 20 (u8)</div><span style="font-size:12px;color:#a3a3a8">3 matches · ↑ ↓</span><span style="margin-left:auto;font-size:12px;color:#a3a3a8">Read-only · writes go through plugin permissions</span></div>
+          <div style="flex:1;min-height:0;border-radius:6px;background:#0d0e10;border:1px solid #1e1f22;padding:8px 10px;font:12px/20px 'IBM Plex Mono';overflow:hidden">
+            <sc-for list="{{ hex }}" as="r" hint-placeholder-count="10"><div style="display:flex;gap:14px;white-space:nowrap"><span style="color:#5e5e63;width:86px">{{ r.a }}</span><span style="display:flex;gap:8px"><sc-for list="{{ r.b }}" as="b" hint-placeholder-count="16"><span style="width:18px;color:{{ b.fg }};background:{{ b.bg }};border-radius:2px;text-align:center">{{ b.v }}</span></sc-for></span><span style="color:#7d7d83;margin-left:10px">{{ r.t }}</span></div></sc-for>
+          </div>
+        </div>
+        <div style="border-left:1px solid #1e1f22;padding:10px 14px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono';letter-spacing:.08em;color:#7d7d83">WATCH LIST · 4</span><span style="margin-left:auto;font-size:12px;color:#3cbfd8">+ Add</span></div>
+          <sc-for list="{{ watch }}" as="w" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:minmax(0,1fr) 90px 50px;gap:8px;align-items:center;padding:6px 8px;border-radius:6px;background:{{ w.bg }};font-size:12px"><div style="display:flex;flex-direction:column;min-width:0"><span>{{ w.n }}</span><span style="font:11px 'IBM Plex Mono';color:#7d7d83">{{ w.a }}</span></div><span style="font-family:'IBM Plex Mono';color:{{ w.fg }}">{{ w.v }}</span><span style="font:11px 'IBM Plex Mono';color:#7d7d83">{{ w.t }}</span></div></sc-for>
+          <div style="margin-top:auto;font-size:11px;color:#7d7d83;line-height:16px">Cyan = changed in the last second · amber = changed by a plugin write (6o). Watch list is saved per plugin.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="4d-6-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">4d-6-2</span><span style="font-size:15px">Log tab (filters, search, pause) · State tab (plugin state tree) · console when developer mode is off</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 300px;gap:20px">
+    <div style="background:#111214;border-radius:8px;color:#ecebe7;font-size:13px;display:flex;flex-direction:column">
+      <div style="display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid #1e1f22;flex-wrap:wrap"><sc-for list="{{ lvls }}" as="l" hint-placeholder-count="4"><span style="height:26px;padding:0 10px;border-radius:13px;border:1px solid {{ l.bd }};background:{{ l.bg }};color:{{ l.fg }};display:flex;align-items:center;font-size:12px">{{ l.l }}</span></sc-for><span style="height:26px;padding:0 10px;border-radius:6px;border:1px solid #3a3b40;display:flex;align-items:center;font-size:12px">All plugins ▾</span><div style="flex:1;min-width:120px;height:26px;border-radius:6px;border:1px solid #3a3b40;display:flex;align-items:center;padding:0 8px;font-size:12px;color:#7d7d83">Search log</div><span style="height:26px;padding:0 10px;border-radius:6px;background:#2a2414;color:#e5b45a;display:flex;align-items:center;font-size:12px">❚❚ Paused · 12 new</span></div>
+      <div style="padding:6px 14px;font:12px/20px 'IBM Plex Mono'"><sc-for list="{{ logLines }}" as="l" hint-placeholder-count="7"><div style="display:grid;grid-template-columns:96px 52px 110px minmax(0,1fr);gap:10px;white-space:nowrap"><span style="color:#5e5e63">{{ l.t }}</span><span style="color:{{ l.c }}">{{ l.lv }}</span><span style="color:#a3a3a8;overflow:hidden;text-overflow:ellipsis">{{ l.p }}</span><span style="overflow:hidden;text-overflow:ellipsis">{{ l.m }}</span></div></sc-for></div>
+    </div>
+    <div style="background:#111214;border-radius:8px;color:#ecebe7;font:12px/22px 'IBM Plex Mono';padding:10px 14px">
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.08em;color:#7d7d83;padding-bottom:4px">STATE · SOULLINK &amp; NUZLOCKE</div>
+      <sc-for list="{{ tree }}" as="n" hint-placeholder-count="9"><div style="padding-left:{{ n.ind }};display:flex;gap:8px;background:{{ n.bg }};border-radius:3px"><span style="color:#7d7d83;width:10px">{{ n.tw }}</span><span style="color:#c9c8c4">{{ n.k }}</span><span style="color:{{ n.vc }}">{{ n.v }}</span></div></sc-for>
+    </div>
+    <div style="background:#121315;border-radius:8px;color:#ecebe7;padding:16px;display:flex;flex-direction:column;gap:8px">
+      <span style="font-size:14px;font-weight:600">Developer mode is off</span>
+      <span style="font-size:12px;line-height:17px;color:#9a9a9f">Ctrl+Shift+D does nothing and the console is not in any menu. Turn it on in Settings → Plugins → Developer mode. It shows a grey “Developer mode” chip in the header while on.</span>
+      <span style="align-self:flex-start;font-size:13px;padding:6px 12px;border:1px solid #34353a;border-radius:7px">Open Settings → Plugins</span>
+    </div>
+  </div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6y RUN RECAP · 4jh-4 HUB · 4j-4 PLAYER</div>
+<sc-for list="{{ recaps }}" as="R" hint-placeholder-count="2">
+<div id="{{ R.id }}" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:{{ R.badgeBg }};color:{{ R.badgeFg }};font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">{{ R.id }}</span><span style="font-size:15px">{{ R.cap }}</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:{{ R.bg }};color:{{ R.ink }};overflow:hidden;border-radius:4px">
+    <sc-if value="{{ R.hub }}" hint-placeholder-val="{{ true }}"><dc-import name="hub-nav" active="Runs" r4="{{ true }}" reports-badge="2 new" hint-size="232px,100%"></dc-import></sc-if>
+    <sc-if value="{{ R.player }}" hint-placeholder-val="{{ false }}"><dc-import name="player-nav" active="Runs" r4="{{ true }}" bell="3" hint-size="232px,100%"></dc-import></sc-if>
+    <div style="flex:1;min-width:0;padding:28px 36px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:13px;color:{{ R.mut }}">Runs ›</div>
+      <div style="display:flex;align-items:flex-end;gap:12px"><div style="flex:1"><div style="font-size:28px;font-weight:600">Harbor Nuzlocke</div><div style="font-size:14px;color:{{ R.mut }}">SoulLink &amp; Nuzlocke · Coral Saga: Ember / Tide · day 19 · active</div></div><span style="font-size:13px;padding:7px 12px;border:1px solid {{ R.line }};border-radius:7px">Export as image</span><span style="font-size:13px;padding:7px 12px;border:1px solid {{ R.line }};border-radius:7px">Share link for Hub users</span></div>
+      <div style="display:flex;gap:2px;border-bottom:1px solid {{ R.line }};font-size:14px"><span style="padding:8px 12px;color:{{ R.mut }}">Board</span><span style="padding:8px 12px;border-bottom:2px solid {{ R.acc }};font-weight:600">Recap</span><span style="padding:8px 12px;color:{{ R.mut }}">Log</span><span style="padding:8px 12px;color:{{ R.mut }}">Chat · 214</span></div>
+      <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+        <sc-for list="{{ recapNums }}" as="n" hint-placeholder-count="6"><div style="background:{{ R.card }};border:1px solid {{ R.line }};border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px"><span style="font:500 10px 'IBM Plex Mono';letter-spacing:.06em;color:{{ R.mut }}">{{ n.k }}</span><span style="font:600 20px 'IBM Plex Mono'">{{ n.v }}</span></div></sc-for>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;font-size:13px"><sc-for list="{{ R.chips }}" as="c" hint-placeholder-count="6"><span style="padding:5px 12px;border-radius:14px;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:{{ c.dot }};display:{{ c.dd }}"></span>{{ c.l }}</span></sc-for></div>
+      <div style="flex:1;min-height:0;background:{{ R.card }};border:1px solid {{ R.line }};border-radius:10px;padding:14px 18px;display:flex;flex-direction:column;gap:10px;position:relative">
+        <div style="display:grid;grid-template-columns:90px minmax(0,1fr);font:11px 'IBM Plex Mono';color:{{ R.mut }}"><span></span><div style="display:flex;justify-content:space-between"><sc-for list="{{ days }}" as="d" hint-placeholder-count="5"><span>{{ d }}</span></sc-for></div></div>
+        <sc-for list="{{ R.lanes }}" as="l" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:90px minmax(0,1fr);align-items:center;height:56px">
+          <span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500"><span style="width:24px;height:24px;border-radius:50%;background:{{ l.c }};color:{{ R.avFg }};display:grid;place-items:center;font-size:11px;font-weight:600">{{ l.i }}</span>{{ l.n }}</span>
+          <div style="position:relative;height:56px;border-radius:6px;background:{{ R.lane }}"><div style="position:absolute;left:0;right:0;top:50%;height:2px;background:{{ l.c }};opacity:.35"></div>
+            <sc-for list="{{ l.ev }}" as="e" hint-placeholder-count="5"><span title="{{ e.tip }}" style="position:absolute;left:{{ e.x }};top:50%;transform:translate(-50%,-50%);width:{{ e.s }};height:{{ e.s }};border-radius:{{ e.r }};background:{{ e.bg }};border:2px solid {{ e.bd }};box-sizing:border-box;display:grid;place-items:center;font-size:10px;color:{{ e.fg }};box-shadow:{{ e.ring }}">{{ e.g }}</span></sc-for>
+          </div>
+        </div></sc-for>
+        <div style="display:flex;gap:16px;font-size:12px;color:{{ R.mut }};padding-top:4px"><span>● catch</span><span>✕ death (grey)</span><span>◆ badge</span><span>✎ note / memory edit</span><span>◰ screenshot</span><span style="margin-left:auto">Scroll or drag to move in time · Ctrl + scroll zooms</span></div>
+        <div style="position:absolute;left:{{ R.popX }};top:150px;width:280px;padding:12px;border-radius:10px;background:{{ R.pop }};border:1px solid {{ R.popLine }};box-shadow:0 18px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:6px;font-size:13px">
+          <span style="font:500 10px 'IBM Plex Mono';letter-spacing:.06em;color:{{ R.mut }}">DAY 12 · 21:40 · LENA</span>
+          <span style="font-weight:600">Tidepup fainted at Gym 2</span>
+          <span style="font-size:12px;color:{{ R.mut }};line-height:17px">Linked Mossling (Max) died too. 1 screenshot · 3 chat messages around it.</span>
+          <span style="font-size:12px;color:{{ R.acc }}">Open in log</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-for>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">6z DISCORD STATUS · SPLITS HUD CHECK</div>
+<div id="6z" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6z</span><span style="font-size:15px">Settings → General · privacy rows · and one splits widget built only from HUD blocks (4e-5)</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:minmax(0,1fr) 520px;gap:24px">
+    <div style="background:#121315;border-radius:8px;padding:20px 32px;color:#ecebe7;display:flex;flex-direction:column">
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;padding:8px 0 2px 14px">PRIVACY</div>
+      <sc-for list="{{ privRows }}" as="r" hint-placeholder-count="3"><dc-import name="settings-row" row="{{ r }}" hint-size="100%,64px"></dc-import></sc-for>
+      <div style="display:flex;gap:16px;margin-top:16px">
+        <sc-for list="{{ discPrev }}" as="d" hint-placeholder-count="3"><div style="flex:1;padding:12px;border-radius:10px;background:#1a1b1e;border:1px solid #2c2d32;display:flex;flex-direction:column;gap:4px"><span style="font:500 10px 'IBM Plex Mono';letter-spacing:.06em;color:#7d7d83">{{ d.k }}</span><span style="font-size:13px;font-weight:500">{{ d.a }}</span><span style="font-size:12px;color:#9a9a9f">{{ d.b }}</span></div></sc-for>
+      </div>
+      <div style="font-size:12px;color:#8e8e94;margin-top:12px">Discord must be running on this device; if not, the row shows “Discord not found” and nothing is sent. No account linking, no logo.</div>
+    </div>
+    <div style="height:420px;border-radius:8px;background:#0b0b0c;position:relative;overflow:hidden;color:#ecebe7">
+      <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div>
+      <div style="position:absolute;right:16px;top:16px;width:230px;padding:8px 10px 10px;border-radius:8px;background:rgba(17,18,20,.82);border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:16px;height:16px;border-radius:4px;background:#232428;font:600 7px/16px 'IBM Plex Mono';text-align:center;color:#c9c8c4">ST</span><span style="font-size:11px;color:#a3a3a8">Splits · Any% </span><span style="margin-left:auto;font:600 14px 'IBM Plex Mono'">1:12:48</span></div>
+        <sc-for list="{{ splits }}" as="s" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:minmax(0,1fr) 54px 56px;gap:6px;font-size:11px;align-items:center;padding:2px 0;border-top:1px solid rgba(255,255,255,.06);color:{{ s.fg }}"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.n }}</span><span style="font-family:'IBM Plex Mono';text-align:right;color:{{ s.dc }}">{{ s.d }}</span><span style="font-family:'IBM Plex Mono';text-align:right">{{ s.t }}</span></div></sc-for>
+      </div>
+      <div style="position:absolute;left:16px;bottom:16px;right:16px;font-size:12px;line-height:18px;color:#c9c8c4;background:rgba(17,18,20,.85);padding:8px 10px;border-radius:6px">Built from: HUD widget container, header row (icon + title + value), key-value rows. Ahead = cyan, behind = amber, no green/red. Blocks suffice; one gap: a right-aligned mono value column is a convention, not a block option. Hotkeys: plugin-defined, default Select + ↓ split (checked against the Select modifier).</div>
+    </div>
+  </div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">7a HUB SETUP ASSISTANT</div>
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<sc-for list="{{ setup }}" as="S" hint-placeholder-count="2">
+<div id="{{ S.id }}" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">{{ S.id }}</span><span style="font-size:15px">{{ S.cap }}</span></div>
+  <div style="width:1440px;height:900px;background:#f5f4f0;border-radius:4px;display:flex;flex-direction:column;align-items:center;padding:40px;box-sizing:border-box;gap:24px">
+    <div style="width:880px;display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600"><div style="width:20px;height:20px;border:1.5px solid #1d1d1b;border-radius:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:6px;background:#1a7f96;border-radius:1px"></div></div>Set up Home Hub<span style="margin-left:auto;font-size:13px;font-weight:400;color:#6b6a65">Skip setup · you can reopen it in Settings</span></div>
+    <div style="width:880px;display:flex;gap:6px">
+      <sc-for list="{{ S.steps }}" as="st" hint-placeholder-count="6"><div style="flex:1;display:flex;flex-direction:column;gap:6px"><div style="height:4px;border-radius:2px;background:{{ st.bar }}"></div><span style="font-size:12px;color:{{ st.fg }};font-weight:{{ st.w }}">{{ st.n }} {{ st.l }}</span></div></sc-for>
+    </div>
+    <div style="width:880px;background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:28px 32px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
+      <div><div style="font-size:24px;font-weight:600">{{ S.t }}</div><div style="font-size:14px;color:#6b6a65;line-height:21px;margin-top:4px">{{ S.d }}</div></div>
+      <sc-if value="{{ S.cores }}" hint-placeholder-val="{{ true }}">
+        <div style="border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:24px minmax(0,1fr) 220px 90px;gap:14px;padding:8px 16px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;background:#faf9f6"><span></span><span>CORE</span><span>SYSTEMS</span><span>SIZE</span></div>
+          <sc-for list="{{ coreList }}" as="c" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:24px minmax(0,1fr) 220px 90px;gap:14px;align-items:center;padding:0 16px;height:52px;border-top:1px solid #efede8;font-size:14px;box-shadow:{{ c.ring }}"><span style="width:16px;height:16px;border-radius:4px;border:1.5px solid {{ c.line }};background:{{ c.fill }};color:#fff;display:grid;place-items:center;font-size:11px;box-sizing:border-box">{{ c.ck }}</span><div style="display:flex;flex-direction:column"><span>{{ c.n }}</span><span style="font-size:12px;color:#6b6a65">{{ c.v }}</span></div><span style="font-size:13px;color:#55544f">{{ c.s }}</span><span style="font:12px 'IBM Plex Mono';color:#6b6a65">{{ c.z }}</span></div></sc-for>
+        </div>
+        <div style="font-size:12px;color:#6b6a65">Nothing is preselected. Cores come from the libretro buildbot; you can add or change them later in Systems &amp; Cores.</div>
+      </sc-if>
+      <sc-if value="{{ S.net }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;gap:24px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Public address</div><div style="font-size:12px;color:#6b6a65">How Players outside your network reach this Hub.</div></div><div style="width:300px;height:36px;border:1px solid #1a7f96;border-radius:7px;font:13px 'IBM Plex Mono';display:flex;align-items:center;padding:0 10px;box-sizing:border-box">hub.example.com:8443</div><span style="font-size:13px;padding:7px 12px;border:1px solid #d9d7d0;border-radius:7px">Test port</span></div>
+          <sc-for list="{{ netChecks }}" as="n" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:22px 180px minmax(0,1fr);gap:12px;padding:10px 0;border-top:1px solid #efede8;align-items:start"><span style="width:18px;height:18px;border-radius:50%;background:{{ n.bg }};color:{{ n.fg }};display:grid;place-items:center;font-size:11px;font-weight:600">{{ n.i }}</span><span style="font-size:14px;font-weight:500">{{ n.t }}</span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:{{ n.rc }}">{{ n.r }}</span><span style="font-size:12px;color:#6b6a65;line-height:17px">{{ n.e }}</span></div></div></sc-for>
+          <div style="display:flex;gap:24px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Built-in TURN relay</div><div style="font-size:12px;color:#6b6a65">Recommended: lets Players connect when a direct connection fails. Needs UDP 49160–49199 forwarded.</div></div><div style="width:36px;height:20px;border-radius:10px;background:#1a7f96;position:relative"><div style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff"></div></div></div>
+        </div>
+      </sc-if>
+      <div style="margin-top:auto;display:flex;gap:8px;align-items:center"><span style="font-size:14px;padding:8px 16px;border:1px solid #d9d7d0;border-radius:7px">Back</span><span style="font-size:13px;color:#6b6a65;margin-left:8px">{{ S.skipNote }}</span><span style="margin-left:auto;font-size:14px;padding:8px 16px;border:1px solid #d9d7d0;border-radius:7px">Skip this step</span><span style="font-size:14px;padding:8px 16px;border-radius:7px;background:{{ S.nextBg }};color:{{ S.nextFg }};font-weight:500">{{ S.next }}</span></div>
+    </div>
+  </div>
+</div>
+</sc-for>
+<div id="7a-3" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">7a-3</span><span style="font-size:15px">Done step · summary with what was skipped · reopen from Settings → Setup assistant</span></div>
+  <div style="width:880px;background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:28px 32px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:24px;font-weight:600">Home Hub is ready</div>
+    <sc-for list="{{ doneList }}" as="d" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:20px 160px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 0;border-top:1px solid #efede8;font-size:14px"><span style="color:{{ d.c }}">{{ d.i }}</span><span style="font-weight:500">{{ d.k }}</span><span style="color:#55544f;font-size:13px">{{ d.v }}</span><span style="font-size:13px;color:#1a7f96">{{ d.a }}</span></div></sc-for>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><span style="font-size:14px;padding:8px 16px;border:1px solid #d9d7d0;border-radius:7px">Invite users</span><span style="font-size:14px;padding:8px 16px;border-radius:7px;background:#1a7f96;color:#fff;font-weight:500">Open Library</span></div>
+  </div>
+</div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">7b WATCH IN THE BROWSER</div>
+<div id="7b" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">7b</span><span style="font-size:15px">Hub web · watching Lena’s Multiview · dark theme forced for video · tile switcher, quality, volume, chat · 1440</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#0b0b0c;color:#ececea;overflow:hidden;border-radius:4px">
+    <dc-import name="hub-nav" active="" dark="{{ true }}" r4="{{ true }}" member="{{ true }}" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="height:56px;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid #1e1f22;background:#111214;font-size:13px;white-space:nowrap">
+        <span style="color:#a3a3a8">← Sessions</span><span style="width:1px;height:20px;background:#2c2d32"></span><span style="font-size:15px;font-weight:600">Watching Lena · Multiview</span><span style="padding:4px 10px;border-radius:999px;font-size:12px;font-weight:500;background:#15262b;color:#3cbfd8">● Relayed · 52 ms</span>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center"><span style="height:30px;padding:0 10px;border-radius:7px;border:1px solid #26272b;display:flex;align-items:center;gap:6px">♪ <span style="font:500 12px 'IBM Plex Mono'">60</span></span><span style="height:30px;padding:0 10px;border-radius:7px;border:1px solid #26272b;display:flex;align-items:center">Quality: Auto ▾</span><span style="height:30px;padding:0 10px;border-radius:7px;border:1px solid #26272b;display:flex;align-items:center">⛶</span><span style="height:30px;padding:0 12px;border-radius:7px;border:1px solid #3cbfd8;color:#3cbfd8;display:flex;align-items:center">Open in Player</span></div>
+      </div>
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-height:0">
+          <div style="flex:1;border-radius:6px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px);position:relative"><div style="position:absolute;left:10px;top:10px;padding:4px 8px;border-radius:6px;background:rgba(17,18,20,.82);font-size:12px">Tile 2 · Lena · Harbor Rally</div></div>
+          <div style="display:flex;gap:10px"><sc-for list="{{ webTiles }}" as="t" hint-placeholder-count="3"><div style="width:180px;height:100px;border-radius:6px;background:repeating-linear-gradient(135deg,#17181a 0 8px,#1b1c1f 8px 16px);box-shadow:{{ t.sel }};position:relative"><span style="position:absolute;left:6px;bottom:6px;font-size:11px;padding:2px 6px;border-radius:5px;background:rgba(17,18,20,.85)">{{ t.n }} · {{ t.l }}</span></div></sc-for><span style="font-size:12px;color:#8e8e94;align-self:center;margin-left:8px">1 2 3 switch tiles · sound follows the big tile</span></div>
+        </div>
+        <div style="border-left:1px solid #1e1f22;background:#111214;display:flex;flex-direction:column;min-height:0">
+          <div style="display:flex;height:40px;border-bottom:1px solid #1e1f22;padding:0 8px;font-size:13px;color:#a3a3a8"><span style="display:flex;align-items:center;padding:0 8px;border-bottom:2px solid #3cbfd8;color:#ecebe7;font-weight:600">Chat</span><span style="display:flex;align-items:center;padding:0 8px">People · 4</span></div>
+          <div style="flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:8px;justify-content:flex-end;font-size:13px"><sc-for list="{{ webChat }}" as="m" hint-placeholder-count="3"><div><span style="color:{{ m.c }};font-weight:600">{{ m.n }}</span> {{ m.t }}</div></sc-for></div>
+          <div style="padding:12px 16px;border-top:1px solid #1e1f22"><div style="height:38px;border:1px solid #2c2d32;border-radius:8px;display:flex;align-items:center;padding:0 10px;color:#7d7d83;font-size:13px">Message · Enter sends</div><div style="font-size:11px;color:#7d7d83;margin-top:6px">Browser viewers can chat; voice and Ask to play need the Player.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap">
+<div id="7b-390" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">7b · 390</span><span style="font-size:15px">Phone · portrait</span></div>
+  <div style="width:390px;height:844px;background:#0b0b0c;color:#ececea;border-radius:4px;display:flex;flex-direction:column;overflow:hidden">
+    <div style="height:52px;display:flex;align-items:center;gap:10px;padding:0 12px;background:#111214;border-bottom:1px solid #1e1f22;font-size:13px"><span style="color:#a3a3a8">←</span><span style="font-size:15px;font-weight:600;flex:1">Lena · Harbor Rally</span><span style="padding:3px 8px;border-radius:999px;font-size:11px;background:#15262b;color:#3cbfd8">Relayed</span><span style="padding:3px 8px;border:1px solid #2c2d32;border-radius:6px">⋯</span></div>
+    <div style="aspect-ratio:4/3;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div>
+    <div style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid #1e1f22;font-size:12px"><span style="padding:5px 10px;border-radius:14px;background:#ecebe7;color:#121315">Tile 2 · Lena</span><span style="padding:5px 10px;border-radius:14px;border:1px solid #34353a">1 · Max</span><span style="padding:5px 10px;border-radius:14px;border:1px solid #34353a">3 · Jonas</span></div>
+    <div style="display:flex;gap:8px;padding:10px 12px;font-size:12px"><span style="flex:1;height:36px;border-radius:8px;border:1px solid #2c2d32;display:flex;align-items:center;justify-content:center">♪ 60</span><span style="flex:1;height:36px;border-radius:8px;border:1px solid #2c2d32;display:flex;align-items:center;justify-content:center">Low · saves data</span><span style="flex:1;height:36px;border-radius:8px;border:1px solid #2c2d32;display:flex;align-items:center;justify-content:center">⛶</span></div>
+    <div style="flex:1;padding:8px 12px;display:flex;flex-direction:column;gap:8px;justify-content:flex-end;font-size:13px;border-top:1px solid #1e1f22"><sc-for list="{{ webChat }}" as="m" hint-placeholder-count="3"><div><span style="color:{{ m.c }};font-weight:600">{{ m.n }}</span> {{ m.t }}</div></sc-for></div>
+    <div style="padding:10px 12px;border-top:1px solid #1e1f22"><div style="height:44px;border:1px solid #2c2d32;border-radius:8px;display:flex;align-items:center;padding:0 12px;color:#7d7d83;font-size:14px">Message</div></div>
+  </div>
+</div>
+<div id="7b-states" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">7b-2</span><span style="font-size:15px">States in the video area · connecting · relayed only · ended · not allowed</span></div>
+  <div style="width:980px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px">
+    <sc-for list="{{ webStates }}" as="w" hint-placeholder-count="4"><div style="height:240px;border-radius:8px;background:#0b0b0c;color:#ecebe7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:20px;box-sizing:border-box">
+      <span style="font:500 11px 'IBM Plex Mono';color:#7d7d83;letter-spacing:.06em">{{ w.k }}</span><span style="font-size:16px;font-weight:600;color:{{ w.fg }}">{{ w.t }}</span><span style="font-size:13px;color:#a3a3a8;max-width:360px;line-height:19px">{{ w.d }}</span>
+      <sc-if value="{{ w.hasA }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;padding:7px 14px;border-radius:7px;border:1px solid #3a3b40;margin-top:4px">{{ w.a }}</span></sc-if>
+    </div></sc-for>
+  </div>
+</div>
+</div>
+
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">7c HANDHELD / LINUX · 1280 × 800 · GAMEPAD ONLY</div>
+<div id="7c" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">7c</span><span style="font-size:15px">Library · focus on a tile · button hints bar · search opens the on-screen keyboard · detail column becomes a sheet (A)</span></div>
+  <div style="width:1280px;height:800px;display:flex;flex-direction:column;background:#121315;overflow:hidden;color:#ececea;border-radius:4px;position:relative">
+    <div style="flex:1;min-height:0;display:flex">
+      <dc-import name="player-nav" active="Library" r4="{{ true }}" online="compact" bell="3" hint-size="232px,100%"></dc-import>
+      <div style="flex:1;min-width:0;padding:24px 28px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:12px"><span style="font-size:28px;font-weight:600;flex:1">Library</span><div style="width:300px;height:40px;border:2px solid #3cbfd8;border-radius:8px;background:#17181b;font-size:14px;display:flex;align-items:center;padding:0 12px;box-sizing:border-box">harb<span style="width:1px;height:18px;background:#ecebe7;margin-left:1px"></span></div></div>
+        <div style="display:flex;gap:8px;align-items:center"><span style="font:600 10px 'IBM Plex Mono';padding:2px 6px;border-radius:4px;background:#2c2d32;color:#c9c8c4">L1</span><sc-for list="{{ hhChips }}" as="f" hint-placeholder-count="4"><span style="font-size:14px;padding:7px 14px;border-radius:18px;background:{{ f.bg }};color:{{ f.fg }};border:1px solid {{ f.bd }}">{{ f.l }}</span></sc-for><span style="font:600 10px 'IBM Plex Mono';padding:2px 6px;border-radius:4px;background:#2c2d32;color:#c9c8c4">R1</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px">
+          <sc-for list="{{ hhTiles }}" as="t" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;gap:6px;transform:{{ t.sc }}"><div style="aspect-ratio:1.35;border-radius:10px;background:#1b1c1f;position:relative;box-shadow:{{ t.ring }}"><span style="position:absolute;left:10px;top:8px;font:11px 'IBM Plex Mono';color:#9a9a9f">{{ t.sys }}</span><span style="position:absolute;right:10px;top:6px;color:{{ t.sc2 }}">{{ t.star }}</span><span style="position:absolute;left:12px;bottom:6px;font-size:30px;font-weight:600;color:#3a3b40">{{ t.m }}</span></div><div style="font-size:15px">{{ t.t }}</div><div style="font-size:12px;color:#9a9a9f">{{ t.pt }}</div></div></sc-for>
+        </div>
+      </div>
+    </div>
+    <div style="position:absolute;left:232px;right:0;bottom:56px;height:250px;background:#1a1b1e;border-top:1px solid #34353a;padding:14px 28px;box-sizing:border-box;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;font-size:12px;color:#8e8e94">On-screen keyboard · Search<span style="margin-left:auto;font-family:'IBM Plex Mono'">B close · X backspace · Y space · Start done</span></div>
+      <sc-for list="{{ kb }}" as="row" hint-placeholder-count="4"><div style="display:flex;gap:6px;justify-content:center"><sc-for list="{{ row.k }}" as="k" hint-placeholder-count="10"><span style="min-width:{{ k.w }};height:38px;border-radius:7px;background:{{ k.bg }};color:{{ k.fg }};display:grid;place-items:center;font-size:15px;box-shadow:{{ k.ring }}">{{ k.l }}</span></sc-for></div></sc-for>
+    </div>
+    <div style="height:56px;flex:none;background:#0d0e10;border-top:1px solid #24252a;display:flex;align-items:center;gap:22px;padding:0 24px;font-size:13px;color:#c9c8c4">
+      <sc-for list="{{ hints }}" as="h" hint-placeholder-count="6"><span style="display:flex;align-items:center;gap:8px"><span style="min-width:24px;height:24px;padding:0 5px;box-sizing:border-box;border-radius:12px;background:{{ h.bg }};color:#0d1214;display:grid;place-items:center;font:600 11px 'IBM Plex Mono'">{{ h.b }}</span>{{ h.l }}</span></sc-for>
+      <span style="margin-left:auto;font-size:12px;color:#7d7d83">Hints follow the connected pad (Xbox / PlayStation / Steam Deck labels)</span>
+    </div>
+  </div>
+</div>
+<div id="7c-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">7c-2</span><span style="font-size:15px">In game · hold Select shows the hotkey overlay · header gets focus with Select double-tap · 1280 × 800</span></div>
+  <div style="width:1280px;height:800px;background:#0b0b0c;color:#ecebe7;display:grid;grid-template-rows:56px minmax(0,1fr) 56px;overflow:hidden;border-radius:4px;position:relative">
+    <div style="box-shadow:inset 0 -2px 0 #3cbfd8"><dc-import name="r4-header" compact="{{ true }}" title="Harbor Rally" voice="ptt" unread="1" open="vol" hint-size="100%,56px"></dc-import></div>
+    <div style="position:relative;display:flex;align-items:center;justify-content:center;gap:10px"><div style="width:520px;height:390px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div><div style="width:520px;height:390px;background:repeating-linear-gradient(135deg,#17181a 0 10px,#1b1c1f 10px 20px)"></div>
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:560px;padding:18px 20px;border-radius:14px;background:rgba(17,18,20,.94);border:1px solid #34353a;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center"><span style="font-size:15px;font-weight:600">Holding Select</span><span style="margin-left:auto;font-size:12px;color:#8e8e94">release to close</span></div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 20px">
+          <sc-for list="{{ padMap }}" as="p" hint-placeholder-count="12"><div style="display:flex;align-items:center;gap:10px;font-size:13px;padding:4px 0;border-bottom:1px solid #26272b"><span style="min-width:44px;height:22px;padding:0 6px;box-sizing:border-box;border-radius:11px;background:#2c2d32;display:grid;place-items:center;font:600 10px 'IBM Plex Mono'">{{ p.b }}</span><span style="color:{{ p.fg }}">{{ p.a }}</span></div></sc-for>
+        </div>
+      </div>
+    </div>
+    <div style="background:#0d0e10;border-top:1px solid #24252a;display:flex;align-items:center;gap:22px;padding:0 24px;font-size:13px;color:#c9c8c4">
+      <sc-for list="{{ hintsGame }}" as="h" hint-placeholder-count="4"><span style="display:flex;align-items:center;gap:8px"><span style="min-width:24px;height:24px;padding:0 5px;box-sizing:border-box;border-radius:12px;background:{{ h.bg }};color:#0d1214;display:grid;place-items:center;font:600 11px 'IBM Plex Mono'">{{ h.b }}</span>{{ h.l }}</span></sc-for>
+      <span style="margin-left:auto;font-size:12px;color:#7d7d83">Bar shows only while the header or panel has focus; hidden during play</span>
+    </div>
+  </div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const C = { Max: '#6f9cff', Lena: '#f07ab8', Jonas: '#a6d65a', Sam: '#b39cf5' };
+    const CL = { Max: '#2f5fd0', Lena: '#b8327a', Jonas: '#4d7a14', Sam: '#6a4fc4' };
+    const devTabs = [['Log', 'L'], ['State', 'S'], ['Memory', 'M'], ['Performance', '']].map(([l, k], i) => ({ l, k, u: i === 2 ? '#3cbfd8' : 'transparent', fg: i === 2 ? '#ecebe7' : '#a3a3a8', w: i === 2 ? 600 : 400 }));
+    const hx = n => n.toString(16).toUpperCase().padStart(2, '0');
+    const hex = Array.from({ length: 10 }, (_, r) => {
+      const b = Array.from({ length: 16 }, (_, c) => { const v = (r * 37 + c * 11 + 5) % 256; const changed = (r === 3 && c === 6) || (r === 6 && c === 2); const found = r === 3 && c === 6; const plug = r === 6 && c === 2;
+        return { v: found ? '14' : hx(v), fg: changed ? '#0d1214' : v === 0 ? '#3a3b40' : '#c9c8c4', bg: found ? '#3cbfd8' : plug ? '#e5b45a' : 'transparent' }; });
+      return { a: '0x0223 4A' + hx(r * 16), b, t: '..%.Mossling..' };
+    });
+    const watch = [{ n: 'Party slot 1 level', a: '0x02234A36 · u8', v: '20 (was 14)', t: 'plugin', fg: '#e5b45a', bg: '#1d1a12' }, { n: 'Party slot 1 HP', a: '0x02234A38 · u16', v: '61', t: '0.4 s', fg: '#3cbfd8', bg: '#15262b' }, { n: 'Route id', a: '0x0224 1C10 · u16', v: '104', t: '12 s', fg: '#ecebe7', bg: 'transparent' }, { n: 'Badges', a: '0x0224 1D02 · u8', v: '0b0000_0111', t: '1 h', fg: '#ecebe7', bg: 'transparent' }];
+    const lvls = [['Error · 1', 0], ['Warn · 4', 1], ['Info · 86', 1], ['Debug', 0]].map(([l, on]) => ({ l, bg: on ? '#2c2d32' : 'transparent', fg: on ? '#ecebe7' : '#7d7d83', bd: on ? '#3a3b40' : '#26272b' }));
+    const logLines = [['18:31:02.114', 'INFO', 'SoulLink', 'encounter route=104 species=Tidepup'], ['18:31:02.120', 'INFO', 'SoulLink', 'link pair created Max:Mossling ↔ Lena:Tidepup'], ['18:31:04.880', 'WARN', 'Creature Ed.', 'memory write 0x02234A36 14 → 20 (permission ok)'], ['18:31:05.002', 'INFO', 'SoulLink', 'snapshot requested before memory write'], ['18:31:09.441', 'ERROR', 'Item Helper', 'hud.render: nil value “orbs” at line 88'], ['18:31:12.010', 'INFO', 'SoulLink', 'board sync ok (Hub 42 ms)'], ['18:31:15.333', 'WARN', 'SoulLink', 'detect: species unknown at 0x0223 5000, skipped']].map(([t, lv, p, m]) => ({ t, lv, p, m, c: lv === 'ERROR' ? '#ef8a78' : lv === 'WARN' ? '#e5b45a' : '#7d7d83' }));
+    const T = (lvl, tw, k, v, o = {}) => ({ ind: lvl * 16 + 'px', tw, k, v, vc: o.vc || '#3cbfd8', bg: o.bg || 'transparent' });
+    const tree = [T(0, '▾', 'run', '{…}', { vc: '#7d7d83' }), T(1, ' ', 'id', '"harbor-nuzlocke"'), T(1, '▾', 'players', '[4]', { vc: '#7d7d83' }), T(2, '▸', '0 Max', '{ alive: 6, dead: 1 }', { vc: '#c9c8c4' }), T(2, '▾', '1 Lena', '{…}', { vc: '#7d7d83' }), T(3, ' ', 'alive', '5'), T(3, ' ', 'dead', '2', { bg: '#15262b' }), T(1, '▾', 'links', '[12]', { vc: '#7d7d83' }), T(2, '▸', '11', 'Mossling ↔ Tidepup · dead', { vc: '#c9c8c4' })];
+    const recapNums = [['DAYS', '19'], ['PLAY TIME', '41 h'], ['CATCHES', '38'], ['DEATHS', '7'], ['BADGES', '11 / 32'], ['SCREENSHOTS', '22']].map(([k, v]) => ({ k, v }));
+    const days = ['2 Oct', '6 Oct', '10 Oct', '14 Oct', '18 Oct', 'today'];
+    const ev = (x, g, kind, col, dark, tip, focus) => {
+      const k = { catch: ['12px', '50%', col, col, ''], death: ['16px', '50%', dark ? '#26272b' : '#ebe9e3', dark ? '#8e8e94' : '#8d8b85', '✕'], badge: ['14px', '2px', dark ? '#111214' : '#fff', col, '◆'], note: ['16px', '4px', dark ? '#2a2414' : '#f7ecd6', dark ? '#e5b45a' : '#c08a1e', '✎'], shot: ['16px', '4px', dark ? '#1a1b1e' : '#fff', dark ? '#5e5e63' : '#b9b7b0', '◰'] }[kind];
+      return { x, s: k[0], r: k[1], bg: k[2], bd: k[3], g: kind === 'catch' ? '' : k[4], fg: kind === 'badge' ? col : dark ? '#c9c8c4' : '#55544f', tip, ring: focus ? (dark ? '0 0 0 3px #111214,0 0 0 5px #3cbfd8' : '0 0 0 3px #fff,0 0 0 5px #1a7f96') : 'none' };
+    };
+    const lanesFor = (dark, P) => [
+      { n: 'Max', i: 'M', c: P.Max, ev: [ev('6%', '', 'catch', P.Max, dark, 'Mossling'), ev('22%', '', 'badge', P.Max, dark, 'Badge 1'), ev('38%', '', 'catch', P.Max, dark), ev('60%', '', 'death', P.Max, dark, 'Mossling died (linked)'), ev('74%', '', 'note', P.Max, dark, 'Creature Editor used'), ev('88%', '', 'badge', P.Max, dark, 'Badge 3')] },
+      { n: 'Lena', i: 'L', c: P.Lena, ev: [ev('5%', '', 'catch', P.Lena, dark), ev('24%', '', 'badge', P.Lena, dark), ev('42%', '', 'shot', P.Lena, dark), ev('60%', '', 'death', P.Lena, dark, 'Tidepup fainted', true), ev('86%', '', 'badge', P.Lena, dark)] },
+      { n: 'Jonas', i: 'J', c: P.Jonas, ev: [ev('8%', '', 'catch', P.Jonas, dark), ev('30%', '', 'catch', P.Jonas, dark), ev('52%', '', 'badge', P.Jonas, dark), ev('80%', '', 'shot', P.Jonas, dark)] },
+      { n: 'Sam', i: 'S', c: P.Sam, ev: [ev('10%', '', 'catch', P.Sam, dark), ev('34%', '', 'death', P.Sam, dark), ev('48%', '', 'badge', P.Sam, dark), ev('70%', '', 'death', P.Sam, dark), ev('90%', '', 'badge', P.Sam, dark)] }];
+    const chipsFor = (dark, P) => [['All people', '', 1], ['Max', P.Max], ['Lena', P.Lena], ['Jonas', P.Jonas], ['Sam', P.Sam], ['All events ▾', '']].map(([l, dot, on]) => ({ l, dot, dd: dot ? 'block' : 'none', bg: on ? (dark ? '#ececea' : '#1d1d1b') : (dark ? 'transparent' : '#fff'), fg: on ? (dark ? '#121315' : '#fff') : (dark ? '#ececea' : '#1d1d1b'), bd: on ? (dark ? '#ececea' : '#1d1d1b') : (dark ? '#34353a' : '#d9d7d0') }));
+    const recaps = [
+      { id: '4jh-4', cap: 'Hub · run detail → Recap (6y) · lanes in player colours · filters · hover card · 1440', hub: true, player: false, bg: '#f5f4f0', ink: '#1d1d1b', mut: '#6b6a65', line: '#e4e2dc', card: '#fff', lane: '#faf9f6', acc: '#1a7f96', avFg: '#fff', pop: '#fff', popLine: '#e4e2dc', popX: '52%', badgeBg: '#1d1d1b', badgeFg: '#fff', lanes: lanesFor(false, CL), chips: chipsFor(false, CL) },
+      { id: '4j-4', cap: 'Player · Runs → Harbor Nuzlocke → Recap (6y) · same view, dark · 1440', hub: false, player: true, bg: '#121315', ink: '#ececea', mut: '#9a9a9f', line: '#2a2b30', card: '#1b1c1f', lane: '#16171a', acc: '#3cbfd8', avFg: '#0d1214', pop: '#1d1e22', popLine: '#34353a', popX: '52%', badgeBg: '#3cbfd8', badgeFg: '#0d1214', lanes: lanesFor(true, C), chips: chipsFor(true, C) }];
+    const privRows = [
+      { label: 'Show what I play', desc: 'Others on Home Hub see the game you play in Online and Users. Off: only Online / Idle / Offline.', ctrl: 'toggle', on: true },
+      { label: 'Discord status', desc: 'Shows your activity in the Discord app on this device.', ctrl: 'seg', opts: ['Show game', 'Show run', 'Off'], value: 'Show run', changed: true },
+      { label: 'Show play time to other members', desc: 'Admins always see it (6k).', ctrl: 'toggle', on: true }];
+    const discPrev = [{ k: 'SHOW GAME', a: 'Playing Coral Saga: Ember', b: 'via FrameBeam · 1 h 12 min' }, { k: 'SHOW RUN', a: 'Harbor Nuzlocke · day 19', b: '3 badges · 6 alive' }, { k: 'OFF', a: 'Nothing is sent', b: 'Also when Discord is closed' }];
+    const splits = [['Route 101', '−0:12', '0:08:40', 'past'], ['Gym 1', '−0:31', '0:22:05', 'past'], ['Route 104', '+0:18', '0:41:58', 'past'], ['Gym 2', '+0:44', '1:05:10', 'past'], ['Gym 3', '', '1:12:48', 'cur'], ['Gym 4', '', '1:38:00', 'next']].map(([n, d, t, st]) => ({ n, d, t, fg: st === 'next' ? '#7d7d83' : '#ecebe7', dc: d.startsWith('−') ? '#3cbfd8' : '#e5b45a' }));
+    const stepNames = ['Systems', 'Cores', 'ROM folders', 'Internet access', 'Backups', 'Done'];
+    const steps = cur => stepNames.map((l, i) => ({ l, n: i < cur ? '✓' : String(i + 1), bar: i <= cur ? '#1a7f96' : '#e4e2dc', fg: i === cur ? '#1d1d1b' : i < cur ? '#55544f' : '#8d8b85', w: i === cur ? 600 : 400 }));
+    const setup = [
+      { id: '7a', cap: 'Hub · setup assistant after the first admin · step 2 Cores · nothing preselected · one core picked', steps: steps(1), t: 'Which cores should Home Hub offer?', d: 'You chose Game Boy, Game Boy Color, Game Boy Advance, Nintendo DS and Nintendo 3DS. Pick one core per system; Players download them on first start.', cores: true, net: false, next: 'Next · ROM folders', nextBg: '#1a7f96', nextFg: '#fff', skipNote: '2 systems still without a core' },
+      { id: '7a-2', cap: 'Hub · step 4 Internet access · public host, port test, TURN · one check failed', steps: steps(3), t: 'Can Players outside your home reach Home Hub?', d: 'Needed for friends who are not on your network. Skip if everyone plays at home.', cores: false, net: true, next: 'Next · Backups', nextBg: '#1a7f96', nextFg: '#fff', skipNote: 'Players at home work without this' }];
+    const coreList = [['mGBA', '0.10.3 · buildbot nightly', 'GB, GBC, GBA', '4.1 MB', 1, 1], ['Gambatte', '2024-11 · buildbot', 'GB, GBC', '1.2 MB', 0], ['melonDS DS', '1.4 · buildbot', 'Nintendo DS', '9.8 MB', 0], ['Azahar', '2125.0 · buildbot', 'Nintendo 3DS', '38 MB', 0]].map(([n, v, s, z, ck, f]) => ({ n, v, s, z, ck: ck ? '✓' : '', fill: ck ? '#1a7f96' : '#fff', line: ck ? '#1a7f96' : '#b9b7b0', ring: f ? 'inset 3px 0 0 #1a7f96' : 'none' }));
+    const netChecks = [
+      { i: '✓', bg: '#e2f3e8', fg: '#1e6b3a', t: 'Port 8443 (TCP)', r: 'Reachable from the internet', rc: '#1e6b3a', e: 'Tested through hub.example.com from outside.' },
+      { i: '!', bg: '#f7ecd6', fg: '#8a5a00', t: 'Relay ports (UDP)', r: '49160–49199 not reachable', rc: '#8a5a00', e: 'Forward the range as UDP to this machine in your router. Without it, Players on strict networks cannot connect.' },
+      { i: '✓', bg: '#e2f3e8', fg: '#1e6b3a', t: 'Certificate', r: 'Valid for hub.example.com', rc: '#1e6b3a', e: 'Players compare it the first time they connect.' }];
+    const doneList = [['✓', '#1e6b3a', 'Systems', '5 systems', ''], ['✓', '#1e6b3a', 'Cores', 'mGBA, melonDS DS, Azahar', ''], ['✓', '#1e6b3a', 'ROM folders', '/srv/roms · 38 games found', ''], ['!', '#8a5a00', 'Internet access', 'Relay ports not reachable', 'Fix'], ['–', '#8d8b85', 'Backups', 'Skipped', 'Set up']].map(([i, c, k, v, a]) => ({ i, c, k, v, a }));
+    const webTiles = [['1', 'Max', 'none'], ['2', 'Lena', '0 0 0 2px #3cbfd8'], ['3', 'Jonas', 'none']].map(([n, l, sel]) => ({ n, l, sel }));
+    const webChat = [{ n: 'Jonas', c: C.Jonas, t: '☠ Down!' }, { n: 'Lena', c: C.Lena, t: 'gym next' }, { n: 'Sam', c: C.Sam, t: 'watching from work 👀'.replace(' 👀', '') }];
+    const webStates = [
+      { k: 'CONNECTING', t: 'Connecting to Lena’s Session…', d: 'Usually 2–5 s. Trying direct first, then the relay.', fg: '#ecebe7', hasA: false, a: '' },
+      { k: 'RELAYED ONLY', t: 'Watching through the relay', d: 'Your network blocks direct connections; this adds about 30 ms. Quality may drop to Medium.', fg: '#3cbfd8', hasA: true, a: 'Why?' },
+      { k: 'ENDED', t: 'Lena stopped sharing', d: 'The Session ended 18:52. Chat stays readable until you leave.', fg: '#ecebe7', hasA: true, a: 'Back to Sessions' },
+      { k: 'NOT ALLOWED', t: 'This Session is invite only', d: 'Lena shares Harbor Rally with invited people only. Ask her in the Player to invite you.', fg: '#ecebe7', hasA: true, a: 'Back to Sessions' }];
+    const chipH = (l, on) => ({ l, bg: on ? '#ececea' : 'transparent', fg: on ? '#121315' : '#c9c8c4', bd: on ? '#ececea' : '#34353a' });
+    const hhChips = [chipH('All · 1', true), chipH('★ Favourites'), chipH('Couch co-op'), chipH('Nuzlocke')];
+    const hhTiles = [['Harbor Rally', 'DS', 'HR', '31 h · yesterday', 1, 1], ['Harbor Rally (Rev 1)', 'DS', 'HR', 'Never played', 0, 0]].map(([t, sys, m, pt, fav, foc]) => ({ t, sys, m, pt, star: fav ? '★' : '☆', sc2: fav ? '#e5b45a' : '#5e5e63', ring: foc ? '0 0 0 3px #121315,0 0 0 6px #3cbfd8' : 'none', sc: foc ? 'scale(1.03)' : 'none' }));
+    const rowK = (s, f) => ({ k: s.split('').map(l => ({ l, w: '44px', bg: l === f ? '#3cbfd8' : '#26272b', fg: l === f ? '#0d1214' : '#ecebe7', ring: l === f ? '0 0 0 2px #1a1b1e,0 0 0 4px #3cbfd8' : 'none' })) });
+    const kb = [rowK('qwertyuiop'), rowK('asdfghjkl'), rowK('zxcvbnm', 'b'), { k: [{ l: 'Space', w: '260px', bg: '#26272b', fg: '#ecebe7', ring: 'none' }, { l: 'Done', w: '120px', bg: '#2c2d32', fg: '#ecebe7', ring: 'none' }] }];
+    const hints = [['A', 'Play', '#6fd39a'], ['X', 'Favourite', '#6f9cff'], ['Y', 'Search', '#e5b45a'], ['B', 'Back', '#ef8a78'], ['☰', 'Details', '#c9c8c4'], ['L1 R1', 'Chips', '#c9c8c4']].map(([b, l, bg]) => ({ b, l, bg }));
+    const hintsGame = [['A', 'Open', '#6fd39a'], ['B', 'Back to game', '#ef8a78'], ['← →', 'Move', '#c9c8c4'], ['L1 R1', 'Panel tabs', '#c9c8c4']].map(([b, l, bg]) => ({ b, l, bg }));
+    const padMap = [['Start', 'Pause'], ['R2', 'Speed-up'], ['↑ ↓', 'Volume'], ['X', 'Mute'], ['R1', 'Save state'], ['L1', 'Load state'], ['L2 hold', 'Rewind'], ['Y', 'Screenshot'], ['→', 'Screen layout'], ['B', 'Fullscreen'], ['R3', 'Mic on/off'], ['↓', 'Splits plugin: split']].map(([b, a]) => ({ b, a, fg: a.startsWith('Splits') ? '#a3a3a8' : '#ecebe7' }));
+    return { devTabs, hex, watch, lvls, logLines, tree, recapNums, days, recaps, privRows, discPrev, splits, setup, coreList, netChecks, doneList, webTiles, webChat, webStates, hhChips, hhTiles, kb, hints, hintsGame, padMap };
+  }
+}
+</script>
+</body>
+</html>

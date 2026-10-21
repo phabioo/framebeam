@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>body{margin:0;background:#d9d7d0;font-family:'IBM Plex Sans',sans-serif}a{color:#1a7f96}a:hover{color:#125f70}</style>
+</helmet>
+<section style="padding:64px;display:flex;flex-direction:column;gap:64px;color:#1d1d1b">
+<div style="display:flex;flex-direction:column;gap:10px;width:1440px">
+  <div style="font:500 13px 'IBM Plex Mono';color:#5b5a56;letter-spacing:.04em">ROUND 4 · A · WAVE 0 RELEASE NOTES · WAVE 1 SAFETY AND OPERATIONS</div>
+  <div style="font-size:32px;font-weight:600">What’s new, backups, roll back, problem reports, connection check, Hub status</div>
+  <div style="font-size:15px;color:#3a3936;line-height:1.55">Frame: <a href="round-4-sheet.dc.html#0-3-hubnav">0-3</a> (Hub nav groups, Player sidebar) · rules <a href="round-3-sheet.dc.html#0-2">0-2</a> · handoff rows in <a href="round-4-sheet.dc.html#handoff">Round 4 Sheet</a></div>
+</div>
+
+<!-- ============ WAVE 0 ============ -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">WAVE 0 · RELEASE NOTES</div>
+
+<sc-for list="{{ notesP }}" as="v" hint-placeholder-count="2">
+<div id="{{ v.id }}" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">{{ v.id }}</span><span style="font-size:15px">{{ v.cap }}</span></div>
+  <div style="width:{{ v.w }};height:{{ v.h }};display:flex;background:#121315;overflow:hidden;color:#ececea;position:relative;border-radius:4px">
+    <dc-import name="player-nav" active="Library" r4="{{ true }}" online="{{ v.on }}" bell="2" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;padding:28px 36px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      <div style="font-size:28px;font-weight:600">Library</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px"><sc-for list="{{ tiles }}" as="t" hint-placeholder-count="10"><div style="display:flex;flex-direction:column;gap:8px"><div style="aspect-ratio:1;border-radius:10px;background:repeating-linear-gradient(135deg,#1a1b1e 0 10px,#1d1e21 10px 20px)"></div><div style="font-size:13px">{{ t }}</div></div></sc-for></div>
+    </div>
+    <div style="position:absolute;inset:0;background:rgba(6,7,8,.66);display:flex;align-items:center;justify-content:center">
+      <div style="width:600px;max-height:{{ v.maxH }};box-sizing:border-box;display:flex;flex-direction:column;border-radius:14px;background:#1d1e22;border:1px solid #34353a;box-shadow:0 30px 80px rgba(0,0,0,.6)">
+        <div style="padding:24px 28px 16px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid #2c2d32">
+          <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.08em;color:#3cbfd8">WHAT’S NEW</div>
+          <div style="font-size:24px;font-weight:600">FrameBeam {{ v.ver }}</div>
+          <div style="font-size:13px;color:#a3a3a8">{{ v.meta }}</div>
+        </div>
+        <div style="flex:1;min-height:0;overflow:hidden;position:relative;padding:8px 28px 20px;display:flex;flex-direction:column;gap:16px">
+          <sc-for list="{{ v.groups }}" as="g" hint-placeholder-count="3"><div style="display:flex;flex-direction:column;gap:2px">
+            <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.08em;color:#7d7d83;padding:12px 0 6px">{{ g.t }}</div>
+            <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;align-items:baseline;padding:6px 0;font-size:14px;line-height:21px"><span style="justify-self:start;font-size:11px;font-weight:500;padding:1px 7px;border-radius:10px;background:#26272b;color:#c9c8c4">{{ it.a }}</span><span style="text-wrap:pretty">{{ it.t }}</span></div></sc-for>
+          </div></sc-for>
+          <sc-if value="{{ v.long }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;left:0;right:0;bottom:0;height:56px;background:linear-gradient(rgba(29,30,34,0),#1d1e22)"></div><div style="position:absolute;right:8px;top:12px;width:4px;height:120px;border-radius:2px;background:#3a3b40"></div></sc-if>
+        </div>
+        <div style="padding:16px 28px;border-top:1px solid #2c2d32;display:flex;align-items:center;gap:12px">
+          <span style="font-size:13px;color:#3cbfd8">Full release notes ↗</span>
+          <span style="font-size:12px;color:#7d7d83">Also in Settings → Updates</span>
+          <span style="margin-left:auto;height:36px;padding:0 20px;border-radius:8px;background:#3cbfd8;color:#0d1214;font-weight:600;font-size:14px;display:flex;align-items:center;box-shadow:0 0 0 2px #1d1e22,0 0 0 4px #3cbfd8">Got it</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-for>
+
+<div style="display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start">
+<div id="6a-hub" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6a-hub</span><span style="font-size:15px">Hub · first page after an update · admin only · banner dismissible</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px">
+    <dc-import name="hub-nav" active="Library" r4="{{ true }}" reports-badge="2 new" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;min-width:0;padding:28px 40px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:16px;padding:12px 16px;border-radius:10px;background:#fff;border:1px solid #a6d9e6">
+        <span style="width:8px;height:8px;border-radius:50%;background:#1a7f96;flex:none"></span>
+        <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:500">Home Hub was updated to 0.16.4</span><span style="font-size:12px;color:#6b6a65">today 03:12 · from 0.15.3 · Backups and a Status page are new</span></div>
+        <span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px;background:#fff">What’s new</span>
+        <span title="Dismiss · stays in the sidebar under the version" style="width:30px;height:30px;display:grid;place-items:center;border-radius:7px;color:#6b6a65">×</span>
+      </div>
+      <div style="display:flex;align-items:flex-end"><div style="flex:1"><div style="font-size:28px;font-weight:600">Library</div><div style="font-size:14px;color:#6b6a65">Games · Screenshots</div></div><span style="font-size:13px;padding:8px 14px;border-radius:7px;background:#1a7f96;color:#fff;font-weight:500">Upload ROM</span></div>
+      <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+        <sc-for list="{{ hubRows }}" as="r" hint-placeholder-count="6"><div style="display:grid;grid-template-columns:minmax(0,1fr) 160px 90px 140px 30px;gap:16px;align-items:center;padding:0 20px;height:52px;border-top:1px solid #efede8;font-size:14px"><span>{{ r.t }}</span><span style="font-size:13px;color:#6b6a65">{{ r.s }}</span><span style="font-size:13px;color:#6b6a65">{{ r.z }}</span><span style="font-size:13px;color:#6b6a65">{{ r.d }}</span><span style="padding:3px 8px;border:1px solid #d9d7d0;border-radius:7px;font-size:13px">⋯</span></div></sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="6a-hub-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6a-hub-2</span><span style="font-size:15px">Hub · What’s new page · from banner or sidebar footer · all users</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px">
+    <dc-import name="hub-nav" active="" r4="{{ true }}" reports-badge="2 new" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;min-width:0;padding:28px 40px">
+      <div style="max-width:880px;display:flex;flex-direction:column;gap:16px">
+        <div style="font-size:13px;color:#6b6a65">← Back to Library</div>
+        <div style="display:flex;align-items:flex-end;gap:16px"><div style="flex:1"><div style="font-size:28px;font-weight:600">What’s new in 0.16.4</div><div style="font-size:14px;color:#6b6a65">Stable · today 03:12 · changes since 0.15.3, including the 0.16.0 betas</div></div><div style="width:200px;height:34px;border:1px solid #d9d7d0;border-radius:7px;background:#fff;display:flex;align-items:center;padding:0 10px;font-size:13px;box-sizing:border-box">0.16.4 · current<span style="margin-left:auto;color:#6b6a65;font-size:11px">▾</span></div></div>
+        <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:8px 24px 20px">
+          <sc-for list="{{ notesHub }}" as="g" hint-placeholder-count="3"><div style="display:flex;flex-direction:column">
+            <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;padding:16px 0 6px">{{ g.t }}</div>
+            <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:baseline;padding:7px 0;border-top:1px solid #efede8;font-size:14px;line-height:21px"><span style="justify-self:start;font-size:11px;font-weight:500;padding:1px 8px;border-radius:10px;background:#ebe9e3;color:#55544f">{{ it.a }}</span><span>{{ it.t }}</span></div></sc-for>
+          </div></sc-for>
+        </div>
+        <div style="display:flex;gap:16px;font-size:13px"><span style="color:#1a7f96">Full release notes ↗</span><span style="color:#6b6a65">Players update on their own; Players 0.15.x keep working with this Hub.</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============ WAVE 1 · BACKUPS ============ -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">WAVE 1 · 6b HUB BACKUPS</div>
+
+<div style="display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start">
+<sc-for list="{{ bk }}" as="b" hint-placeholder-count="3">
+<div id="{{ b.id }}" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">{{ b.id }}</span><span style="font-size:15px">{{ b.cap }}</span></div>
+  <div style="width:1440px;height:1060px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px;position:relative">
+    <dc-import name="hub-nav" active="Settings" r4="{{ true }}" status-badge="{{ b.navBadge }}" reports-badge="2 new" hint-size="232px,100%"></dc-import>
+    <div style="width:300px;flex:none;background:#faf9f6;border-right:1px solid #e2e0da;padding:28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:20px;font-weight:600;padding:0 10px 12px">Settings</div>
+      <sc-for list="{{ setNavB }}" as="n" hint-placeholder-count="11"><sc-if value="{{ n.head }}" hint-placeholder-val="{{ false }}"><div style="font:500 10px 'IBM Plex Mono';letter-spacing:.08em;color:#6b6a65;padding:14px 10px 4px">{{ n.l }}</div></sc-if><sc-if value="{{ n.item }}" hint-placeholder-val="{{ true }}"><div style="display:flex;justify-content:space-between;padding:8px 10px;border-radius:8px;font-size:14px;background:{{ n.bg }};border:1px solid {{ n.bd }}"><span>{{ n.l }}</span><span style="font-size:12px;color:{{ n.bc }}">{{ n.b }}</span></div></sc-if></sc-for>
+    </div>
+    <div style="flex:1;min-width:0;padding:28px 40px">
+      <div style="max-width:880px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:flex-end;gap:16px"><div style="flex:1"><div style="font-size:28px;font-weight:600">Backups</div><div style="font-size:14px;color:#6b6a65">Database, saves and snapshots, save states, plugins. ROMs only if you include them.</div></div>
+          <span style="height:36px;padding:0 16px;border-radius:7px;background:{{ b.nowBg }};color:{{ b.nowFg }};font-size:14px;font-weight:500;display:flex;align-items:center" title="{{ b.nowTip }}">Back up now</span></div>
+        <sc-if value="{{ b.ok }}" hint-placeholder-val="{{ true }}"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:12px"><span style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:10px;background:#e2f3e8;color:#1e6b3a">✓ Last backup ok</span><span style="font-size:14px">today 03:00 · 1.4 GB · took 2 min</span><span style="margin-left:auto;font-size:13px;color:#6b6a65">Next tomorrow 03:00</span></div></sc-if>
+        <sc-if value="{{ b.running }}" hint-placeholder-val="{{ false }}"><div style="background:#fff;border:1px solid #a6d9e6;border-radius:10px;padding:14px 20px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:center;gap:12px"><span style="width:14px;height:14px;border-radius:50%;border:2px solid #d9d7d0;border-top-color:#1a7f96;box-sizing:border-box"></span><span style="font-size:14px;font-weight:500">Backing up · saves and snapshots</span><span style="font:13px 'IBM Plex Mono';color:#6b6a65">840 MB of 1.4 GB</span><span style="margin-left:auto;font-size:13px;color:#6b6a65">about 1 min left</span><span style="font-size:13px;padding:5px 12px;border:1px solid #d9d7d0;border-radius:7px">Cancel</span></div><div style="height:6px;border-radius:3px;background:#ebe9e3;display:flex"><span style="width:60%;border-radius:3px;background:#1a7f96"></span></div><div style="font-size:12px;color:#6b6a65">Started by Max today 18:40. Players keep playing; saves arriving now go into the next backup.</div></div></sc-if>
+        <sc-if value="{{ b.restored }}" hint-placeholder-val="{{ false }}"><div style="background:#fff;border:1px solid #b7dcc4;border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:12px"><span style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:10px;background:#e2f3e8;color:#1e6b3a">✓ Restored</span><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:14px">Home Hub runs the backup from 14 Oct 03:00 · restarted today 18:55</span><span style="font-size:12px;color:#6b6a65">To undo, restore the safety backup from today 18:52.</span></div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Restore safety backup…</span><span style="width:30px;height:30px;display:grid;place-items:center;color:#6b6a65">×</span></div></sc-if>
+        <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px;opacity:{{ b.schedOp }}">
+          <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">SCHEDULE</div>
+          <div style="display:flex;gap:24px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Back up automatically</div><div style="font-size:12px;color:#6b6a65">Runs while Players keep playing. Takes 1–3 min without ROMs.</div></div><div style="width:360px;display:flex;justify-content:flex-end"><div style="display:flex;background:#f5f4f0;border:1px solid #d9d7d0;border-radius:8px;padding:3px;font-size:13px"><span style="padding:5px 16px;color:#6b6a65">Off</span><span style="padding:5px 16px;border-radius:6px;background:#fff;border:1px solid #d9d7d0;font-weight:500">Daily</span><span style="padding:5px 16px;color:#6b6a65">Weekly</span></div></div></div>
+          <div style="display:flex;gap:24px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Time</div><div style="font-size:12px;color:#6b6a65">Hub time zone Europe/Berlin. Weekly adds a weekday.</div></div><div style="width:360px;display:flex;justify-content:flex-end"><div style="width:120px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font:13px 'IBM Plex Mono';display:flex;align-items:center;padding:0 10px;box-sizing:border-box">03:00</div></div></div>
+          <div style="display:flex;gap:24px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Keep</div><div style="font-size:12px;color:#6b6a65">Older backups are deleted after a new one succeeds. Safety backups are kept until you delete them.</div></div><div style="width:360px;display:flex;justify-content:flex-end;align-items:center;gap:8px"><span style="font-size:13px;color:#6b6a65">Last</span><div style="display:flex;align-items:center;border:1px solid #d9d7d0;border-radius:7px;height:34px"><span style="width:32px;text-align:center;color:#6b6a65">−</span><span style="width:36px;text-align:center;font:13px 'IBM Plex Mono'">7</span><span style="width:32px;text-align:center;color:#6b6a65">+</span></div><span style="font-size:13px;color:#6b6a65">backups</span></div></div>
+          <div style="display:flex;gap:24px;align-items:center;border-top:1px solid #efede8;padding-top:14px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Include ROMs</div><div style="font-size:12px;color:#6b6a65">Adds about 38.2 GB to every backup. With 7 kept: about 277 GB.</div></div><div style="width:360px;display:flex;justify-content:flex-end"><div style="width:36px;height:20px;border-radius:10px;background:#d9d7d0;position:relative"><div style="position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff"></div></div></div></div>
+        </div>
+        <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;gap:24px;align-items:center">
+          <div style="flex:1"><div style="font-size:14px;font-weight:500">Backup folder</div><div style="font-size:12px;color:#6b6a65">A folder the Hub can write to, ideally on another disk. 412 GB free.</div></div>
+          <div title="/mnt/backup/framebeam/home-hub" style="width:280px;height:34px;border:1px solid #d9d7d0;border-radius:7px;font:12px 'IBM Plex Mono';display:flex;align-items:center;padding:0 10px;box-sizing:border-box">/mnt/backup/…/home-hub</div>
+          <span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">Change…</span>
+        </div>
+        <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:visible;position:relative">
+          <div style="padding:14px 20px 10px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">BACKUPS · {{ b.count }}</div>
+          <div style="display:grid;grid-template-columns:170px 90px minmax(0,1fr) 100px 30px;gap:16px;padding:6px 20px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;border-top:1px solid #efede8"><span>DATE</span><span>SIZE</span><span>CONTENTS</span><span></span><span></span></div>
+          <sc-for list="{{ b.rows }}" as="r" hint-placeholder-count="6"><div style="display:grid;grid-template-columns:170px 90px minmax(0,1fr) 100px 30px;gap:16px;align-items:center;padding:0 20px;min-height:52px;border-top:1px solid #efede8;font-size:14px;position:relative;background:{{ r.bg }}">
+            <span title="{{ r.tip }}">{{ r.d }}</span><span style="font:13px 'IBM Plex Mono';color:#55544f">{{ r.z }}</span>
+            <span style="display:flex;gap:8px;align-items:center;font-size:13px;color:#55544f;min-width:0"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.c }}</span><sc-if value="{{ r.tag }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:{{ r.tagBg }};color:{{ r.tagFg }};white-space:nowrap">{{ r.tagT }}</span></sc-if></span>
+            <span style="justify-self:end;font-size:13px;padding:5px 10px;border:1px solid #d9d7d0;border-radius:7px;color:{{ r.dlFg }}">Download</span>
+            <span style="font-size:14px;padding:3px 8px;border:1px solid {{ r.moreLine }};border-radius:7px">⋯</span>
+            <sc-if value="{{ r.menu }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;right:20px;top:46px;width:220px;z-index:3;background:#fff;border:1px solid #e4e2dc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:4px;font-size:13px"><div style="padding:7px 10px;border-radius:5px;background:#f5f4f0">Restore…</div><div style="padding:7px 10px">Copy file path</div><div style="height:1px;background:#efede8;margin:4px 0"></div><div style="padding:7px 10px;color:#b3261e">Delete backup…</div></div></sc-if>
+          </div></sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+
+<div id="6b-states" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6b-4</span><span style="font-size:15px">Status card states · replaces the status card at the top of Backups · Status page and sidebar show the same text</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px">
+    <sc-for list="{{ bkStates }}" as="s" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:500 12px 'IBM Plex Mono';color:#55544f">{{ s.k }}</div>
+      <div style="background:#f5f4f0;padding:20px;border-radius:4px;display:flex;flex-direction:column;gap:12px">
+        <div style="background:#fff7e6;border:1px solid #ecd9ae;border-radius:10px;padding:14px 20px;display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:10px;background:#f7ecd6;color:#8a5a00;white-space:nowrap">{{ s.pill }}</span>
+          <div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:500">{{ s.t }}</span><span style="font-size:12px;line-height:18px;color:#55544f;text-wrap:pretty">{{ s.d }}</span></div>
+          <div style="display:flex;gap:6px"><sc-for list="{{ s.acts }}" as="a" hint-placeholder-count="1"><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px;background:#fff;white-space:nowrap">{{ a }}</span></sc-for></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#6b6a65"><span style="height:30px;padding:0 14px;border-radius:7px;background:#ebe9e3;color:#8d8b85;display:flex;align-items:center;font-weight:500">Back up now</span>{{ s.btn }}</div>
+      </div>
+    </div></sc-for>
+  </div>
+</div>
+
+<div style="display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start">
+<div id="6b-5" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6b-5</span><span style="font-size:15px">Restore · confirmation names what is replaced and how to undo it</span></div>
+  <div style="width:1440px;height:900px;background:#f5f4f0;position:relative;overflow:hidden;border-radius:4px;display:flex">
+    <dc-import name="hub-nav" active="Settings" r4="{{ true }}" hint-size="232px,100%"></dc-import>
+    <div style="position:absolute;inset:0;background:rgba(29,29,27,.45);display:flex;align-items:center;justify-content:center">
+      <div style="width:560px;background:#fff;border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.25);display:flex;flex-direction:column">
+        <div style="padding:24px 28px 8px;display:flex;flex-direction:column;gap:6px"><div style="font-size:20px;font-weight:600">Restore the backup from 14 Oct 03:00?</div><div style="font-size:14px;line-height:21px;color:#55544f">Home Hub goes back to the state of 14 Oct. Everything that changed since then is replaced:</div></div>
+        <div style="padding:8px 28px;display:flex;flex-direction:column">
+          <sc-for list="{{ restoreList }}" as="r" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;padding:9px 0;border-top:1px solid #efede8;font-size:13px;line-height:19px"><span style="font-weight:500">{{ r.k }}</span><span style="color:{{ r.c }}">{{ r.v }}</span></div></sc-for>
+        </div>
+        <div style="margin:8px 28px;padding:12px 14px;border-radius:8px;background:#f5f4f0;font-size:13px;line-height:19px;display:flex;flex-direction:column;gap:4px"><span style="font-weight:500">A safety backup of today comes first</span><span style="color:#55544f">About 1.4 GB in /mnt/backup/…/home-hub. Restore it to undo this.</span></div>
+        <div style="padding:8px 28px 0;display:flex;align-items:center;gap:10px;font-size:13px"><span style="width:16px;height:16px;border-radius:4px;background:#1a7f96;color:#fff;display:grid;place-items:center;font-size:11px">✓</span>3 Players are connected; they disconnect for about a minute and running Sessions end.</div>
+        <div style="padding:20px 28px;display:flex;justify-content:flex-end;gap:8px"><span style="font-size:14px;padding:8px 16px;border:1px solid #d9d7d0;border-radius:7px">Cancel</span><span style="font-size:14px;padding:8px 16px;border-radius:7px;background:#b3261e;color:#fff;font-weight:500">Restore and restart</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="6b-6" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6b-6</span><span style="font-size:15px">Restore in progress · Hub restarts · page reloads by itself · result is <a href="#6b-3">6b-3</a></span></div>
+  <div style="width:1440px;height:900px;background:#f5f4f0;display:flex;align-items:center;justify-content:center;border-radius:4px">
+    <div style="width:480px;background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:28px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600"><div style="width:20px;height:20px;border:1.5px solid #1d1d1b;border-radius:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:6px;background:#1a7f96;border-radius:1px"></div></div>Restoring Home Hub</div>
+      <sc-for list="{{ restoreSteps }}" as="s" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;font-size:14px;line-height:20px"><span style="color:{{ s.c }};text-align:center">{{ s.i }}</span><div style="display:flex;flex-direction:column"><span style="color:{{ s.fg }}">{{ s.t }}</span><span style="font-size:12px;color:#6b6a65">{{ s.d }}</span></div></div></sc-for>
+      <div style="font-size:12px;color:#6b6a65;border-top:1px solid #efede8;padding-top:12px">Keep this page open; it reloads when Home Hub is back. If nothing happens after 5 minutes, check the Hub log on the server.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============ 6c ROLL BACK ============ -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">WAVE 1 · 6c ROLL BACK AN UPDATE</div>
+<div style="display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start">
+<sc-for list="{{ updP }}" as="u" hint-placeholder-count="2">
+<div id="{{ u.id }}" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">{{ u.id }}</span><span style="font-size:15px">{{ u.cap }}</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#121315;overflow:hidden;color:#ececea;position:relative;border-radius:4px">
+    <dc-import name="player-nav" active="Settings" r4="{{ true }}" bell="2" hint-size="232px,100%"></dc-import>
+    <div style="width:300px;flex:none;background:#17181b;border-right:1px solid #24252a;padding:28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px">
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;padding:0 8px 8px">SETTINGS</div>
+      <sc-for list="{{ psetU }}" as="n" hint-placeholder-count="8"><div style="padding:10px 12px;border-radius:8px;background:{{ n.bg }}"><div style="font-size:14px;font-weight:500">{{ n.t }}</div><div style="font-size:12px;color:#9a9a9f">{{ n.s }}</div></div></sc-for>
+    </div>
+    <div style="flex:1;min-width:0;padding:28px 36px">
+      <div style="max-width:880px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:28px;font-weight:600">Updates</div>
+        <sc-if value="{{ u.normal }}" hint-placeholder-val="{{ true }}"><div style="border:1px solid #2a2b30;border-radius:10px;background:#1b1c1f;padding:12px 16px;display:flex;align-items:center;gap:16px"><div style="flex:1;font-size:13px"><b style="font-weight:500">Player 0.16.4 is up to date</b><div style="color:#9a9a9f">Stable channel · checked today 17:52</div></div><span style="font-size:13px;padding:6px 12px;border:1px solid #34353a;border-radius:7px">What’s new in 0.16.4</span></div></sc-if>
+        <sc-if value="{{ u.rolled }}" hint-placeholder-val="{{ false }}"><div style="border:1px solid #4a3d1c;border-radius:10px;background:#1d1a12;padding:14px 16px;display:flex;align-items:center;gap:16px"><div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:500;color:#e5b45a">Running 0.16.3 · automatic updates paused until you resume them</span><span style="font-size:12px;color:#c9c8c4">You went back from 0.16.4 today 18:52. 0.16.4 stays available.</span></div><span style="font-size:13px;padding:6px 12px;border:1px solid #34353a;border-radius:7px">Update to 0.16.4</span><span style="font-size:13px;padding:6px 12px;border-radius:7px;background:#3cbfd8;color:#0d1214;font-weight:600">Resume updates</span></div></sc-if>
+        <div style="display:flex;gap:24px;align-items:center;padding:10px 16px;border-bottom:1px solid #24252a;opacity:{{ u.chOp }}"><div style="flex:1"><div style="font-size:14px;font-weight:500">Update channel</div><div style="font-size:12px;color:#9a9a9f">{{ u.chD }}</div></div><div style="width:280px;display:flex;justify-content:flex-end"><div style="display:flex;background:#1b1c1f;border:1px solid #2a2b30;border-radius:8px;padding:3px;font-size:13px"><span style="padding:5px 14px;color:#9a9a9f">Off</span><span style="padding:5px 14px;border-radius:6px;background:#2e2f34">Stable</span><span style="padding:5px 14px;color:#9a9a9f">Beta</span></div></div></div>
+        <div style="display:flex;gap:24px;align-items:center;padding:10px 16px;border-bottom:1px solid #24252a"><div style="flex:1"><div style="font-size:14px;font-weight:500">Install updates automatically</div><div style="font-size:12px;color:#9a9a9f">{{ u.autoD }}</div></div><div style="width:280px;display:flex;justify-content:flex-end"><div style="width:36px;height:20px;border-radius:10px;background:{{ u.autoBg }};position:relative"><div style="position:absolute;left:{{ u.autoK }};top:2px;width:16px;height:16px;border-radius:50%;background:#ececea"></div></div></div></div>
+        <sc-if value="{{ u.rolled }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:24px;align-items:center;padding:10px 16px;border-bottom:1px solid #24252a"><div style="flex:1"><div style="font-size:14px;font-weight:500">SoulLink &amp; Nuzlocke is off</div><div style="font-size:12px;color:#e5b45a">Needs Player 0.16.4. Turns on again after you update.</div></div><div style="width:280px;display:flex;justify-content:flex-end"><span style="font-size:13px;color:#9a9a9f">Settings → Plugins</span></div></div></sc-if>
+        <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#9a9a9f;margin-top:16px;padding:0 16px">EARLIER VERSIONS · 3</div>
+        <div style="font-size:13px;color:#9a9a9f;line-height:19px;padding:0 16px">Go back if something stopped working after an update. Settings stay; saves and states are on Home Hub and are not touched. The Player keeps the last 3 versions (412 MB).</div>
+        <sc-for list="{{ u.vers }}" as="r" hint-placeholder-count="3"><div style="display:flex;gap:24px;align-items:center;padding:12px 16px;border-bottom:1px solid #24252a"><div style="flex:1"><div style="display:flex;gap:8px;align-items:center"><span style="font:500 14px 'IBM Plex Mono'">{{ r.v }}</span><sc-if value="{{ r.cur }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#16291d;color:#5fd28a">Running</span></sc-if></div><div style="font-size:12px;color:#9a9a9f">{{ r.d }}</div></div><div style="width:280px;display:flex;justify-content:flex-end"><sc-if value="{{ r.btn }}" hint-placeholder-val="{{ true }}"><span style="font-size:13px;padding:6px 12px;border:1px solid #34353a;border-radius:7px;box-shadow:{{ r.ring }}">{{ r.b }}</span></sc-if></div></div></sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+
+<div id="6c-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6c-2</span><span style="font-size:15px">Player · confirmation · and the disabled case while a game runs</span></div>
+  <div style="display:flex;gap:32px;align-items:flex-start">
+    <sc-for list="{{ rbDialogs }}" as="d" hint-placeholder-count="2"><div style="width:704px;padding:40px 72px;box-sizing:border-box;background:#08090a;border-radius:4px">
+      <div style="width:560px;background:#1d1e22;border:1px solid #34353a;border-radius:12px;color:#ececea;box-shadow:0 30px 80px rgba(0,0,0,.6)">
+        <div style="padding:24px 28px 8px;font-size:20px;font-weight:600">Go back to 0.16.3?</div>
+        <div style="padding:0 28px 8px;font-size:14px;color:#c9c8c4;line-height:21px">The Player closes, installs 0.16.3 and starts again. About 30 s.</div>
+        <div style="padding:4px 28px 8px">
+          <sc-for list="{{ rbList }}" as="r" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:12px;padding:9px 0;border-top:1px solid #2c2d32;font-size:13px;line-height:19px"><span style="font-weight:500">{{ r.k }}</span><span style="color:{{ r.c }}">{{ r.v }}</span></div></sc-for>
+        </div>
+        <sc-if value="{{ d.blocked }}" hint-placeholder-val="{{ false }}"><div style="margin:4px 28px 0;font-size:13px;color:#c9c8c4">⊘ Lumen Drift is running. Quit the game first; it saves and syncs.</div></sc-if>
+        <div style="padding:20px 28px;display:flex;justify-content:flex-end;gap:8px"><span style="font-size:14px;padding:8px 16px;border:1px solid #3a3b40;border-radius:8px">Cancel</span><span style="font-size:14px;padding:8px 16px;border-radius:8px;background:{{ d.bg }};color:{{ d.fg }};font-weight:600">Go back to 0.16.3</span></div>
+      </div>
+    </div></sc-for>
+  </div>
+</div>
+
+<div style="display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start">
+<sc-for list="{{ updH }}" as="u" hint-placeholder-count="2">
+<div id="{{ u.id }}" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">{{ u.id }}</span><span style="font-size:15px">{{ u.cap }}</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px;position:relative">
+    <dc-import name="hub-nav" active="Settings" r4="{{ true }}" ver="{{ u.ver }}" hint-size="232px,100%"></dc-import>
+    <div style="width:300px;flex:none;background:#faf9f6;border-right:1px solid #e2e0da;padding:28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:20px;font-weight:600;padding:0 10px 12px">Settings</div>
+      <sc-for list="{{ setNavU }}" as="n" hint-placeholder-count="11"><sc-if value="{{ n.head }}" hint-placeholder-val="{{ false }}"><div style="font:500 10px 'IBM Plex Mono';letter-spacing:.08em;color:#6b6a65;padding:14px 10px 4px">{{ n.l }}</div></sc-if><sc-if value="{{ n.item }}" hint-placeholder-val="{{ true }}"><div style="display:flex;justify-content:space-between;padding:8px 10px;border-radius:8px;font-size:14px;background:{{ n.bg }};border:1px solid {{ n.bd }}"><span>{{ n.l }}</span><span style="font-size:12px;color:{{ n.bc }}">{{ n.b }}</span></div></sc-if></sc-for>
+    </div>
+    <div style="flex:1;min-width:0;padding:28px 40px">
+      <div style="max-width:880px;display:flex;flex-direction:column;gap:16px">
+        <div><div style="font-size:28px;font-weight:600">Updates</div><div style="font-size:14px;color:#6b6a65">Updates for Home Hub. Players update themselves.</div></div>
+        <sc-if value="{{ u.normal }}" hint-placeholder-val="{{ true }}"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-size:14px;font-weight:500">Home Hub 0.16.4 is up to date</div><div style="font-size:12px;color:#6b6a65">Stable · installed today 03:12 · checked today 17:52</div></div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px">What’s new in 0.16.4</span></div></sc-if>
+        <sc-if value="{{ u.rolled }}" hint-placeholder-val="{{ false }}"><div style="background:#fff7e6;border:1px solid #ecd9ae;border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:500;color:#8a5a00">Running 0.16.3 · automatic updates paused until you resume them</span><span style="font-size:12px;color:#55544f">Went back from 0.16.4 today 18:57 by Max. Database backup from 18:56 is in Backups.</span></div><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px;background:#fff">Update to 0.16.4</span><span style="font-size:13px;padding:6px 12px;border-radius:7px;background:#1a7f96;color:#fff;font-weight:500">Resume updates</span></div></sc-if>
+        <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;gap:24px;align-items:center"><div style="flex:1"><div style="font-size:14px;font-weight:500">Update channel</div><div style="font-size:12px;color:#6b6a65">Stable: tested releases. Beta: earlier, less tested.</div></div><div style="display:flex;background:#f5f4f0;border:1px solid #d9d7d0;border-radius:8px;padding:3px;font-size:13px"><span style="padding:5px 16px;color:#6b6a65">Off</span><span style="padding:5px 16px;border-radius:6px;background:#fff;border:1px solid #d9d7d0;font-weight:500">Stable</span><span style="padding:5px 16px;color:#6b6a65">Beta</span></div></div>
+        </div>
+        <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+          <div style="padding:14px 20px 4px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">EARLIER VERSIONS · 3</div>
+          <div style="padding:0 20px 10px;font-size:12px;color:#6b6a65">A database backup is made first. Saves, states and ROMs are not changed. The Hub restarts (about 1 min).</div>
+          <sc-for list="{{ u.vers }}" as="r" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:16px;padding:0 20px;height:52px;border-top:1px solid #efede8"><span style="font:500 14px 'IBM Plex Mono';width:80px">{{ r.v }}</span><span style="flex:1;font-size:13px;color:#6b6a65">{{ r.d }}</span><sc-if value="{{ r.cur }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:#e2f3e8;color:#1e6b3a">Running</span></sc-if><sc-if value="{{ r.btn }}" hint-placeholder-val="{{ true }}"><span style="font-size:13px;padding:5px 12px;border:1px solid #d9d7d0;border-radius:7px">{{ r.b }}</span></sc-if></div></sc-for>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ u.dialog }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;inset:0;background:rgba(29,29,27,.45);display:flex;align-items:center;justify-content:center">
+        <div style="width:540px;background:#fff;border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.25)">
+          <div style="padding:24px 28px 8px;font-size:20px;font-weight:600">Go back to Home Hub 0.16.3?</div>
+          <div style="padding:4px 28px 8px">
+            <sc-for list="{{ rbHub }}" as="r" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:12px;padding:9px 0;border-top:1px solid #efede8;font-size:13px;line-height:19px"><span style="font-weight:500">{{ r.k }}</span><span style="color:{{ r.c }}">{{ r.v }}</span></div></sc-for>
+          </div>
+          <div style="padding:16px 28px 24px;display:flex;justify-content:flex-end;gap:8px"><span style="font-size:14px;padding:8px 16px;border:1px solid #d9d7d0;border-radius:7px">Cancel</span><span style="font-size:14px;padding:8px 16px;border-radius:7px;background:#1a7f96;color:#fff;font-weight:500">Back up and go back</span></div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</sc-for>
+</div>
+
+<!-- ============ 6d REPORT ============ -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">WAVE 1 · 6d REPORT A PROBLEM</div>
+<div id="6d" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6d</span><span style="font-size:15px">Player · Report a problem · opened from the “Session ended unexpectedly” banner (also Settings → Diagnostics, ⋯ → Report a problem…)</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#121315;overflow:hidden;color:#ececea;position:relative;border-radius:4px">
+    <dc-import name="player-nav" active="Library" r4="{{ true }}" bell="2" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;padding:28px 36px;display:flex;flex-direction:column;gap:16px">
+      <div style="border:1px solid #2a2b30;border-radius:10px;background:#1b1c1f;padding:12px 16px;display:flex;align-items:center;gap:12px;font-size:13px"><span style="flex:1"><b style="font-weight:500">Session with Lena ended unexpectedly</b> · today 18:41 · the game was saved</span><span style="padding:6px 12px;border:1px solid #34353a;border-radius:7px">Connection check</span><span style="padding:6px 12px;border:1px solid #3cbfd8;border-radius:7px;color:#3cbfd8">Report a problem</span></div>
+      <div style="font-size:28px;font-weight:600">Library</div>
+    </div>
+    <div style="position:absolute;inset:0;background:rgba(6,7,8,.66);display:flex;align-items:center;justify-content:center">
+      <div style="width:580px;background:#1d1e22;border:1px solid #34353a;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.6);display:flex;flex-direction:column">
+        <div style="padding:24px 28px 12px;display:flex;flex-direction:column;gap:4px"><div style="font-size:20px;font-weight:600">Report a problem</div><div style="font-size:13px;color:#a3a3a8">Goes to the admins of Home Hub. They see it under Reports.</div></div>
+        <div style="padding:4px 28px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:13px;font-weight:500">What happened?</span>
+          <div style="height:96px;box-sizing:border-box;border:1px solid #3cbfd8;border-radius:8px;background:#16171a;padding:10px 12px;font-size:14px;line-height:21px;box-shadow:0 0 0 3px rgba(60,191,216,.18)">Watching Lena’s Harbor Rally froze after about 4 hours. Sound kept playing for a few seconds, then the Session ended.</div>
+          <span style="font-size:12px;color:#7d7d83">Linked: “Session ended unexpectedly” · today 18:41</span>
+        </div>
+        <div style="padding:16px 28px 4px;display:flex;flex-direction:column;gap:2px">
+          <div style="display:flex;align-items:center"><span style="font:500 11px 'IBM Plex Mono';letter-spacing:.08em;color:#7d7d83">ATTACHED · 2.4 MB</span><span style="margin-left:auto;font-size:12px;color:#a3a3a8;text-decoration:underline">See what is included</span></div>
+          <sc-for list="{{ attach }}" as="a" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #26272b;font-size:13px"><span style="width:16px;height:16px;border-radius:4px;background:{{ a.bg }};border:1px solid {{ a.line }};color:#0d1214;display:grid;place-items:center;font-size:11px;box-sizing:border-box">{{ a.ck }}</span><span style="flex:1">{{ a.t }}</span><span style="font:12px 'IBM Plex Mono';color:#7d7d83">{{ a.z }}</span></div></sc-for>
+          <div style="font-size:12px;color:#8e8e94;padding-top:8px">Never included: passwords, the Hub pairing token, ROMs, saves.</div>
+        </div>
+        <div style="padding:20px 28px;display:flex;align-items:center;gap:8px"><span style="font-size:14px;padding:8px 14px;border:1px solid #3a3b40;border-radius:8px">Save as file…</span><span style="margin-left:auto;font-size:14px;padding:8px 14px;border:1px solid #3a3b40;border-radius:8px">Cancel</span><span style="font-size:14px;padding:8px 16px;border-radius:8px;background:#3cbfd8;color:#0d1214;font-weight:600">Send to Home Hub</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="6d-states" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6d-2</span><span style="font-size:15px">Player · dialog footer states · body stays as above</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px">
+    <sc-for list="{{ repStates }}" as="s" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:500 12px 'IBM Plex Mono';color:#55544f">{{ s.k }}</div>
+      <div style="background:#1d1e22;border:1px solid #34353a;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;color:#ececea;min-height:190px;box-sizing:border-box">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-size:15px;color:{{ s.ic }}">{{ s.i }}</span><span style="font-size:15px;font-weight:600">{{ s.t }}</span></div>
+        <div style="font-size:13px;line-height:19px;color:#c9c8c4;text-wrap:pretty">{{ s.d }}</div>
+        <sc-if value="{{ s.bar }}" hint-placeholder-val="{{ false }}"><div style="height:4px;border-radius:2px;background:#2c2d32;display:flex"><span style="width:40%;background:#3cbfd8;border-radius:2px"></span></div></sc-if>
+        <div style="margin-top:auto;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><sc-for list="{{ s.acts }}" as="a" hint-placeholder-count="2"><span style="font-size:13px;padding:6px 12px;border-radius:7px;border:1px solid {{ a.line }};background:{{ a.bg }};color:{{ a.fg }};font-weight:{{ a.w }}">{{ a.l }}</span></sc-for></div>
+      </div>
+    </div></sc-for>
+  </div>
+</div>
+
+<div style="display:flex;gap:48px;flex-wrap:wrap;align-items:flex-start">
+<div id="6d-hub" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6d-hub</span><span style="font-size:15px">Hub · Reports · list + detail of the selected report</span></div>
+  <div style="width:1440px;height:900px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px">
+    <dc-import name="hub-nav" active="Reports" r4="{{ true }}" reports-badge="2 new" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;min-width:0;padding:28px 32px 28px 40px;display:flex;flex-direction:column;gap:16px">
+      <div><div style="font-size:28px;font-weight:600">Reports</div><div style="font-size:14px;color:#6b6a65">Problem reports sent from Players. Kept until you delete them.</div></div>
+      <div style="display:flex;gap:8px;font-size:13px"><span style="padding:5px 12px;border-radius:14px;background:#1d1d1b;color:#fff">All · 5</span><span style="padding:5px 12px;border-radius:14px;border:1px solid #d9d7d0">New · 2</span><span style="padding:5px 12px;border-radius:14px;border:1px solid #d9d7d0">Seen · 3</span></div>
+      <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:70px minmax(0,1fr) 150px 110px 30px;gap:14px;padding:8px 16px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65"><span>STATUS</span><span>REPORT</span><span>FROM</span><span>SENT</span><span></span></div>
+        <sc-for list="{{ reports }}" as="r" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:70px minmax(0,1fr) 150px 110px 30px;gap:14px;align-items:center;padding:0 16px;height:56px;border-top:1px solid #efede8;background:{{ r.bg }};box-shadow:{{ r.sel }}">
+          <span style="justify-self:start;font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:{{ r.sBg }};color:{{ r.sFg }}">{{ r.s }}</span>
+          <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:14px;font-weight:{{ r.w }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.t }}</span><span style="font-size:12px;color:#6b6a65">{{ r.m }}</span></div>
+          <div style="display:flex;flex-direction:column;font-size:13px"><span>{{ r.u }}</span><span style="font-size:12px;color:#6b6a65">{{ r.dev }}</span></div>
+          <span style="font-size:13px;color:#6b6a65">{{ r.d }}</span><span style="font-size:14px;padding:3px 8px;border:1px solid #d9d7d0;border-radius:7px">⋯</span>
+        </div></sc-for>
+      </div>
+    </div>
+    <div style="width:400px;flex:none;background:#fff;border-left:1px solid #e2e0da;padding:28px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:#e6f3f6;color:#1a7f96">New</span><span style="font-size:12px;color:#6b6a65">#12 · today 18:44</span><span style="margin-left:auto;font-size:14px;padding:3px 8px;border:1px solid #d9d7d0;border-radius:7px">⋯</span></div>
+      <div style="font-size:18px;font-weight:600;line-height:24px">Session froze after 4 hours</div>
+      <div style="display:grid;grid-template-columns:90px minmax(0,1fr);gap:6px 12px;font-size:13px"><span style="color:#6b6a65">From</span><span>Max · Desktop-LivingRoom</span><span style="color:#6b6a65">Player</span><span style="font-family:'IBM Plex Mono'">0.16.4 · Windows 11</span><span style="color:#6b6a65">Linked to</span><span>Session ended unexpectedly · 18:41</span></div>
+      <div style="font-size:14px;line-height:21px;padding:12px 14px;border-radius:8px;background:#f5f4f0">Watching Lena’s Harbor Rally froze after about 4 hours. Sound kept playing for a few seconds, then the Session ended.</div>
+      <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">ATTACHED · 2.4 MB</div>
+      <sc-for list="{{ attachHub }}" as="a" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:10px;font-size:13px;border-top:1px solid #efede8;padding-top:8px"><span style="flex:1">{{ a.t }}</span><span style="font:12px 'IBM Plex Mono';color:#6b6a65">{{ a.z }}</span><span style="color:#1a7f96">Download</span></div></sc-for>
+      <div style="margin-top:auto;display:flex;gap:8px"><span style="font-size:13px;padding:7px 14px;border-radius:7px;background:#1a7f96;color:#fff;font-weight:500">Download all (.zip)</span><span style="font-size:13px;padding:7px 14px;border:1px solid #d9d7d0;border-radius:7px">Mark as seen</span></div>
+      <div style="font-size:12px;color:#6b6a65">Opening a report does not mark it seen. Delete is in ⋯.</div>
+    </div>
+  </div>
+</div>
+<div id="6d-hub-2" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6d-hub-2</span><span style="font-size:15px">Hub · Reports empty · and 390 card list</span></div>
+  <div style="display:flex;gap:32px;align-items:flex-start">
+    <div style="width:880px;height:420px;background:#f5f4f0;border-radius:4px;padding:28px 40px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:28px;font-weight:600">Reports</div>
+      <div style="flex:1;border:1.5px dashed #d9d7d0;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center"><span style="font-size:16px;font-weight:500">No reports yet</span><span style="font-size:13px;color:#6b6a65;max-width:420px;line-height:19px">Players send them from Settings → Diagnostics → Report a problem, or from an error message.</span></div>
+    </div>
+    <div style="width:390px;background:#f5f4f0;border-radius:4px;padding:16px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;display:grid;place-items:center;border:1px solid #e2e0da;border-radius:7px;background:#fff">☰</span><span style="font-size:20px;font-weight:600">Reports</span></div>
+      <sc-for list="{{ reports }}" as="r" hint-placeholder-count="3"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:12px;display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:{{ r.w }}">{{ r.t }}</span><span style="font-size:12px;color:#6b6a65">{{ r.u }} · {{ r.d }} · {{ r.z }}</span></div><span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:{{ r.sBg }};color:{{ r.sFg }}">{{ r.s }}</span><span style="padding:3px 8px;border:1px solid #d9d7d0;border-radius:7px">⋯</span></div></sc-for>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============ 6e CONNECTION CHECK ============ -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">WAVE 1 · 6e CONNECTION CHECK</div>
+<div id="6e" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#3cbfd8;color:#0d1214;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6e</span><span style="font-size:15px">Player · guided check · from Settings → Network, Settings → Diagnostics, a failed Session and the “Relayed” pill · 4 outcomes</span></div>
+  <div style="width:1440px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px">
+    <sc-for list="{{ checks }}" as="c" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:500 12px 'IBM Plex Mono';color:#55544f">{{ c.k }}</div>
+      <div style="background:#08090a;border-radius:4px;padding:28px;display:flex;justify-content:center">
+        <div style="width:600px;background:#1d1e22;border:1px solid #34353a;border-radius:14px;color:#ececea;display:flex;flex-direction:column">
+          <div style="padding:22px 24px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #2c2d32"><div style="flex:1"><div style="font-size:18px;font-weight:600">Connection check</div><div style="font-size:12px;color:#a3a3a8">This device · Desktop-LivingRoom · to Home Hub</div></div><span style="width:30px;height:30px;display:grid;place-items:center;border-radius:7px;color:#a3a3a8">×</span></div>
+          <div style="padding:8px 24px">
+            <sc-for list="{{ c.steps }}" as="s" hint-placeholder-count="5"><div style="display:grid;grid-template-columns:22px 150px minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid #26272b;align-items:start">
+              <span style="width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;background:{{ s.bg }};color:{{ s.fg }};border:{{ s.line }};box-sizing:border-box;margin-top:1px">{{ s.i }}</span>
+              <span style="font-size:14px;font-weight:500;color:{{ s.nfg }}">{{ s.n }}</span>
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:{{ s.rfg }}">{{ s.r }}</span><span style="font-size:12px;line-height:17px;color:#8e8e94;text-wrap:pretty">{{ s.e }}</span></div>
+            </div></sc-for>
+          </div>
+          <sc-if value="{{ c.done }}" hint-placeholder-val="{{ true }}"><div style="margin:8px 24px 0;padding:12px 14px;border-radius:8px;background:{{ c.sBg }};border:1px solid {{ c.sLine }};display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:600;color:{{ c.sFg }}">{{ c.sum }}</span><span style="font-size:12px;line-height:18px;color:#c9c8c4">{{ c.sumD }}</span></div></sc-if>
+          <div style="padding:16px 24px 20px;display:flex;gap:8px;align-items:center"><sc-for list="{{ c.acts }}" as="a" hint-placeholder-count="3"><span style="font-size:13px;padding:7px 12px;border-radius:7px;border:1px solid {{ a.line }};background:{{ a.bg }};color:{{ a.fg }};font-weight:{{ a.w }};margin-left:{{ a.ml }}">{{ a.l }}</span></sc-for></div>
+        </div>
+      </div>
+    </div></sc-for>
+  </div>
+</div>
+
+<!-- ============ 6f STATUS ============ -->
+<div style="font:600 13px 'IBM Plex Mono';letter-spacing:.08em;color:#55544f;border-top:1px solid #b9b7b0;padding-top:16px;width:1440px">WAVE 1 · 6f HUB STATUS</div>
+<div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+<div id="6f" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6f</span><span style="font-size:15px">Hub · Status · 1440 · admin only · refreshes every 10 s</span></div>
+  <div style="width:1440px;height:1000px;display:flex;background:#f5f4f0;overflow:hidden;border-radius:4px">
+    <dc-import name="hub-nav" active="Status" r4="{{ true }}" status-badge="Backup failed" reports-badge="2 new" hint-size="232px,100%"></dc-import>
+    <div style="flex:1;min-width:0;padding:28px 40px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:flex-end;gap:16px"><div style="flex:1"><div style="font-size:28px;font-weight:600">Status</div><div style="font-size:14px;color:#6b6a65">Home Hub · <span style="font-family:'IBM Plex Mono';font-size:13px">0.16.4</span> · up 12 days 4 h · hub.example.com:8443</div></div><span style="font-size:12px;color:#6b6a65">Updated 18:52:10</span></div>
+      <div style="background:#fff7e6;border:1px solid #ecd9ae;border-radius:10px;padding:12px 16px;display:flex;gap:12px;align-items:center"><span style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:10px;background:#f7ecd6;color:#8a5a00">Backup failed</span><span style="flex:1;font-size:14px">today 03:00 · not enough space on /mnt/backup (needs 1.4 GB, 0.3 GB free)</span><span style="font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px;background:#fff">Open Backups</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px">
+        <sc-for list="{{ metrics }}" as="m" hint-placeholder-count="4"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+          <span style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">{{ m.k }}</span>
+          <span style="font-size:24px;font-weight:600;font-family:'IBM Plex Mono'">{{ m.v }}</span>
+          <div style="height:6px;border-radius:3px;background:#ebe9e3;display:flex"><span style="width:{{ m.p }};border-radius:3px;background:{{ m.c }}"></span></div>
+          <span style="font-size:12px;color:#6b6a65">{{ m.d }}</span>
+        </div></sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px">
+        <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+          <div style="display:flex;padding:14px 18px 8px"><span style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">ACTIVE SESSIONS · 2 · 3 VIEWERS</span><span style="margin-left:auto;font-size:12px;color:#6b6a65">TURN relay 2 of 40 · 7.8 Mbit/s</span></div>
+          <sc-for list="{{ sessions }}" as="s" hint-placeholder-count="2"><div style="display:grid;grid-template-columns:24px minmax(0,1fr) 120px 110px;gap:12px;align-items:center;padding:10px 18px;border-top:1px solid #efede8;font-size:13px"><span style="width:24px;height:24px;border-radius:50%;background:{{ s.c }};color:#fff;display:grid;place-items:center;font-size:11px;font-weight:600">{{ s.i }}</span><div style="display:flex;flex-direction:column"><span style="font-size:14px">{{ s.t }}</span><span style="font-size:12px;color:#6b6a65">{{ s.m }}</span></div><span style="color:#55544f">{{ s.v }}</span><span style="justify-self:start;font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;background:{{ s.pBg }};color:{{ s.pFg }}">{{ s.p }}</span></div></sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+          <div style="padding:14px 18px 8px;font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">CONNECTED PLAYERS · 4</div>
+          <sc-for list="{{ players }}" as="p" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:minmax(0,1fr) 70px 90px;gap:12px;align-items:center;padding:8px 18px;border-top:1px solid #efede8;font-size:13px"><div style="display:flex;flex-direction:column"><span>{{ p.d }}</span><span style="font-size:12px;color:#6b6a65">{{ p.u }}</span></div><span style="font-family:'IBM Plex Mono';font-size:12px;color:{{ p.vc }}">{{ p.v }}</span><span style="font-size:12px;color:#6b6a65">{{ p.s }}</span></div></sc-for>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px">
+        <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;overflow:hidden">
+          <div style="display:flex;padding:14px 18px 8px"><span style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">LAST ERRORS · 24 H</span><span style="margin-left:auto;font-size:12px;color:#1a7f96">Download log</span></div>
+          <sc-for list="{{ errors }}" as="e" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:90px 90px minmax(0,1fr);gap:12px;padding:8px 18px;border-top:1px solid #efede8;font-size:13px"><span style="font-family:'IBM Plex Mono';font-size:12px;color:#55544f">{{ e.t }}</span><span style="color:#6b6a65">{{ e.s }}</span><span>{{ e.m }}</span></div></sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:14px 18px;display:flex;flex-direction:column;gap:8px">
+          <span style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">METRICS ENDPOINT</span>
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:10px;background:#ebe9e3;color:#55544f">Off</span><span style="font-size:13px">For your own monitoring tools, read-only.</span></div>
+          <span style="font-size:12px;color:#6b6a65;line-height:18px">When on: <span style="font-family:'IBM Plex Mono'">https://hub.example.com:8443/metrics</span> with a separate token. Settings → Metrics.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="6f-390" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;gap:10px;align-items:center"><span style="background:#1d1d1b;color:#fff;font:600 13px 'IBM Plex Mono';padding:4px 8px;border-radius:5px;flex:none;white-space:nowrap">6f · 390</span><span style="font-size:15px">Hub · Status on a phone</span></div>
+  <div style="width:390px;background:#f5f4f0;border-radius:4px;padding:16px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;display:grid;place-items:center;border:1px solid #e2e0da;border-radius:7px;background:#fff">☰</span><span style="font-size:20px;font-weight:600">Status</span><span style="margin-left:auto;font-size:12px;color:#6b6a65">18:52:10</span></div>
+    <div style="font-size:13px;color:#6b6a65">0.16.4 · up 12 days 4 h</div>
+    <div style="background:#fff7e6;border:1px solid #ecd9ae;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px"><span style="align-self:flex-start;font-size:12px;font-weight:500;padding:2px 10px;border-radius:10px;background:#f7ecd6;color:#8a5a00">Backup failed</span><span style="font-size:13px;line-height:19px">today 03:00 · not enough space on /mnt/backup</span><span style="align-self:flex-start;font-size:13px;padding:6px 12px;border:1px solid #d9d7d0;border-radius:7px;background:#fff">Open Backups</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <sc-for list="{{ metrics }}" as="m" hint-placeholder-count="4"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px"><span style="font:500 10px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65">{{ m.k }}</span><span style="font:600 18px 'IBM Plex Mono'">{{ m.v }}</span><div style="height:4px;border-radius:2px;background:#ebe9e3;display:flex"><span style="width:{{ m.p }};border-radius:2px;background:{{ m.c }}"></span></div></div></sc-for>
+    </div>
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;padding-top:4px">ACTIVE SESSIONS · 2</div>
+    <sc-for list="{{ sessions }}" as="s" hint-placeholder-count="2"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:12px;display:flex;gap:10px;align-items:center"><span style="width:28px;height:28px;border-radius:50%;background:{{ s.c }};color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600">{{ s.i }}</span><div style="flex:1;display:flex;flex-direction:column"><span style="font-size:14px">{{ s.t }}</span><span style="font-size:12px;color:#6b6a65">{{ s.v }} · {{ s.p }}</span></div></div></sc-for>
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;padding-top:4px">CONNECTED PLAYERS · 4</div>
+    <div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:4px 12px">
+      <sc-for list="{{ players }}" as="p" hint-placeholder-count="4"><div style="display:flex;padding:8px 0;border-bottom:1px solid #efede8;font-size:13px"><span style="flex:1">{{ p.d }}</span><span style="font-family:'IBM Plex Mono';font-size:12px;color:{{ p.vc }}">{{ p.v }}</span></div></sc-for>
+    </div>
+    <div style="font:500 11px 'IBM Plex Mono';letter-spacing:.06em;color:#6b6a65;padding-top:4px">LAST ERRORS · 3</div>
+    <sc-for list="{{ errors }}" as="e" hint-placeholder-count="3"><div style="background:#fff;border:1px solid #e4e2dc;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px">{{ e.m }}</span><span style="font-size:12px;color:#6b6a65">{{ e.t }} · {{ e.s }}</span></div></sc-for>
+  </div>
+</div>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const it = (a, t) => ({ a, t });
+    const longGroups = [
+      { t: 'ADDED · 6', items: [it('Player', 'Volume and a mixer in the game header. M mutes, + and − change the volume.'), it('Player', 'Save states: 4 slots per game, F6 saves, F8 loads, Undo right after loading.'), it('Player', 'Screenshots with F12, shown in the game detail and on Home Hub.'), it('Hub', 'Backups with a schedule, restore and a safety backup before every restore.'), it('Hub', 'Status page with uptime, Sessions, connected Players and recent errors.'), it('Both', 'Report a problem from the Player; admins read reports on Home Hub.')] },
+      { t: 'CHANGED · 3', items: [it('Player', 'Diagnostics moved into the side panel. F3 still opens it.'), it('Hub', 'Settings grouped into Hub, Data and Integrations.'), it('Hub', 'Screenshots live in Library next to Games.')] },
+      { t: 'FIXED · 4', items: [it('Player', 'Sessions could stop after about 4 hours on relayed connections.'), it('Player', 'DS touch input was offset at 125 % display scaling.'), it('Hub', 'Save uploads above 8 MB failed.'), it('Hub', 'Run boards showed the plugin id instead of its name.')] }];
+    const notesP = [
+      { id: '6a', cap: 'Player · after an update, once · stable release that sums up its betas · long notes scroll · 1440 × 900', w: '1440px', h: '900px', on: 'full', ver: '0.16.4', meta: 'Stable · today · changes since 0.15.3, including the 0.16.0 – 0.16.3 betas', groups: longGroups, long: true, maxH: '720px' },
+      { id: '6a-2', cap: 'Player · very short notes still look intentional · 1280 × 800', w: '1280px', h: '800px', on: 'compact', ver: '0.16.5', meta: 'Stable · 28 Oct · one fix', groups: [{ t: 'FIXED · 1', items: [it('Player', 'Sessions stopped after about 4 hours on relayed connections.')] }], long: false, maxH: '720px' }];
+    const tiles = ['Lumen Drift', 'Harbor Rally', 'Paper Wizards', 'Clocktower Kids', 'Stylus Knights', 'Orbit Gardens', 'Tide & Lantern', 'Copper Courier', 'Coral Saga: Ember', 'Pocket Comet'];
+    const hubRows = [['Lumen Drift', 'Game Boy Advance', '16 MB', 'today 09:12'], ['Harbor Rally', 'Nintendo DS', '64 MB', 'yesterday 21:40'], ['Paper Wizards', 'Game Boy Color', '2 MB', '16 Oct'], ['Clocktower Kids', 'Nintendo DS', '128 MB', '12 Oct'], ['Coral Saga: Ember', 'Nintendo 3DS', '1.8 GB', '3 Oct'], ['Orbit Gardens', 'Game Boy', '1 MB', '28 Sep']].map(([t, s, z, d]) => ({ t, s, z, d }));
+    const notesHub = longGroups;
+    const HH = l => ({ head: true, item: false, l });
+    const HI = (l, act, b, bc) => ({ head: false, item: true, l, b: b || '', bc: bc || '#8a5a00', bg: act ? '#fff' : 'transparent', bd: act ? '#e2e0da' : 'transparent' });
+    const setNav = (active, bk) => [HH('HUB'), HI('General', active === 'General'), HI('Network & TURN'), HI('Security'), HI('Updates', active === 'Updates'), HH('DATA'), HI('Backups', active === 'Backups', bk || ''), HI('Storage'), HI('Saves retention'), HH('INTEGRATIONS'), HI('Metrics'), HI('Setup assistant')];
+    const row = (d, z, c, o = {}) => ({ d, z, c, tip: o.tip || d, tag: !!o.tag, tagT: o.tag || '', tagBg: o.tagBg || '#ebe9e3', tagFg: o.tagFg || '#55544f', menu: !!o.menu, bg: o.menu ? '#faf9f6' : 'transparent', moreLine: o.menu ? '#1a7f96' : '#d9d7d0', dlFg: '#1d1d1b' });
+    const C = 'Database · saves · states · plugins';
+    const baseRows = [row('today 03:00', '1.4 GB', C, { tip: '21 Oct 2026, 03:00:04' }), row('yesterday 03:00', '1.4 GB', C), row('19 Oct', '1.3 GB', C), row('18 Oct', '1.3 GB', C), row('14 Oct', '39.6 GB', C + ' · ROMs', { tag: 'with ROMs', menu: true })];
+    const bk = [
+      { id: '6b', cap: 'Hub · Settings → Backups · last backup ok · row ⋯ open (Restore…, Delete… red) · 1440', ok: true, running: false, restored: false, navBadge: '', nowBg: '#1a7f96', nowFg: '#fff', nowTip: 'Back up now', schedOp: 1, count: 5, rows: baseRows },
+      { id: '6b-2', cap: 'Hub · backup running · Back up now disabled · Players keep playing', ok: false, running: true, restored: false, navBadge: '', nowBg: '#ebe9e3', nowFg: '#8d8b85', nowTip: 'A backup is running', schedOp: 1, count: 5, rows: baseRows.map(r => ({ ...r, menu: false, bg: 'transparent', moreLine: '#d9d7d0' })) },
+      { id: '6b-3', cap: 'Hub · after a restore · result banner with undo · safety backup marked', ok: false, running: false, restored: true, navBadge: '', nowBg: '#1a7f96', nowFg: '#fff', nowTip: '', schedOp: 1, count: 6, rows: [row('today 18:52', '1.4 GB', C, { tag: 'Safety backup', tagBg: '#e6f3f6', tagFg: '#1a7f96' }), ...baseRows.map(r => ({ ...r, menu: false, bg: 'transparent', moreLine: '#d9d7d0', tag: r.tag || r.d === '14 Oct', tagT: r.d === '14 Oct' ? 'Restored · with ROMs' : r.tagT, tagBg: r.d === '14 Oct' ? '#e2f3e8' : r.tagBg, tagFg: r.d === '14 Oct' ? '#1e6b3a' : r.tagFg }))] }];
+    const setNavB = setNav('Backups');
+    const bkStates = [
+      { k: 'No folder set · first visit', pill: 'Off', t: 'Choose a backup folder to turn backups on', d: 'Nothing is backed up yet. Pick a folder the Hub can write to, ideally on another disk.', acts: ['Choose folder…'], btn: '⊘ Choose a backup folder first' },
+      { k: 'Folder not writable', pill: 'Cannot write', t: 'Cannot write to /mnt/backup/…/home-hub', d: 'The Hub runs as user “framebeam” and needs write access. Check that the disk is mounted, or choose another folder.', acts: ['Check again', 'Change…'], btn: '⊘ Fix the folder first' },
+      { k: 'Backup failed', pill: 'Backup failed', t: 'Backup failed today 03:00', d: 'Not enough space on /mnt/backup: needs 1.4 GB, 0.3 GB free. The last good backup is from yesterday 03:00.', acts: ['Show log', 'Try again'], btn: 'Retry from the card; next try tomorrow 03:00' },
+      { k: 'Restore failed', pill: 'Not restored', t: 'Restore of 14 Oct stopped · nothing was changed', d: 'The backup file is damaged (checksum mismatch in saves.tar). Home Hub runs as before; the safety backup from 18:52 is kept.', acts: ['Show log'], btn: 'Back up now works as usual' }];
+    const restoreList = [
+      { k: 'Database', v: 'Users, devices, runs, plugin settings, Hub settings. 2 users and 1 device added since 14 Oct disappear.', c: '#55544f' },
+      { k: 'Saves and snapshots', v: '23 newer save versions are replaced by the 14 Oct versions.', c: '#55544f' },
+      { k: 'Save states', v: '6 newer states are removed.', c: '#55544f' },
+      { k: 'Plugins', v: 'SoulLink & Nuzlocke goes back to 1.3.', c: '#55544f' },
+      { k: 'ROMs', v: 'In this backup: ROMs added since 14 Oct stay, changed ones go back.', c: '#55544f' }];
+    const restoreSteps = [
+      { i: '✓', c: '#1e6b3a', fg: '#1d1d1b', t: 'Safety backup made', d: 'today 18:52 · 1.4 GB' },
+      { i: '●', c: '#1a7f96', fg: '#1d1d1b', t: 'Restoring database and saves', d: 'step 2 of 3 · about 1 min' },
+      { i: '○', c: '#8d8b85', fg: '#6b6a65', t: 'Restarting Home Hub', d: 'Players reconnect by themselves' }];
+    const pset = active => [['General', 'Theme, language, startup'], ['Hubs & library', 'Home Hub, library folders'], ['Updates', 'Channel, earlier versions'], ['Network', 'Ports, connection check'], ['Voice', 'Microphone, push-to-talk'], ['Notifications', 'What shows a toast'], ['Diagnostics', 'Logs, report a problem'], ['Plugins', '2 installed']].map(([t, s]) => ({ t, s, bg: t === active ? '#24252a' : 'transparent' }));
+    const psetU = pset('Updates');
+    const updP = [
+      { id: '6c', cap: 'Player · Settings → Updates · earlier versions · “What’s new in 0.16.4” entry (6a) · focus on Go back…', normal: true, rolled: false, chOp: 1, chD: 'Stable: tested releases. Beta: earlier, less tested.', autoD: 'Never while a game is running.', autoBg: '#3cbfd8', autoK: '18px',
+        vers: [{ v: '0.16.4', d: 'installed today 03:20', cur: true, btn: false, b: '' }, { v: '0.16.3', d: 'used 2 Oct – today', cur: false, btn: true, b: 'Go back…', ring: '0 0 0 2px #121315,0 0 0 4px #3cbfd8' }, { v: '0.16.2', d: 'used 18 Sep – 2 Oct', cur: false, btn: true, b: 'Go back…', ring: 'none' }, { v: '0.15.3', d: 'used 30 Aug – 18 Sep', cur: false, btn: true, b: 'Go back…', ring: 'none' }] },
+      { id: '6c-3', cap: 'Player · after going back · updates paused · affected plugin named', normal: false, rolled: true, chOp: 1, chD: 'Stable. Kept while updates are paused.', autoD: 'Paused after going back. “Resume updates” turns it on again.', autoBg: '#3a3b40', autoK: '2px',
+        vers: [{ v: '0.16.4', d: 'skipped · available', cur: false, btn: true, b: 'Update to 0.16.4', ring: 'none' }, { v: '0.16.3', d: 'running since today 18:52', cur: true, btn: false, b: '' }, { v: '0.16.2', d: 'used 18 Sep – 2 Oct', cur: false, btn: true, b: 'Go back…', ring: 'none' }] }];
+    const rbList = [
+      { k: 'Settings', v: 'Kept. Volume and Voice settings from 0.16.4 are ignored by 0.16.3 and come back after you update.', c: '#c9c8c4' },
+      { k: 'Saves and states', v: 'Not touched; they are on Home Hub. States made with 0.16.4 load in 0.16.3.', c: '#c9c8c4' },
+      { k: 'Plugins', v: 'SoulLink & Nuzlocke needs 0.16.4 and is turned off until you update.', c: '#e5b45a' },
+      { k: 'Updates', v: 'Paused until you resume them, so 0.16.4 is not installed again tonight.', c: '#c9c8c4' }];
+    const rbDialogs = [{ blocked: false, bg: '#3cbfd8', fg: '#0d1214' }, { blocked: true, bg: '#2c2d32', fg: '#7d7d83' }];
+    const setNavU = setNav('Updates');
+    const hv = [{ v: '0.16.4', d: 'installed today 03:12', cur: true, btn: false }, { v: '0.16.3', d: 'used 2 Oct – today', cur: false, btn: true, b: 'Go back…' }, { v: '0.16.2', d: 'used 18 Sep – 2 Oct', cur: false, btn: true, b: 'Go back…' }];
+    const updH = [
+      { id: '6c-hub', cap: 'Hub · Settings → Updates · confirmation · database backup first', ver: '0.16.4', normal: true, rolled: false, dialog: true, vers: hv },
+      { id: '6c-hub-2', cap: 'Hub · after going back · updates paused · banner on Status too', ver: '0.16.3', normal: false, rolled: true, dialog: false, vers: [{ v: '0.16.4', d: 'skipped · available', cur: false, btn: true, b: 'Update to 0.16.4' }, { v: '0.16.3', d: 'running since today 18:57', cur: true, btn: false }, { v: '0.16.2', d: 'used 18 Sep – 2 Oct', cur: false, btn: true, b: 'Go back…' }] }];
+    const rbHub = [
+      { k: 'First', v: 'A database backup goes to /mnt/backup/…/home-hub (about 40 MB).', c: '#55544f' },
+      { k: 'Database', v: 'Changes made by 0.16.4 are undone: backup schedule and reports are removed (kept in the backup).', c: '#55544f' },
+      { k: 'Saves, states, ROMs', v: 'Not changed.', c: '#55544f' },
+      { k: 'Players', v: '3 connected Players disconnect for about 1 min. Players 0.16.4 keep working with 0.16.3.', c: '#55544f' },
+      { k: 'Updates', v: 'Paused until you resume them.', c: '#55544f' }];
+    const ck = (on, t, z) => ({ ck: on ? '✓' : '', bg: on ? '#3cbfd8' : 'transparent', line: on ? '#3cbfd8' : '#5e5e63', t, z });
+    const attach = [ck(1, 'Logs of the last 3 days', '2.1 MB'), ck(1, 'Settings (no passwords, no Hub token)', '18 KB'), ck(1, 'Connection check from today 18:43', '4 KB'), ck(0, 'System info: Windows version, GPU, driver', '2 KB')];
+    const A = (l, kind, ml) => ({ l, ml: ml || '0', line: kind === 'p' ? '#3cbfd8' : kind === 'd' ? '#2c2d32' : '#3a3b40', bg: kind === 'p' ? '#3cbfd8' : kind === 'd' ? '#2c2d32' : 'transparent', fg: kind === 'p' ? '#0d1214' : kind === 'd' ? '#7d7d83' : '#ecebe7', w: kind === 'p' ? 600 : 400 });
+    const repStates = [
+      { k: 'Sending', i: '●', ic: '#3cbfd8', t: 'Sending to Home Hub…', d: '1.0 of 2.4 MB. You can keep using the Player.', bar: true, acts: [A('Cancel')] },
+      { k: 'Sent', i: '✓', ic: '#6fd39a', t: 'Report sent · #12', d: 'The admins of Home Hub see it under Reports. Nothing else to do.', bar: false, acts: [A('Done', 'p')] },
+      { k: 'Home Hub offline', i: '⊘', ic: '#a3a3a8', t: 'Home Hub is offline', d: 'Save the report as a file and send it later, or keep the dialog open; it sends when the Hub is back.', bar: false, acts: [A('Save as file…'), A('Send to Home Hub', 'd')] },
+      { k: 'Failed', i: '✕', ic: '#a3a3a8', t: 'Could not send', d: 'Upload stopped at 40 % (connection lost). Your text is kept.', bar: false, acts: [A('Save as file…'), A('Try again', 'p')] }];
+    const reports = [
+      { s: 'New', t: 'Session froze after 4 hours', m: 'Linked to “Session ended unexpectedly”', u: 'Max', dev: 'Desktop-LivingRoom', d: 'today 18:44', z: '2.4 MB', sel: 'inset 3px 0 0 #1a7f96', bg: '#f3f9fa', w: 600 },
+      { s: 'New', t: 'Touch screen offset in Stylus Knights', m: 'Connection check not attached', u: 'Lena', dev: 'Lena-PC', d: 'today 11:02', z: '1.1 MB', sel: 'none', bg: 'transparent', w: 600 },
+      { s: 'Seen', t: 'Upload of save failed', m: '', u: 'Jonas', dev: 'Jonas-Laptop', d: 'yesterday 20:15', z: '0.8 MB', sel: 'none', bg: 'transparent', w: 400 },
+      { s: 'Seen', t: 'Player does not start after update', m: '', u: 'Sam', dev: 'Laptop-Office', d: '14 Oct', z: '3.0 MB', sel: 'none', bg: 'transparent', w: 400 },
+      { s: 'Seen', t: 'Relayed only at work', m: 'Connection check attached', u: 'Max', dev: 'Laptop-Office', d: '2 Oct', z: '0.2 MB', sel: 'none', bg: 'transparent', w: 400 }].map(r => ({ ...r, sBg: r.s === 'New' ? '#e6f3f6' : '#ebe9e3', sFg: r.s === 'New' ? '#1a7f96' : '#55544f' }));
+    const attachHub = [{ t: 'Logs · 3 days', z: '2.1 MB' }, { t: 'Settings', z: '18 KB' }, { t: 'Connection check · 18:43', z: '4 KB' }];
+    const S = (state, n, r, e) => {
+      const m = { ok: ['✓', '#17291f', '#6fd39a', '0'], warn: ['!', '#2a2414', '#e5b45a', '0'], fail: ['✕', '#26272b', '#c9c8c4', '0'], run: ['', 'transparent', '#3cbfd8', '2px solid #3cbfd8'], wait: ['', 'transparent', '#5e5e63', '1.5px solid #3a3b40'], skip: ['–', 'transparent', '#5e5e63', '1.5px solid #3a3b40'] }[state];
+      return { i: m[0], bg: m[1], fg: m[2], line: m[3] === '0' ? 'none' : m[3], n, r, e, nfg: state === 'wait' || state === 'skip' ? '#7d7d83' : '#ecebe7', rfg: state === 'warn' ? '#e5b45a' : state === 'wait' || state === 'skip' ? '#7d7d83' : '#c9c8c4' };
+    };
+    const fin = [A('Copy result'), A('Add to problem report'), A('Run again', '', 'auto')];
+    const checks = [
+      { k: 'Running · step 3 of 5', done: false, steps: [S('ok', 'Hub reachable', 'hub.example.com:8443 · 22 ms', 'The Player can talk to Home Hub.'), S('ok', 'STUN', 'Public address found', 'Your router tells other Players how to reach you.'), S('run', 'TURN relay', 'Testing hub.example.com:3478…', ''), S('wait', 'NAT type', 'Waiting', ''), S('wait', 'Test connection', 'Waiting', '')], acts: [A('Cancel')] },
+      { k: 'Direct connections possible', done: true, sum: 'Your network allows direct connections', sumD: 'Sessions go straight between Players. The relay is ready as a fallback.', sBg: '#17291f', sLine: '#1f3a2a', sFg: '#6fd39a', steps: [S('ok', 'Hub reachable', 'hub.example.com:8443 · 22 ms', 'The Player can talk to Home Hub.'), S('ok', 'STUN', 'Public address found', 'Other Players can find you.'), S('ok', 'TURN relay', 'Works · 31 ms', 'Used only when a direct connection fails.'), S('ok', 'NAT type', 'Port-restricted cone', 'Allows direct connections with most networks.'), S('ok', 'Test connection', 'Direct · 18 ms to Home Hub test peer', '')], acts: fin },
+      { k: 'Only relayed connections', done: true, sum: 'Only relayed connections are possible here', sumD: 'This works but adds delay (about 30 ms more). Common on office and mobile networks. Turning on UPnP on your router, or using another network, usually allows direct connections.', sBg: '#1d1a12', sLine: '#4a3d1c', sFg: '#e5b45a', steps: [S('ok', 'Hub reachable', 'hub.example.com:8443 · 24 ms', 'The Player can talk to Home Hub.'), S('ok', 'STUN', 'Public address found', 'Other Players can find you.'), S('ok', 'TURN relay', 'Works · 48 ms', 'Sessions will use the relay on this network.'), S('warn', 'NAT type', 'Symmetric NAT', 'Your network changes the port for every connection, so direct connections fail.'), S('warn', 'Test connection', 'Relayed through hub.example.com:3478 · 48 ms', '')], acts: fin },
+      { k: 'Home Hub not reachable', done: true, sum: 'Home Hub cannot be reached', sumD: 'Check that the Hub is running and that hub.example.com:8443 is the right address. Other steps need the Hub and were skipped.', sBg: '#1a1b1e', sLine: '#2c2d32', sFg: '#ecebe7', steps: [S('fail', 'Hub reachable', 'No answer from hub.example.com:8443 after 10 s', 'Either the Hub is off, the address is wrong, or a firewall blocks port 8443.'), S('skip', 'STUN', 'Skipped', ''), S('skip', 'TURN relay', 'Skipped', ''), S('skip', 'NAT type', 'Skipped', ''), S('skip', 'Test connection', 'Skipped', '')], acts: [A('Copy result'), A('Add to problem report'), A('Edit Hub address…', '', 'auto'), A('Run again', 'p')] }];
+    const metrics = [
+      { k: 'CPU', v: '18 %', p: '18%', c: '#1a7f96', d: '4 cores · 1 Session encoding nothing (Players encode)' },
+      { k: 'MEMORY', v: '2.1 GB', p: '26%', c: '#1a7f96', d: 'of 8 GB' },
+      { k: 'DISK · DATA', v: '412 GB', p: '41%', c: '#1a7f96', d: 'of 1 TB · Storage →' },
+      { k: 'DISK · BACKUP', v: '99.7 %', p: '99%', c: '#c08a1e', d: '0.3 GB free on /mnt/backup' }];
+    const sessions = [
+      { i: 'L', c: '#b8327a', t: 'Lena · Harbor Rally', m: 'Hub users · for 1 h 12 min', v: '2 viewers', p: 'Relayed', pBg: '#e6f3f6', pFg: '#1a7f96' },
+      { i: 'M', c: '#2f5fd0', t: 'Max · Lumen Drift', m: 'Invite only · for 24 min', v: '1 viewer', p: 'Direct', pBg: '#e2f3e8', pFg: '#1e6b3a' }];
+    const players = [
+      { d: 'Desktop-LivingRoom', u: 'Max', v: '0.16.4', vc: '#55544f', s: 'in Session' },
+      { d: 'Lena-PC', u: 'Lena', v: '0.16.4', vc: '#55544f', s: 'in Session' },
+      { d: 'Jonas-Laptop', u: 'Jonas', v: '0.16.4', vc: '#55544f', s: 'watching' },
+      { d: 'Laptop-Office', u: 'Sam', v: '0.15.3', vc: '#8a5a00', s: 'idle · update available' }];
+    const errors = [{ t: '03:00:41', s: 'Backups', m: 'No space left on /mnt/backup' }, { t: '18:41:07', s: 'Sessions', m: 'Max → Lena: data channel closed (timeout)' }, { t: '11:02:55', s: 'Saves', m: 'Upload from Jonas-Laptop retried (connection reset)' }];
+    return { notesP, tiles, hubRows, notesHub, bk, setNavB, bkStates, restoreList, restoreSteps, psetU, updP, rbList, rbDialogs, updH, setNavU, rbHub, attach, repStates, reports, attachHub, checks, metrics, sessions, players, errors };
+  }
+}
+</script>
+</body>
+</html>
