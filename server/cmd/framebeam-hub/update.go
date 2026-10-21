@@ -86,6 +86,7 @@ type updateAvailableJSON struct {
 	Channel            string             `json:"channel"`
 	PublishedAt        time.Time          `json:"published_at"`
 	NotesURL           string             `json:"notes_url,omitempty"`
+	Notes              string             `json:"notes,omitempty"`
 	ProtocolVersion    int                `json:"protocol_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
 	Artifact           updateArtifactJSON `json:"artifact"`
@@ -160,7 +161,7 @@ func runUpdateCheck(args []string, out io.Writer, stage bool) error {
 	res := updateCheckJSON{Current: version.Version, Channel: ch, Platform: platform, UpToDate: sel.Release == nil, Skipped: len(f.Skipped)}
 	if sel.Release != nil {
 		r, a := sel.Release, sel.Artifact
-		res.Available = &updateAvailableJSON{Version: r.Version, Channel: r.Channel, PublishedAt: r.PublishedAt, NotesURL: r.NotesURL,
+		res.Available = &updateAvailableJSON{Version: r.Version, Channel: r.Channel, PublishedAt: r.PublishedAt, NotesURL: r.NotesURL, Notes: r.Notes,
 			ProtocolVersion: r.ProtocolVersion, MinProtocolVersion: r.MinProtocolVersion,
 			Artifact: updateArtifactJSON{Name: a.Name, Size: a.Size, SHA256: a.SHA256, URL: a.URL}}
 		if stage {

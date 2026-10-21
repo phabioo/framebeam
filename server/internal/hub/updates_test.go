@@ -49,7 +49,7 @@ func (f *updFeed) addFor(t *testing.T, channel, version string, minProto int, pl
 	}
 	sum := sha256.Sum256(data)
 	f.rels = append(f.rels, updates.Release{Product: "hub", Channel: channel, Version: version, PublishedAt: time.Now().UTC().Truncate(time.Second),
-		ProtocolVersion: 3, MinProtocolVersion: minProto, NotesURL: "https://example.org/notes",
+		ProtocolVersion: 3, MinProtocolVersion: minProto, NotesURL: "https://example.org/notes", Notes: "### Added\n- Something new",
 		Artifacts: []updates.Artifact{{Platform: platform, Kind: kind, Name: name, Size: int64(len(data)),
 			SHA256: hex.EncodeToString(sum[:]), URL: updates.FileURL(filepath.Join(f.dir, name))}}})
 	b, err := updates.Marshal(updates.Index{Schema: 1, GeneratedAt: time.Now().UTC(), Releases: f.rels})
@@ -148,6 +148,9 @@ func TestCheckUpdatesRecordsAvailableAndErrors(t *testing.T) {
 		t.Fatalf("test sees stable too, highest wins: %+v %v", rep, err)
 	}
 	st, _ := e.svc.UpdateStatus(ctx)
+	if st.Available != nil && st.Available.Notes != "### Added\n- Something new" {
+		t.Fatalf("notes not carried: %q", st.Available.Notes)
+	}
 	if st.Available == nil || st.LastCheck == nil || st.LastError != "" || st.Packaged || st.ManualCommand == "" || !e.svc.UpdateAvailableBadge(ctx) {
 		t.Fatalf("%+v", st)
 	}

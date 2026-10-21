@@ -370,3 +370,44 @@ func TestReleaseAddLegacyCompanion(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestReleaseAddKeepsNotes(t *testing.T) {
+	dir := t.TempDir()
+	idxPath := filepath.Join(dir, "updates-index.json")
+	relFile := filepath.Join(dir, "release.json")
+	now := func() time.Time { return time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC) }
+	notes := "### Added\n- Something new ü\n\n### Fixed\n- Something old"
+	write := func(n string) {
+		name := "framebeam-hub_0.3.0_amd64.deb"
+		b, _ := json.Marshal(updates.Release{Product: "hub", Channel: "stable", Version: "0.3.0", Commit: strings.Repeat("a", 40),
+			PublishedAt: now(), Notes: n, ProtocolVersion: 1, MinProtocolVersion: 1,
+			Artifacts: []updates.Artifact{{Platform: "linux-amd64", Kind: "deb", Name: name, Size: 5, SHA256: strings.Repeat("ab", 32), URL: "https://example.org/" + name}}})
+		os.WriteFile(relFile, b, 0o644)
+	}
+	runE := func() error {
+		return run([]string{"release-add", "-index", idxPath, "-release", relFile}, func(string) string { return "" }, io.Discard, now)
+	}
+	write(notes)
+	if err := runE(); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(idxPath)
+	idx, errs := updates.ParseIndex(data)
+	if len(errs) != 0 || len(idx.Releases) == 0 {
+		t.Fatalf("%v %+v", errs, idx.Releases)
+	}
+	found := false
+	for _, r := range idx.Releases {
+		if r.Version == "0.3.0" && r.Notes == notes {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("notes lost: %+v", idx.Releases)
+	}
+	// Invalid notes are refused.
+	write(strings.Repeat("x", updates.MaxNotesBytes+1))
+	if err := runE(); err == nil {
+		t.Fatal("oversize notes must be refused")
+	}
+}

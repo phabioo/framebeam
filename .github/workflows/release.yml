@@ -43,6 +43,8 @@ jobs:
     steps:
       # The workflow file and scripts come from the default branch; the release files from the CI run (artifacts).
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # full history and tags for the release notes (scripts/changelog.py)
       - name: Wait for older index updates (queue, nothing is dropped)
         timeout-minutes: 45
         run: scripts/wait-index-turn.sh 40
@@ -103,13 +105,55 @@ jobs:
             echo "COMMIT=$commit"
             echo "TAG=$tag"
           } >> "$GITHUB_ENV"
+      - name: Collect the release notes
+        run: |
+          set -euo pipefail
+          # Base = the highest plain vX.Y.Z release (prerelease or not) below this version; none: the newest stable release.
+          # A failure here (API error, missing history) never blocks the release: fixed text and no `notes` in the index.
+          fallback="Automatic beta build of commit $HEAD_SHA from main."
+          notes="$RUNNER_TEMP/notes.md"
+          : > "$RUNNER_TEMP/notes-hub.txt"; : > "$RUNNER_TEMP/notes-player.txt"
+          collect() {
+            git cat-file -e "$HEAD_SHA^{commit}" 2>/dev/null || git fetch --no-tags origin "$HEAD_SHA" || return 1
+            local base
+            base="$(gh release list --limit 200 --json tagName,isPrerelease \
+              --jq '.[] | select(.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")) | .tagName' \
+              | { grep -vx "$TAG" || true; } | { cat; echo "$TAG"; } | sort -V | { grep -x -B1 "$TAG" || true; } | head -n 1)" || return 1
+            if [ -z "$base" ] || [ "$base" = "$TAG" ]; then
+              base="$(gh release list --limit 200 --json tagName,isPrerelease \
+                --jq '[.[] | select((.isPrerelease | not) and (.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")))][0].tagName // empty')" || return 1
+            fi
+            [ -n "$base" ] || { echo "no base release found" >&2; return 1; }
+            git rev-parse --verify -q "refs/tags/$base" >/dev/null || git fetch --no-tags origin "refs/tags/$base:refs/tags/$base" || return 1
+            {
+              python3 -I scripts/changelog.py collect --repo "$GH_REPO" --base "$base" --head "$HEAD_SHA" --format markdown \
+                --title "## Changes since ${base#v}" --compare-url || return 1
+              echo
+              echo "Commit: [\`${HEAD_SHA:0:12}\`]($GITHUB_SERVER_URL/$GH_REPO/commit/$HEAD_SHA)"
+            } > "$notes.part" || return 1
+            python3 -I scripts/changelog.py collect --repo "$GH_REPO" --base "$base" --head "$HEAD_SHA" --format index --product hub > "$RUNNER_TEMP/notes-hub.txt" || return 1
+            python3 -I scripts/changelog.py collect --repo "$GH_REPO" --base "$base" --head "$HEAD_SHA" --format index --product player > "$RUNNER_TEMP/notes-player.txt" || return 1
+          }
+          {
+            if collect; then
+              cat "$notes.part"
+            else
+              echo "::warning::could not collect the release notes, using the fixed text" >&2
+              : > "$RUNNER_TEMP/notes-hub.txt"; : > "$RUNNER_TEMP/notes-player.txt"
+              echo "$fallback"
+            fi
+            echo
+            echo "Not for production use. The stable release is this very build, promoted with the workflow \"Promote to release\" (no rebuild)."
+          } > "$notes"
       - name: Create or update the GitHub release
         run: |
           set -euo pipefail
           rel="$RUNNER_TEMP/release"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --verify-tag --title "FrameBeam $VERSION (beta)" --prerelease --latest=false \
-              --notes "Automatic beta build of commit $HEAD_SHA from main. Not for production use. The stable release is this very build, promoted with the workflow \"Promote to release\" (no rebuild)."
+              --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
           fi
           gh release upload "$TAG" "$rel"/* --clobber
       - name: Prune old prereleases (keep the newest 5, no leftover test ones)
@@ -167,10 +211,11 @@ jobs:
               --arg sha "$(sha256sum "$rel/$name" | cut -d' ' -f1)" \
               '{platform:$platform, kind:$kind, name:$name, size:$a.size, sha256:$sha, url:$a.url}'
           }
-          mk() { # product info-file artifacts-json
-            jq --arg now "$now" --arg notes "https://github.com/$GH_REPO/releases/tag/$TAG" --argjson artifacts "$3" \
+          mk() { # product info-file artifacts-json notes-file (short release notes for the index; the field is left out when empty)
+            jq --arg now "$now" --arg notes "https://github.com/$GH_REPO/releases/tag/$TAG" --argjson artifacts "$3" --rawfile text "$4" \
               '{product, channel, version, commit, published_at:$now, notes_url:$notes, protocol_version, min_protocol_version, artifacts:$artifacts}
-               | if .product == "hub" or .product == "player" then . else error("bad product") end' "$2"
+               | if .product == "hub" or .product == "player" then . else error("bad product") end
+               | if ($text | length) > 0 then . + {notes: $text} else . end' "$2"
           }
           # Plain assignments (not process substitution) so a missing asset aborts the step.
           h1="$(artifact linux-amd64 deb "framebeam-hub_${VERSION}_amd64.deb")"
@@ -184,8 +229,8 @@ jobs:
           p1="$(artifact windows-x64 zip "framebeam-player-$VERSION-windows-x64.zip")"
           hub_arts="$(jq -sc '.' <<<"$h1 $h2 $h3 $h4 $h5 $h6")"
           player_arts="$(jq -sc '.' <<<"$p0 $p1")"
-          mk hub "$art/framebeam-hub-linux/hub-release-info.json" "$hub_arts" > "$out/hub.json"
-          mk player "$art/framebeam-player-windows-x64/player-release-info.json" "$player_arts" > "$out/player.json"
+          mk hub "$art/framebeam-hub-linux/hub-release-info.json" "$hub_arts" "$RUNNER_TEMP/notes-hub.txt" > "$out/hub.json"
+          mk player "$art/framebeam-player-windows-x64/player-release-info.json" "$player_arts" "$RUNNER_TEMP/notes-player.txt" > "$out/player.json"
           jq -c '{product, channel, version, artifacts: (.artifacts | length)}' "$out/hub.json" "$out/player.json"
           # Kept on the prerelease so that promote.yml can promote it later, even after the beta entry left the index.
           cp "$out/hub.json" "$out/index-hub.json"

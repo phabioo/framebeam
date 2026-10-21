@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Quiet check steps: output buffered, on failure only the last 40 lines.
-# Usage: scripts/check.sh hub-fmt|hub-vet|hub-staticcheck|hub-test|hub-race|hub-codegen|hub-notices|hub-build|hub-deb|generate|client|packaging|hub|all
+# Usage: scripts/check.sh hub-fmt|hub-vet|hub-staticcheck|hub-test|hub-race|hub-codegen|hub-notices|script-tests|hub-build|hub-deb|generate|client|packaging|hub|all
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -58,6 +58,8 @@ hub_codegen() {
 }
 # hub-notices: server/THIRD-PARTY-NOTICES.txt matches the compiled-in Go modules (regenerate: make notices).
 hub_notices() { "$ROOT/scripts/gen-hub-notices.sh" --check; }
+# script-tests: unit tests of the Python helper scripts (scripts/tests, stdlib unittest; changelog.py).
+script_tests() { (cd "$ROOT" && python3 -I -m unittest discover -s scripts/tests); }
 hub_build() {
   local target goos arch ext
   mkdir -p "$ROOT/server/dist"
@@ -286,9 +288,10 @@ case "${1:-all}" in
   hub-race)    step "hub: test -race" hub_race ;;
   hub-codegen) step "hub: codegen" hub_codegen ;;
   hub-notices) step "hub: notices" hub_notices ;;
+  script-tests) step "scripts: python tests" script_tests ;;
   notices)     "$ROOT/scripts/gen-hub-notices.sh" ;;
   packaging) step "packaging" packaging ;;
-  hub)   step "hub: fmt" hub_fmt; step "hub: vet" hub_vet; step "hub: staticcheck" hub_staticcheck; step "hub: test" hub_test; step "hub: codegen" hub_codegen; step "hub: notices" hub_notices; step "packaging" packaging ;;
+  hub)   step "hub: fmt" hub_fmt; step "hub: vet" hub_vet; step "hub: staticcheck" hub_staticcheck; step "hub: test" hub_test; step "hub: codegen" hub_codegen; step "hub: notices" hub_notices; step "scripts: python tests" script_tests; step "packaging" packaging ;;
   hub-deb) step "hub: deb packages" hub_deb ;;
   hub-build) step "hub: build linux/amd64+arm64, windows/amd64" hub_build ;;
   generate)  step "hub: generate" generate ;;

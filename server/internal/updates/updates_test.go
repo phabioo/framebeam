@@ -590,3 +590,38 @@ func TestLegacyCompanionHelpers(t *testing.T) {
 		}
 	}
 }
+
+func TestReleaseNotesValidation(t *testing.T) {
+	ok := []string{"", "### Added\n- one\n- zwei ü€\n\n\t- tab", strings.Repeat("a", MaxNotesBytes)}
+	for _, n := range ok {
+		r := rel("hub", "stable", "0.3.0")
+		r.Notes = n
+		if err := ValidateRelease(r); err != nil {
+			t.Errorf("notes %q must be accepted: %v", n, err)
+		}
+	}
+	bad := map[string]string{
+		"too long":        strings.Repeat("a", MaxNotesBytes+1),
+		"too long utf8":   strings.Repeat("€", MaxNotesBytes/3+1),
+		"invalid utf8":    "ab\xffcd",
+		"NUL":             "a\x00b",
+		"escape":          "a\x1b[31mb",
+		"carriage return": "a\r\nb",
+		"DEL":             "a\x7fb",
+		"C1 control":      "a\u0085b",
+	}
+	for name, n := range bad {
+		r := rel("hub", "stable", "0.3.0")
+		r.Notes = n
+		if err := ValidateRelease(r); err == nil {
+			t.Errorf("%s: notes must be rejected", name)
+		}
+	}
+	// Round trip through the index keeps notes.
+	r := rel("hub", "stable", "0.3.0")
+	r.Notes = "### Added\n- x"
+	idx, errs := ParseIndex(indexJSON(t, 1, r))
+	if len(errs) != 0 || len(idx.Releases) != 1 || idx.Releases[0].Notes != r.Notes {
+		t.Fatalf("%+v %v", idx.Releases, errs)
+	}
+}

@@ -40,6 +40,7 @@ make fetch-sdl3       # build SDL3 (pinned) and print the prefix
 | `scripts/fetch-sdl3.sh` | Builds SDL3 (pin: `scripts/sdl3.pin`, gamepad only, no video/audio) into `$HOME/.cache/framebeam/deps/sdl3/`, idempotent, prints the prefix. Windows: vcpkg port `sdl3` |
 | `scripts/check.sh <step>` | The quiet check steps behind the make targets |
 | `scripts/check-trusted-keys.sh` | Hub and Player embed the same release key; part of `make check-hub` |
+| `scripts/changelog.py` | `check` (PR body has a valid `## Changelog` section) and `collect` (release notes from the PR sections of a commit range; formats markdown, index, json). Stdlib only, generic. Unit tests in `scripts/tests`, run by `make check-hub` (step `script-tests`) |
 | `scripts/check-signing-key.sh` | Signing key from `FRAMEBEAM_SIGNING_KEY` is trusted by the Hub and signs a throwaway updates index; run by release.yml and promote.yml |
 
 Windows release builds use the `x64-windows-release` overlay triplet (Release-only dependency builds); the debug preset uses the standard `x64-windows` triplet.
@@ -61,8 +62,9 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 - Linux apt steps go through `scripts/ci-apt-install.sh` (update limited to 120 s and install to 240 s per attempt, apt retries and network timeouts, 3 attempts) plus a 20 minute step `timeout-minutes`, so a hanging Ubuntu mirror cannot block CI for long.
 - Job `hub-windows` (windows-2025-vs2026): `go vet`, `go test` and a version check of the Windows Hub binary; artifact `framebeam-hub-windows`. The release adds `framebeam-hub-<version>-windows-amd64.exe` to the index as platform `windows-amd64`, kind `binary`.
 - Changes that touch only `docs/*` or `*.md` files are detected as docs-only on branches and PRs; the Hub, Player and Windows jobs are skipped for them.
-- `.github/workflows/release.yml`: after a successful CI run on `main` it publishes the CI artifacts as GitHub prerelease `vX.Y.Z` (newest 5 beta prereleases kept, promoted releases never pruned) and adds Hub and Player to the signed `updates-index` release under channel `beta` (`framebeam-sign release-add`, secret `FRAMEBEAM_SIGNING_KEY`). The per-product index entries are stored as `index-hub.json` / `index-player.json` assets on the release. Pushing a `v*` tag builds nothing.
-- `.github/workflows/promote.yml` ("Promote to release", manual): see [guides/updates.md](guides/updates.md).
+- `.github/workflows/release.yml`: after a successful CI run on `main` it publishes the CI artifacts as GitHub prerelease `vX.Y.Z` (newest 5 beta prereleases kept, promoted releases never pruned) and adds Hub and Player to the signed `updates-index` release under channel `beta` (`framebeam-sign release-add`, secret `FRAMEBEAM_SIGNING_KEY`). The per-product index entries are stored as `index-hub.json` / `index-player.json` assets on the release. Pushing a `v*` tag builds nothing. The release notes are built by `scripts/changelog.py collect` from the `## Changelog` sections of all PRs since the previous plain `vX.Y.Z` release (a PR without a section: its title under Changed; bot PRs under Dependencies; if collection fails the old fixed text is used and the release is not blocked). A product-filtered short `notes` text (at most 4000 bytes) is added to the Hub and Player index entries.
+- `.github/workflows/promote.yml` ("Promote to release", manual; optional inputs `version` and `highlights`): see [guides/updates.md](guides/updates.md). It writes "Changes since <previous stable>" over all betas in between (deduplicated) into the release and the index `notes`, and opens the PR "docs: changelog for X.Y.Z" (branch `changelog/vX.Y.Z`, auto-merge) that adds the section to `CHANGELOG.md`. Events of `GITHUB_TOKEN` start no workflows, so it dispatches `ci.yml` and `pr-changelog.yml` on that branch (`ci.yml` treats `workflow_dispatch` on a non-`main` ref like a branch push, so docs-only skips the builds). Needs the repository setting "Allow GitHub Actions to create and approve pull requests"; otherwise the summary warns and the section is added by hand.
+- `.github/workflows/pr-changelog.yml` ("Changelog", job "Changelog section", required check of the `main` ruleset): fails a PR without a valid `## Changelog` section; bot PRs are exempt; `workflow_dispatch` with input `pr` re-checks a PR ([ADR 0028](adr/0028-release-notes-and-changelogs.md)).
 - `.github/workflows/plugin-index.yml` ("Publish plugin", manual, environment `release`): signs a plugin's files and the signed plugin index with the release key and publishes them as release `plugin-index`, the Hub default of `-plugin-index-url`; see [guides/plugin-publishing.md](guides/plugin-publishing.md).
 - Release pipeline hardening (amendment 2026-10-19 of [ADR 0016](adr/0016-release-numbering-and-promotion.md); code review package 9):
   - The Linux Hub job runs `make check-hub-race` (`go test -race ./...`, CGO on) after `make check-hub` (CGO off). `.github/workflows/dependencies.yml` (daily, manual, and PRs/pushes touching the Go modules; never a required check, so a new advisory cannot block an unrelated merge) runs the pinned `govulncheck` over the Hub and the vcpkg pin check `--online`. govulncheck cannot run in the cloud development container (`vuln.go.dev` is blocked by the proxy); CI is the only place it runs.
@@ -91,6 +93,19 @@ Windows release builds use the `x64-windows-release` overlay triplet (Release-on
 ## Documentation checks
 
 `scripts/check-doc-links.py [repo-root]` (stdlib only) checks relative links and heading anchors in all Markdown files and exits 1 on broken ones. It is not part of `make check`; CI runs it in the job `Detect docs-only changes`.
+
+## Writing the Changelog section
+
+Every PR description has a `## Changelog` section (template: `.github/pull_request_template.md`). Write one English line per user-visible change under `### Added`, `### Changed`, `### Fixed`, `### Removed` or `### Security` (delete unused headings); start with `Hub:` or `Player:` when only one product is affected. For CI, docs, test or refactoring-only PRs write `none` alone. Example:
+
+```
+## Changelog
+
+### Fixed
+- Hub: Saves are no longer listed twice after an import.
+```
+
+Betas and stable releases are built from these sections, so write for users, not for developers. Check a draft locally with `PR_BODY="$(cat body.md)" python3 -I scripts/changelog.py check`.
 
 ## Contributions
 

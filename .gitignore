@@ -38,3 +38,4 @@ compile_commands.json
 
 # CI compiler cache
 /.ccache/
+__pycache__/
