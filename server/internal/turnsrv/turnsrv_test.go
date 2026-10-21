@@ -3,6 +3,7 @@ package turnsrv
 import (
 	"context"
 	"errors"
+	"math/rand/v2"
 	"net"
 	"net/netip"
 	"os"
@@ -95,7 +96,8 @@ func TestHostFor(t *testing.T) {
 func TestResolveUpdatesAndWarnsOnce(t *testing.T) {
 	ips := []net.IP{net.ParseIP("203.0.113.1")}
 	var rerr error
-	s, err := Start(context.Background(), Config{PublicHost: "hub.example.org", RelayMin: 49160, RelayMax: 49199, Secret: secret,
+	rmin, rmax := relayRange(t)
+	s, err := Start(context.Background(), Config{PublicHost: "hub.example.org", RelayMin: rmin, RelayMax: rmax, Secret: secret,
 		ListenHost: "127.0.0.1", DeviceOK: func(context.Context, string) bool { return true },
 		Resolver: func(context.Context, string) ([]net.IP, error) { return ips, rerr }, ResolveInterval: time.Hour})
 	if err != nil {
@@ -117,9 +119,38 @@ func TestResolveUpdatesAndWarnsOnce(t *testing.T) {
 	}
 }
 
+// relayRange returns a 40-port UDP relay range that is currently free and lies below every OS ephemeral range
+// (Windows 49152-65535, Linux 32768-60999), so concurrently running tests that bind port 0 cannot take its ports.
+func relayRange(t *testing.T) (int, int) {
+	t.Helper()
+	const span = 40
+	for try := 0; try < 50; try++ {
+		lo := 20000 + rand.IntN(9000)
+		var held []net.PacketConn
+		free := true
+		for p := lo; p < lo+span; p++ {
+			c, err := net.ListenPacket("udp4", net.JoinHostPort("127.0.0.1", itoa(p)))
+			if err != nil {
+				free = false
+				break
+			}
+			held = append(held, c)
+		}
+		for _, c := range held {
+			c.Close()
+		}
+		if free {
+			return lo, lo + span - 1
+		}
+	}
+	t.Skip("no free UDP relay range found")
+	return 0, 0
+}
+
 func startLoopback(t *testing.T, deviceOK func(string) bool, relayIP net.IP, now func() time.Time) *Server {
 	t.Helper()
-	s, err := Start(context.Background(), Config{PublicHost: "127.0.0.1", RelayIP: relayIP, RelayMin: 49160, RelayMax: 49199,
+	rmin, rmax := relayRange(t)
+	s, err := Start(context.Background(), Config{PublicHost: "127.0.0.1", RelayIP: relayIP, RelayMin: rmin, RelayMax: rmax,
 		Secret: secret, ListenHost: "127.0.0.1", Now: now,
 		DeviceOK: func(_ context.Context, id string) bool { return deviceOK(id) }})
 	if err != nil {
@@ -150,7 +181,7 @@ func allocate(t *testing.T, s *Server, user, cred string) error {
 		return err
 	}
 	defer rc.Close()
-	if a := rc.LocalAddr().(*net.UDPAddr); a.Port < 49160 || a.Port > 49199 || !a.IP.Equal(net.ParseIP("127.0.0.1")) {
+	if a := rc.LocalAddr().(*net.UDPAddr); a.Port < s.cfg.RelayMin || a.Port > s.cfg.RelayMax || !a.IP.Equal(net.ParseIP("127.0.0.1")) {
 		t.Errorf("relay addr %v", a)
 	}
 	return nil
@@ -186,7 +217,8 @@ func TestAllocationExpiredAndNoRelayIP(t *testing.T) {
 		t.Fatal("expired allocated")
 	}
 	// No resolved IPv4: allocations fail.
-	s2, err := Start(context.Background(), Config{PublicHost: "hub.example.org", RelayMin: 49160, RelayMax: 49199, Secret: secret,
+	rmin, rmax := relayRange(t)
+	s2, err := Start(context.Background(), Config{PublicHost: "hub.example.org", RelayMin: rmin, RelayMax: rmax, Secret: secret,
 		ListenHost: "127.0.0.1", DeviceOK: func(context.Context, string) bool { return true },
 		Resolver: func(context.Context, string) ([]net.IP, error) { return nil, errors.New("down") }})
 	if err != nil {

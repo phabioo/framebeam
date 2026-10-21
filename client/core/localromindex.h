@@ -10,6 +10,7 @@
 #include <QString>
 #include <QStringList>
 #include <atomic>
+#include <memory>
 #include <functional>
 #include <optional>
 
@@ -94,10 +95,12 @@ class LocalRomIndex : public QObject {
   void scanFinished(int fileCount, int hashed, bool cancelled);
 
  private:
+  void reindex();  // bySha_ after every change of files_
   QString cacheFile_;
   QList<LocalRomFile> files_;
+  QHash<QString, QList<int>> bySha_;  // sha256 -> indexes into files_ (in order)
   bool scanning_ = false;
-  std::atomic_bool cancel_{false};
+  std::shared_ptr<std::atomic_bool> cancel_ = std::make_shared<std::atomic_bool>(false);  // shared with the scan task: it outlives this object
   quint64 generation_ = 0;
 };
 

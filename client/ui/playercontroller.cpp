@@ -36,10 +36,20 @@
 #include "libretro_backend.h"
 #include "game_identity.h"
 #include "mediacaps.h"
+#include "uploadcontroller.h"
 #include "semver.h"
 #include "version.h"
 
 namespace framebeam::ui {
+
+namespace {
+// How long the Emulation page keeps the "Updated X to V" line (the test override keeps tests short).
+int coreUpdateNoticeMs() {
+  bool ok = false;
+  const int v = qEnvironmentVariableIntValue("FRAMEBEAM_CORE_NOTICE_MS", &ok);
+  return ok && v > 0 ? v : 120000;
+}
+}  // namespace
 
 PlayerController::PlayerController(const Options& options, QObject* parent)
     : QObject(parent), options_(options), locator_() {
@@ -158,6 +168,16 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     coreReprobe_.insert(c.coreId);
     reprobeUpdatedCores();
     refreshCoreState();
+    coreUpdateShown_ = true;
+    coreUpdateHideTimer_->start();
+    emit coreUpdateChanged();
+  });
+  // The result line is a quiet notice, not a state: it goes away after a while instead of staying until the next start.
+  coreUpdateHideTimer_ = new QTimer(this);
+  coreUpdateHideTimer_->setSingleShot(true);
+  coreUpdateHideTimer_->setInterval(coreUpdateNoticeMs());
+  connect(coreUpdateHideTimer_, &QTimer::timeout, this, [this]() {
+    coreUpdateShown_ = false;
     emit coreUpdateChanged();
   });
   // The Hub's systems / cores info changes when it updates its cores (after each catalog refresh): re-read it at most
@@ -170,9 +190,10 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     }
   });
   systemsTimer_->start();
-  uploader_ = std::make_unique<GameUploader>(conn_.get());
-  upload_ = {{QStringLiteral("active"), false}, {QStringLiteral("fileName"), QString()}, {QStringLiteral("progress"), 0.0},
-             {QStringLiteral("message"), QString()}, {QStringLiteral("isError"), false}};
+  uploads_ = std::make_unique<UploadController>(
+      UploadController::Deps{conn_.get(), profiles_.get(), model_, localRoms_, manifests_});
+  connect(uploads_.get(), &UploadController::changed, this, &PlayerController::uploadChanged);
+  connect(uploads_.get(), &UploadController::finished, this, &PlayerController::onUploadFinished);
   connect(systems_.get(), &HubSystems::stateChanged, this, [this]() {
     if (systems_->state() == HubSystems::State::Ready) {
       fwProblems_.clear();  // fresh registry from the Hub: validation problems are re-evaluated
@@ -184,15 +205,6 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   });
   connect(provisioner_.get(), &FirmwareProvisioner::finished, this, [this](const FirmwareResult& r) { starter_->onFirmwareFinished(r); });
   connect(coreProv_.get(), &CoreProvisioner::finished, this, [this](const CoreResult& r) { starter_->onCoreFinished(r); });
-  connect(uploader_.get(), &GameUploader::progress, this, [this](qint64 sent, qint64 total) {
-    upload_.insert(QStringLiteral("progress"), total > 0 ? static_cast<double>(sent) / static_cast<double>(total) : 0.0);
-    emit uploadChanged();
-  });
-  connect(uploader_.get(), &GameUploader::finished, this, &PlayerController::onUploadFinished);
-  uploader_->setStateFileProvider([this]() {
-    const QString dir = profiles_->hubDir(conn_->hubInfo().hubId);
-    return dir.isEmpty() ? QString() : QDir(dir).filePath(QStringLiteral("uploads.json"));
-  });
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
   if (QGuiApplication::styleHints() != nullptr) {
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() {
@@ -225,6 +237,12 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     qWarning().noquote() << msg;
     startError_ = msg;  // shown with the game (detail pane); the save itself stays untouched
     emit selectedGameChanged();
+  });
+  connect(saves_.get(), &SaveSync::kindsRefreshed, this, [this](const QStringList& changed) {
+    applyCachedSyncKinds();
+    if (changed.contains(selectedId_)) {
+      emit selectedGameChanged();
+    }
   });
   connect(saves_.get(), &SaveSync::kindChanged, this, [this](const QString& gameId, SaveSync::Kind k) {
     model_.setSyncKind(gameId, SaveSync::kindName(k));
@@ -283,9 +301,23 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   HandshakeInfo info = HandshakeInfo::detect();
   info.cores = coreList_;
   info.gamepad = controllers_->gamepadAvailable();  // input.gamepad: SDL gamepads usable on this Player
-  applyMediaCapabilities(&info);  // h264_encode/h264_decode/encoders as libavcodec can really open them
   handshake_ = info;
   conn_->setHandshakeInfo(info);
+  {
+    // h264_encode/h264_decode/encoders as libavcodec can really open them: opening the encoders (GPU drivers) can take
+    // long, so it runs on a worker and the handshake is completed and resent when it is done (the result is cached).
+    auto* w = new QFutureWatcher<bool>(this);
+    connect(w, &QFutureWatcher<bool>::finished, this, [this, w]() {
+      w->deleteLater();
+      applyMediaCapabilities(&handshake_);  // cached by now
+      conn_->setHandshakeInfo(handshake_);
+      conn_->resendHandshake();
+    });
+    w->setFuture(QtConcurrent::run([]() {
+      detectMediaCapabilities();
+      return true;
+    }));
+  }
   // The core probes run on a worker: the handshake carries the core list once they are done (a changed list is resent).
   connect(catalog_.get(), &CoreCatalog::coresProbed, this, [this]() {
     const auto same = [](const QList<CoreInfo>& a, const QList<CoreInfo>& b) {
@@ -574,6 +606,7 @@ void PlayerController::shutdown() {
     sessions_->gameEnded();
   }
   session_.stop();  // unloads the core first so it flushes its save
+  if (liveTimer_) liveTimer_->stop();  // the blocking sync spins a nested event loop: no library reload meanwhile (PE-19)
   if (saves_) {
     saves_->finalSyncBlocking(true);
   }
@@ -601,7 +634,7 @@ QVariantMap PlayerController::coreUpdate() const {
   const bool active = coreUpdater_ && coreUpdater_->busy();
   m.insert(QStringLiteral("active"), active);
   m.insert(QStringLiteral("text"), active ? tr("Updating %1 to %2").arg(coreUpdater_->current().name, coreUpdater_->current().version) : QString());
-  const bool has = coreUpdater_ && !coreUpdater_->lastUpdate().coreId.isEmpty();
+  const bool has = coreUpdateShown_ && coreUpdater_ && !coreUpdater_->lastUpdate().coreId.isEmpty();
   m.insert(QStringLiteral("lastText"), has ? tr("Updated %1 to %2").arg(coreUpdater_->lastUpdate().name, coreUpdater_->lastUpdate().version) : QString());
   return m;
 }
@@ -1206,24 +1239,9 @@ void PlayerController::applyFrameBeamOptions() {
   emit emulationSettingsChanged();
 }
 
-bool PlayerController::canUpload() const {
-  return conn_->state() == HubConnection::State::Connected && conn_->hubHasFeature(QStringLiteral("uploads_v1"));
-}
+bool PlayerController::canUpload() const { return uploads_->canUpload(); }
 
-QStringList PlayerController::uploadFilters() const {
-  QStringList exts;
-  for (const emu::SystemManifest& m : manifests_.all()) {
-    for (const QString& e : m.extensions) {
-      exts.append(QStringLiteral("*") + e);
-    }
-  }
-  QStringList filters;
-  if (!exts.isEmpty()) {
-    filters.append(tr("Game ROMs (%1)").arg(exts.join(QLatin1Char(' '))));
-  }
-  filters.append(tr("All files (*)"));
-  return filters;
-}
+QStringList PlayerController::uploadFilters() const { return uploads_->filters(); }
 
 QVariantList PlayerController::hubs() const { return hubPresenter_->hubs(); }
 QVariantMap PlayerController::pairing() const { return hubPresenter_->pairing(); }
@@ -1321,20 +1339,7 @@ void PlayerController::dismissCoreNotice(const QString& code) {
   emit hubChanged();
 }
 
-void PlayerController::uploadRom(const QString& source) {
-  if (!canUpload() || uploader_->busy()) {
-    return;
-  }
-  const QString path = source.startsWith(QLatin1String("file:")) ? QUrl(source).toLocalFile() : source;
-  upload_ = {{QStringLiteral("active"), true},
-             {QStringLiteral("fileName"), QFileInfo(path).fileName()},
-             {QStringLiteral("progress"), 0.0},
-             {QStringLiteral("message"), QString()},
-             {QStringLiteral("isError"), false}};
-  uploadSourcePath_ = path;
-  emit uploadChanged();
-  uploader_->upload(path);
-}
+void PlayerController::uploadRom(const QString& source) { uploads_->uploadRom(source); }
 
 void PlayerController::dismissStopSaveError() {
   if (stopSaveError_.isEmpty()) {
@@ -1344,13 +1349,7 @@ void PlayerController::dismissStopSaveError() {
   emit stopSaveErrorChanged();
 }
 
-void PlayerController::dismissUploadMessage() {
-  if (upload_.value(QStringLiteral("active")).toBool() || upload_.value(QStringLiteral("message")).toString().isEmpty()) {
-    return;
-  }
-  upload_.insert(QStringLiteral("message"), QString());
-  emit uploadChanged();
-}
+void PlayerController::dismissUploadMessage() { uploads_->dismissMessage(); }
 
 void PlayerController::adoptUploadedRom(const QString& srcPath, const QString& sha256, const QString& romFilename) {
   if (!cache_ || srcPath.isEmpty() || !RomCache::isValidSha256(sha256)) return;
@@ -1572,30 +1571,11 @@ void PlayerController::saveIgnoredRoms() const {
 }
 
 void PlayerController::uploadGameToHub(const QString& gameId) {
-  const auto game = model_.game(gameId);
-  if (!game || game->onHub || !canUpload() || uploader_->busy()) return;
-  LocalRomFile local;
-  for (const RomFileEntry& r : game->roms) {
-    const QList<LocalRomFile> files = localRoms_->filesFor(r.sha256);
-    if (!files.isEmpty() && !localRoms_->pathForSha(r.sha256).isEmpty()) {
-      local = files.first();
-      break;
-    }
-  }
-  if (local.path.isEmpty()) {
-    startError_ = tr("File missing on this device. The game cannot be uploaded from here.");
+  const QString err = uploads_->uploadLocalGame(gameId);
+  if (!err.isEmpty()) {
+    startError_ = err;
     emit selectedGameChanged();
-    return;
   }
-  upload_ = {{QStringLiteral("active"), true},
-             {QStringLiteral("gameId"), gameId},
-             {QStringLiteral("fileName"), QFileInfo(local.path).fileName()},
-             {QStringLiteral("progress"), 0.0},
-             {QStringLiteral("message"), QString()},
-             {QStringLiteral("isError"), false}};
-  uploadSourcePath_ = local.path;
-  emit uploadChanged();
-  uploader_->upload(local.path, QString(), local.sha256, local.system);
 }
 
 void PlayerController::removeFromLibrary(const QString& gameId) {
@@ -1604,62 +1584,24 @@ void PlayerController::removeFromLibrary(const QString& gameId) {
   registrar_->unregisterGame(gameId);
 }
 
-void PlayerController::onUploadFinished(const UploadResult& r) {
+// Library side effects of a finished upload; the message and the `upload` map are UploadController's.
+void PlayerController::onUploadFinished(const UploadResult& r, const QString& srcPath) {
   using K = UploadResult::Kind;
-  const QString srcPath = std::exchange(uploadSourcePath_, QString());
-  QString message;
-  bool isError = true;
-  switch (r.kind) {
-    case K::Created:
-      message = tr("Uploaded “%1” to the Hub.").arg(r.game.title);
-      isError = false;
-      pendingSelectId_ = r.game.id;
-      adoptUploadedRom(srcPath, r.game.romSha256, r.game.romFilename);
+  if (r.kind == K::Created) {
+    pendingSelectId_ = r.game.id;
+    adoptUploadedRom(srcPath, r.game.romSha256, r.game.romFilename);
+    reloadLibrary();
+  } else if (r.kind == K::Duplicate && !r.existingGameId.isEmpty()) {
+    if (const auto existing = model_.game(r.existingGameId)) {
+      adoptUploadedRom(srcPath, existing->romSha256, existing->romFilename);  // hash is verified against the Hub's value
+    }
+    if (model_.rowOfGame(r.existingGameId) >= 0) {
+      selectGame(r.existingGameId);
+    } else {
+      pendingSelectId_ = r.existingGameId;
       reloadLibrary();
-      break;
-    case K::Duplicate:
-      message = tr("Already in the library.");
-      isError = false;
-      if (!r.existingGameId.isEmpty()) {
-        if (const auto existing = model_.game(r.existingGameId)) {
-          adoptUploadedRom(srcPath, existing->romSha256, existing->romFilename);  // hash is verified against the Hub's value
-        }
-        if (model_.rowOfGame(r.existingGameId) >= 0) {
-          selectGame(r.existingGameId);
-        } else {
-          pendingSelectId_ = r.existingGameId;
-          reloadLibrary();
-        }
-      }
-      break;
-    case K::Forbidden:
-      message = tr("Uploads are not allowed for your user on this Hub.");
-      break;
-    case K::TooLarge:
-      message = tr("The file is too large for this Hub.");
-      break;
-    case K::Rejected:
-      message = r.errorMessage.isEmpty() ? tr("The Hub rejected this file (unsupported type?).")
-                                         : tr("The Hub rejected this file: %1").arg(r.errorMessage);
-      break;
-    case K::Failed:
-      if (r.errorCode == QLatin1String("file_unreadable")) {
-        message = tr("The file cannot be read.");
-      } else if (r.errorCode == QLatin1String("cancelled")) {
-        message = tr("Upload cancelled.");
-      } else if (r.errorCode == QLatin1String("not_connected")) {
-        message = tr("Not connected to a Hub.");
-      } else {
-        message = tr("Upload failed: %1").arg(r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
-      }
-      break;
+    }
   }
-  upload_ = {{QStringLiteral("active"), false},
-             {QStringLiteral("fileName"), r.fileName},
-             {QStringLiteral("progress"), r.kind == K::Created ? 1.0 : 0.0},
-             {QStringLiteral("message"), message},
-             {QStringLiteral("isError"), isError}};
-  emit uploadChanged();
 }
 
 void PlayerController::recheckFirmware() {
@@ -1680,7 +1622,10 @@ void PlayerController::endRunningWork() {
     setBackground(false);
     sessions_->gameEnded();  // same order as quitGame(): Sessions end before the core goes
     session_.stop();
+    const bool liveWasOn = liveTimer_ && liveTimer_->isActive();
+    if (liveTimer_) liveTimer_->stop();  // nested event loop in the final sync: no library reload while the game is half torn down (PE-19)
     saves_->finalSyncBlocking(true);
+    if (liveWasOn) liveTimer_->start();
     gameActive_ = false;
     phase_ = PlayPhase::None;
     finishRunStart();
@@ -1719,6 +1664,14 @@ void PlayerController::reloadLibrary() {
   libraryState_ = QStringLiteral("loading");
   emit libraryStateChanged();
   library_->reload();
+}
+
+void PlayerController::applyCachedSyncKinds() {
+  QHash<QString, QString> kinds;
+  for (const GameEntry& g : library_->games()) {
+    kinds.insert(g.id, SaveSync::kindName(saves_->kind(g.id)));
+  }
+  model_.setSyncKinds(kinds);
 }
 
 void PlayerController::onLibraryLoaded() {
@@ -1765,12 +1718,10 @@ void PlayerController::onLibraryLoaded() {
   for (const GameEntry& g : library_->games()) {
     ids.append(g.id);
   }
-  saves_->refreshKinds(ids);
-  QHash<QString, QString> kinds;
-  for (const QString& id : ids) {
-    kinds.insert(id, SaveSync::kindName(saves_->kind(id)));
-  }
-  model_.setSyncKinds(kinds);
+  // Known kinds first (cheap, no file access); the sync state on disk is read on a worker and reaches the model as one
+  // batch (kindsRefreshed).
+  applyCachedSyncKinds();
+  saves_->refreshKindsAsync(ids);
   libraryState_ = QStringLiteral("ready");
   libraryError_.clear();
   emit libraryStateChanged();

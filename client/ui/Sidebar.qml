@@ -431,6 +431,7 @@ Rectangle {
                     objectName: "userAvatarInitial"
                     anchors.centerIn: parent
                     text: (root.player.userName || root.player.deviceName || "?").charAt(0).toUpperCase()
+                    textFormat: Text.PlainText
                     font.pixelSize: Theme.fontMeta
                     font.weight: Font.DemiBold
                     color: Theme.textSecondary

@@ -223,6 +223,21 @@ Tile selection in Multiview is one style, a 2px `#3cbfd8` border (finding P43); 
 
 Pill color rules: decision 23 (amber = needs your judgment, cyan = information or in progress, green ok, grey neutral or off, red destructive text only). Pill size 11/500, padding 2 x 8, radius 10 (list and detail pills); the 12/600 radius-999 status pill of the common shell stays for table status columns.
 
+## Additions of Round 4 (2026-10-21)
+
+Source `source/round-4-sheet.dc.html` (card "New tokens (unavoidable)", script `tokens` at line 459; decisions 24-35 in [decisions.md](decisions.md)). One new value; everything else is an existing token.
+
+| Token | Value | Use |
+|---|---|---|
+| new-pill-light | `#e6f3f6` (text `#1a7f96`) | cyan light pill: status "New" of a problem report (6d-hub), tag "Safety backup" (6b-3). The only new value |
+| speaking-ring | `#6fd39a` (existing green) | speaking ring of an avatar: 2px ring outside a 2px gap, in the header, People tab, Multiview tiles and fullscreen (6w); no new color |
+| osd-surface | `#111214` at 88 % opacity | OSD pill (0-3 C): the header surface at 88 %, line `#34353a`; amber variant text `#e5b45a` on line `#4a3d1c` |
+| info-line-light | `#a6d9e6` (existing v4 pending-card border) | Hub info banners (6a-hub) and the running-backup card (6b-2) |
+
+Values in use that are not new: amber card dark `#1d1a12` / `#4a3d1c` (6c-3, 6s, 6x rule-off cards, memory chip popover), amber card light `#fff7e6` / `#ecd9ae` (6b-4, 6f), amber chip `#2a2414` / `#e5b45a` ("Memory edited", "Muted by host", "Not ready"), cyan chip dark `#15262b` / `#3cbfd8` with border `#1f4650` (volume open, "Live", handover chip, "New" tag), ready green dark `#17291f` / `#6fd39a`, green pill light `#e2f3e8` / `#1e6b3a`, unread row surface `#212226`, unread count badge `#3cbfd8` on `#0d1214` (16 high, grey variant `#2c2d32` / `#c9c8c4`), dark popover surface `#1d1e22` with border `#34353a`. The border of the "Restored" card in 6b-3 (`#b7dcc4`) is a one-off green line in the drawing, not in the sheet's token list. The death marker in the run recap is grey (`#8e8e94` dark, `#8d8b85` light) on purpose, never red; player colours are those of the plugin handoff (above).
+
+Layout values of Round 4 (from the handoff table): in-game header 56, panel 340 (1280: 300), tab row 40, OSD 36 high radius 18, Online row 36 with avatar 24 and status dot 8, bell 32 x 32, Hub sidebar 232 with group eyebrow mono 10, Settings column 300, popovers 300 (volume), 340 (Online, memory chip), 360 (mixer), 400 (notifications), dialogs 412 (invite), 460 (ready), 500 (storage), 540/560 (roll back), 580 (report), 600 (connection check, What’s new), card 880 (setup assistant).
+
 ## Mapping (note, not code)
 
 - Player (QML): one theme singleton with the roles above as properties; dark/light switching (architecture 09) via two palettes with the same role names. A light Player palette is not designed in the source; `Theme.qml` carries one derived from the Hub tokens (ADR 0007 D7).

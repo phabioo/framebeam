@@ -153,6 +153,36 @@ class UpdateTest : public QObject {
     QCOMPARE(r.index.releases.size(), 2);
     QVERIFY(r.index.skipped.isEmpty());  // unknown field "future_field" is ignored
   }
+  void indexNotes() {
+    const QString good = QStringLiteral("### Added\n- Something new \u00fc\n\t- tab");
+    const auto withNotes = [&](const QString& v, const QJsonValue& notes) {
+      QJsonObject r = release("player", "stable", v, oneArt(v));
+      r.insert("notes", notes);
+      return r;
+    };
+    const ParseResult r = parseIndex(indexJson({withNotes("1.0.0", good), withNotes("1.1.0", QString(4001, 'a')),
+                                                withNotes("1.2.0", QStringLiteral("a\x1b[31mb")),
+                                                withNotes("1.3.0", QString(QChar(0x20AC)).repeated(1334)),
+                                                withNotes("1.4.0", 42), release("player", "stable", "1.5.0", oneArt("5")),
+                                                withNotes("1.6.0", QString(4000, 'a')),
+                                                withNotes("1.7.0", QStringLiteral("a\r\nb"))}));
+    QVERIFY(r.ok);
+    QCOMPARE(r.index.releases.size(), 8);  // invalid notes drop the field, never the release
+    QVERIFY(r.index.skipped.isEmpty());
+    QCOMPARE(releaseNotes(r.index, "player", "1.0.0"), good);
+    QCOMPARE(releaseNotes(r.index, "player", "1.0.0"), r.index.releases[0].notes);
+    QVERIFY(r.index.releases[0].toJson().contains("notes"));
+    QCOMPARE(releaseNotes(r.index, "player", "1.1.0"), QString());
+    QCOMPARE(releaseNotes(r.index, "player", "1.2.0"), QString());
+    QCOMPARE(releaseNotes(r.index, "player", "1.3.0"), QString());  // 4002 bytes
+    QCOMPARE(releaseNotes(r.index, "player", "1.4.0"), QString());
+    QCOMPARE(releaseNotes(r.index, "player", "1.5.0"), QString());
+    QVERIFY(!r.index.releases[5].toJson().contains("notes"));
+    QCOMPARE(releaseNotes(r.index, "player", "1.6.0").size(), 4000);
+    QCOMPARE(releaseNotes(r.index, "player", "1.7.0"), QString());
+    QCOMPARE(releaseNotes(r.index, "hub", "1.0.0"), QString());     // other product
+    QCOMPARE(releaseNotes(r.index, "player", "9.9.9"), QString());  // unknown version
+  }
   void indexUnknownSchema() {
     const QByteArray j = R"({"schema":2,"releases":[]})";
     const ParseResult r = parseIndex(j);

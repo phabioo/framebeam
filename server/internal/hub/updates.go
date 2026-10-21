@@ -159,6 +159,7 @@ type UpdateAvailable struct {
 	Version     string    `json:"version"`
 	Channel     string    `json:"channel"`
 	NotesURL    string    `json:"notes_url,omitempty"`
+	Notes       string    `json:"notes,omitempty"`
 	PublishedAt time.Time `json:"published_at"`
 	Artifact    string    `json:"artifact"`
 	URL         string    `json:"url"`
@@ -358,7 +359,7 @@ func (s *Service) CheckUpdates(ctx context.Context) (_ UpdateCheckReport, err er
 		_ = s.setSetting(ctx, settingUpdateAvailable, "")
 		return rep, nil
 	}
-	a := &UpdateAvailable{Version: sel.Release.Version, Channel: sel.Release.Channel, NotesURL: sel.Release.NotesURL,
+	a := &UpdateAvailable{Version: sel.Release.Version, Channel: sel.Release.Channel, NotesURL: sel.Release.NotesURL, Notes: sel.Release.Notes,
 		PublishedAt: sel.Release.PublishedAt, Artifact: sel.Artifact.Name, URL: sel.Artifact.URL, Size: sel.Artifact.Size}
 	if n := s.playersBelow(ctx, sel.Release.MinProtocolVersion); n > 0 {
 		a.Breaking, a.BreakingCount = true, n

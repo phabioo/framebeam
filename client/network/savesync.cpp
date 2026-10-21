@@ -7,6 +7,7 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QtConcurrent/QtConcurrentRun>
 #include <QLoggingCategory>
 #include <algorithm>
 #include <memory>
@@ -132,6 +133,7 @@ void SaveSync::setKind(const QString& gameId, const SyncState& st, bool hasFile)
   } else if (!st.lastSyncedSha256.isEmpty() && hasFile) {
     k = Kind::Synced;
   }
+  kindsTouched_.insert(gameId);
   if (kinds_.value(gameId, Kind::None) != k) {
     kinds_.insert(gameId, k);
     emit kindChanged(gameId, k);
@@ -148,29 +150,79 @@ void SaveSync::persist() {
   setKind(a_.gameId, a_.st, QFileInfo(a_.file).isFile());
 }
 
+namespace {
+// Classification of a slot directory from its sync.json and save file. Read-only file access: safe on a worker.
+SaveSync::Kind kindOfSlotDir(const QString& dir) {
+  using Kind = SaveSync::Kind;
+  if (dir.isEmpty() || !QFileInfo::exists(SaveStore::stateFilePath(dir))) {
+    return Kind::None;
+  }
+  const SyncState st = SaveStore::loadState(dir);
+  const bool hasFile = !SaveStore::findSaveFile(dir, QString()).isEmpty();
+  if (!st.conflictId.isEmpty()) {
+    return Kind::Conflict;
+  }
+  if (st.pending) {
+    return Kind::Pending;
+  }
+  if (!st.lastSyncedSha256.isEmpty() && hasFile) {
+    return Kind::Synced;
+  }
+  return Kind::None;
+}
+}  // namespace
+
 void SaveSync::refreshKinds(const QStringList& gameIds) {
   const bool on = available();
   for (const QString& id : gameIds) {
-    Kind k = Kind::None;
-    if (on) {
-      const QString dir = slotDirFor(id, slotFor(id));
-      if (!dir.isEmpty() && QFileInfo::exists(SaveStore::stateFilePath(dir))) {
-        const SyncState st = SaveStore::loadState(dir);
-        const bool hasFile = !SaveStore::findSaveFile(dir, QString()).isEmpty();
-        if (!st.conflictId.isEmpty()) {
-          k = Kind::Conflict;
-        } else if (st.pending) {
-          k = Kind::Pending;
-        } else if (!st.lastSyncedSha256.isEmpty() && hasFile) {
-          k = Kind::Synced;
-        }
-      }
-    }
+    const Kind k = on ? kindOfSlotDir(slotDirFor(id, slotFor(id))) : Kind::None;
+    kindsTouched_.insert(id);
     if (kinds_.value(id, Kind::None) != k) {
       kinds_.insert(id, k);
       emit kindChanged(id, k);
     }
   }
+}
+
+// Same classification as refreshKinds, but the file access runs on a worker and the changes arrive as ONE kindsRefreshed
+// signal (no kindChanged per game). A kind that setKind changed while the worker ran is newer and is kept.
+void SaveSync::refreshKindsAsync(const QStringList& gameIds) {
+  const bool on = available();
+  QList<QPair<QString, QString>> jobs;  // game id, slot directory (empty: no state)
+  jobs.reserve(gameIds.size());
+  for (const QString& id : gameIds) {
+    jobs.append({id, on ? slotDirFor(id, slotFor(id)) : QString()});
+  }
+  kindsTouched_.clear();
+  const quint64 gen = ++kindsGen_;
+  if (!kindsWatcher_) {
+    kindsWatcher_ = std::make_unique<QFutureWatcher<QList<QPair<QString, int>>>>();
+  }
+  kindsWatcher_->disconnect(this);
+  connect(kindsWatcher_.get(), &QFutureWatcherBase::finished, this, [this, gen]() {
+    if (gen != kindsGen_) {
+      return;  // superseded by a newer refresh
+    }
+    QStringList changed;
+    for (const auto& r : kindsWatcher_->result()) {
+      if (kindsTouched_.contains(r.first)) continue;
+      const Kind k = static_cast<Kind>(r.second);
+      if (kinds_.value(r.first, Kind::None) != k) {
+        kinds_.insert(r.first, k);
+        changed.append(r.first);
+      }
+    }
+    kindsTouched_.clear();
+    emit kindsRefreshed(changed);
+  });
+  kindsWatcher_->setFuture(QtConcurrent::run([jobs]() {
+    QList<QPair<QString, int>> out;
+    out.reserve(jobs.size());
+    for (const auto& j : jobs) {
+      out.append({j.first, static_cast<int>(kindOfSlotDir(j.second))});
+    }
+    return out;
+  }));
 }
 
 // ---------------------------------------------------------------- Start sync

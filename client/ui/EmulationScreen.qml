@@ -228,14 +228,14 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: Theme.space10
                         FbLabel { text: qsTr("Game"); color: Theme.textMuted; font.pixelSize: Theme.fontSmall }
-                        FbSelect {
+                        FbModelSelect {
                             id: gameSelect
                             objectName: "gameSelect"
                             Layout.fillWidth: true
                             Layout.maximumWidth: 460
-                            enabled: root.emu.games.length > 0
+                            enabled: root.emu.gameCount > 0
                             displayText: root.emu.selectedGame === "" ? qsTr("Pick a game…") : root.emu.game.label
-                            model: root.emu.games
+                            model: root.emu.gamePicker
                             current: root.emu.selectedGame
                             onPicked: value => root.emu.selectGame(value)
                         }
@@ -251,7 +251,7 @@ Rectangle {
                         objectName: "gamePickerHint"
                         visible: root.emu.selectedGame === ""
                         Layout.fillWidth: true
-                        text: root.emu.games.length > 0 ? qsTr("Choose a game to give it its own core or options. Games without changes follow their system.")
+                        text: root.emu.gameCount > 0 ? qsTr("Choose a game to give it its own core or options. Games without changes follow their system.")
                                                         : qsTr("No games in the library yet.")
                         color: Theme.textMuted
                         font.pixelSize: Theme.fontMeta
@@ -354,6 +354,7 @@ Rectangle {
                                             anchors.leftMargin: 8
                                             anchors.rightMargin: 8
                                             text: ovItem.modelData
+                                            textFormat: Text.PlainText
                                             elide: Text.ElideRight
                                             verticalAlignment: Text.AlignVCenter
                                             font.pixelSize: Theme.fontSmall

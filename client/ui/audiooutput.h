@@ -73,6 +73,9 @@ class AudioOutput : public QObject {
   void stop();
   // Interleaved stereo int16 at the rate given to start().
   void push(const QByteArray& pcm);
+  // The core changed its sample rate while running (SET_SYSTEM_AV_INFO): the resampler follows, the device keeps its format.
+  void setCoreRate(int coreSampleRate);
+  int coreRate() const { return coreRate_; }
 
   bool isActive() const { return sink_ != nullptr; }
   int outputRate() const { return outRate_; }

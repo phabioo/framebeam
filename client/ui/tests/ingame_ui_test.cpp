@@ -608,7 +608,7 @@ class InGameUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     for (const char* id : {"s1", "s2"}) {
       h.click("addSessionToggle");
-      h.click((QByteArray("multiviewAddButton_") + id).constData());
+      h.clickWhenReady((QByteArray("multiviewAddButton_") + id).constData());
       QTest::qWait(150);
     }
     clickMode(h, "modeGrid");
@@ -923,15 +923,15 @@ class InGameUiTest : public QObject {
 
     // Add Lena (picker), then Mo: grid with a free tile
     QVERIFY(h.click("addSessionToggle"));
-    QVERIFY(h.click("multiviewAddButton_s1"));
+    QVERIFY(h.clickWhenReady("multiviewAddButton_s1"));  // the picker content appears after the click, not with it
     QTRY_COMPARE(ctl->surfaceCount(), 2);
-    QVERIFY(h.click("addSessionToggle"));
-    QCOMPARE(visibleItem(h, "addSessionToggle")->property("meta").toString(), QStringLiteral("· 2/4"));
+    QVERIFY(h.clickWhenReady("addSessionToggle"));
+    QTRY_COMPARE(visibleItem(h, "addSessionToggle")->property("meta").toString(), QStringLiteral("· 2/4"));
     QVERIFY(clickMode(h, "modeRow"));
     QQuickTest::qWaitForPolish(h.window);
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
     QVERIFY(!shown(h, "emptyTile_3") && !shown(h, "emptyTile_4"));  // no empty slots (3r-3)
-    QVERIFY(!shown(h, "multiviewSessionList"));
+    QTRY_VERIFY(!shown(h, "multiviewSessionList"));
     QVERIFY(h.click("addSessionToggle"));
     QTRY_VERIFY(shown(h, "multiviewSessionList"));
     QVERIFY(h.click("addSessionToggle"));
@@ -981,6 +981,16 @@ class InGameUiTest : public QObject {
       QVERIFY2(problem.isEmpty(), qPrintable(tag + problem));
       QVERIFY2(rectOf(h, "gamePanel").right() <= h.window->width() + 0.5, qPrintable(tag + QStringLiteral("panel outside the window")));
       QVERIFY2(shown(h, "modeSegment") || shown(h, "modeCycle") || visibleItem(h, "gameHeader")->property("cycleHidden").toBool(), qPrintable(tag + QStringLiteral("no multiview mode control")));
+      if (visibleItem(h, "gameHeader")->property("cycleHidden").toBool()) {  // leftover: without room for the cycle button, "⋯" offers the layouts
+        QVERIFY2(shown(h, "moreButton"), qPrintable(tag + QStringLiteral("no more button for the layouts")));
+        QVERIFY(h.click("moreButton"));
+        QVERIFY2(shown(h, "moreMode_row"), qPrintable(tag + QStringLiteral("no layout entry in the more menu")));
+        QVERIFY(h.click("moreMode_row"));
+        QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
+        QVERIFY(h.click("moreButton"));
+        QVERIFY(h.click("moreMode_pip"));
+        QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
+      }
       {  // Every visible header segment label is recognisable: never empty, never a bare "…" (priority order in GameHeader)
         for (const char* segName : {"modeSegment", "viewSegment"}) {
           QQuickItem* seg = visibleItem(h, segName);
@@ -1016,6 +1026,23 @@ class InGameUiTest : public QObject {
       QVERIFY(!shown(h, "diagnosticsPanel"));  // no bottom bar
       QVERIFY(shown(h, "diagTileBlock") && shown(h, "diagOnlyYourTile"));
       ctl->diagnostics()->setOpen(false);
+    }
+
+    // Very wide font at 960 px: whatever stage the header ends in, the layout stays pickable (segment, cycle button or "⋯")
+    resize(h, 960, 600);
+    widenFonts(h, 16.0);
+    {
+      QQuickItem* hd = visibleItem(h, "gameHeader");
+      QVERIFY(hd != nullptr);
+      if (!shown(h, "modeSegment") && !shown(h, "modeCycle")) {
+        QVERIFY2(hd->property("cycleHidden").toBool() && shown(h, "moreButton"), "no way to pick the Multiview layout");
+        QVERIFY(h.click("moreButton"));
+        QVERIFY(h.clickWhenReady("moreMode_row"));  // the menu opens asynchronously
+        QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
+        QVERIFY(h.click("moreButton"));
+        QVERIFY(h.clickWhenReady("moreMode_pip"));
+        QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
+      }
     }
 
     // Panel in the rail: the tile badge stays; expanding restores the panel

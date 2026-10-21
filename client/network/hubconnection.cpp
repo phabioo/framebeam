@@ -225,6 +225,13 @@ void HubConnection::onIdentified(const HttpResult& r) {
   hubInfo_ = *info;
   observedFp_ = r.observedFingerprint;
   const bool tls = http_->baseUrl().scheme() == QLatin1String("https");
+  // With a pin the observed certificate is compared explicitly on every identification, whether or not the TLS stack
+  // reported an error for it (PN-9; HubHttp already turns a mismatch into certMismatch, this is the second line).
+  if (tls && !pin_.isEmpty() && !HubHttp::peerAccepted(observedFp_, pin_, false)) {
+    fail(State::CertificateChanged, QStringLiteral("certificate_changed"),
+         QStringLiteral("The hub's certificate differs from the stored fingerprint"));
+    return;
+  }
 
   // A different hub answers than the one of the profile this identification started with.
   if (profile_ && profile_->hubId != info->hubId) {
@@ -548,7 +555,13 @@ void HubConnection::onPairingApproved(const QJsonObject& obj) {
   p.hubUserId = userId;
   p.deviceId = profiles_->deviceId();
   p.credentialRef = target;
-  profiles_->upsertProfile(p);
+  if (!profiles_->upsertProfile(p)) {
+    // Without the profile the credential would be orphaned (no credentialRef) and the next start would need a new pairing.
+    credentials_->remove(target);
+    fail(State::NeedsPairing, QStringLiteral("profile_store_failed"),
+         QStringLiteral("The pairing could not be saved to the profile file"));
+    return;
+  }
   profile_ = p;
   authenticate();
 }

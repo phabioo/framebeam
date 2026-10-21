@@ -41,10 +41,15 @@ GameIdentity threeDsIdentity(QFile& f) {
   if (memcmp(magic, "NCCH", 4) == 0) return ncchIdentity(f, 0);
   if (memcmp(magic, "NCSD", 4) != 0) return {};
   char off[4];
-  if (!readAt(f, 0x120, off, 4)) return {};  // partition table entry 0: offset in media units (0x200)
+  if (!readAt(f, 0x120, off, 4)) return {};  // partition table entry 0: offset in media units
   const quint32 units = le32(off);
   if (units == 0) return {};
-  return ncchIdentity(f, static_cast<qint64>(units) * 0x200);
+  // Media unit size = 0x200 << shift (NCSD header byte 0x18E), like formats/romfs.cpp (PE-13). Real images use shift 0.
+  char shiftByte = 0;
+  if (!readAt(f, 0x18E, &shiftByte, 1)) return {};
+  const unsigned shift = static_cast<unsigned char>(shiftByte);
+  if (shift > 8) return {};
+  return ncchIdentity(f, static_cast<qint64>(units) * (qint64(0x200) << shift));
 }
 
 bool printableAscii(const char* p, int n) {

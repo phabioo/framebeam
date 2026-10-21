@@ -379,6 +379,7 @@ void ControllersController::selectSystem(const QString& id) {
     viewLabel_ = m.value(QStringLiteral("inputLabel")).toString();
     emit labelsChanged();
     emit rowsChanged();
+    emit testChanged();  // the input test follows the listed system's inputs
     return;
   }
 }
@@ -389,7 +390,9 @@ void ControllersController::setInputProfile(const QString& profile) {
   viewPinned_ = false;   // a game start moves the page to its system again
   syncView();
   pads_.setInputProfile(profile);
+  emit labelsChanged();  // the listed system may have moved with the game
   emit rowsChanged();
+  emit testChanged();
   emit keyboardMapChanged();
 }
 

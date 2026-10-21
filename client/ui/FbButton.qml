@@ -10,7 +10,7 @@ Button {
     id: control
     property string kind: "outline"
     property bool busy: false
-    property int textFormat: Text.AutoText  // plugin screens set Text.PlainText
+    property int textFormat: Text.PlainText  // names and titles from peers, plugins and the Hub are never markup
     property bool busyOnClick: false
     readonly property bool working: busy || clickBusy
     property bool clickBusy: false

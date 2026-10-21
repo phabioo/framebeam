@@ -306,6 +306,56 @@ class SessionsTest : public QObject {
     ws.stop();
   }
 
+  // PN-15: signalling produced while the socket is reconnecting is queued (bounded) and sent after the next hello_ack.
+  void signalsDuringReconnectAreQueuedAndFlushed() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    connectTo(hub);
+    HubSocket ws(conn_.get());
+    ws.setBackoffMs(50, 200);
+    QSignalSpy acked(&ws, &HubSocket::helloAcked);
+    ws.start();
+    QTRY_COMPARE_WITH_TIMEOUT(acked.count(), 1, 8000);
+    hub.refuseWs = true;
+    hub.closeWsClients();
+    QTRY_VERIFY_WITH_TIMEOUT(!ws.isOpen(), 8000);
+    hub.wsReceived.clear();
+    SessionSignal s;
+    s.sessionId = QStringLiteral("00000000-0000-4000-8000-000000000001");
+    s.viewerId = QStringLiteral("viewer-1");
+    s.kind = QStringLiteral("candidate");
+    s.mid = QStringLiteral("0");
+    for (int i = 0; i < 100; ++i) {  // more than the queue holds: the oldest are dropped
+      s.candidate = QStringLiteral("candidate:%1").arg(i);
+      ws.sendSignal(s);
+    }
+    ws.sendPresence(QStringLiteral("idle"));
+    ws.sendPresence(QStringLiteral("playing"), QStringLiteral("g1"));  // only the latest presence matters
+    hub.refuseWs = false;
+    QTRY_COMPARE_WITH_TIMEOUT(acked.count(), 2, 8000);
+    int signalsSeen = 0, presenceSeen = 0;
+    QString firstCandidate, lastCandidate;
+    QTRY_VERIFY_WITH_TIMEOUT(
+        [&]() {
+          signalsSeen = presenceSeen = 0;
+          for (const QJsonObject& env : std::as_const(hub.wsReceived)) {
+            const QString type = env.value(QStringLiteral("type")).toString();
+            if (type == QLatin1String("signal")) {
+              const QString c = env.value(QStringLiteral("payload")).toObject().value(QStringLiteral("candidate")).toString();
+              if (signalsSeen++ == 0) firstCandidate = c;
+              lastCandidate = c;
+            } else if (type == QLatin1String("presence_update")) {
+              ++presenceSeen;
+            }
+          }
+          return signalsSeen == 64 && presenceSeen == 1;
+        }(),
+        8000);
+    QCOMPARE(firstCandidate, QStringLiteral("candidate:36"));
+    QCOMPARE(lastCandidate, QStringLiteral("candidate:99"));
+    ws.stop();
+  }
+
   void reconnectsWithBackoffAndRenewsRejectedToken() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());

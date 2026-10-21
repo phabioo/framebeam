@@ -32,6 +32,7 @@ Switch {
     contentItem: Text {
         leftPadding: control.indicator.width + control.spacing
         text: control.text
+        textFormat: Text.PlainText
         font.pixelSize: Theme.fontSmall
         color: Theme.textSecondary
         verticalAlignment: Text.AlignVCenter

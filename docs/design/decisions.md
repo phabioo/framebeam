@@ -47,6 +47,27 @@ Source: Claude Design handoff "Round 3" (`source/round-3-hub.dc.html`, `round-3-
     - Plurals and counts (P11): "1 folder · 3 game files · 2 cores"; a count appears once (chip "All · 10", not again as "10 games"); never "(s)" or "0 folder(s)".
     - Responsive Hub (H10, H22): 1024 px and wider sidebar 232 + table; 720-1023 the sidebar collapses to "☰"; below 720 every table becomes cards (title, one meta line with 2-3 key values, status pill if any, "⋯" menu with all row actions) and the page padding is 16; on a phone the primary action stays visible, the rest sits in "⋯".
 
+## Decisions (Fabio, 2026-10-21, Round 4: features before 1.0)
+
+Source: Claude Design handoff "Round 4" (`source/round-4-a.dc.html` to `round-4-e.dc.html`, sheet `round-4-sheet.dc.html`, component `r4-header.dc.html`, nav opt-in `r4`), answering the feature waves 0-6 (milestones 0.16 to 0.22, roadmap decision of the same day). Fabio answered the sheet's open questions on 2026-10-21; where an answer differs from the drawing, the answer applies. Specification: [player.md](player.md#round-4-2026-10-21), [hub.md](hub.md#round-4-2026-10-21), [plugins.md](plugins.md#round-4-2026-10-21); new token: [tokens.md](tokens.md#additions-of-round-4-2026-10-21).
+
+24. Hotkeys and navigation:
+    - FrameBeam hotkeys act only when the key is not bound to the game; Controllers → Hotkeys shows the conflict (extends 3f-4 and point ap).
+    - One gamepad hotkey modifier for everything: hold Select (the sheet's gamepad column reads "hold Select + button"; the one exception is Select double-tap for the panel, which is the modifier itself). Push-to-talk "Hold R3" is read as Select + R3 (open point bm).
+    - F5 stays "Save snapshot" (save file to the Hub). Save states use F6 (save, Shift+F6 next slot) and F8 (load); Shift+F8 undoes a load (as drawn).
+    - Reports is its own Hub nav item under ADMIN (Status, Reports, Settings).
+25. SoulLink's HUD toggle (Ctrl+H) gets the gamepad combo Select + ← (answers the sheet's question; a plugin gamepad default, see open point bo for the general rule of bk).
+26. 6b Backups: the Hub never deletes backups because the backup disk is full; it only warns (status card "Backup failed", Status page, sidebar badge). Only the retention "Keep last N" removes the oldest backups, after a new one succeeded. Safety backups are kept until deleted.
+27. 6m Save states: keep the last 3 Auto states per game (the drawing shows one Auto slot; implement three, newest first, the oldest is replaced by the next load, size visible in the Storage overview 6l). Auto states are never uploaded twice; a layout for three Auto rows is open (point bl).
+28. 6s "Ready?" and "Pause for everyone": anyone may ask and pause in runs, only the host in Sessions (as drawn; the setting card 6s-2 can restrict it to the host).
+29. 6x Controller handover is not blocked by latency. Above 120 ms RTT the request card shows a clear warning; the host decides.
+30. 6w CORRECTION: the drawing says voice "goes through the Hub relay like video". That is wrong. Video and voice go directly between Players over the existing WebRTC connection; the TURN relay is only the fallback. Voice uses the same peer connection (no separate path, nothing through the Hub). The Settings → Voice intro reads "Voice goes directly between Players like the video."
+31. 7b: browser viewers get chat only for now; voice in the browser is a later item, not "never".
+32. 6c: a single plugin version can be rolled back on its own without rolling back the Player (not drawn): a "Use previous version" action on the plugin row (4a-3) and in the plugin detail (4a-4); runs keep their pinned plugin version.
+33. 6t: Session chat outside runs is kept on the Hub for 24 h (late joiners see context), then deleted automatically. Run chat is kept as long as the run. This replaces the drawn text "Session chat outside a run is not stored" (6t-2).
+34. 7a: TURN settings that come from environment variables or flags are shown read-only in the Internet step of the setup assistant, like Settings → Network today.
+35. Space plan 0-3 is accepted as drawn: five places for new controls (in-game header, panel tab, OSD, Player sidebar, Hub sidebar). Diagnostics leaves the header and is a panel tab (F3 unchanged); save states, screenshot, ready check and pause for everyone live in "⋯" and hotkeys; one OSD style (top centre, max 2); Online block and bell in the Player sidebar (no bell in the header); Hub groups Play / SETUP / ADMIN; Screenshots is a Library tab; Backups and Storage are Settings sub-pages; members see only Play + Settings. Rules of Round 3 (decision 23) still apply.
+
 ## Deviations from the architecture
 
 Noted against the architecture; the status after the PoC is given per item. Checked against `09-ui-and-navigation.md`, `03-saves.md` and `10-identity-pairing-tls.md`; other files not read (points there: unclear).
@@ -158,3 +179,18 @@ Notes on Round 3 against the built state (not open questions):
 - 3s-4: the slot is displayed as "Main" everywhere (H15); the stored slot name stays unchanged (decided 2026-10-12).
 - 3a-3: the "Connect automatically on startup" toggle moves right into the control column like Settings (finding P4 fixed also for 3a-3; Fabio's rule "one look", 2026-10-12). The drawing still shows it left.
 - 3q-2 moves the save retention settings from Network to its own page "Saves" (H33).
+
+Open points (Round 4 sheet, 2026-10-21; source `source/round-4-sheet.dc.html`, script `open` at 460). The sheet lists a resolved batch 1 (hotkeys only when not bound to the game, one gamepad modifier, F5 snapshot with F6/F8 states, Reports under ADMIN) and ten questions, all answered by decisions 24-34 (SoulLink HUD toggle 25, plugin rollback 32, backups on a full disk 26, Auto states 27, Ready check 28, Session chat 33, voice 30, handover latency 29, browser voice 31, TURN variables 34). The points below are what the import left open; working defaults are the drawn ones, Fabio can overrule them.
+
+bl. 6m Auto states: three states per game (decision 27) but the drawing has one Auto row. Default: three rows "Auto" (newest first, tag "Auto", meta "before loading state N") above the slots; the panel scrolls beyond 5 rows. Size shown in 6l.
+bm. 6w push-to-talk on the gamepad: the drawing says "Hold R3"; under the one-modifier rule (decision 24) it is Select + R3 held. Default: Select + R3; "Mic off" is Select + R3 click (drawn: R3 click).
+bn. Gamepad combos of Round 3 (open point bk) versus the Round 4 map: bk has Select + Y fullscreen, Select + R3 diagnostics, Select + LB snapshot, Select + RB speed-up, Select + L3 HUD widgets; the Round 4 map has Select + B fullscreen, Select + Y screenshot, Select + R1 / L1 save / load state, Select + R2 speed-up, no gamepad combo for diagnostics, snapshot or the global HUD toggle. Default: the Round 4 map wins for the Player's own hotkeys; reconcile Controllers → Hotkeys (3f-4) when building 0.18 and add Select + ← for the SoulLink HUD toggle (decision 25). The screen layout is "D-pad →" in the placement table and "Select + →" in 6i; default Select + →.
+bo. Plugin gamepad defaults: bk said plugins get no gamepad default ("not set"); 6z draws the splits example with the default Select + ↓ and decision 25 gives SoulLink Select + ←. Default: a plugin may propose a combo with Select, it stays unassigned if it collides with a FrameBeam combo (3f-4, point ap); the user can change it.
+bp. The drawn Hub Settings list (HUB: General, Network & TURN, Security, Updates; DATA: Backups, Storage, Saves retention; INTEGRATIONS: Metrics, Setup assistant) has no "Diagnostics" page (3q-2: diagnostics bundle download). Default: keep Diagnostics as a fifth entry under HUB; Metrics under INTEGRATIONS as drawn.
+bq. Developer console reload key: 6 draws Ctrl+R (and Ctrl+Shift+D to toggle), 4d-4-2 and open point ao reserve Ctrl+Shift+R. Default: Ctrl+R only while the console has focus (otherwise it would collide with the game); Ctrl+Shift+R stays as the alias.
+
+Notes on Round 4 against the built state (not open questions):
+
+- The imported HubNav/PlayerNav keep the Round 3 rendering unless `r4` is set; the Round 3 screens are unchanged.
+- 6a draws "Changes since 0.15.3": a stable release summarizes the betas it follows (roadmap 0.16).
+- 7a-2 draws "49160–49199 UDP", the range of ADR 0012 (point e).

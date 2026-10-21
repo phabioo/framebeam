@@ -27,6 +27,7 @@ RomDownloader::~RomDownloader() {
   const auto jobs = jobs_;
   for (const auto& job : jobs) {
     job->aborted = true;
+    job->cancel->store(true);
     if (job->primeWatcher) {
       QObject::disconnect(job->primeWatcher.get(), nullptr, this, nullptr);
       job->primeWatcher->waitForFinished();
@@ -37,6 +38,7 @@ RomDownloader::~RomDownloader() {
     }
   }
   for (const auto& v : std::as_const(validations_)) {
+    v->cancel->store(true);
     QObject::disconnect(v->watcher.get(), nullptr, this, nullptr);
     v->watcher->waitForFinished();
   }
@@ -62,7 +64,7 @@ RomStatus RomDownloader::status(const GameEntry& game) {
       return s;
     }
     case RomCache::Probe::Unverified:
-      startValidation(game, false);
+      startValidation(game, false, false);  // status() is a query: it returns Validating itself, no signal from inside a model reset
       return makeStatus(RomState::Validating, game.romSize, game.romSize);
     case RomCache::Probe::Missing:
       break;
@@ -70,7 +72,7 @@ RomStatus RomDownloader::status(const GameEntry& game) {
   return makeStatus(RomState::DownloadNeeded, game.romSize, cache_->partSize(sha, ext));
 }
 
-void RomDownloader::startValidation(const GameEntry& game, bool thenDownload) {
+void RomDownloader::startValidation(const GameEntry& game, bool thenDownload, bool notify) {
   const QString sha = game.romSha256;
   if (const auto it = validations_.constFind(sha); it != validations_.constEnd()) {
     it.value()->thenDownload = it.value()->thenDownload || thenDownload;
@@ -107,12 +109,12 @@ void RomDownloader::startValidation(const GameEntry& game, bool thenDownload) {
       emit statusChanged(sha, makeStatus(RomState::DownloadNeeded, v->game.romSize, cache_->partSize(sha, v->ext)));
     }
   });
-  v->watcher->setFuture(QtConcurrent::run([path]() {
+  v->watcher->setFuture(QtConcurrent::run([path, cancel = v->cancel]() {
     QString hex;
-    const bool ok = RomCache::sha256OfFile(path, &hex);
+    const bool ok = RomCache::sha256OfFile(path, &hex, cancel.get());
     return qMakePair(ok, hex);
   }));
-  emit statusChanged(sha, makeStatus(RomState::Validating, game.romSize, game.romSize));
+  if (notify) emit statusChanged(sha, makeStatus(RomState::Validating, game.romSize, game.romSize));
 }
 
 QSet<QString> RomDownloader::activeHashes() const {
@@ -186,6 +188,7 @@ void RomDownloader::cancel(const QString& sha256) {
   }
   const std::shared_ptr<Job> job = it.value();
   job->aborted = true;
+  job->cancel->store(true);  // a running prime stops at the next chunk
   if (job->reply) {
     job->reply->abort();  // onFinished cleans up
   }
@@ -235,13 +238,16 @@ void RomDownloader::startRequest(Job* job) {
       sendRequest(job);
     }
   });
-  job->primeWatcher->setFuture(QtConcurrent::run([path, n, hash]() {
+  job->primeWatcher->setFuture(QtConcurrent::run([path, n, hash, cancel = job->cancel]() {
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
       return false;
     }
     qint64 left = n;
     while (left > 0) {
+      if (cancel->load()) {
+        return false;
+      }
       const QByteArray chunk = f.read(qMin<qint64>(left, 1 << 20));
       if (chunk.isEmpty()) {
         return false;
@@ -311,6 +317,12 @@ void RomDownloader::onReadyRead(Job* job) {
     job->opened = true;
   }
   const QByteArray chunk = reply->readAll();
+  // A server that sends more than announced is not trusted: stop instead of filling the disk (PN-10).
+  if (job->received + chunk.size() > job->game.romSize) {
+    job->oversize = true;
+    reply->abort();
+    return;
+  }
   if (job->file.write(chunk) != chunk.size()) {
     reply->abort();
     return;
@@ -332,6 +344,13 @@ void RomDownloader::onFinished(Job* job) {
   if (job->aborted) {
     job->file.close();
     finishJob(sha, makeStatus(RomState::DownloadNeeded, total, cache_->partSize(sha, job->ext)));
+    return;
+  }
+  if (job->oversize) {
+    job->file.close();
+    cache_->discardPart(sha, job->ext);
+    finishJob(sha, makeStatus(RomState::Failed, total, 0, QStringLiteral("too_large"),
+                              QStringLiteral("The Hub sent more data than the ROM size")));
     return;
   }
   if (status == 200 || status == 206 || status == 0) {

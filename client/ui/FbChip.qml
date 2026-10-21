@@ -27,6 +27,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             // "All · 10": the count is part of the label, once (round 3).
             text: root.count >= 0 ? root.text + " · " + root.count : root.text
+            textFormat: Text.PlainText
             font.pixelSize: Theme.fontSmall
             font.weight: root.active ? Font.Medium : Font.Normal
             color: root.active ? Theme.bg : (root.badgeAccent && root.count > 0 ? Theme.accent : Theme.textSecondary)

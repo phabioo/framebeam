@@ -35,6 +35,22 @@ private slots:
         const std::string g = framebeam::synth::makeGarc(std::vector<std::string>{"aa", "bbb"});
         QCOMPARE(garcFile(g, 1).data, std::string("bbb"));
     }
+    // PE-12: the parsed archive is reused between calls, but an archive of the same size with other tables is never mistaken for it.
+    void cachedParseFollowsChangedTables() {
+        const std::string a = framebeam::synth::makeGarc(std::vector<std::string>{"aaaa", "bbbb"});
+        const std::string b = framebeam::synth::makeGarc(std::vector<std::string>{"bbbb", "aaaa"});
+        QCOMPARE(a.size(), b.size());
+        for (int round = 0; round < 3; ++round) {  // repeated calls on the same bytes use the cache
+            QCOMPARE(garcFile(a, 0).data, std::string("aaaa"));
+            QCOMPARE(garcFile(a, 1).data, std::string("bbbb"));
+        }
+        QCOMPARE(garcFile(b, 0).data, std::string("bbbb"));
+        std::string c = a;  // same size, one table byte changed: sub-entry 1 now ends one byte earlier
+        QVERIFY(garcFile(a, 1).ok);
+        c[c.size() - 1] = 'Z';  // data only: tables identical, so the cached parse applies and the new byte is served
+        QCOMPARE(garcFile(c, 1).data, std::string("bbbZ"));
+        QVERIFY(!garcFile(std::string_view(a).substr(0, 8), 0).ok);  // truncated: reparsed, fails
+    }
     void outOfRange() {
         const std::string g = framebeam::synth::makeGarc(files());
         QVERIFY(!garcFile(g, 4).ok);

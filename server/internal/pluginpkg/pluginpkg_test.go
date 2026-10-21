@@ -85,6 +85,14 @@ func TestOpenRejectsBadNames(t *testing.T) {
 		{"a\nb.lua", "control"},
 		{strings.Repeat("a", 256), "255"},
 		{"ok/../", `".."`}, // also as directory entry
+		{"nul", "reserved Windows"},
+		{"assets/CON.png", "reserved Windows"},
+		{"aux.lua", "reserved Windows"},
+		{"com1", "reserved Windows"},
+		{"Lpt9.txt", "reserved Windows"},
+		{"dir./x.lua", "ends in a dot"},
+		{"trailing.", "ends in a dot"},
+		{"trailing ", "ends in a dot or space"},
 	} {
 		t.Run(tc.why, func(t *testing.T) {
 			wantInvalid(t, mkzip(t, zf{name: "manifest.json", body: goodManifest}, zf{name: "main.lua", body: "x"}, zf{name: tc.name, body: "x"}), tc.why)

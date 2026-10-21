@@ -20,6 +20,8 @@ inline constexpr const char* kPlayerPlatform = "windows-x64";  // the only Playe
 inline constexpr const char* kKindMsi = "msi";  // the Player installer (ADR 0021)
 inline constexpr const char* kKindZip = "zip";
 
+inline constexpr int kMaxNotesBytes = 4000;
+
 struct Artifact {
   QString platform;
   QString kind;
@@ -37,6 +39,7 @@ struct Release {
   QString commit;
   QString publishedAt;
   QString notesUrl;
+  QString notes;  // optional short plain-text "What's new" (<= kMaxNotesBytes UTF-8, no control chars but \n \t); empty if absent/invalid
   int protocolVersion = 0;
   int minProtocolVersion = 0;
   QList<Artifact> artifacts;
@@ -64,6 +67,11 @@ QString checkIndexFresh(const Index& index, const QDateTime& now);
 
 // allowFileUrls: artifact URLs may be file:// (only when the index itself came from file://, tests).
 ParseResult parseIndex(const QByteArray& json, bool allowFileUrls = false);
+
+// Notes of the release `product`/`version` (e.g. the installed version after an update, for a "What's new" screen).
+// Empty when the index has no such release or it carries no (valid) notes. If the version exists in several
+// channels, the first release with notes wins.
+QString releaseNotes(const Index& index, const QString& product, const QString& version);
 
 // Update channel as the user sees it.
 enum class Channel { Off, Stable, Beta };

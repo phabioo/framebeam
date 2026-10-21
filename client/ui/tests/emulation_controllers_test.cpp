@@ -1385,6 +1385,44 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+Y"));
   }
 
+  // Leftover: picking a system chip moves the mapping table, the labels and the input test together.
+  void controllersSystemChipFollowsMapping() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    ControllersController* c = h.controller->controllers();
+    h.controller->showControllers();
+    const QVariantList systems = c->systems();
+    QVERIFY(systems.size() >= 2);
+    const QString first = systems.first().toMap().value(QStringLiteral("id")).toString();
+    QString other;
+    QStringList firstTargets;
+    for (const QVariant& r : c->rows()) firstTargets << r.toMap().value(QStringLiteral("target")).toString();
+    for (const QVariant& v : systems) {  // a system whose table differs from the first one's
+      const QString id = v.toMap().value(QStringLiteral("id")).toString();
+      if (id == first) continue;
+      QSignalSpy rows(c, &ControllersController::rowsChanged);
+      QSignalSpy test(c, &ControllersController::testChanged);
+      c->selectSystem(id);
+      QCOMPARE(c->viewSystem(), id);
+      QVERIFY(rows.count() >= 1);
+      QVERIFY(test.count() >= 1);
+      QStringList targets;
+      for (const QVariant& r : c->rows()) targets << r.toMap().value(QStringLiteral("target")).toString();
+      if (targets != firstTargets) {
+        other = id;
+        break;
+      }
+    }
+    QVERIFY2(!other.isEmpty(), "no system with a different mapping table");
+    c->selectSystem(first);
+    QStringList back;
+    for (const QVariant& r : c->rows()) back << r.toMap().value(QStringLiteral("target")).toString();
+    QCOMPARE(back, firstTargets);
+  }
+
   void controllersDuplicateToEdit() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());

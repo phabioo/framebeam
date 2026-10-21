@@ -9,6 +9,7 @@
 #include <QTimer>
 #include <atomic>
 #include <memory>
+#include <thread>
 
 #include "bitratecontroller.h"
 #include "mediastats.h"
@@ -66,6 +67,8 @@ class SessionViewer : public QObject {
   // Highest absolute sample value of everything decoded so far (0 = only silence arrived).
   int audioPeak() const { return audioPeak_.load(); }
 
+  // Video access units or decoded pictures dropped because the decoder or the UI thread fell behind (PN-6).
+  qint64 droppedVideoFrames() const { return droppedVideo_; }
   SessionStats stats() const;
   ViewerLinkStats link() const;
   // Host state signal (ADR 0026 D3): the owner paused or resumed its game. False / empty until the host says otherwise
@@ -89,8 +92,14 @@ class SessionViewer : public QObject {
   void onPcState(int state);
   void onHostState(bool paused, const QString& by);
   void onGatheringComplete();
-  void onVideoFrame(QByteArray data);
-  void onAudioFrame(QByteArray data);
+  struct MediaPipe;
+  // Receive side (PN-6): the libdatachannel threads only fill a bounded mailbox; a worker thread decodes (H.264, Opus) and hands
+  // decoded pictures to the UI thread in a small coalescing queue. A stalled UI thread therefore costs dropped frames and a
+  // keyframe request instead of unbounded memory and a stream that falls further behind.
+  void startMedia();
+  void mediaLoop(std::shared_ptr<MediaPipe> pipe, unsigned gen);
+  void decodeVideo(const QByteArray& data, const std::shared_ptr<MediaPipe>& pipe, unsigned gen);
+  void decodeAudio(const QByteArray& data);
   void updateStats();
   void sendRxReport(double videoKbps, double decodedFps);
   void teardown();
@@ -115,7 +124,10 @@ class SessionViewer : public QObject {
   std::shared_ptr<rtc::DataChannel> diag_;  // negotiated "fb-diag": SCTP for RTT
   std::shared_ptr<LossReceivingSession> videoSession_;
 
-  VideoDecoder decoder_;
+  VideoDecoder decoder_;  // open/closed on the UI thread only while the worker is stopped
+  bool codecsOpen_ = false;
+  std::shared_ptr<MediaPipe> pipe_;
+  std::thread worker_;
   OpusDepacker opus_;
   QElapsedTimer pliClock_;
   bool pliSent_ = false;
@@ -129,9 +141,11 @@ class SessionViewer : public QObject {
 
   QTimer statsTimer_;
   QElapsedTimer statsClock_;
-  qint64 totalFrames_ = 0, totalAudioFrames_ = 0, totalVideoBytes_ = 0, totalAudioBytes_ = 0;
+  // Written by the receive threads / the worker, read by the UI thread.
+  std::atomic<qint64> totalFrames_{0}, totalAudioFrames_{0}, totalVideoBytes_{0}, totalAudioBytes_{0};
   qint64 lastFrames_ = 0, lastVideoBytes_ = 0, lastAudioBytes_ = 0;
-  int decodeErrors_ = 0;
+  std::atomic<int> decodeErrors_{0};
+  std::atomic<qint64> droppedVideo_{0};
   int pliCount_ = 0;
   int width_ = 0, height_ = 0;
   int64_t lastExpected_ = 0, lastReceived_ = 0;  // RTP counters at the previous rx report

@@ -196,6 +196,40 @@ class LibraryRomTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 8000);
   }
 
+  // PN-10: a Hub that sends more than the announced size is cut off instead of filling the disk.
+  void oversizedDownloadIsAbortedAndReported() {
+    hub_->roms.insert(sha_, rom_ + QByteArray(50000, 'x'));
+    const GameEntry g = loadGame();
+    dl_->ensureRom(g);
+    QVERIFY(waitFinal(sha_, RomState::Failed));
+    QCOMPARE(dl_->status(g).errorCode, QStringLiteral("too_large"));
+    QVERIFY(!QFile::exists(cache_->finalPath(sha_, QStringLiteral("nds"))));
+    QVERIFY(!QFile::exists(cache_->partPath(sha_, QStringLiteral("nds"))));
+    hub_->roms.insert(sha_, rom_);  // Hub repaired: the retry works
+    QSignalSpy ready(dl_.get(), &RomDownloader::romReady);
+    dl_->ensureRom(g);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 8000);
+  }
+
+  // PN-5: destroying the downloader must not wait for the whole hash of a large cached file.
+  void destroyingTheDownloaderCancelsAHashInProgress() {
+    GameEntry g;
+    g.id = QStringLiteral("big");
+    g.romSha256 = QString(64, QLatin1Char('2'));
+    g.romSize = qint64(1) << 30;
+    g.romFilename = QStringLiteral("big.nds");
+    QFile f(cache_->finalPath(g.romSha256, QStringLiteral("nds")));
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    QVERIFY(f.resize(g.romSize));  // sparse: a 1 GiB dummy file without the disk space
+    f.close();
+    QVERIFY(dl_->status(g).state == RomState::Validating);  // hash runs on a worker
+    QTest::qSleep(50);
+    QElapsedTimer t;
+    t.start();
+    dl_.reset();
+    QVERIFY2(t.elapsed() < 1000, qPrintable(QStringLiteral("destructor took %1 ms").arg(t.elapsed())));
+  }
+
   bool waitNotValidating(const GameEntry& g) {
     return QTest::qWaitFor([&]() { return dl_->status(g).state != RomState::Validating; }, 8000);
   }

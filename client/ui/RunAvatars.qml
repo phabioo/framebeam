@@ -24,6 +24,7 @@ Row {
             Text {
                 anchors.centerIn: parent
                 text: av.person.name.length > 0 ? av.person.name.charAt(0).toUpperCase() : "?"
+                textFormat: Text.PlainText
                 font.pixelSize: Math.round(root.size * 0.45)
                 font.weight: Font.DemiBold
                 color: Theme.dark ? "#121315" : "#ffffff"

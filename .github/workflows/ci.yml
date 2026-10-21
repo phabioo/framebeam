@@ -84,7 +84,8 @@ jobs:
   # Docs-only gate: true only for PRs and non-main branch pushes whose diff touches nothing but docs/** and *.md.
   # Pushes classify the whole branch vs main (origin/main...sha), not just the last push, so a docs-only push that
   # cancels an earlier code run (concurrency) still runs the builds. PRs use base...head.
-  # Always false for main (beta release, Windows cache priming per ADR 0008) and workflow_dispatch.
+  # Always false for main (beta release, Windows cache priming per ADR 0008) and workflow_dispatch on main; a
+  # workflow_dispatch on another ref is classified like a branch push (used for the changelog PR, see promote.yml).
   changes:
     name: Detect docs-only changes
     runs-on: ubuntu-24.04
@@ -110,7 +111,7 @@ jobs:
           range=""
           if [ "$EVENT" = pull_request ]; then
             range="$PR_BASE...$PR_HEAD"
-          elif [ "$EVENT" = push ] && [ "$REF" != refs/heads/main ]; then
+          elif { [ "$EVENT" = push ] || [ "$EVENT" = workflow_dispatch ]; } && [ "$REF" != refs/heads/main ]; then
             # Whole branch since the merge base with main (covers new branches and cancelled earlier runs).
             git rev-parse --verify -q refs/remotes/origin/main >/dev/null || git fetch --no-tags origin main || true
             if git rev-parse --verify -q refs/remotes/origin/main >/dev/null && git merge-base origin/main "$SHA" >/dev/null 2>&1; then

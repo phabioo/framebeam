@@ -2,11 +2,15 @@
 
 #include <QDateTime>
 #include <QElapsedTimer>
+#include <QFutureWatcher>
 #include <QHash>
+#include <QPair>
+#include <QSet>
 #include <QObject>
 #include <QStringList>
 #include <QTimer>
 #include <functional>
+#include <memory>
 #include <optional>
 
 #include "playersettings.h"
@@ -192,6 +196,8 @@ class SaveSync : public QObject {
   // Library state of a game (cached from sync.json; call refreshKinds after the library loaded).
   Kind kind(const QString& gameId) const { return kinds_.value(gameId, Kind::None); }
   void refreshKinds(const QStringList& gameIds);
+  // Same as refreshKinds with the file access on a worker; emits kindsRefreshed(changed ids) once, no kindChanged per game.
+  void refreshKindsAsync(const QStringList& gameIds);
 
   // Core (id + version) a game is about to start with (ADR 0020 D7).
   struct CoreRef {
@@ -246,6 +252,7 @@ class SaveSync : public QObject {
   void resolveFailed(const QString& message);  // dialog stays open
   void startFailed(const QString& gameId, const QString& message);
   void kindChanged(const QString& gameId, framebeam::SaveSync::Kind kind);
+  void kindsRefreshed(const QStringList& changedIds);
   void finalSyncFinished(const QString& gameId, bool ok);
   // The core's own save file could not be converted; it stays untouched locally and is not uploaded.
   void coreSaveProblem(const QString& gameId, const QString& message);
@@ -350,6 +357,9 @@ class SaveSync : public QObject {
   Timing timing_;
   std::function<QString(const QString&, const QString&)> backupHook_;
   QHash<QString, Kind> kinds_;
+  quint64 kindsGen_ = 0;
+  QSet<QString> kindsTouched_;  // set by setKind while an async refresh runs
+  std::unique_ptr<QFutureWatcher<QList<QPair<QString, int>>>> kindsWatcher_;
   Active a_;
   quint64 gen_ = 0;
   bool dialogOpen_ = false;

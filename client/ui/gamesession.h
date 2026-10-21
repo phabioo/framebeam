@@ -245,6 +245,7 @@ class GameSession : public QObject {
   void onDisplayStateChanged();
 
   std::unique_ptr<emu::EmulationRunner> runner_;
+  quint64 runnerGen_ = 0;  // bumped per runner and by teardown(): events of a runner that is gone are dropped (PE-6)
   AudioOutput audio_;
   KeyboardJoypad keys_;
   QSet<int> hotkeyKeys_{Qt::Key_F11, Qt::Key_F3, Qt::Key_F5, Qt::Key_Space};

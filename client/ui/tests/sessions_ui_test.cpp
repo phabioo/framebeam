@@ -750,7 +750,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(h.item("multiviewAddButton_s2")->isEnabled());
 
     // Two surfaces: PiP, Row or Grid 2 x 2
-    QVERIFY(h.click("multiviewAddButton_s2"));
+    QVERIFY(h.clickWhenReady("multiviewAddButton_s2"));
     QTRY_COMPARE(ctl->surfaceCount(), 2);
     QCOMPARE(ctl->availableLayouts(), (QStringList{QStringLiteral("pip"), QStringLiteral("row"), QStringLiteral("grid")}));
     QVERIFY(!ctl->gridAvailable());  // Grid 2 x 2 only from four Sessions
@@ -772,7 +772,7 @@ class SessionsUiTest : public QObject {
     // Three surfaces: Row stays (Grid is disabled below four, no empty slot), the list is reopened with "+ Add"
     QVERIFY(h.click("addSessionToggle"));
     QVERIFY(h.item("multiviewSessionList")->isVisible());
-    QVERIFY(h.click("multiviewAddButton_s3"));
+    QVERIFY(h.clickWhenReady("multiviewAddButton_s3"));
     QTRY_COMPARE(ctl->surfaceCount(), 3);
     QCOMPARE(ctl->availableLayouts(), (QStringList{QStringLiteral("pip"), QStringLiteral("row"), QStringLiteral("grid")}));
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
@@ -783,7 +783,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(h.item("modeGrid")->property("off").toBool());  // greyed, does not react
 
     // Four surfaces: the limit; "Add" is disabled for every other Session, further adds are refused
-    QVERIFY(h.click("multiviewAddButton_s4"));
+    QVERIFY(h.clickWhenReady("multiviewAddButton_s4"));
     QTRY_COMPARE(ctl->surfaceCount(), 4);
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(!ctl->canAddSurface());
@@ -891,7 +891,7 @@ class SessionsUiTest : public QObject {
     // Focus on a later surface, then remove it: back to the first remaining
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(h.click("addSessionToggle"));
-    QVERIFY(h.click("multiviewAddButton_s5"));
+    QVERIFY(h.clickWhenReady("multiviewAddButton_s5"));
     QTRY_COMPARE(ctl->surfaceCount(), 2);
     QVERIFY(h.click("addSessionToggle"));
     QVERIFY(selectAndClick(h, ctl, QStringLiteral("s5"), "audioButton_"));
@@ -924,7 +924,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(h.click("watch_s1"));
     QTRY_VERIFY(ctl->watching());
     QVERIFY(h.click("addSessionToggle"));
-    QVERIFY(h.click("multiviewAddButton_s2"));
+    QVERIFY(h.clickWhenReady("multiviewAddButton_s2"));
     QTRY_COMPARE(ctl->surfaceCount(), 2);
     QQuickTest::qWaitForPolish(h.window);
     SessionViewer* v1 = ctl->viewer(QStringLiteral("s1"));
@@ -1006,7 +1006,7 @@ class SessionsUiTest : public QObject {
 
     // Add the first remote Session: the game keeps running and keeps the audio, PiP with the local game as main
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(h.click("multiviewAddButton_s1"));
+    QVERIFY(h.clickWhenReady("multiviewAddButton_s1"));
     QTRY_VERIFY(ctl->watching());
     QVERIFY(h.click("addSessionToggle"));  // close the picker (click on its anchor)
     QVERIFY(gs->isActive());
@@ -1112,10 +1112,10 @@ class SessionsUiTest : public QObject {
 
     // Local game plus three remote Sessions = four surfaces: grid 2 x 2, limit, audio focus without losing the game
     QVERIFY(h.click("addSessionToggle"));
-    QVERIFY(h.click("multiviewAddButton_s2"));
+    QVERIFY(h.clickWhenReady("multiviewAddButton_s2"));
     QTRY_COMPARE(ctl->surfaceCount(), 3);
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));  // three surfaces stay a Row; Grid 2 x 2 starts at four
-    QVERIFY(h.click("multiviewAddButton_s3"));
+    QVERIFY(h.clickWhenReady("multiviewAddButton_s3"));
     QTRY_COMPARE(ctl->surfaceCount(), 4);
     QVERIFY(!ctl->canAddSurface());
     QQuickTest::qWaitForPolish(h.window);

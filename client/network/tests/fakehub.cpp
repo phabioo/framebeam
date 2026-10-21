@@ -372,6 +372,11 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
         respondError(sock, 404, QStringLiteral("core_file_not_available"));
         return;
       }
+      if (holdCoreFiles) {  // never answered: the test checks that the client drops the connection
+        ++coreFilesHeld;
+        connect(sock, &QSslSocket::disconnected, this, [this]() { ++coreFilesAbandoned; });
+        return;
+      }
       ++coreFileDownloads;
       respond(sock, 200, coreFiles.value(fkey), "application/octet-stream");
     } else {

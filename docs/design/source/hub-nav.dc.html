@@ -11,12 +11,13 @@
   <div style="display:flex;align-items:center;gap:10px;padding:0 4px 24px;font-size:16px;font-weight:600"><div style="width:20px;height:20px;border:1.5px solid {{ c.ink }};border-radius:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:6px;background:{{ c.acc }};border-radius:1px"></div></div>FrameBeam Hub</div>
   <div style="display:flex;flex-direction:column;gap:4px">
     <sc-for list="{{ items }}" as="it" hint-placeholder-count="8">
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 10px;border-radius:8px;font-size:14px;background:{{ it.bg }};border:1px solid {{ it.bd }};color:{{ it.fg }}"><span>{{ it.label }}</span><span style="font-size:12px;color:{{ c.amb }}">{{ it.badge }}</span></div>
+      <sc-if value="{{ it.head }}" hint-placeholder-val="{{ false }}"><div style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:{{ c.mut }};padding:16px 10px 4px">{{ it.label }}</div></sc-if>
+      <sc-if value="{{ it.item }}" hint-placeholder-val="{{ true }}"><div style="display:flex;justify-content:space-between;align-items:center;padding:9px 10px;border-radius:8px;font-size:14px;background:{{ it.bg }};border:1px solid {{ it.bd }};color:{{ it.fg }}"><span>{{ it.label }}</span><span style="font-size:12px;color:{{ it.bc }}">{{ it.badge }}</span></div></sc-if>
     </sc-for>
   </div>
   <div style="flex:1"></div>
   <div style="font-size:13px;padding:0 4px">Max · Admin</div>
-  <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{ c.mut }};padding:2px 4px 12px">Home Hub · 0.14.0</div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{ c.mut }};padding:2px 4px 12px">Home Hub · {{ ver }}<sc-if value="{{ r4 }}" hint-placeholder-val="{{ false }}"> · <span style="font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:{{ c.acc }}">What’s new</span></sc-if></div>
   <div style="align-self:flex-start;font-size:13px;padding:6px 12px;border:1px solid {{ c.line }};border-radius:7px;background:{{ c.card }}">Sign out</div>
 </div>
 </x-dc>
@@ -27,10 +28,14 @@ class Component extends DCLogic {
     const c = dark ? {side:'#18191c',line:'#2a2b2f',ink:'#ececea',mut:'#a3a29d',acc:'#3cbfd8',card:'#1c1d20',amb:'#e5b45a',sel:'#232428'}
                    : {side:'#efeee9',line:'#e2e0da',ink:'#1d1d1b',mut:'#6b6a65',acc:'#1a7f96',card:'#ffffff',amb:'#8a5a00',sel:'#ffffff'};
     const active = this.props.active ?? 'Library';
-    const items = ['Library','Saves','Systems & Cores','Clients','Users','Plugins','Runs','Settings'].map(l => ({
-      label:l, badge: l==='Saves' ? '1 conflict' : '',
+    const p = this.props, r4 = !!p.r4;
+    const base = r4 ? (p.member ? ['Library','Saves','Runs','Plugins','Settings'] : ['Library','Saves','Runs','Plugins','#SETUP','Systems & Cores','Clients','Users','#ADMIN','Status','Reports','Settings'])
+      : ['Library','Saves','Systems & Cores','Clients','Users','Plugins','Runs','Settings'];
+    const badges = r4 ? { Saves: [p.savesBadge ?? '', c.amb], Status: [p.statusBadge ?? '', c.amb], Reports: [p.reportsBadge ?? '', c.acc] } : { Saves: ['1 conflict', c.amb] };
+    const items = base.map(l => l[0]==='#' ? { head:true, item:false, label:l.slice(1) } : ({ head:false, item:true,
+      label:l, badge: (badges[l]||[''])[0], bc: (badges[l]||['',c.amb])[1],
       bg: l===active ? c.sel : 'transparent', bd: l===active ? c.line : 'transparent', fg: l===active ? c.ink : c.mut }));
-    return { c, items };
+    return { c, items, r4, ver: p.ver ?? (r4 ? '0.16.4' : '0.14.0') };
   }
 }
 </script>

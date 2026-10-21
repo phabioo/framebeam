@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Schema is the supported updates index schema version.
@@ -31,6 +32,8 @@ const (
 	MaxReleases     = 2048
 	MaxArtifacts    = 16
 	maxTextLen      = 512
+	// MaxNotesBytes is the limit of Release.Notes (UTF-8 bytes).
+	MaxNotesBytes = 4000
 )
 
 // Products, channels, platforms and kinds.
@@ -79,12 +82,14 @@ type Artifact struct {
 
 // Release is one (product, channel, version) entry of the index.
 type Release struct {
-	Product            string     `json:"product"`
-	Channel            string     `json:"channel"`
-	Version            string     `json:"version"`
-	Commit             string     `json:"commit"`
-	PublishedAt        time.Time  `json:"published_at"`
-	NotesURL           string     `json:"notes_url,omitempty"`
+	Product     string    `json:"product"`
+	Channel     string    `json:"channel"`
+	Version     string    `json:"version"`
+	Commit      string    `json:"commit"`
+	PublishedAt time.Time `json:"published_at"`
+	NotesURL    string    `json:"notes_url,omitempty"`
+	// Notes is the optional short plain-text "What's new" (groups like "### Added", bullets "- line"), signed with the index.
+	Notes              string     `json:"notes,omitempty"`
 	ProtocolVersion    int        `json:"protocol_version"`
 	MinProtocolVersion int        `json:"min_protocol_version"`
 	Artifacts          []Artifact `json:"artifacts"`
@@ -252,6 +257,23 @@ func ValidateRelease(r Release) error { return validateRelease(r, false) }
 // ValidateReleaseOpts is ValidateRelease with allowFile: accept file:// artifact URLs (tests only).
 func ValidateReleaseOpts(r Release, allowFile bool) error { return validateRelease(r, allowFile) }
 
+// ValidateNotes checks the optional release notes: at most MaxNotesBytes, valid UTF-8, no control characters except
+// newline and tab.
+func ValidateNotes(n string) error {
+	if len(n) > MaxNotesBytes {
+		return errors.New("notes too long")
+	}
+	if !utf8.ValidString(n) {
+		return errors.New("notes are not valid UTF-8")
+	}
+	for _, c := range n {
+		if c != '\n' && c != '\t' && (c < 0x20 || (c >= 0x7f && c <= 0x9f)) {
+			return errors.New("notes contain control characters")
+		}
+	}
+	return nil
+}
+
 func validateRelease(r Release, allowFile bool) error {
 	kinds, ok := platformKinds[r.Product]
 	if !ok {
@@ -276,6 +298,9 @@ func validateRelease(r Release, allowFile bool) error {
 		if u, err := url.Parse(r.NotesURL); err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
 			return errors.New("notes_url must be https")
 		}
+	}
+	if err := ValidateNotes(r.Notes); err != nil {
+		return err
 	}
 	if r.ProtocolVersion < 1 || r.MinProtocolVersion < 1 || r.MinProtocolVersion > r.ProtocolVersion {
 		return errors.New("invalid protocol_version/min_protocol_version")

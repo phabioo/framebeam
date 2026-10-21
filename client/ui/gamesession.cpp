@@ -102,7 +102,10 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
     runner_->setGpuDisplayTarget(gpuDisplay_);
   }
   EmulationRunner* r = runner_.get();
-  connect(r, &EmulationRunner::started, this, [this](const emu::AvInfo& av, const emu::CoreInfo& core) {
+  // Events the emulation thread already posted survive disconnect(): each handler checks that its runner is still the current one.
+  const quint64 gen = ++runnerGen_;
+  connect(r, &EmulationRunner::started, this, [this, gen](const emu::AvInfo& av, const emu::CoreInfo& core) {
+    if (gen != runnerGen_) return;
     coreName_ = core.version.isEmpty() ? core.name : core.name + QLatin1Char(' ') + core.version;
     targetFps_ = av.fps;
     fastForwardSupported_ = runner_ && runner_->supportsFastForward();
@@ -120,28 +123,38 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
       emit started();
     }
   });
-  connect(r, &EmulationRunner::memoryRegionsChanged, this, &GameSession::memoryRegionsChanged);
-  connect(r, &EmulationRunner::saveProblem, this, [this](const QString& message) {
+  connect(r, &EmulationRunner::memoryRegionsChanged, this, [this, gen]() {
+    if (gen == runnerGen_) emit memoryRegionsChanged();
+  });
+  connect(r, &EmulationRunner::saveProblem, this, [this, gen](const QString& message) {
+    if (gen != runnerGen_) return;
     qWarning().noquote() << "Save problem at start:" << message;
     emit saveProblem(message);
   });
-  connect(r, &EmulationRunner::startFailed, this, [this](const QString& e) { fail(e); });
-  connect(r, &EmulationRunner::errorOccurred, this, [this](const QString& e) { fail(e); });
-  connect(r, &EmulationRunner::frameReady, this, [this](const QImage& img, quint64 nr, qint64 lateNs) {
+  connect(r, &EmulationRunner::startFailed, this, [this, gen](const QString& e) {
+    if (gen == runnerGen_) fail(e);
+  });
+  connect(r, &EmulationRunner::errorOccurred, this, [this, gen](const QString& e) {
+    if (gen == runnerGen_) fail(e);
+  });
+  connect(r, &EmulationRunner::frameReady, this, [this, gen](const QImage& img, quint64 nr, qint64 lateNs) {
+    if (gen != runnerGen_) return;
     frame_ = img;
     frameNr_ = nr;
     frameLateNs_ = lateNs;
     emit frameChanged();
     if (!captureWaiters_.isEmpty()) serveCaptures(false);
   });
-  connect(r, &EmulationRunner::audioReady, this, [this](const QByteArray& pcm, int rate) {
+  connect(r, &EmulationRunner::audioReady, this, [this, gen](const QByteArray& pcm, int rate) {
+    if (gen != runnerGen_) return;
     if (!audioMuted_) {
+      audio_.setCoreRate(rate);  // PE-10: follows a runtime rate change
       audio_.push(pcm);
     }
     emit audioChunk(pcm, rate);
   });
-  connect(r, &EmulationRunner::stateChanged, this, [this](EmulationRunner::State s) {
-    if (state_ == Failed || state_ == Idle) {
+  connect(r, &EmulationRunner::stateChanged, this, [this, gen](EmulationRunner::State s) {
+    if (gen != runnerGen_ || state_ == Failed || state_ == Idle) {
       return;
     }
     if (s == EmulationRunner::State::Paused) {
@@ -168,6 +181,7 @@ void GameSession::launch(const LaunchConfig& config, bool restart) {
 }
 
 void GameSession::teardown() {
+  ++runnerGen_;  // queued events of the runner that is stopped now must not reach the session any more
   if (!captureWaiters_.isEmpty()) {  // plugin captures waiting for a frame fail with the game
     auto waiters = std::move(captureWaiters_);
     captureWaiters_.clear();

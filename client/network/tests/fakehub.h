@@ -111,6 +111,9 @@ class FakeHub : public QTcpServer {
   QMap<QString, QJsonObject> corePackages;
   QMap<QString, QByteArray> coreFiles;
   int coreFileDownloads = 0;
+  bool holdCoreFiles = false;     // core file requests stay unanswered
+  int coreFilesHeld = 0;          // requests held that way
+  int coreFilesAbandoned = 0;     // of those, connections the client closed
   // Plugins (plugins_v1): GET /plugins answers {"plugins": pluginList}; files "<id>/<version>" -> bytes (missing: 404).
   QJsonArray pluginList;
   QMap<QString, QByteArray> pluginFiles;

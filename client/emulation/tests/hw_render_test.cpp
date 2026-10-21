@@ -1261,6 +1261,31 @@ class HwRenderTest : public QObject {
     checkPattern(be.videoFrame(), 64, 48);
   }
 
+  // PE-15: a resize the GL implementation cannot do keeps the old, complete framebuffer; a later resize still works.
+  void failedResizeKeepsTheWorkingFramebuffer() {
+    HwRenderContext hw;
+    hw.prepareSurface();
+    QString err;
+    QVERIFY2(hw.createContext(true, 3, 3, true, false, &err), qPrintable(err));
+    QVERIFY(hw.ensureSize(64, 48));
+    QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
+    const quintptr before = hw.framebuffer();
+    QVERIFY(before != 0);
+    QVERIFY(!hw.ensureSize(1 << 20, 1 << 20));  // far above GL_MAX_TEXTURE_SIZE
+    QCOMPARE(hw.framebuffer(), before);
+    f->glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(hw.framebuffer()));
+    QCOMPARE(f->glCheckFramebufferStatus(GL_FRAMEBUFFER), GLenum(GL_FRAMEBUFFER_COMPLETE));
+    f->glClearColor(0.f, 0.f, 1.f, 1.f);
+    f->glClear(GL_COLOR_BUFFER_BIT);
+    quint8 pixel[4] = {0, 0, 0, 0};
+    f->glReadPixels(10, 10, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+    QCOMPARE(int(pixel[2]), 255);
+    QVERIFY(hw.ensureSize(128, 96));  // a later, valid resize works
+    f->glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(hw.framebuffer()));
+    QCOMPARE(f->glCheckFramebufferStatus(GL_FRAMEBUFFER), GLenum(GL_FRAMEBUFFER_COMPLETE));
+    f->glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
+
   // The public HwRenderContext API without a backend: the "core" is a glClear into the context's FBO.
   void encodeApiOnTheContext() {
     HwRenderContext hw;

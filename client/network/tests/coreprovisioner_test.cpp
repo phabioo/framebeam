@@ -124,6 +124,18 @@ class CoreProvisionerTest : public QObject {
     QCOMPARE(hub_->count(QStringLiteral("/api/v1/cores/melonds_ds/packages/1.4.0/") + platform_, "GET"), 3);  // metadata + 2 files
   }
 
+  // PN-18: cancel() stops the transfer instead of letting it run to the end and discarding the result.
+  void cancelAbortsTheRunningDownload() {
+    addPackage(QStringLiteral("1.4.0"), platform_, kLib, kLib);
+    hub_->holdCoreFiles = true;
+    QSignalSpy spy(prov_.get(), &CoreProvisioner::finished);
+    prov_->prepare(QStringLiteral("melonds_ds"), QStringLiteral("1.4.0"));
+    QTRY_COMPARE_WITH_TIMEOUT(hub_->coreFilesHeld, 1, 8000);
+    prov_->cancel();
+    QTRY_COMPARE_WITH_TIMEOUT(hub_->coreFilesAbandoned, 1, 8000);
+    QVERIFY(spy.isEmpty());  // a cancelled preparation reports nothing
+  }
+
   void secondPrepareDoesNotDownload() {
     addPackage(QStringLiteral("1.4.0"), platform_, kLib, kLib);
     QVERIFY(run(QStringLiteral("1.4.0")).ok);

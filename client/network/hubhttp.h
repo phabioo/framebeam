@@ -42,6 +42,10 @@ class HubHttp : public QObject {
   // SHA-256 over leaf DER, uppercase hex with colons (like server/internal/tlsutil Fingerprint).
   static QString fingerprint(const QSslCertificate& cert);
   static bool fingerprintsEqual(const QString& a, const QString& b);
+  // The pin decision, in one place: the leaf `observed` is accepted when it equals the pin, or, without a pin, only for a first
+  // contact (`allowUnpinned`). An empty `observed` is never accepted. Applied on every TLS connection, not only when the TLS
+  // stack reports certificate errors: a platform that trusts the certificate itself must not skip the pin (PN-9).
+  static bool peerAccepted(const QString& observed, const QString& pin, bool allowUnpinned);
   static bool isLoopbackHost(const QString& host);
   // https always; http only for localhost/127.0.0.1/::1 or allowHttp (dev flag).
   static bool isSchemeAllowed(const QUrl& url, bool allowHttp);

@@ -200,6 +200,38 @@ Source: `#4jh-3` (392-418). Fixes H27, H28, H29, H30, H31.
 - BOARD · "SoulLink & Nuzlocke · no board title set, plugin name used" (H31); empty "No board yet. It appears after a participant’s Player opens the run."
 - EVENT LOG · 3, columns `120 minmax(0,1fr) 180` (time, event, source/device); no "Author" and "Source" columns that repeat "Hub"; time per the date rule, tooltip with the full value, no seconds (H29).
 
+## Round 4 (2026-10-21)
+
+Source `source/round-4-e.dc.html` (4d-6, 4jh-4/4j-4, 6z), `round-4-c.dc.html` (6o-2) and the rules in `round-4-sheet.dc.html`. Design only; plugin API v1 and `memory.write` are not implemented (roadmap 0.19, 0.21). Table with line ranges: [README.md](README.md#round-4-screens-2026-10-21-features-before-10); decisions 24-35 and open points bl-bq: [decisions.md](decisions.md). Plugin parts shown in Player screens (header chip, panel tabs, States) are in [player.md](player.md#round-4-2026-10-21). Mock plugin and creature names are placeholders.
+
+### 4d-6 Developer console (Round 4)
+Source: `round-4-e#4d-6` (23-49), `#4d-6-2` (50-67). Wave 5. Docked console instead of the side-panel tab of 4d-4-2; developer mode only.
+
+- Docked at the bottom of the game window (360 high, tab row 38) over the dimmed game, or popped out into its own window ("⇱"); "×" closes. Header: plugin picker "Plugin SoulLink & Nuzlocke 1.4 · local ▾", "↻ Reload plugin" (Ctrl+R), "⇱", "×". Tabs Log (L) | State (S) | Memory (M) | Performance (accent underline on the active one). Keys: Ctrl+Shift+D toggles, Ctrl+R reloads, L / S / M switch tabs. Reload key differs from 4d-4-2 (Ctrl+Shift+R, open point ao): open point bq.
+- Memory tab: toolbar "Region: ARM9 main RAM ▾", "Go to 0x0223 4A00", "Find value: 20 (u8)" with "3 matches · ↑ ↓", note "Read-only · writes go through plugin permissions". Hex view: address column, 16 byte columns (12/20 mono), ASCII column (`..%.Mossling..`); a found byte has a cyan fill (`#3cbfd8` on `#0d1214`), a byte written by a plugin an amber fill (`#e5b45a`). Watch list column 320: "WATCH LIST · 4" with "+ Add", rows name ("Party slot 1 level"), address and type ("0x02234A36 · u8"), value ("20 (was 14)"), age ("plugin", "0.4 s", "12 s", "1 h"). Cyan row = changed in the last second, amber row = changed by a plugin write (6o); the watch list is saved per plugin.
+- 4d-6-2 Log tab: level chips Error · 1, Warn · 4, Info · 86, Debug (on = `#2c2d32`), "All plugins ▾", search "Search log", pause "❚❚ Paused · 12 new"; lines mono: time, level (ERROR `#ef8a78`, WARN `#e5b45a`, others `#7d7d83`), plugin, message. State tab "STATE · SOULLINK & NUZLOCKE": tree (indent 16, key, value in cyan or grey summaries, changed row `#15262b`). Developer mode off: card “Developer mode is off” / “Ctrl+Shift+D does nothing and the console is not in any menu. Turn it on in Settings → Plugins → Developer mode. It shows a grey “Developer mode” chip in the header while on.” with "Open Settings → Plugins".
+
+### 4jh-4, 4j-4 Run recap (Round 4)
+Source: `round-4-e#4jh-4` (Hub, light) and `#4j-4` (Player, dark), template 71-102, data 290-291. Wave 5. Run detail gets the tabs Board | Recap | Log | Chat · 214 (Chat: [hub.md](hub.md#6t-2-hub-run-chat-history)); the Player page uses the Round 3 page rules (880), the Hub page the run detail of 4jh-3.
+
+- Header: "Runs ›", "Harbor Nuzlocke", "SoulLink & Nuzlocke · Coral Saga: Ember / Tide · day 19 · active", buttons "Export as image" and "Share link for Hub users" (link for signed-in Hub users only).
+- Six summary numbers (20 mono, mono 11 eyebrows): DAYS 19, PLAY TIME 41 h, CATCHES 38, DEATHS 7, BADGES 11 / 32, SCREENSHOTS 22. Filter chips: "All people", one chip per player with a colour dot, "All events ▾". Time axis with day labels ("2 Oct" … "today").
+- One lane per player (56 high, avatar + name, player colour: dark `#6f9cff` `#f07ab8` `#a6d65a` `#b39cf5`, light `#2f5fd0` `#b8327a` `#4d7a14` `#6a4fc4`) with markers: catch ● (12, player colour), death ✕ (16, grey, never red), badge ◆ (14, square radius 2), note ✎ (16, amber: manual note or memory edit, 6o-2), screenshot ◰ (16). Legend line "● catch ✕ death (grey) ◆ badge ✎ note / memory edit ◰ screenshot · Scroll or drag to move in time · Ctrl + scroll zooms".
+- Hover card (marker focus shows the same): "DAY 12 · 21:40 · LENA" / "Tidepup fainted at Gym 2" / "Linked Mossling (Max) died too. 1 screenshot · 3 chat messages around it." / "Open in log". Keys: ← → move between markers when a lane has focus (focus ring 3px: Hub `#1a7f96` with white gap, Player `#3cbfd8` with `#111214` gap).
+
+### 6o-2 Memory edits in runs (Round 4)
+Source: `round-4-c#6o-2` (213-249). Wave 3. Player screen part: [player.md](player.md#6o-6p-memory-writes-and-plugin-snapshots).
+
+- Run log (Player 4j-3 and Hub 4jh-3): rows with a tag "✎ Memory" (amber `#2a2414` / `#e5b45a`, row surface `#1d1a12`) for "Creature Editor added 3 × Sea Charm" (“Max · Coral Saga: Ember · memory write”) and "Creature Editor set Mossling level 14 → 20" (“Max · snapshot “before Creature Editor” made first”); the automatic snapshot row has the tag "◆ Snapshot" (cyan `#15262b` / `#3cbfd8`).
+- Run board (Player lanes): marker "✎ Editor used" next to the player; it stays for the whole run, hover lists each change. It does not mean a rule was broken: the run allows edits.
+- Off by run rule: the plugin panel shows "Apply changes" disabled with “⊘ Memory edits are off in this run · rule set by Max”; the permission 4c-4-2 "Change game memory" shows “Off in Harbor Nuzlocke” and “The permission stays granted for this plugin; the run rule wins while the run is active. Outside the run it works.” The same applies to save states (6m) and rewind (6n).
+
+### 6z Splits widget (Round 4)
+Source: `round-4-e#6z` (106-126). Wave 5. Check that the HUD building blocks (4e-5, r2-sheet) suffice for a speedrun splits plugin. Player privacy part: [player.md](player.md#6z-privacy-and-discord-status).
+
+- HUD widget container 230 wide: header row (icon "ST", title "Splits · Any%", value "1:12:48") and key-value rows 11px: name, delta (ahead = cyan `#3cbfd8` "−0:12", behind = amber `#e5b45a` "+0:18"; no green or red), time mono ("0:08:40"); the current row is highlighted, the next row grey `#7d7d83`.
+- Built only from existing blocks: HUD widget container, header row, key-value rows. One gap: a right-aligned mono value column is a convention, not a block option. Hotkeys are plugin-defined; the example default is gamepad Select + ↓ "split", checked against the Select modifier (open point bo).
+
 ## Building blocks (component sheet `r2-sheet`)
 Source `plugins-round-2.dc.html` `#r2-sheet` 389-395, component `block-sheet.dc.html` (dark and light), supersedes the BlockSheet part of `4-sheet`. Normal state on the left, controller focus on the right. Reference only for the catalog: §16.8 lists the building blocks as open; the sheet is the draft the official plugins were drawn with. The prefix `fb.ui.*` in the sheet is drawing text, not API.
 
