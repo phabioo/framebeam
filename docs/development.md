@@ -4,7 +4,7 @@ Build, test, dependencies, CI and versioning. Agent workflow and briefs: [workfl
 
 ## Prerequisites
 
-- **Hub:** Go >= 1.25 (per `server/go.mod`; CI uses the pinned toolchain go1.26.9).
+- **Hub:** Go >= 1.25 (per `server/go.mod`; CI uses the pinned toolchain go1.26.10).
 - **Player:** CMake >= 3.25, Ninja, a C++20 compiler and Qt >= 6.4 (not via vcpkg). Linux: apt (package list `scripts/qt-packages.txt`, shared by CI and `.claude/hooks/session-start.sh`). Windows: Qt 6.8 LTS via install-qt-action with the modules `qtmultimedia` and `qtwebsockets`.
 - **Sessions** additionally need libdatachannel, FFmpeg and Opus (and OpenSSL for the update signature check): on Linux the media apt packages from the same list plus `make fetch-deps`; on Windows via vcpkg (`client/vcpkg.json`).
 - **Gamepads** need SDL3 >= 3.2: on Linux `make fetch-sdl3`; on Windows via vcpkg.
