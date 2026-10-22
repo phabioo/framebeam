@@ -335,7 +335,7 @@ Decided by Fabio on 2026-10-11: this milestone is the runtime only. The plugins 
 - [x] Done in code: game codes in the library: the Hub reads the NDS game code / 3DS title ID from the ROM header at upload/import (backfill at Hub start), the Player's run game picker matches the plugins' `games[].codes`; games with an unknown code stay selectable, marked "Game not recognized".
 - [x] Done in code: plugin platform gaps for run plugins: manifest `run_settings` (rules form in "Start a run", values in `settings[<plugin_id>]`, Hub plugin list `run_settings`/`run_settings_strings`, OpenAPI 1.17.0); required plugins are included in runs automatically; slot `run` (`ui.run`) with a read-only `fb.run` run view in the Runs screen; host event `tiles` carries `user_id`. Guide: [plugin-api.md](guides/plugin-api.md#run-settings).
 - Open: whether non-admin users may upload plugins to the Hub.
-- Not built yet: `memory.write`, `tool.exec`, settings schema, UI language (`GameContext.language` is "en").
+- Not built yet: `memory.write`, `tool.exec`, settings schema.
 - Open: Azahar exposes game memory. Checked by Fabio on 2026-10-11 with Pokémon Moon and a probe plugin: the buildbot core sends `SET_MEMORY_MAPS` only once at game load, when only VRAM is mapped, so heap and linear heap are missing (the RomFS reads fine). A small upstream Azahar patch re-sends the map when the game maps memory; it is built and tested from Fabio's fork before it goes upstream.
 - Open: plugin API v1 surface (exact Lua API, building block catalog) is fixed in the design handoff and package 1.
 - Out of scope for this milestone: the plugins themselves, more games, cheats, editor, randomizer (see "Later").
@@ -402,7 +402,7 @@ Decided by Fabio on 2026-10-21. Useful before a test evening. UI parts (backup s
 - [ ] Connection assistant in the Player: Hub reachable, STUN, TURN, NAT type, test connection to the Hub, plain-language result and "Add to bundle" (S-M)
 - [x] Hub health page: CPU, RAM, disk, active Sessions, TURN load, recent errors; optional `/metrics` (Prometheus) (S). Done: admin page Status (`/status`, refreshes every 10 s), sidebar in groups Play / SETUP / ADMIN (Round 4), Settings → Metrics with a bearer-token `GET /metrics`. Not yet: TURN bitrate, relayed/direct per Session, Backup disk and "Backup failed" (come with the backup feature), the Reports entry (comes with the reports page).
 - [x] Done (0.17, [ADR 0029](adr/0029-operations-and-safety.md) D1): Docker image for the Hub (`ghcr.io/<owner>/framebeam-hub`, arm64 and amd64, volume `/data`, non-root, no self-update in the container, [guide](guides/hub-docker.md), CI build, push by `release.yml`, `stable`/`latest` by `promote.yml`) (S)
-- [ ] Plugin UI language (pulled forward from the plugins wave): `GameContext.language` from the Player language or the game language (S)
+- [x] Done in code: Plugin UI language (pulled forward from the plugins wave): setting "Plugin language" (Auto | English | Deutsch) in Settings > Plugins; Auto = the 3DS system language (Azahar core option) for 3DS games, else the OS language; `GameContext.language` is that tag (S)
 
 ## 0.18 Player comfort and library
 

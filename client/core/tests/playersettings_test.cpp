@@ -19,6 +19,20 @@ class PlayerSettingsTest : public QObject {
     QVERIFY(!QFile::exists(s.filePath()));  // nothing is written until something changes
   }
 
+  void pluginLanguageDefaultsToAutoAndPersists() {
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QCOMPARE(s.pluginLanguage(), QStringLiteral("auto"));
+      QVERIFY(!s.setPluginLanguage(QStringLiteral("../x")));
+      QVERIFY(!s.setPluginLanguage(QString()));
+      QCOMPARE(s.pluginLanguage(), QStringLiteral("auto"));
+      QVERIFY(s.setPluginLanguage(QStringLiteral("de")));
+    }
+    PlayerSettings again(dir.path());
+    QCOMPARE(again.pluginLanguage(), QStringLiteral("de"));
+  }
+
   void diagnosticsStatesDefaultAndPersist() {  // 0.6 D5
     QTemporaryDir dir;
     {

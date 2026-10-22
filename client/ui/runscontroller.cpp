@@ -695,8 +695,6 @@ RunLaunch RunsController::launchFor(const QString& runId) {
 // ------------------------------------------------------------------ Start a run
 
 namespace {
-// The language of the plugin host's fb.i18n (PluginsController::gameStarted default; the Player has no other UI language yet).
-QString playerLanguage() { return QStringLiteral("en"); }
 }  // namespace
 
 StartResolution resolveStartPlugins(const QList<HubPluginInfo>& offered, const QStringList& pickedIds) {
@@ -839,7 +837,8 @@ void RunsController::rebuildStartPlugins() {
   QList<const HubPluginInfo*> all;
   for (const HubPluginInfo& p : res.picked) all.append(&p);
   for (const StartIncluded& i : res.included) all.append(&i.info);
-  const QString lang = playerLanguage();
+  // Run setting strings are keyed by base language ("de"), not by region.
+  const QString lang = plugins_->resolveLanguage().section(QLatin1Char('-'), 0, 0);
   for (const HubPluginInfo* p : std::as_const(all)) {
     if (p->runSettings.isEmpty()) continue;
     rules.append({{QStringLiteral("rowId"), QStringLiteral("h:") + p->id}, {QStringLiteral("kind"), QStringLiteral("header")}, {QStringLiteral("pluginId"), p->id},

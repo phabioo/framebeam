@@ -19,6 +19,7 @@
 #include "playersettings.h"
 #include "system_manifest.h"
 #include "semver.h"
+#include "plugin_language.h"
 #include "plugin_ui.h"
 
 namespace framebeam::ui {
@@ -210,6 +211,28 @@ void PluginsController::setDeveloperMode(bool on) {
   emit developerModeChanged();
   setConsoleAvailable(on && running_);
   if (on) scheduleConsole();
+}
+
+QString PluginsController::pluginLanguage() const {
+  return settings_ != nullptr ? settings_->pluginLanguage() : QString::fromLatin1(plugins::kPluginLanguageAuto);
+}
+
+void PluginsController::setPluginLanguage(const QString& tag) {
+  if (settings_ == nullptr || settings_->pluginLanguage() == tag) return;
+  if (!settings_->setPluginLanguage(tag)) return;
+  emit pluginLanguageChanged();
+}
+
+QVariantList PluginsController::pluginLanguageOptions() const {
+  QVariantList out;
+  out.append(QVariantMap{{QStringLiteral("value"), QString::fromLatin1(plugins::kPluginLanguageAuto)}, {QStringLiteral("label"), tr("Auto")}});
+  for (const plugins::PluginLanguageChoice& c : plugins::pluginLanguageChoices())
+    out.append(QVariantMap{{QStringLiteral("value"), c.tag}, {QStringLiteral("label"), c.label}});
+  return out;
+}
+
+QString PluginsController::resolveLanguage(const QString& systemId, const QMap<QString, QString>& coreOptions) const {
+  return plugins::resolvePluginLanguage(pluginLanguage(), systemId, coreOptions);
 }
 
 QString PluginsController::localPath(const QString& pathOrUrl) {
@@ -547,7 +570,7 @@ void PluginsController::gameStarted(const QString& system, const QString& romPat
                                     const QString& language, const RunLaunch& run) {
   if (inGame_ || running_) stopGame(false);
   inGame_ = true;
-  language_ = language.isEmpty() ? QStringLiteral("en") : language;
+  language_ = language.isEmpty() ? resolveLanguage(system) : language;
   if (shellRunning_) {  // the shell set (and the run view) gives way to the game set
     host_->stop();
     shellRunning_ = false;
@@ -693,7 +716,7 @@ void PluginsController::updateShell() {
   }
   plugins::GameContext ctx;
   ctx.shell = true;
-  ctx.language = language_;
+  ctx.language = resolveLanguage();
   if (!rvOrder.isEmpty()) ctx.run = runViewBridge_;
   shellRunning_ = true;
   host_->start(ctx, nullptr, start);

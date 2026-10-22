@@ -1,4 +1,5 @@
 #include "playersettings.h"
+
 #include "fsutil.h"
 
 #include <QDir>
@@ -7,6 +8,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QStringList>
 
@@ -15,12 +17,19 @@
 namespace framebeam {
 
 namespace {
+// "auto" or a language tag like "en" / "de-DE" (letters and digits in 2-8 character parts).
+bool isValidPluginLanguage(const QString& tag) {
+  static const QRegularExpression re(QStringLiteral("^(auto|[a-z]{2,3}(-[A-Za-z0-9]{2,8})*)$"));
+  return re.match(tag).hasMatch();
+}
+
 constexpr const char* kAppearanceKey = "appearance";
 constexpr const char* kUpdateChannelKey = "update_channel";
 constexpr const char* kUpdateChannelDefaultKey = "update_channel_default";
 constexpr const char* kUpdateAutoKey = "update_auto_install";
 constexpr const char* kDiagOpenKey = "diagnostics_open";
 constexpr const char* kDeveloperModeKey = "developer_mode";
+constexpr const char* kPluginLanguageKey = "plugin_language";
 constexpr const char* kDiagEmulationKey = "diagnostics_emulation_open";
 constexpr const char* kDiagStreamingKey = "diagnostics_streaming_open";
 constexpr const char* kPluginHudCornersKey = "plugin_hud_corners";  // { plugin_id: corner }
@@ -55,6 +64,7 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   }
   diagOpen_ = raw_.value(QLatin1String(kDiagOpenKey)).toBool(false);
   developerMode_ = raw_.value(QLatin1String(kDeveloperModeKey)).toBool(false);
+  if (const QString lang = raw_.value(QLatin1String(kPluginLanguageKey)).toString(); isValidPluginLanguage(lang)) pluginLanguage_ = lang;
   pluginHudAllHidden_ = raw_.value(QLatin1String(kPluginHudAllHiddenKey)).toBool(false);
   diagEmulationOpen_ = raw_.value(QLatin1String(kDiagEmulationKey)).toBool(true);
   diagStreamingOpen_ = raw_.value(QLatin1String(kDiagStreamingKey)).toBool(true);
@@ -133,6 +143,13 @@ bool PlayerSettings::setDiagnosticsOpen(bool open) {
 bool PlayerSettings::setDeveloperMode(bool on) {
   developerMode_ = on;
   raw_.insert(QLatin1String(kDeveloperModeKey), on);
+  return save();
+}
+
+bool PlayerSettings::setPluginLanguage(const QString& tag) {
+  if (!isValidPluginLanguage(tag)) return false;
+  pluginLanguage_ = tag;
+  raw_.insert(QLatin1String(kPluginLanguageKey), tag);
   return save();
 }
 

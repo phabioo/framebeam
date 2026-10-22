@@ -534,7 +534,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     // Screen layout default of the system (Emulation > Defaults / system), the in-game switch overrides it for this game only.
     sessions_->setScreenLayout(emulation_->frameBeamValue(QString::fromLatin1(EmulationController::kScreenLayoutKey), launchGame_.system, launchGame_.id));
     // Plugins start asynchronously after the game: they never delay it, failures only show in the console and the log.
-    plugins_->gameStarted(launchGame_.system, launchRom_, launchGame_.romSha256, launchGame_.title, QStringLiteral("en"),
+    plugins_->gameStarted(launchGame_.system, launchRom_, launchGame_.romSha256, launchGame_.title,
+                          plugins_->resolveLanguage(launchGame_.system, emulation_->launchOverrides(launchGame_.system, launchGame_.id)),
                           runStart_.pending() && runStart_.gameId == launchGame_.id ? runs_->launchFor(runStart_.runId) : RunLaunch());
     if (shareOnStart_) {
       shareOnStart_ = false;
