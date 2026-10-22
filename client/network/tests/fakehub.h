@@ -173,6 +173,15 @@ class FakeHub : public QTcpServer {
   QByteArray lastAdminBody;
   static QJsonObject sampleAdminStatus();
 
+  // Users, devices, invites, pairing requests and reports (admin pages Users and Reports): with `adminDirectory` the routes below
+  // serve a small stateful sample (users Tester = admin and signed in, Lena, Jonas; devices; two waiting requests; two reports with
+  // files) and change it as the real server would. The arrays can be edited before the first request. Calls are counted in
+  // `adminCalls` like every other admin route; `lastAdminBody` holds the last body.
+  bool adminDirectory = false;
+  QJsonArray dirUsers, dirDevices, dirInvites, dirRequests, dirReports;
+  QMap<QString, QByteArray> reportFiles;   // "<report id>/<file name>"
+  void fillDirectory();
+
   // Saves (saves_v1)
   QStringList features{QStringLiteral("saves_v1")};  // handshake features
   // game_id -> slot "default"; other slots under the key "<game_id>/<slot>" (slotKey()).
@@ -264,6 +273,7 @@ class FakeHub : public QTcpServer {
   void respondError(QSslSocket* sock, int status, const QString& code);
   void handleSaves(QSslSocket* sock, const FakeRequest& req);
   void handleAdmin(QSslSocket* sock, const FakeRequest& req);
+  bool handleDirectory(QSslSocket* sock, const FakeRequest& req, const QString& path, const QJsonObject& body);
   bool handleLocalRoms(QSslSocket* sock, const FakeRequest& req);
   void handleSessions(QSslSocket* sock, const FakeRequest& req);
   void handleRuns(QSslSocket* sock, const FakeRequest& req);

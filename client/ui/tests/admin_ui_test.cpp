@@ -125,8 +125,8 @@ class AdminUiTest : public QObject {
       QCOMPARE(h.controller->serverPage(), QStringLiteral("status"));
       QTRY_VERIFY(h.item("serverStatusPage") != nullptr);
       // The nav item of the page is the active one; a page that does not exist yet shows the placeholder.
-      QVERIFY(h.click("navServerUsers"));
-      QCOMPARE(h.controller->serverPage(), QStringLiteral("users"));
+      QVERIFY(h.click("navServerSystems"));
+      QCOMPARE(h.controller->serverPage(), QStringLiteral("systems"));
       QTRY_VERIFY(h.item("serverPlaceholder") != nullptr && h.item("serverPlaceholder")->isVisible());
       QVERIFY(h.item("serverStatusPage") == nullptr || !h.item("serverStatusPage")->isVisible());
       h.controller->showServerPage(QStringLiteral("nonsense"));
