@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/phabioo/uzume/server/internal/adminhost"
 	"github.com/phabioo/uzume/server/internal/api"
 	"github.com/phabioo/uzume/server/internal/health"
 	"github.com/phabioo/uzume/server/internal/hub"
@@ -156,4 +157,19 @@ func (s *Server) CreateAdminMetricsToken(ctx context.Context, _ api.CreateAdminM
 	}
 	s.log.Info("metrics token regenerated", "admin", principal(ctx).User.Username)
 	return api.CreateAdminMetricsToken200JSONResponse(api.AdminMetricsToken{Token: tok}), nil
+}
+
+// WithHost gives the admin settings and library endpoints the process-level facts (the web interface server
+// implements it); without it they answer 404.
+func WithHost(h adminhost.Host) Option { return func(s *Server) { s.host = h } }
+
+// adminHost returns the host for an admin call (admin check first), or the error to answer.
+func (s *Server) adminHost(ctx context.Context) (adminhost.Host, error) {
+	if err := requireAdmin(ctx); err != nil {
+		return nil, err
+	}
+	if s.host == nil {
+		return nil, hub.ErrNotFound
+	}
+	return s.host, nil
 }

@@ -470,6 +470,10 @@ func CheckImportDir(dir string) error {
 	if !filepath.IsAbs(dir) {
 		return netErr("The import folder must be an absolute path")
 	}
+	// No ".." anywhere: the folder is named directly, never reached by walking up (also a path-injection guard).
+	if strings.Contains(dir, "..") {
+		return netErr("The import folder must not contain \"..\"")
+	}
 	st, err := os.Stat(dir)
 	if err != nil || !st.IsDir() {
 		return netErr("The import folder does not exist or is not a directory")

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -32,9 +33,9 @@ type dev struct {
 	id, tok, user, name string
 }
 
-func newSessEnv(t *testing.T, mod func(*hub.Options)) *sessEnv {
+func newSessEnv(t *testing.T, mod func(*hub.Options), opts ...Option) *sessEnv {
 	t.Helper()
-	e := newEnv(t, mod)
+	e := newEnv(t, mod, opts...)
 	srv := httptest.NewServer(e.mux)
 	t.Cleanup(srv.Close)
 	g, err := e.svc.AddROM(context.Background(), bytes.NewReader([]byte("homebrew-rom-dummy")), "demo.nds", "Demo Homebrew", "", e.admin.ID)
@@ -223,6 +224,14 @@ func (s *sessEnv) dial(d dev) *wsClient {
 	c := s.dialRaw(d)
 	c.send("hello", map[string]any{"protocol_version": 1, "device_id": d.id})
 	c.await("hello_ack")
+	// The server sends hello_ack before it registers the connection (attach); wait for that, so a push right after
+	// dial (ice_update, run_updated) cannot miss this client.
+	for deadline := time.Now().Add(5 * time.Second); !slices.Contains(s.svc.ConnectedDeviceIDs(), d.id); {
+		if time.Now().After(deadline) {
+			s.t.Fatalf("device %s not registered after hello_ack", d.id)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 	return c
 }
 

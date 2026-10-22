@@ -2,7 +2,10 @@ package hub
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -272,5 +275,98 @@ func (s *Service) adminInviteChange(ctx context.Context, actorID, runID, userID,
 	} else {
 		s.pushRunEvents(ctx, runID, []RunEvent{ev})
 	}
+	return nil
+}
+
+// ResendRunInvites sends the invitation again to everyone who has not joined the run yet (web banner button).
+func (s *Service) ResendRunInvites(ctx context.Context, actorID, runID string) error {
+	run, err := s.GetRunAdmin(ctx, runID)
+	if err != nil {
+		return err
+	}
+	for _, p := range run.Participants {
+		if p.Status != ParticipantInvited {
+			continue
+		}
+		if err := s.ResendRunInvite(ctx, actorID, runID, p.UserID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// runExportPage is the page size of the export reads.
+const runExportPage = 2000
+
+// RunExport is a prepared export of the whole event log of a run as one JSON document.
+type RunExport struct {
+	s     *Service
+	run   Run
+	first []RunEvent
+	now   time.Time
+}
+
+// OpenRunExport reads the run and the first page of its events, so that a database error surfaces before the
+// first byte is written (the caller answers 500 then).
+func (s *Service) OpenRunExport(ctx context.Context, runID string) (*RunExport, error) {
+	run, err := s.GetRunAdmin(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	x := &RunExport{s: s, run: run, now: s.Now()}
+	if run.LastSeq > 0 {
+		if x.first, _, err = s.ListRunEventsAdmin(ctx, run.ID, 0, runExportPage); err != nil {
+			return nil, err
+		}
+	}
+	return x, nil
+}
+
+// Run is the exported run.
+func (x *RunExport) Run() Run { return x.run }
+
+// FileName is the suggested file name of the export.
+func (x *RunExport) FileName() string { return "run-" + x.run.ID + "-events.json" }
+
+// WriteTo streams the document: {"run_id":...,"events":[ ... ]}. Once it has started the status is already sent, so a
+// later error ends the document with an "error" member after the events (`],"error":"..."}`) and is returned; a
+// complete export has no "error" member. The file is valid JSON either way.
+func (x *RunExport) WriteTo(ctx context.Context, w io.Writer) error {
+	run := x.run
+	head, _ := json.Marshal(map[string]any{"run_id": run.ID, "name": run.Name, "status": run.Status, "exported_at": x.now.Format(time.RFC3339), "last_seq": run.LastSeq})
+	fmt.Fprintf(w, "%s,\"events\":[", head[:len(head)-1])
+	first := true
+	var after int64
+	fail := func(err error) error {
+		msg, _ := json.Marshal("export incomplete after event " + strconv.FormatInt(after, 10) + " of " + strconv.FormatInt(run.LastSeq, 10))
+		fmt.Fprintf(w, "],\"error\":%s}\n", msg)
+		return fmt.Errorf("run export incomplete after_seq=%d last_seq=%d: %w", after, run.LastSeq, err)
+	}
+	evs := x.first
+	var err error
+	for after < run.LastSeq {
+		if evs == nil {
+			if evs, _, err = x.s.ListRunEventsAdmin(ctx, run.ID, after, runExportPage); err != nil {
+				return fail(err)
+			}
+		}
+		if len(evs) == 0 {
+			return fail(errors.New("event log ends before last_seq"))
+		}
+		for _, e := range evs {
+			b, err := json.Marshal(e)
+			if err != nil {
+				return fail(err)
+			}
+			if !first {
+				fmt.Fprint(w, ",")
+			}
+			first = false
+			w.Write(b)
+			after = e.Seq
+		}
+		evs = nil
+	}
+	fmt.Fprint(w, "]}\n")
 	return nil
 }

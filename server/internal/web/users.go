@@ -58,20 +58,6 @@ type usersBody struct {
 
 var ttlOptions = []ttlOpt{{"1h", "1 hour", true}, {"24h", "24 hours", false}, {"7d", "7 days", false}}
 
-func ttlFromValue(v string) (time.Duration, bool) {
-	switch v {
-	case "15m":
-		return 15 * time.Minute, true
-	case "1h":
-		return time.Hour, true
-	case "24h":
-		return 24 * time.Hour, true
-	case "7d":
-		return 7 * 24 * time.Hour, true
-	}
-	return 0, false
-}
-
 // until formats "in 42 min" / "in 3 h" / "in 5 days".
 func until(t, now time.Time) string {
 	d := t.Sub(now)
@@ -361,7 +347,7 @@ func (s *Server) userToggle(w http.ResponseWriter, r *http.Request, err error, o
 
 // inviteCreate creates an invite; the code is only shown in this response (only its hash is stored).
 func (s *Server) inviteCreate(w http.ResponseWriter, r *http.Request, sess *session) {
-	ttl, ok := ttlFromValue(r.PostFormValue("expiry"))
+	ttl, ok := hub.ParseInviteTTL(r.PostFormValue("expiry"))
 	if !ok {
 		ttl = hub.DefaultInviteTTL
 	}

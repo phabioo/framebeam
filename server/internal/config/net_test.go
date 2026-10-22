@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -176,7 +177,7 @@ func TestNetSharingAndImportDir(t *testing.T) {
 	if err := c.ValidateNet(NetImportDir); err != nil {
 		t.Fatal(err)
 	}
-	for _, d := range []string{"relative", dir + "/nope"} {
+	for _, d := range []string{"relative", dir + "/nope", dir + "/../" + filepath.Base(dir)} {
 		if err := CheckImportDir(d); err == nil {
 			t.Fatalf("%q accepted", d)
 		}

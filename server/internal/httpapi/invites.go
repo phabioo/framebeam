@@ -34,7 +34,7 @@ func (s *Server) RedeemInvite(ctx context.Context, req api.RedeemInviteRequestOb
 		if err != nil {
 			return nil, err
 		}
-		return api.RedeemInvite200JSONResponse{Status: api.InviteRedeemApprovedStatusApproved, HubId: hid, UserId: res.UserID,
+		return api.RedeemInvite200JSONResponse{Status: api.Approved, HubId: hid, UserId: res.UserID,
 			DeviceCredential: res.Credential}, nil
 	}
 	id, err := uuid.Parse(res.RequestID)

@@ -5,6 +5,9 @@ import (
 	"sort"
 )
 
+// FeatureAdminV1 is the handshake feature flag of the admin API under /api/v1/admin/...; it is advertised to admins only.
+const FeatureAdminV1 = "admin_v1"
+
 // BaseFeatures are the server feature flags every server advertises; the API adds turn_v1 and uploads_v1 per request.
 func BaseFeatures() []string {
 	return []string{FeatureSavesV1, FeatureSessionsV1, FeatureUsersV1, FeatureFirmwareV1, FeatureCoresV1,

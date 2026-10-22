@@ -1,6 +1,6 @@
 # Features as built
 
-What the server, the protocol and the app do today, by area. Status by version: [roadmap.md](roadmap.md). How to use them: [documentation index](README.md). Administration is done in the server web admin today; 0.18 moves it into the app and removes the web admin.
+What the server, the protocol and the app do today, by area. Status by version: [roadmap.md](roadmap.md). How to use them: [documentation index](README.md). Administration is done in the server web admin today; 0.18 moves it into the app and removes the web admin. The admin API (`/api/v1/admin/...`, feature `admin_v1`) already covers everything the web admin does.
 
 **Uzume server** (`server/`)
 
@@ -34,7 +34,7 @@ What the server, the protocol and the app do today, by area. Status by version: 
 
 **Protocol** (`protocol/`)
 
-- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.28.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `local_setup_v1`, `reports_v1`, `accounts_v1` and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
+- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.29.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `local_setup_v1`, `reports_v1`, `accounts_v1`, `admin_v1` (admins only) and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
 
 **Uzume app** (`client/`, [ADR 0003](adr/0003-player-phase2.md))
 
