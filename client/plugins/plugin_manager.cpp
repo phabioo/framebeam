@@ -16,7 +16,7 @@
 
 #include "updatesig.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 using update::SemVer;
 
@@ -719,4 +719,4 @@ void PluginManager::flushChanged() {
   emit pluginsChanged();
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

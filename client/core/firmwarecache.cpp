@@ -7,7 +7,7 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 
-namespace framebeam {
+namespace uzume {
 
 FirmwareCache::FirmwareCache(const QString& dir) : dir_(dir) {}
 
@@ -84,4 +84,4 @@ FirmwareCache::StoreResult FirmwareCache::store(const QString& system, const QSt
   return StoreResult::Ok;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

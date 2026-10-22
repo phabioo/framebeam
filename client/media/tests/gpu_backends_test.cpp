@@ -16,7 +16,7 @@ extern "C" {
 #include <libavutil/pixfmt.h>
 }
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 
@@ -189,7 +189,7 @@ class GpuBackendsTest : public QObject {
       switch (i) {
         case 0: f.open = false; break;         // no share
         case 1: f.off = true; break;           // failed or not applicable in this Session
-        case 2: f.configured = false; break;   // FRAMEBEAM_DISABLE_GPU_ENCODE=1 or a forced FRAMEBEAM_H264_ENCODER
+        case 2: f.configured = false; break;   // UZUME_DISABLE_GPU_ENCODE=1 or a forced UZUME_H264_ENCODER
         case 3: f.orderPinned = true; break;   // tests pin encoders
       }
       b = SessionHost::gpuBackendRules(f);

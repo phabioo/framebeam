@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // Anchored popover (docs/design/player.md "Anchored popover"): a 12 px rotated-square pointer centered on the anchor and a
 // panel 10 px below it; click outside (below `scrimTop`) closes. Placed as a child of the item it is positioned in

@@ -7,7 +7,7 @@
 
 #include "gamesession.h"
 
-using namespace framebeam::ui;
+using namespace uzume::ui;
 
 namespace {
 QByteArray readFile(const QString& p) {

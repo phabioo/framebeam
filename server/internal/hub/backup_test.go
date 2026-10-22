@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/backup"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/backup"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
 func str(s string) *string { return &s }
@@ -280,7 +280,7 @@ func TestRestorePreparesAndRejectsBadBackups(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := e.svc.StartRestore(ctx, newer.Name, "admin"); err == nil || !strings.Contains(err.Error(), "newer FrameBeam Hub") {
+	if err := e.svc.StartRestore(ctx, newer.Name, "admin"); err == nil || !strings.Contains(err.Error(), "newer Uzume server") {
 		t.Fatalf("newer schema: %v", err)
 	}
 	if _, err := e.svc.RestoreInfo(ctx, newer.Name); err == nil {
@@ -290,7 +290,7 @@ func TestRestorePreparesAndRejectsBadBackups(t *testing.T) {
 		t.Fatal("nothing may be pending")
 	}
 
-	// A damaged file: the safety backup is made, then the checksum check stops it and the Hub runs as before.
+	// A damaged file: the safety backup is made, then the checksum check stops it and the server runs as before.
 	b, _ := os.ReadFile(filepath.Join(e.folder, name))
 	i := bytes.Index(b, []byte("SYNTHETIC-SAVE-CONTENT"))
 	b[i] ^= 0xff

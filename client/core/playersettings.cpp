@@ -14,7 +14,7 @@
 
 #include "savestore.h"
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 // "auto" or a language tag like "en" / "de-DE" (letters and digits in 2-8 character parts).
@@ -396,4 +396,4 @@ bool PlayerSettings::save() const {
   return f.commit();
 }
 
-}  // namespace framebeam
+}  // namespace uzume

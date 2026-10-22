@@ -1,5 +1,5 @@
 // Emulation page (3e), settings hierarchy at launch, Controllers page (3f) with SDL virtual joysticks.
-// Offscreen, FakeHub, dummy bytes only. The tests with the real core QSKIP without FRAMEBEAM_MELONDS_DS_CORE (ui_emulation_controllers_testcore runs them against the FrameBeam test core).
+// Offscreen, FakeHub, dummy bytes only. The tests with the real core QSKIP without UZUME_MELONDS_DS_CORE (ui_emulation_controllers_testcore runs them against the Uzume test core).
 #include <SDL3/SDL.h>
 
 #include <QQmlContext>
@@ -18,8 +18,8 @@
 #include "romcache.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 using S = HubConnection::State;
 using L = EmulationSettings::Level;
@@ -243,19 +243,19 @@ class EmulationControllersTest : public QObject {
 
  private slots:
   void initTestCase() {
-    savedCoreEnv_ = qgetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    savedCoreEnv_ = qgetenv("UZUME_MELONDS_DS_CORE");
     uitest::installWarningCounter();
   }
   void init() {
     uitest::warningCount() = 0;
     // "Found" core that is never loaded (the options are injected); the real-core tests set the real path themselves.
-    qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());
+    qputenv("UZUME_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());
   }
   void cleanup() {
     CoreProber::setProbeFunctionForTest(nullptr);
     g_probeGate.acquire(g_probeGate.available());
     QCOMPARE(uitest::warningCount().load(), 0);
-    if (savedCoreEnv_.isEmpty()) qunsetenv("FRAMEBEAM_MELONDS_DS_CORE"); else qputenv("FRAMEBEAM_MELONDS_DS_CORE", savedCoreEnv_);
+    if (savedCoreEnv_.isEmpty()) qunsetenv("UZUME_MELONDS_DS_CORE"); else qputenv("UZUME_MELONDS_DS_CORE", savedCoreEnv_);
   }
 
   // ------------------------------------------------------------------ Core probe off the GUI thread
@@ -342,14 +342,14 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(text(h, "emulationTitle"), QStringLiteral("Nintendo DS · melonDS DS 1.4.0"));
     QVERIFY(!emu->defaultsSelected());
 
-    // The system shows the core's visible, non-locked options; nothing else, and no FrameBeam options (those are Defaults).
+    // The system shows the core's visible, non-locked options; nothing else, and no Uzume options (those are Defaults).
     QVERIFY(visible(h, "optionGroup_core"));
     QVERIFY(h.item("optionSelect_framebeam.default_multiview") == nullptr);  // display options are global only (speed-up options are offered per system)
     QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
     QVERIFY(h.item("optionRow_melonds_boot_mode") != nullptr);
     for (const char* hidden : {"optionRow_melonds_screen_layout1", "optionRow_melonds_sysfile_mode",
                                "optionRow_melonds_hidden_by_core"}) {
-      QVERIFY2(h.item(hidden) == nullptr, hidden);  // locked by FrameBeam / hidden by the core: not user-editable
+      QVERIFY2(h.item(hidden) == nullptr, hidden);  // locked by Uzume / hidden by the core: not user-editable
     }
     QVERIFY(h.item("optionRow_melonds_render_mode") != nullptr);  // user choice since 0.5
     QVERIFY(h.item("optionRow_melonds_opengl_resolution") != nullptr);  // hidden by the core in software mode, the manifest shows it anyway
@@ -686,14 +686,14 @@ class EmulationControllersTest : public QObject {
     h.controller->showEmulation();
     EmulationController* emu = h.controller->emulation();
 
-    // Defaults: FrameBeam options only; core keys belong to the systems.
+    // Defaults: Uzume options only; core keys belong to the systems.
     QVERIFY(h.click("defaultsCard"));
     QCOMPARE(emu->level(), QStringLiteral("global"));
     QVERIFY(emu->defaultsSelected());
     QCOMPARE(text(h, "emulationTitle"), QStringLiteral("Defaults for all systems"));
     QVERIFY(h.item("optionGroup_core") == nullptr);
     QVERIFY(visible(h, "globalCoreHint"));
-    QVERIFY(visible(h, "optionGroup_framebeam"));
+    QVERIFY(visible(h, "optionGroup_uzume"));
     QVERIFY(h.item("optionToggle_framebeam.fullscreen_on_start") != nullptr);  // off/on = toggle
     QCOMPARE(text(h, "optionOrigin_framebeam.fullscreen_on_start"), QStringLiteral("Default"));
     QVERIFY(!h.controller->fullscreenOnStart());
@@ -726,7 +726,7 @@ class EmulationControllersTest : public QObject {
     pick(h, "optionSelect_framebeam.default_multiview", QStringLiteral("row"));
     QCOMPARE(h.controller->sessions()->multiviewMode(), QStringLiteral("row"));
     pick(h, "optionSelect_framebeam.default_multiview", QStringLiteral("grid"));
-    QCOMPARE(emu->frameBeamValue(QStringLiteral("framebeam.default_multiview"), QStringLiteral("nds")), QStringLiteral("grid"));
+    QCOMPARE(emu->uzumeValue(QStringLiteral("framebeam.default_multiview"), QStringLiteral("nds")), QStringLiteral("grid"));
 
     // A core option set globally in the file (keys stay assigned to the core) is still inherited by the system.
     emu->settings()->setValue(L::Global, QString(), QStringLiteral("melonds_boot_mode"), QStringLiteral("native"));
@@ -859,7 +859,7 @@ class EmulationControllersTest : public QObject {
                                                                                 core(QStringLiteral("desmume"), QStringLiteral("DeSmuME"), QStringLiteral("2026.10.08"))}},
                                            {QStringLiteral("firmware_mode"), QStringLiteral("builtin")},
                                            {QStringLiteral("firmware"), QJsonArray{}}}}}};
-    const QByteArray rom = QByteArray(2048, 'q') + "FRAMEBEAM-DUMMY";  // dummy file, no real ROM
+    const QByteArray rom = QByteArray(2048, 'q') + "UZUME-DUMMY";  // dummy file, no real ROM
     hub.roms.insert(uitest::sha256Hex(rom), rom);
     hub.games = QJsonObject{{QStringLiteral("games"), QJsonArray{uitest::gameJson(QStringLiteral("g1"), QStringLiteral("Lumen Drift"),
                                                                                     uitest::sha256Hex(rom), rom.size())}}};
@@ -909,11 +909,11 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(emu->changedCount(), 1);
     QVERIFY(visible(h, "changedDot_framebeam.core"));
 
-    // A per-game FrameBeam option (speed-up) overrides system and global for this game only.
+    // A per-game Uzume option (speed-up) overrides system and global for this game only.
     const QString ratio = QString::fromLatin1(EmulationController::kSpeedUpRatioKey);
     pick(h, "optionSelect_framebeam.speedup_ratio", QStringLiteral("4"));
-    QCOMPARE(emu->frameBeamValue(ratio, QStringLiteral("nds"), QStringLiteral("g1")), QStringLiteral("4"));
-    QCOMPARE(emu->frameBeamValue(ratio, QStringLiteral("nds"), QString()), QStringLiteral("2"));
+    QCOMPARE(emu->uzumeValue(ratio, QStringLiteral("nds"), QStringLiteral("g1")), QStringLiteral("4"));
+    QCOMPARE(emu->uzumeValue(ratio, QStringLiteral("nds"), QString()), QStringLiteral("2"));
     QCOMPARE(emu->changedCount(), 2);
 
     // Reset to default: one option, then everything of the game.
@@ -989,7 +989,7 @@ class EmulationControllersTest : public QObject {
   }
 
   void coreMissingIsShown() {
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());
     Harness h;
@@ -1003,11 +1003,11 @@ class EmulationControllersTest : public QObject {
   }
 
   // Options are captured with the real core (loaded without a game) and cached for the next start. The _testcore variant
-  // runs it against the FrameBeam test core (melondsds flavor) instead.
+  // runs it against the Uzume test core (melondsds flavor) instead.
   void realCoreOptionsAndCache() {
     const QString core = savedCoreEnv_;
-    if (core.isEmpty()) UITEST_SKIP_NO_CORE("FRAMEBEAM_MELONDS_DS_CORE not set");
-    qputenv("FRAMEBEAM_MELONDS_DS_CORE", core.toLocal8Bit());
+    if (core.isEmpty()) UITEST_SKIP_NO_CORE("UZUME_MELONDS_DS_CORE not set");
+    qputenv("UZUME_MELONDS_DS_CORE", core.toLocal8Bit());
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());
     Harness h;
@@ -1016,7 +1016,7 @@ class EmulationControllersTest : public QObject {
     h.controller->showEmulation();
     QVERIFY(h.controller->emulation()->hasCoreProbe(QStringLiteral("melondsds")));
 #ifdef FB_TEST_CORE
-    QCOMPARE(text(h, "systemCore_nds").left(19), QStringLiteral("FrameBeam Test Core"));  // the core's own name (test core, melondsds flavor)
+    QCOMPARE(text(h, "systemCore_nds").left(15), QStringLiteral("Uzume Test Core"));  // the core's own name (test core, melondsds flavor)
 #else
     QCOMPARE(text(h, "systemCore_nds").left(10), QStringLiteral("melonDS DS"));
 #endif
@@ -1088,11 +1088,11 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(deviceRow(h, QStringLiteral("keyboard")).value(QStringLiteral("slot")).toString(), QStringLiteral("P1"));  // no pad yet
 
     // Hotplug: the first connected gamepad is P1, the keyboard gives up the slot.
-    VirtualPad pad("FrameBeam Test Pad");
+    VirtualPad pad("Uzume Test Pad");
     QVERIFY(pad.js != nullptr);
     c->gamepads()->poll();
     const QVariantMap padRow = deviceRow(h, QStringLiteral("gamepad"));
-    QCOMPARE(padRow.value(QStringLiteral("name")).toString(), QStringLiteral("FrameBeam Test Pad"));
+    QCOMPARE(padRow.value(QStringLiteral("name")).toString(), QStringLiteral("Uzume Test Pad"));
     QCOMPARE(padRow.value(QStringLiteral("slot")).toString(), QStringLiteral("P1"));
     QCOMPARE(padRow.value(QStringLiteral("profile")).toString(), QStringLiteral("Standard Gamepad"));
     QCOMPARE(deviceRow(h, QStringLiteral("keyboard")).value(QStringLiteral("slot")).toString(), QStringLiteral("—"));
@@ -1100,7 +1100,7 @@ class EmulationControllersTest : public QObject {
     const QString padKey = padRow.value(QStringLiteral("key")).toString();
     QVERIFY(h.click(QByteArray("device_" + padKey.toUtf8()).constData()));
     QCOMPARE(c->selectedDevice(), padKey);
-    QCOMPARE(text(h, "controllersTitle"), QStringLiteral("FrameBeam Test Pad"));
+    QCOMPARE(text(h, "controllersTitle"), QStringLiteral("Uzume Test Pad"));
     QVERIFY(c->profileBuiltin());
     QVERIFY(visible(h, "builtinNote"));
     QCOMPARE(c->labelSet(), QStringLiteral("generic"));  // not an Xbox/PlayStation pad: names of the emulated system
@@ -1124,7 +1124,7 @@ class EmulationControllersTest : public QObject {
     c->gamepads()->poll();
     QVERIFY(h.item("testTile_a")->property("active").toBool());
     QVERIFY(!h.item("testTile_b")->property("active").toBool());
-    QCOMPARE(h.controller->gameSession()->joypadMask(), kA);  // gamepad -> FrameBeam input -> joypad mask
+    QCOMPARE(h.controller->gameSession()->joypadMask(), kA);  // gamepad -> Uzume input -> joypad mask
     pad.button(DUp, true);
     c->gamepads()->poll();
     QVERIFY(h.item("testTile_up")->property("active").toBool());
@@ -1218,7 +1218,7 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(text(h, "hotkeyText_diagnostics"), QStringLiteral("F3"));
     QCOMPARE(text(h, "hotkeyText_snapshot"), QStringLiteral("F5"));
     QCOMPARE(text(h, "hotkeyText_escape"), QStringLiteral("Esc"));
-    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+Y"));  // FrameBeam hotkeys get gamepad defaults (P36)
+    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+Y"));  // Uzume hotkeys get gamepad defaults (P36)
     QCOMPARE(text(h, "hotkeyPadText_diagnostics"), QStringLiteral("Select+R3"));
     QCOMPARE(text(h, "hotkeyPadText_snapshot"), QStringLiteral("Select+LB"));
     QCOMPARE(text(h, "hotkeyPadText_speedup"), QStringLiteral("Select+RB"));
@@ -1327,7 +1327,7 @@ class EmulationControllersTest : public QObject {
     h.window->resize(940, 800);
     QTest::qWait(100);
     QVERIFY(h.click("tabHotkeys"));
-    VirtualPad pad("FrameBeam Hotkey Pad");
+    VirtualPad pad("Uzume Hotkey Pad");
     QVERIFY(pad.js != nullptr);
     c->gamepads()->poll();
     const auto poll = [&]() { c->gamepads()->poll(); QTest::qWait(1); };

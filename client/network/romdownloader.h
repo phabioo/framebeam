@@ -12,7 +12,7 @@
 #include "hubprotocol.h"
 #include "romcache.h"
 
-namespace framebeam {
+namespace uzume {
 
 enum class RomState {
   Ready,           // validated in the cache (localPath)
@@ -50,7 +50,7 @@ class RomDownloader : public QObject {
   QSet<QString> activeHashes() const;
 
  signals:
-  void statusChanged(const QString& sha256, const framebeam::RomStatus& status);
+  void statusChanged(const QString& sha256, const uzume::RomStatus& status);
   void progress(const QString& sha256, qint64 received, qint64 total);
   void romReady(const QString& sha256, const QString& path);
 
@@ -95,4 +95,4 @@ class RomDownloader : public QObject {
   QHash<QString, RomStatus> sticky_;  // HashMismatch/Failed until the next ensureRom
 };
 
-}  // namespace framebeam
+}  // namespace uzume

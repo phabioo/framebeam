@@ -16,7 +16,7 @@
 
 struct AVFrame;
 
-namespace framebeam {
+namespace uzume {
 
 class GlD3d11Bridge;
 
@@ -27,7 +27,7 @@ class D3d11EncodeCapture {
 
   // Emulation thread, evaluated at the first attach of every attach cycle (after a detach again, because a live-save
   // restart makes a new display bridge). Returns the bridge of the game's display, or null: then the capture uses its own
-  // bridge on the adapter the GL context can open (FRAMEBEAM_DISABLE_ZERO_COPY=1, no D3D11 Qt Quick).
+  // bridge on the adapter the GL context can open (UZUME_DISABLE_ZERO_COPY=1, no D3D11 Qt Quick).
   using BridgeProvider = std::function<std::shared_ptr<GlD3d11Bridge>()>;
   D3d11EncodeCapture();
   explicit D3d11EncodeCapture(BridgeProvider provider);
@@ -57,4 +57,4 @@ class D3d11EncodeCapture {
   std::unique_ptr<Impl> d_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

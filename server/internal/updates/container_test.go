@@ -10,6 +10,6 @@ func TestContainerNeverPackaged(t *testing.T) {
 	}
 	t.Setenv(ContainerEnv, "1")
 	if !InContainer() || IsPackaged("linux-amd64", PackagedExecutable, req) {
-		t.Fatal("a container Hub must not apply updates itself")
+		t.Fatal("a container server must not apply updates itself")
 	}
 }

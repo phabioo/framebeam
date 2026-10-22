@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Shared shell: Player mark, navigation, Hub switcher card and user block (docs/design/player.md "Common shell").
 Rectangle {
@@ -102,7 +102,7 @@ Rectangle {
             Logo { size: 22 }
             FbLabel {
                 Layout.fillWidth: true
-                text: qsTr("FrameBeam Player")
+                text: qsTr("Uzume")
                 elide: Text.ElideRight
                 font.pixelSize: Theme.fontCard
                 font.weight: Font.DemiBold

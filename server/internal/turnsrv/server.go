@@ -61,7 +61,7 @@ type Config struct {
 	// ListenHost restricts the listeners (default: all addresses; tests: 127.0.0.1).
 	ListenHost string
 	// LANPeerOK reports whether an internal (private) peer IP may be relayed to, i.e. it is the remote IP of a
-	// connected Player. nil: no internal peers are allowed.
+	// connected app. nil: no internal peers are allowed.
 	LANPeerOK func(ip netip.Addr) bool
 	Log       *slog.Logger
 }

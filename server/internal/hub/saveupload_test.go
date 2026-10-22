@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 func (e *savesEnv) upload(dev, slot string, expected *int, data []byte) (hub.SaveSlot, error) {

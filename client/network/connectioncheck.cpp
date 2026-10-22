@@ -4,7 +4,7 @@
 #include <QPointer>
 #include <QUrl>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 
@@ -107,7 +107,7 @@ NatType classifyNat(const QList<StunMapping>& mappings) {
 
 QString CheckResult::toPlainText() const {
   QStringList out;
-  out << QStringLiteral("FrameBeam connection check");
+  out << QStringLiteral("Uzume connection check");
   out << QStringLiteral("%1 to %2 (%3)").arg(deviceName.isEmpty() ? QStringLiteral("This device") : deviceName, hubName, hubAddress);
   if (finishedAt.isValid()) out << finishedAt.toUTC().toString(Qt::ISODate);
   out << QString();
@@ -149,8 +149,8 @@ QJsonObject CheckResult::toJson() const {
 
 ConnectionCheck::ConnectionCheck(std::unique_ptr<ConnectionProbes> probes, QObject* parent)
     : QObject(parent), probes_(std::move(probes)) {
-  qRegisterMetaType<framebeam::ConnectionTarget>();
-  qRegisterMetaType<framebeam::CheckResult>();
+  qRegisterMetaType<uzume::ConnectionTarget>();
+  qRegisterMetaType<uzume::CheckResult>();
   timeout_.setSingleShot(true);
   connect(&timeout_, &QTimer::timeout, this, [this]() { abort(CheckOutcome::TimedOut); });
 }
@@ -281,7 +281,7 @@ void ConnectionCheck::onHub(const HubProbeResult& r) {
     expl = QStringLiteral("This is not the Hub this Player has trusted, or its certificate changed. Nothing was sent. Check the Hub under Settings → Hubs.");
   } else if (r.errorKind == QLatin1String("http")) {
     res = QStringLiteral("%1 does not answer like a Hub").arg(hub);
-    expl = QStringLiteral("Something answers on this address, but it is not a FrameBeam Hub (or an incompatible version). Check the address.");
+    expl = QStringLiteral("Something answers on this address, but it is not an Uzume server (or an incompatible version). Check the address.");
   } else {
     res = QStringLiteral("%1 cannot be reached").arg(hub);
     expl = r.error.isEmpty() ? QStringLiteral("The connection failed.") : r.error;
@@ -377,7 +377,7 @@ void ConnectionCheck::onTest(const TestProbeResult& r) {
     testOk_ = true;
     const QString via = r.server.isEmpty() ? turnServer_ : r.server;
     setStep(4, CheckStepState::Warning, QStringLiteral("Relayed through %1 · %2").arg(via, ms(r.rttMs)),
-            target_.forceRelay ? QStringLiteral("The relay is forced on this Player (FRAMEBEAM_FORCE_RELAY). Data flowed between two test peers through the relay.")
+            target_.forceRelay ? QStringLiteral("The relay is forced on this Player (UZUME_FORCE_RELAY). Data flowed between two test peers through the relay.")
                                : QStringLiteral("Data flowed between two test peers in this Player through the relay of %1.").arg(target_.hubName),
             details);
   } else if (r.srflxCandidates > 0) {
@@ -407,7 +407,7 @@ void ConnectionCheck::decideOutcome() {
     emit stepChanged(2);
     result_.summary = QStringLiteral("Only relayed connections are possible here");
     result_.summaryDetail = target_.forceRelay
-        ? QStringLiteral("The relay is forced on this Player (FRAMEBEAM_FORCE_RELAY), so every Session uses it. This works but adds delay.")
+        ? QStringLiteral("The relay is forced on this Player (UZUME_FORCE_RELAY), so every Session uses it. This works but adds delay.")
         : QStringLiteral("This works but adds delay. Common on office and mobile networks. Turning on UPnP on your router, or using another network, usually allows direct connections.");
     finish(CheckOutcome::Relayed);
   } else {
@@ -454,4 +454,4 @@ void ConnectionCheck::finish(CheckOutcome outcome) {
   emit finished(result_);
 }
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -1,5 +1,5 @@
 #pragma once
-// Local controller profiles (<data>/settings/controllers.json): physical binding -> FrameBeam input.
+// Local controller profiles (<data>/settings/controllers.json): physical binding -> Uzume input.
 // Profiles and device assignments stay local on this device and are never synchronized (architecture 06).
 // Built-in profiles ("Standard Gamepad", "Keyboard · Standard") are read-only and not stored; user profiles
 // are stored completely. Unknown keys of the file are preserved when saving. Never contains a secret.
@@ -20,16 +20,16 @@
 
 #include <optional>
 
-namespace framebeam {
+namespace uzume {
 
-// FrameBeam inputs (uniform across devices); the input profile of the system manifest maps them to the libretro mask.
+// Uzume inputs (uniform across devices); the input profile of the system manifest maps them to the libretro mask.
 struct InputDef {
   QString id;         // "a", "b", ..., "up"
   QString label;      // shown in the mapping table
   QString targetLabel;  // default text of the "System button" column; the manifest "input"."labels" can override it per profile
 };
-const QList<InputDef>& frameBeamInputs();
-int inputIndex(const QString& id);  // position in frameBeamInputs(), -1 = unknown; bit index of input masks
+const QList<InputDef>& uzumeInputs();
+int inputIndex(const QString& id);  // position in uzumeInputs(), -1 = unknown; bit index of input masks
 
 struct ControllerProfile {
   QString id;
@@ -135,4 +135,4 @@ class ControllerProfiles {
   QString padModifier_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

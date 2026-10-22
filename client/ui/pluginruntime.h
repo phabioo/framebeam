@@ -14,7 +14,7 @@
 #include "plugin_memory.h"
 #include "plugin_video.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class MemoryWatchAdapter : public plugins::MemoryProvider {
  public:
@@ -64,4 +64,4 @@ class VideoCaptureAdapter : public QObject, public plugins::VideoProvider {
   std::vector<plugins::ScreenInfo> m_screens;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

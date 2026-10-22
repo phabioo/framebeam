@@ -4,7 +4,7 @@
 
 #include "third_party/libretro/libretro.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 MemoryMap::MemoryMap(const retro_memory_map& map) {
   std::vector<Descriptor> v;
@@ -73,4 +73,4 @@ std::vector<MemoryMap::RegionInfo> MemoryMap::regions() const {
   return out;
 }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

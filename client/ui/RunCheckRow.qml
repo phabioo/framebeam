@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // One selectable row of the run dialogs (plugin, player or game): a tick box (or radio dot) with a title and a sub line.
 Rectangle {

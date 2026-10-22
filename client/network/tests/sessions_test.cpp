@@ -14,7 +14,7 @@
 #include "profilestore.h"
 #include "sessionapi.h"
 
-using namespace framebeam;
+using namespace uzume;
 using State = HubConnection::State;
 using K = SessionApiResult::Kind;
 

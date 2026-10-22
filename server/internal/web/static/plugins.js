@@ -1,4 +1,4 @@
-// Plugins page: the "Offer to Players" button stays disabled until every permission box is ticked. The server
+// Plugins page: the "Offer to apps" button stays disabled until every permission box is ticked. The server
 // checks the same rule, this only makes it visible. Without JavaScript the button is enabled and the server answers.
 (function () {
   function sync(form) {

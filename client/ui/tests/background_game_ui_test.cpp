@@ -6,8 +6,8 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 class BackgroundGameUiTest : public QObject {
@@ -81,7 +81,7 @@ class BackgroundGameUiTest : public QObject {
                             .arg(bounds.x()).arg(bounds.y()).arg(bounds.width()).arg(bounds.height())));
   }
   static void shot(Harness& h, const QString& name) {
-    const QString dir = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
+    const QString dir = qEnvironmentVariable("UZUME_SCREENSHOT_DIR");
     if (dir.isEmpty()) return;
     QDir().mkpath(dir);
     QTest::qWait(150);

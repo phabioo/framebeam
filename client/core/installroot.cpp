@@ -5,14 +5,23 @@
 #include <QFileInfo>
 #include <QUuid>
 
-namespace framebeam::update {
+namespace uzume::update {
+
+QString launcherFileName(const QString& installRoot) {
+  if (installRoot.isEmpty()) return {};
+  const QDir d(installRoot);
+  for (const char* name : {kPlayerExeName, kLegacyPlayerExeName}) {
+    if (d.exists(QLatin1String(name))) return QLatin1String(name);
+  }
+  return {};
+}
 
 QString installRootFor(const QString& exeDir) {
   if (exeDir.isEmpty()) return exeDir;
   const QDir d(exeDir);
   if (d.dirName().compare(QLatin1String("bin"), Qt::CaseInsensitive) == 0) {
     QDir parent = d;
-    if (parent.cdUp() && parent.exists(QLatin1String(kPlayerExeName))) {
+    if (parent.cdUp() && !launcherFileName(parent.absolutePath()).isEmpty()) {
       return parent.absolutePath();
     }
   }
@@ -87,11 +96,12 @@ QString copyLauncherToTemp(const QString& installRoot, const QString& tempBase, 
     if (error != nullptr) *error = why;
     return QString();
   };
-  const QString src = QDir(installRoot).filePath(QLatin1String(kPlayerExeName));
-  if (installRoot.isEmpty() || !QFileInfo::exists(src)) return fail(QStringLiteral("launcher not found next to the Player"));
-  const QString dir = QDir(tempBase).filePath(QStringLiteral("framebeam-update-") + QUuid::createUuid().toString(QUuid::Id128));
+  const QString launcher = launcherFileName(installRoot);
+  if (launcher.isEmpty()) return fail(QStringLiteral("launcher not found next to the app"));
+  const QString src = QDir(installRoot).filePath(launcher);
+  const QString dir = QDir(tempBase).filePath(QStringLiteral("uzume-update-") + QUuid::createUuid().toString(QUuid::Id128));
   if (!QDir().mkpath(dir)) return fail(QStringLiteral("temporary folder not creatable"));
-  const QString dst = QDir(dir).filePath(QLatin1String(kPlayerExeName));
+  const QString dst = QDir(dir).filePath(launcher);
   if (!QFile::copy(src, dst)) return fail(QStringLiteral("launcher not copyable"));
   return dst;
 }
@@ -112,4 +122,4 @@ QString perMachinePlayerExe(const QString& programFilesDir) {
   return QDir(programFilesDir).filePath(QStringLiteral("FrameBeam/Player/") + QLatin1String(kPlayerExeName));
 }
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

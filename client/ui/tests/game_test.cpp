@@ -1,4 +1,4 @@
-// Game view with the real melonDS DS core and the homebrew test ROM (NEEDS_CORE: QSKIP without a core). Also built as ui_game_testcore against the FrameBeam test core.
+// Game view with the real melonDS DS core and the homebrew test ROM (NEEDS_CORE: QSKIP without a core). Also built as ui_game_testcore against the Uzume test core.
 #include <QFile>
 #include <QQuickWindow>
 #include <QSignalSpy>
@@ -8,8 +8,8 @@
 #include "gameview.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 class GameTest : public QObject {
@@ -69,12 +69,12 @@ class GameTest : public QObject {
   }
 
   void playTestRom() {
-    if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
-      UITEST_SKIP_NO_CORE("FRAMEBEAM_MELONDS_DS_CORE not set");
+    if (qEnvironmentVariableIsEmpty("UZUME_MELONDS_DS_CORE")) {
+      UITEST_SKIP_NO_CORE("UZUME_MELONDS_DS_CORE not set");
     }
     uitest::installWarningCounter();
     QFile rom(QStringLiteral(FB_TEST_ROM_PATH));
-    QVERIFY2(rom.open(QIODevice::ReadOnly), "Test ROM missing (target framebeam_test_rom)");
+    QVERIFY2(rom.open(QIODevice::ReadOnly), "Test ROM missing (target uzume_test_rom)");
     const QByteArray romData = rom.readAll();
     const QString sha = uitest::sha256Hex(romData);
 
@@ -83,7 +83,7 @@ class GameTest : public QObject {
     hub.name = QStringLiteral("Home");
     hub.decision = FakeHub::Decision::Approve;
     QJsonArray games;
-    games.append(uitest::gameJson(QStringLiteral("t1"), QStringLiteral("Framebeam Test"), sha, romData.size(), QStringLiteral("framebeam_test.nds")));
+    games.append(uitest::gameJson(QStringLiteral("t1"), QStringLiteral("Arcade Uzume Test"), sha, romData.size(), QStringLiteral("uzume_test.nds")));
     games.append(uitest::gameJson(QStringLiteral("t2"), QStringLiteral("Paper Wizards"), uitest::sha256Hex("pw"), 128LL * 1024 * 1024));
     hub.games = QJsonObject{{QStringLiteral("games"), games}};
     hub.roms.insert(sha, romData);
@@ -117,7 +117,7 @@ class GameTest : public QObject {
     h.controller->playSelected();
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("game"), 20000);
     GameSession* s = h.controller->gameSession();
-    QCOMPARE(s->title(), QStringLiteral("Framebeam Test"));
+    QCOMPARE(s->title(), QStringLiteral("Arcade Uzume Test"));
     QTRY_VERIFY_WITH_TIMEOUT(s->frameNumber() >= 5, 10000);
     QVERIFY(s->hasFrame());
     QVERIFY(!uitest::isAllBlack(s->frame()));

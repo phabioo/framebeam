@@ -1,6 +1,6 @@
 // Plugin "game detail" slot in the Library detail column (0.11 package 2, design 4h-2): a real homebrew Lua plugin in the shell
 // context answers the host event fb/detail.game with fb.ui.set("detail", ...). Covers the section per selected game, the update on
-// another selection, an action round trip, the "Plugins" status row and the empty case. With FRAMEBEAM_SCREENSHOT_DIR=<dir> the
+// another selection, an action round trip, the "Plugins" status row and the empty case. With UZUME_SCREENSHOT_DIR=<dir> the
 // library is also saved as PNG (dark and light; never checked in).
 #include <QDir>
 #include <QJsonDocument>
@@ -10,8 +10,8 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 namespace {
@@ -82,7 +82,7 @@ class PluginDetailUiTest : public QObject {
 
  private slots:
   void initTestCase() {
-    shotDir_ = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
+    shotDir_ = qEnvironmentVariable("UZUME_SCREENSHOT_DIR");
     uitest::installWarningCounter();
     hub_.hubId = QStringLiteral("hub-detail");
     hub_.name = QStringLiteral("Home");

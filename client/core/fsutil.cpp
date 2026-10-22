@@ -7,9 +7,9 @@
 #include <QJsonParseError>
 #include <QLoggingCategory>
 
-namespace framebeam::fsutil {
+namespace uzume::fsutil {
 
-Q_LOGGING_CATEGORY(lcFsUtil, "framebeam.fsutil")
+Q_LOGGING_CATEGORY(lcFsUtil, "uzume.fsutil")
 
 QString quarantineCorruptFile(const QString& path, const QString& reason) {
   const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"));
@@ -62,4 +62,4 @@ bool replaceFile(const QString& from, const QString& to) {
 
 QString envPath(const char* name) { return qEnvironmentVariable(name); }
 
-}  // namespace framebeam::fsutil
+}  // namespace uzume::fsutil

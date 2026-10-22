@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace framebeam::formats {
+namespace uzume::formats {
 
 Result lzDecompress(std::string_view in, size_t maxOut) {
     using namespace detail;
@@ -99,4 +99,4 @@ Result lzDecompress(std::string_view in, size_t maxOut) {
     return r;
 }
 
-}  // namespace framebeam::formats
+}  // namespace uzume::formats

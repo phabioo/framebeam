@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Share state of the game header and panel: dot + text. on = shared (green), else muted. bare = no pill background (11).
 Rectangle {

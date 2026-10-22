@@ -16,8 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/pluginpkg"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/pluginpkg"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 // FeaturePluginsV1 is the handshake feature of the plugin list and download endpoints.
@@ -25,7 +25,7 @@ const FeaturePluginsV1 = "plugins_v1"
 
 // Plugin origins and sources as stored (columns origin and source of the plugins table).
 const (
-	PluginOriginOfficial   = "official"   // valid signature of a trusted FrameBeam key
+	PluginOriginOfficial   = "official"   // valid signature of a trusted Uzume key
 	PluginOriginUnverified = "unverified" // unsigned (or not verifiable), offered by the admin
 	PluginSourceIndex      = "index"
 	PluginSourceUpload     = "upload"
@@ -71,7 +71,7 @@ func (s *Service) PluginVersionInUse(ctx context.Context, pluginID, version stri
 	return f(ctx, pluginID, version)
 }
 
-// Plugin is a plugin version offered to Players.
+// Plugin is a plugin version offered to apps.
 type Plugin struct {
 	PluginID, Version, Name, Description string
 	API                                  int
@@ -354,7 +354,7 @@ func (s *Service) removePluginLocked(ctx context.Context, id, version string) er
 }
 
 // PruneOldPlugins removes every offered plugin version that is older than the newest offered version of its id and
-// not used by an unfinished run. It runs at Hub start and after a run ends or is deleted.
+// not used by an unfinished run. It runs at server start and after a run ends or is deleted.
 func (s *Service) PruneOldPlugins(ctx context.Context) {
 	s.plug.mu.Lock()
 	defer s.plug.mu.Unlock()
@@ -375,7 +375,7 @@ func (s *Service) PruneOldPlugins(ctx context.Context) {
 	}
 }
 
-// RemovePlugin deletes an offered version (row and file). Players keep their copy. Refused with a conflict while a
+// RemovePlugin deletes an offered version (row and file). Apps keep their copy. Refused with a conflict while a
 // run that is not finished or abandoned uses the version (PluginVersionInUse).
 func (s *Service) RemovePlugin(ctx context.Context, id, version string) error {
 	if !safePluginRef(id, version) {
@@ -505,8 +505,8 @@ func (s *Service) DiscardStagedPlugin(stageID string) {
 	}
 }
 
-// OfferStagedPlugin offers a staged upload to Players. Every permission the plugin asks for must be in ticked
-// (the admin reviewed it); otherwise nothing happens. The origin is official only for a valid FrameBeam signature,
+// OfferStagedPlugin offers a staged upload to apps. Every permission the plugin asks for must be in ticked
+// (the admin reviewed it); otherwise nothing happens. The origin is official only for a valid Uzume signature,
 // else unverified. The same (id, version) with a different file is refused (409).
 func (s *Service) OfferStagedPlugin(ctx context.Context, stageID string, ticked []string, adminID string) (_ Plugin, err error) {
 	p, err := s.readStaged(stageID)
@@ -539,9 +539,9 @@ type PluginImportSummary struct {
 	Problems         []string
 }
 
-// ImportPlugins offers every *.fbplugin file in dir (not recursive; offline Hubs, like import-cores). The same checks
+// ImportPlugins offers every *.fbplugin file in dir (not recursive; offline servers, like import-cores). The same checks
 // as for an upload apply, except the permission ticks: running the command is the admin's confirmation. A file
-// without a valid FrameBeam signature is imported as unverified.
+// without a valid Uzume signature is imported as unverified.
 func (s *Service) ImportPlugins(ctx context.Context, dir string) (PluginImportSummary, error) {
 	var sum PluginImportSummary
 	ents, err := os.ReadDir(dir)

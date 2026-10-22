@@ -9,7 +9,7 @@
 
 #include "system_manifest.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 // Copies the cached files (file id -> path in the firmware cache) into systemDir under the names of the manifest
 // (e.g. bios7.bin). Existing files with identical content are left alone, others are replaced atomically.
@@ -22,4 +22,4 @@ bool materializeFirmware(const FirmwareSpec& spec, const QMap<QString, QString>&
 // Empty if the core has no sysfile switch.
 QMap<QString, QString> firmwareCoreOptions(const FirmwareSpec& spec, bool native, const QStringList& materializedIds);
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

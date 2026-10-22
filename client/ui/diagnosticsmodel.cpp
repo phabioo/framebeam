@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 
@@ -306,4 +306,4 @@ QVariantMap DiagnosticsModel::participant(const QString& name, const QString& ro
           {QStringLiteral("line3"), line3}};
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

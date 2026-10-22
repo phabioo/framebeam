@@ -17,7 +17,7 @@
 
 #include "memory_map.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 struct WatchRange {
   uint64_t addr = 0;
@@ -77,4 +77,4 @@ class MemoryWatchSet {
   std::atomic<uint64_t> m_generation{0};
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

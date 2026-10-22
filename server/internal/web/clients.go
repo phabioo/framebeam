@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 type pendingView struct {
@@ -17,7 +17,7 @@ type pendingView struct {
 	AssignTo string
 	Fixed    bool
 	TooOld   bool
-	// MinProtocol is the Hub's minimum protocol version.
+	// MinProtocol is the server's minimum protocol version.
 	MinProtocol int
 }
 
@@ -31,7 +31,7 @@ type deviceView struct {
 	Added                                         When
 	Rename, Details                               bool // inline rename form / details row open
 	Remote                                        string
-	// TooOld: the last reported protocol version is below the Hub minimum; MinProtocol is that minimum.
+	// TooOld: the last reported protocol version is below the server minimum; MinProtocol is that minimum.
 	TooOld      bool
 	MinProtocol int
 }
@@ -232,7 +232,7 @@ func (s *Server) clientRevokeConfirm(w http.ResponseWriter, r *http.Request, ses
 	d := s.base(r, sess, "clients", "Revoke access")
 	d.Body = confirmBody{
 		Heading: "Revoke access for " + dev.Name + "?",
-		Intro:   owner + " loses access at once, also with tokens that are still valid. Saves stay on the Hub. The device can ask again later.",
+		Intro:   owner + " loses access at once, also with tokens that are still valid. Saves stay on the server. The device can ask again later.",
 		Action:  "/clients/devices/" + dev.ID + "/revoke", Button: "Revoke access", Cancel: "/clients",
 	}
 	s.render(w, http.StatusOK, "confirm", "layout", d)
@@ -283,7 +283,7 @@ func (s *Server) clientDeleteConfirm(w http.ResponseWriter, r *http.Request, ses
 		Intro:   "This permanently deletes the device" + owner + " and cannot be undone. The following is removed:",
 		Removes: []string{
 			"The device and all its access tokens; a running Session or connection ends immediately",
-			"The player has to be paired and approved again to use this Hub",
+			"The player has to be paired and approved again to use this server",
 		},
 		Note:   "Saves stay untouched; in the save history this device is then shown as “Deleted device”.",
 		Action: "/clients/devices/" + dev.ID + "/delete", Button: "Delete device", Cancel: "/clients",

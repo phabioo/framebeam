@@ -15,7 +15,7 @@
 #include "localromindex.h"
 #include "system_manifest.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class UploadController : public QObject {
   Q_OBJECT
@@ -45,7 +45,7 @@ class UploadController : public QObject {
  signals:
   void changed();
   // Emitted before `upload` shows the result; srcPath is the local file that was uploaded.
-  void finished(const framebeam::UploadResult& result, const QString& srcPath);
+  void finished(const uzume::UploadResult& result, const QString& srcPath);
 
  private:
   void onFinished(const UploadResult& r);
@@ -56,4 +56,4 @@ class UploadController : public QObject {
   QString sourcePath_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

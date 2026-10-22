@@ -19,7 +19,7 @@
 
 class QAudioSink;
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 Q_DECLARE_LOGGING_CATEGORY(lcAudio)
 
@@ -106,4 +106,4 @@ class AudioOutput : public QObject {
   bool levelLogged_ = false;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

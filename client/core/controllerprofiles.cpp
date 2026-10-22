@@ -12,9 +12,9 @@
 #include <QUuid>
 #include <Qt>
 
-namespace framebeam {
+namespace uzume {
 
-const QList<InputDef>& frameBeamInputs() {
+const QList<InputDef>& uzumeInputs() {
   static const QList<InputDef> inputs = {
       {QStringLiteral("a"), QStringLiteral("A"), QStringLiteral("A")},
       {QStringLiteral("b"), QStringLiteral("B"), QStringLiteral("B")},
@@ -45,7 +45,7 @@ const QList<InputDef>& frameBeamInputs() {
 }
 
 int inputIndex(const QString& id) {
-  const auto& in = frameBeamInputs();
+  const auto& in = uzumeInputs();
   for (int i = 0; i < in.size(); ++i) {
     if (in.at(i).id == id) return i;
   }
@@ -606,4 +606,4 @@ bool ControllerProfiles::save() const {
   return f.commit();
 }
 
-}  // namespace framebeam
+}  // namespace uzume

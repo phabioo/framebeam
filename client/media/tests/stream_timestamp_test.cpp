@@ -3,7 +3,7 @@
 
 #include "sessionhost.h"
 
-using framebeam::SessionHost;
+using uzume::SessionHost;
 
 class StreamTimestampTest : public QObject {
   Q_OBJECT

@@ -22,7 +22,7 @@
 #include "frame_stats.h"
 #include "memory_snapshot.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 class EmulationRunner : public QObject {
   Q_OBJECT
@@ -123,7 +123,7 @@ class EmulationRunner : public QObject {
   static qint64 monotonicMs();  // the clock of timing()
 
  signals:
-  void started(const framebeam::emu::AvInfo& av, const framebeam::emu::CoreInfo& core);
+  void started(const uzume::emu::AvInfo& av, const uzume::emu::CoreInfo& core);
   void startFailed(const QString& error);
   // Frame in QImage::Format_RGB32 (XRGB8888); implicitly shared, do not modify.
   // lateNs: during speed-up how long after its base-rate slot the frame is delivered (0 at normal speed); the Session
@@ -131,7 +131,7 @@ class EmulationRunner : public QObject {
   void frameReady(const QImage& frame, quint64 frameNumber, qint64 lateNs);
   // Interleaved stereo int16, native endian; sampleRate in Hz (from the core).
   void audioReady(const QByteArray& pcm, int sampleRate);
-  void stateChanged(framebeam::emu::EmulationRunner::State state);
+  void stateChanged(uzume::emu::EmulationRunner::State state);
   // The core shut itself down or runFrame failed; the thread winds down (then stop()).
   void errorOccurred(const QString& message);
   // A save problem known while the game runs (e.g. the save file cannot be read, so this game will not be saved).
@@ -159,8 +159,8 @@ class EmulationRunner : public QObject {
   std::vector<MemoryMap::RegionInfo> m_regions;
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu
 
-Q_DECLARE_METATYPE(framebeam::emu::AvInfo)
-Q_DECLARE_METATYPE(framebeam::emu::CoreInfo)
-Q_DECLARE_METATYPE(framebeam::emu::EmulationRunner::State)
+Q_DECLARE_METATYPE(uzume::emu::AvInfo)
+Q_DECLARE_METATYPE(uzume::emu::CoreInfo)
+Q_DECLARE_METATYPE(uzume::emu::EmulationRunner::State)

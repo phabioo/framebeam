@@ -68,8 +68,8 @@ hub_build() {
     goos="${target%/*}"; arch="${target#*/}"; ext=""
     [ "$goos" = windows ] && ext=".exe"
     (cd "$ROOT/server" && GOOS="$goos" GOARCH="$arch" go build -trimpath \
-      -ldflags "-s -w -X github.com/phabioo/framebeam/server/internal/version.Version=${HUB_VERSION:-dev} -X github.com/phabioo/framebeam/server/internal/version.Channel=${HUB_CHANNEL:-dev} -X github.com/phabioo/framebeam/server/internal/version.Commit=${HUB_COMMIT:-}" \
-      -o "dist/framebeam-hub-$goos-$arch$ext" ./cmd/framebeam-hub) || return 1
+      -ldflags "-s -w -X github.com/phabioo/uzume/server/internal/version.Version=${HUB_VERSION:-dev} -X github.com/phabioo/uzume/server/internal/version.Channel=${HUB_CHANNEL:-dev} -X github.com/phabioo/uzume/server/internal/version.Commit=${HUB_COMMIT:-}" \
+      -o "dist/uzume-server-$goos-$arch$ext" ./cmd/uzume-server) || return 1
   done
 }
 # hub-deb: .deb packages from the binaries in server/dist (make build-hub first), version = HUB_VERSION.
@@ -77,7 +77,7 @@ hub_deb() {
   local arch v="${HUB_VERSION:-}"
   [ -n "$v" ] || { echo "HUB_VERSION is required (X.Y.Z[-pre])"; return 1; }
   for arch in amd64 arm64; do
-    "$ROOT/packaging/linux/build-deb.sh" --binary "$ROOT/server/dist/framebeam-hub-linux-$arch" \
+    "$ROOT/packaging/linux/build-deb.sh" --binary "$ROOT/server/dist/uzume-server-linux-$arch" \
       --arch "$arch" --version "$v" --out "$ROOT/server/dist" || return 1
   done
 }
@@ -89,14 +89,14 @@ DDC_PATH=""
 client_libdatachannel() { DDC_PATH="$("$ROOT/scripts/fetch-libdatachannel.sh")" && [ -d "$DDC_PATH" ]; }
 SDL3_PATH=""
 client_sdl3() { SDL3_PATH="$("$ROOT/scripts/fetch-sdl3.sh")" && [ -d "$SDL3_PATH" ]; }
-# FRAMEBEAM_CTEST_REGEX (optional): ctest -R filter. ctest with the output of failed tests (QtTest FAIL!/QWARN/QFATAL with context) so the assertion is not lost.
+# UZUME_CTEST_REGEX (optional): ctest -R filter. ctest with the output of failed tests (QtTest FAIL!/QWARN/QFATAL with context) so the assertion is not lost.
 # Tests run in parallel (CTEST_PARALLEL_LEVEL, default: number of CPUs); every test uses its own temporary directories and
 # fake Hub port, CTEST_PARALLEL_LEVEL=1 restores the serial run.
 client_test() {
   local p="$1" out rc=0
   out="$(mktemp)"
   local -a sel=()
-  [ -z "${FRAMEBEAM_CTEST_REGEX:-}" ] || sel=(-R "$FRAMEBEAM_CTEST_REGEX")  # nightly: only the real-core tests
+  [ -z "${UZUME_CTEST_REGEX:-}" ] || sel=(-R "$UZUME_CTEST_REGEX")  # nightly: only the real-core tests
   local jobs="${CTEST_PARALLEL_LEVEL:-$(nproc 2>/dev/null || echo 2)}"
   (cd "$ROOT/client" && ctest --preset "$p" --output-on-failure -j "$jobs" "${sel[@]}" >"$out" 2>&1) || rc=$?
   if [ "$rc" -ne 0 ]; then
@@ -104,15 +104,15 @@ client_test() {
     echo "--- failed test output (FAIL!/QWARN/QFATAL, context) ---"
     grep -E -B2 -A4 'FAIL!|QFATAL|QWARN|Exception|Segmentation' "$out" | head -n 110
   fi
-  # Nightly (FRAMEBEAM_REQUIRE_CORES): the real-core tests must run, a skip counts as a failure.
-  if [ "$rc" -eq 0 ] && [ -n "${FRAMEBEAM_REQUIRE_CORES:-}" ] \
+  # Nightly (UZUME_REQUIRE_CORES): the real-core tests must run, a skip counts as a failure.
+  if [ "$rc" -eq 0 ] && [ -n "${UZUME_REQUIRE_CORES:-}" ] \
      && grep -E 'Test\s+#[0-9]+: emulation_core(_desmume)?\s.*(Skipped|Not Run)' "$out"; then
-    echo "core test skipped although the cores are required (FRAMEBEAM_REQUIRE_CORES)"; rc=1
+    echo "core test skipped although the cores are required (UZUME_REQUIRE_CORES)"; rc=1
   fi
-  # Merge CI (FRAMEBEAM_REQUIRE_TESTCORE): the in-repo test core tests must run (emulation_core_gl_testcore needs GL, which xvfb provides).
-  if [ "$rc" -eq 0 ] && [ -n "${FRAMEBEAM_REQUIRE_TESTCORE:-}" ] \
+  # Merge CI (UZUME_REQUIRE_TESTCORE): the in-repo test core tests must run (emulation_core_gl_testcore needs GL, which xvfb provides).
+  if [ "$rc" -eq 0 ] && [ -n "${UZUME_REQUIRE_TESTCORE:-}" ] \
      && grep -E 'Test\s+#[0-9]+: (emulation_test_core\S*|\S+_testcore)\s.*(Skipped|Not Run)' "$out"; then
-    echo "test-core test skipped (FRAMEBEAM_REQUIRE_TESTCORE)"; rc=1
+    echo "test-core test skipped (UZUME_REQUIRE_TESTCORE)"; rc=1
   fi
   rm -f "$out"
   return "$rc"
@@ -128,42 +128,42 @@ client() {
   [ -n "$SDL3_PATH" ] && [ -d "$SDL3_PATH" ] || return 1
   core_arg=("-DCMAKE_PREFIX_PATH=$DDC_PATH" "-DSDL3_ROOT=$SDL3_PATH")
   # Version and channel of the build (CI computes them once, spec 0.3 S1); unset: CMake defaults (<VERSION>-dev).
-  [ -z "${FRAMEBEAM_VERSION:-}" ] || core_arg+=("-DFRAMEBEAM_VERSION=$FRAMEBEAM_VERSION")
-  [ -z "${FRAMEBEAM_CHANNEL:-}" ] || core_arg+=("-DFRAMEBEAM_CHANNEL=$FRAMEBEAM_CHANNEL")
-  [ -z "${FRAMEBEAM_COMMIT:-}" ] || core_arg+=("-DFRAMEBEAM_COMMIT=$FRAMEBEAM_COMMIT")
-  # Real cores come from the libretro buildbot (ADR 0020 D10). FRAMEBEAM_SKIP_CORES=1 (merge CI) fetches none: the *_testcore
+  [ -z "${UZUME_VERSION:-}" ] || core_arg+=("-DUZUME_VERSION=$UZUME_VERSION")
+  [ -z "${UZUME_CHANNEL:-}" ] || core_arg+=("-DUZUME_CHANNEL=$UZUME_CHANNEL")
+  [ -z "${UZUME_COMMIT:-}" ] || core_arg+=("-DUZUME_COMMIT=$UZUME_COMMIT")
+  # Real cores come from the libretro buildbot (ADR 0020 D10). UZUME_SKIP_CORES=1 (merge CI) fetches none: the *_testcore
   # tests use the in-repo test core and the real-core tests skip. Otherwise (local, nightly) a failed fetch is a warning and the
-  # real-core tests skip; FRAMEBEAM_REQUIRE_CORES=1 (nightly) turns a failed fetch into a failure.
-  if [ -z "${FRAMEBEAM_SKIP_CORES:-}" ]; then
+  # real-core tests skip; UZUME_REQUIRE_CORES=1 (nightly) turns a failed fetch into a failure.
+  if [ -z "${UZUME_SKIP_CORES:-}" ]; then
     if client_core 2>/dev/null; then
-      core_arg+=("-DFRAMEBEAM_MELONDS_DS_CORE=$CORE_PATH"); echo "ok  client: melonDS DS core"
-    elif [ -n "${FRAMEBEAM_REQUIRE_CORES:-}" ]; then
-      echo "FAIL client: melonDS DS core (buildbot fetch failed; FRAMEBEAM_REQUIRE_CORES is set)"; "$ROOT/scripts/fetch-buildbot-core.sh" melondsds 2>&1 | tail -n 5; return 1
+      core_arg+=("-DUZUME_MELONDS_DS_CORE=$CORE_PATH"); echo "ok  client: melonDS DS core"
+    elif [ -n "${UZUME_REQUIRE_CORES:-}" ]; then
+      echo "FAIL client: melonDS DS core (buildbot fetch failed; UZUME_REQUIRE_CORES is set)"; "$ROOT/scripts/fetch-buildbot-core.sh" melondsds 2>&1 | tail -n 5; return 1
     else
       echo "warn client: melonDS DS core not fetched (buildbot unreachable?), its tests will be skipped"
     fi
     if client_desmume 2>/dev/null; then
-      core_arg+=("-DFRAMEBEAM_DESMUME_CORE=$DESMUME_PATH"); echo "ok  client: desmume core"
-    elif [ -n "${FRAMEBEAM_REQUIRE_CORES:-}" ]; then
-      echo "FAIL client: desmume core (buildbot fetch failed; FRAMEBEAM_REQUIRE_CORES is set)"; "$ROOT/scripts/fetch-buildbot-core.sh" desmume 2>&1 | tail -n 5; return 1
+      core_arg+=("-DUZUME_DESMUME_CORE=$DESMUME_PATH"); echo "ok  client: desmume core"
+    elif [ -n "${UZUME_REQUIRE_CORES:-}" ]; then
+      echo "FAIL client: desmume core (buildbot fetch failed; UZUME_REQUIRE_CORES is set)"; "$ROOT/scripts/fetch-buildbot-core.sh" desmume 2>&1 | tail -n 5; return 1
     else
       echo "warn client: desmume core not fetched (buildbot unreachable?), DeSmuME tests will be skipped"
     fi
   else
-    core_arg+=("-DFRAMEBEAM_MELONDS_DS_CORE=" "-DFRAMEBEAM_DESMUME_CORE=")  # clear paths cached by an earlier configure
-    echo "ok  client: real cores skipped (FRAMEBEAM_SKIP_CORES), test core only"
+    core_arg+=("-DUZUME_MELONDS_DS_CORE=" "-DUZUME_DESMUME_CORE=")  # clear paths cached by an earlier configure
+    echo "ok  client: real cores skipped (UZUME_SKIP_CORES), test core only"
   fi
   step "client: configure" bash -c "cd '$ROOT/client' && cmake --preset $p ${core_arg[*]:-}"
   step "client: build"     bash -c "cd '$ROOT/client' && cmake --build --preset $p"
   STEP_TAIL=150 step "client: test" client_test "$p"
 }
 
-# packaging_deb TMP: builds the Hub .deb for both architectures from a dummy binary and checks control and contents;
-# the update/hub units are verified when systemd-analyze exists.
+# packaging_deb TMP: builds the server .deb for both architectures from a dummy binary and checks control and contents;
+# the server/update units are verified when systemd-analyze exists.
 packaging_deb() {
   local tmp="$1" dir="$ROOT/packaging/linux" arch deb rc=0 listing info
   for arch in amd64 arm64; do
-    deb="$("$dir/build-deb.sh" --binary "$tmp/dummy-hub" --arch "$arch" --version 0.3.0-beta.7 --out "$tmp/deb")" \
+    deb="$("$dir/build-deb.sh" --binary "$tmp/dummy-server" --arch "$arch" --version 0.3.0-beta.7 --out "$tmp/deb")" \
       || { echo "build-deb.sh failed for $arch"; return 1; }
     [ "$(basename "$deb")" = "framebeam-hub_0.3.0-beta.7_${arch}.deb" ] || { echo "unexpected deb name: $deb"; rc=1; }
     info="$(dpkg-deb -f "$deb")"
@@ -172,21 +172,22 @@ packaging_deb() {
     grep -qx "Architecture: $arch" <<<"$info" || { echo "$arch: control Architecture wrong"; rc=1; }
     listing="$(dpkg-deb -c "$deb")"
     local p
-    for p in ./usr/bin/framebeam-hub ./lib/systemd/system/framebeam-hub.service \
+    for p in ./usr/bin/uzume-server ./lib/systemd/system/framebeam-hub.service \
              ./lib/systemd/system/framebeam-hub-update.path ./lib/systemd/system/framebeam-hub-update.service \
              ./usr/share/doc/framebeam-hub/copyright ./usr/share/doc/framebeam-hub/THIRD-PARTY-NOTICES.txt; do
       grep -q " $p\$" <<<"$listing" || { echo "$arch: $p missing from the package"; rc=1; }
     done
+    grep -qE ' \./usr/bin/framebeam-hub -> uzume-server$' <<<"$listing" || { echo "$arch: compat symlink usr/bin/framebeam-hub -> uzume-server missing"; rc=1; }
     # Nothing outside usr/bin, usr/share/doc/framebeam-hub and the unit directory: no data, no config.
     if grep -qiE '_libretro\.|/cores(/|$)' <<<"$listing"; then echo "$arch: emulator cores must not be part of the package"; rc=1; fi
-    if grep -E ' \./' <<<"$listing" | grep -vE ' \./(usr/(bin/(framebeam-hub)?|share/(doc/(framebeam-hub/(copyright|THIRD-PARTY-NOTICES\.txt)?)?)?)?|lib/(systemd/(system/(framebeam-hub[a-z.-]*)?)?)?)?$' | grep -q .; then
+    if grep -E ' \./' <<<"$listing" | sed 's/ -> .*//' | grep -vE ' \./(usr/(bin/(uzume-server|framebeam-hub)?|share/(doc/(framebeam-hub/(copyright|THIRD-PARTY-NOTICES\.txt)?)?)?)?|lib/(systemd/(system/(framebeam-hub[a-z.-]*)?)?)?)?$' | grep -q .; then
       echo "$arch: unexpected paths in the package"; rc=1
     fi
     local x="$tmp/x-$arch"
     mkdir -p "$x/ctrl"; dpkg-deb -R "$deb" "$x/pkg" >/dev/null
-    grep -qx 'ExecStart=/usr/bin/framebeam-hub' "$x/pkg/lib/systemd/system/framebeam-hub.service" || { echo "$arch: unit ExecStart"; rc=1; }
+    grep -qx 'ExecStart=/usr/bin/uzume-server' "$x/pkg/lib/systemd/system/framebeam-hub.service" || { echo "$arch: unit ExecStart"; rc=1; }
     grep -qx 'PathExists=/run/framebeam/update-request' "$x/pkg/lib/systemd/system/framebeam-hub-update.path" || { echo "$arch: path unit"; rc=1; }
-    grep -qx 'ExecStart=/usr/bin/framebeam-hub update apply-staged' "$x/pkg/lib/systemd/system/framebeam-hub-update.service" || { echo "$arch: update unit"; rc=1; }
+    grep -qx 'ExecStart=/usr/bin/uzume-server update apply-staged' "$x/pkg/lib/systemd/system/framebeam-hub-update.service" || { echo "$arch: update unit"; rc=1; }
     for p in postinst prerm postrm; do [ -x "$x/pkg/DEBIAN/$p" ] || { echo "$arch: $p not executable"; rc=1; }; done
   done
   if command -v actionlint >/dev/null 2>&1; then
@@ -238,43 +239,44 @@ packaging() {
   else
     echo "skip systemd-analyze (not installed)"
   fi
-  printf '#!/bin/sh\necho "framebeam-hub 0.0.0-smoke"\n' >"$tmp/dummy-hub"
-  chmod +x "$tmp/dummy-hub"
+  printf '#!/bin/sh\necho "uzume-server 0.0.0-smoke"\n' >"$tmp/dummy-server"
+  chmod +x "$tmp/dummy-server"
   packaging_deb "$tmp" || rc=1
   "$ROOT/scripts/check-trusted-keys.sh" || rc=1
   "$ROOT/scripts/check-vcpkg-pin.sh" >/dev/null || rc=1
   local root="$tmp/root"
-  FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" install --binary "$tmp/dummy-hub" \
+  UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" install --binary "$tmp/dummy-server" \
     --port 8444 --no-start || rc=1
   local bad
   for bad in /etc /var/lib; do
-    if FRAMEBEAM_INSTALL_ROOT="$tmp/bad" "$dir/install-hub.sh" install --binary "$tmp/dummy-hub" \
+    if UZUME_INSTALL_ROOT="$tmp/bad" "$dir/install-hub.sh" install --binary "$tmp/dummy-server" \
         --data-dir "$bad" --no-start >/dev/null 2>&1; then
       echo "install --data-dir $bad should have failed"; rc=1
     fi
   done
-  grep -qx 'FRAMEBEAM_LISTEN=:8444' "$root/etc/framebeam/hub.env" \
-    || { echo "hub.env lacks FRAMEBEAM_LISTEN=:8444"; rc=1; }
-  [ -x "$root/usr/local/bin/framebeam-hub" ] || { echo "binary not installed"; rc=1; }
+  grep -qx 'UZUME_LISTEN=:8444' "$root/etc/framebeam/hub.env" \
+    || { echo "hub.env lacks UZUME_LISTEN=:8444"; rc=1; }
+  [ -x "$root/usr/local/bin/uzume-server" ] || { echo "binary not installed"; rc=1; }
+  [ "$(readlink "$root/usr/local/bin/framebeam-hub")" = uzume-server ] || { echo "compat symlink framebeam-hub not installed"; rc=1; }
   [ -f "$root/etc/systemd/system/framebeam-hub.service" ] || { echo "unit not installed"; rc=1; }
   [ -f "$root/usr/local/share/doc/framebeam-hub/THIRD-PARTY-NOTICES.txt" ] || { echo "third-party notices not installed"; rc=1; }
   local rc_out
-  rc_out="$(FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert 2>&1)" || { echo "renew-cert dry-run failed"; rc=1; }
-  grep -q 'FRAMEBEAM_DATA_DIR=/var/lib/framebeam .*renew-cert' <<<"$rc_out" \
+  rc_out="$(UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert 2>&1)" || { echo "renew-cert dry-run failed"; rc=1; }
+  grep -q 'UZUME_DATA_DIR=/var/lib/framebeam .*renew-cert' <<<"$rc_out" \
     || { echo "renew-cert dry-run lacks the runuser line"; rc=1; }
   mkdir -p "$tmp/cores-in/linux-x64"; : >"$tmp/cores-in/linux-x64/dummy_libretro.so.zip"
-  rc_out="$(FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" import-cores "$tmp/cores-in" 2>&1)" || { echo "import-cores dry-run failed"; rc=1; }
-  grep -q 'FRAMEBEAM_DATA_DIR=/var/lib/framebeam .*import-cores' <<<"$rc_out" \
+  rc_out="$(UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" import-cores "$tmp/cores-in" 2>&1)" || { echo "import-cores dry-run failed"; rc=1; }
+  grep -q 'UZUME_DATA_DIR=/var/lib/framebeam .*import-cores' <<<"$rc_out" \
     || { echo "import-cores dry-run lacks the runuser line"; rc=1; }
-  if FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" import-cores >/dev/null 2>&1; then
+  if UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" import-cores >/dev/null 2>&1; then
     echo "import-cores without a directory must fail"; rc=1
   fi
-  printf 'FRAMEBEAM_TLS_CERT=/x/c.pem\n' >>"$root/etc/framebeam/hub.env"
-  if FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert >/dev/null 2>&1; then
-    echo "renew-cert must refuse with FRAMEBEAM_TLS_CERT set"; rc=1
+  printf 'UZUME_TLS_CERT=/x/c.pem\n' >>"$root/etc/framebeam/hub.env"
+  if UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert >/dev/null 2>&1; then
+    echo "renew-cert must refuse with UZUME_TLS_CERT set"; rc=1
   fi
-  FRAMEBEAM_INSTALL_ROOT="$root" "$dir/install-hub.sh" uninstall --purge --yes || rc=1
-  [ ! -e "$root/usr/local/bin/framebeam-hub" ] && [ ! -e "$root/etc/framebeam" ] \
+  UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" uninstall --purge --yes || rc=1
+  [ ! -e "$root/usr/local/bin/uzume-server" ] && [ ! -L "$root/usr/local/bin/framebeam-hub" ] && [ ! -e "$root/etc/framebeam" ] \
     || { echo "uninstall --purge left files behind"; rc=1; }
   rm -rf "$tmp"
   return "$rc"

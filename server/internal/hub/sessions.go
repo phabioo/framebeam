@@ -9,11 +9,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/config"
-	"github.com/phabioo/framebeam/server/internal/turnsrv"
+	"github.com/phabioo/uzume/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/turnsrv"
 )
 
-// Sessions (ADR 0006): metadata, visibility, invites and viewers. Media never touches the Hub.
+// Sessions (ADR 0006): metadata, visibility, invites and viewers. Media never touches the server.
 // All Session mutations run under sessionState.mu; events are queued non-blocking to the WSS clients.
 
 // FeatureSessionsV1 is the handshake feature flag for the Sessions API and the WSS endpoint.
@@ -437,7 +437,7 @@ func (s *Service) EndSession(ctx context.Context, p Principal, id string) error 
 	return s.endLocked(ctx, d, EndEnded)
 }
 
-// InviteUser invites a user of this Hub (owner device). A declined invite becomes open again.
+// InviteUser invites a user of this server (owner device). A declined invite becomes open again.
 func (s *Service) InviteUser(ctx context.Context, p Principal, id, userID string) (Session, error) {
 	s.sess.mu.Lock()
 	defer s.sess.mu.Unlock()

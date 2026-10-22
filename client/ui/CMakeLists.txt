@@ -1,13 +1,13 @@
-# framebeam_ui: QML module FrameBeam.Player (static, linked into framebeam_player).
+# uzume_ui: QML module Uzume.App (static, linked into uzume_app).
 # C++ glue (controller, models, GameView, audio) and QML screens of the UI.
 set_source_files_properties(Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
-qt_add_library(framebeam_ui STATIC)
-qt_add_qml_module(framebeam_ui
-  URI FrameBeam.Player
+qt_add_library(uzume_ui STATIC)
+qt_add_qml_module(uzume_ui
+  URI Uzume.App
   VERSION 1.0
   RESOURCE_PREFIX /qt/qml
-  OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/FrameBeam/Player
+  OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Uzume/App
   SOURCES
     inputmapping.h inputmapping.cpp
     timeformat.h timeformat.cpp
@@ -156,11 +156,11 @@ qt_add_qml_module(framebeam_ui
 )
 # Zero-copy display (ADR 0027): the platform implementation of makePlatformDisplay(); Windows has its own (WIN32 block below).
 if(NOT WIN32)
-  target_sources(framebeam_ui PRIVATE gpudisplay_platform_stub.cpp)
+  target_sources(uzume_ui PRIVATE gpudisplay_platform_stub.cpp)
 endif()
-target_include_directories(framebeam_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(framebeam_ui PUBLIC framebeam_core framebeam_input framebeam_audioutil framebeam_media framebeam_emulation framebeam_plugins framebeam_formats Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
-framebeam_warnings(framebeam_ui)
+target_include_directories(uzume_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(uzume_ui PUBLIC uzume_core uzume_input uzume_audioutil uzume_media uzume_emulation uzume_plugins uzume_formats Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
+uzume_warnings(uzume_ui)
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
@@ -168,6 +168,6 @@ endif()
 
 # Zero-copy display (ADR 0027), Windows platform factory and D3D11 texture source.
 if(WIN32)
-  target_sources(framebeam_ui PRIVATE gpudisplay_platform_win.cpp)
-  target_link_libraries(framebeam_ui PRIVATE d3d11 dxgi)
+  target_sources(uzume_ui PRIVATE gpudisplay_platform_win.cpp)
+  target_link_libraries(uzume_ui PRIVATE d3d11 dxgi)
 endif()

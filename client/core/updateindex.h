@@ -12,10 +12,10 @@
 
 #include "semver.h"
 
-namespace framebeam::update {
+namespace uzume::update {
 
 inline constexpr const char* kDefaultIndexUrl =
-    "https://github.com/phabioo/framebeam/releases/download/updates-index/updates-index.json";
+    "https://github.com/phabioo/uzume/releases/download/updates-index/updates-index.json";
 inline constexpr const char* kPlayerPlatform = "windows-x64";  // the only Player update platform
 inline constexpr const char* kKindMsi = "msi";  // the Player installer (ADR 0021)
 inline constexpr const char* kKindZip = "zip";
@@ -121,4 +121,4 @@ Selection selectRelease(const Index& index, const SelectionInput& in);
 // {"status","current_version","channel","release":{...},"artifact":{...},"skipped":[...]} for the CLI.
 QJsonObject selectionToJson(const Selection& sel, const SelectionInput& in, const QStringList& skipped);
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

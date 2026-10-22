@@ -10,12 +10,12 @@
 
 #include "screenlayout.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 SessionController::SessionController(HubConnection* conn, ProfileStore* profiles, GameSession* game, QObject* parent)
     : QObject(parent), conn_(conn), profiles_(profiles), game_(game), api_(conn), socket_(conn) {
-  qRegisterMetaType<framebeam::SessionInfo>();
-  qRegisterMetaType<framebeam::SessionSignal>();
+  qRegisterMetaType<uzume::SessionInfo>();
+  qRegisterMetaType<uzume::SessionSignal>();
   diagnostics_ = new DiagnosticsModel(this);
   connect(this, &SessionController::surfacesChanged, this, &SessionController::selectionChanged);
   connect(diagnostics_, &DiagnosticsModel::statesChanged, this, [this]() {
@@ -1182,4 +1182,4 @@ void SessionController::refreshDiagnostics() {
   diagnostics_->setStreaming(groups);
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

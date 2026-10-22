@@ -7,7 +7,7 @@
 
 #include "frame_pacer.h"
 
-using framebeam::emu::FramePacer;
+using uzume::emu::FramePacer;
 
 namespace {
 constexpr int64_t kPeriod = 16'666'667;  // 60 fps

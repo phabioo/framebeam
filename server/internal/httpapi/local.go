@@ -6,11 +6,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
-// Local setup endpoints (0.9, feature local_setup_v1): for the Player on the same PC as the Hub.
+// Local setup endpoints (0.9, feature local_setup_v1): for the app on the same PC as the server.
 
 // Option configures Register.
 type Option func(*Server)
@@ -19,9 +19,9 @@ type Option func(*Server)
 // of a value that is read at startup.
 func WithRestart(f func()) Option { return func(s *Server) { s.restart = f } }
 
-var errNotLoopback = &hub.Error{Code: hub.CodeForbidden, Message: "Only available from the machine the FrameBeam Hub runs on"}
+var errNotLoopback = &hub.Error{Code: hub.CodeForbidden, Message: "Only available from the machine the Uzume server runs on"}
 
-// isLoopbackRemote reports whether the request comes from the machine the Hub runs on (hub.IsLocalRequest).
+// isLoopbackRemote reports whether the request comes from the machine the server runs on (hub.IsLocalRequest).
 func isLoopbackRemote(r *http.Request) bool { return hub.IsLocalRequest(r) }
 
 func isLocalOp(op string) bool {

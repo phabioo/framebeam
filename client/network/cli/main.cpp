@@ -1,8 +1,8 @@
-// framebeam_player_cli: developer tool against a real FrameBeam Hub (QtCore/QtNetwork only).
+// uzume-cli: developer tool against a real Uzume server (QtCore/QtNetwork only).
 //   identify <address> [--dev]
 //   update-check [--channel beta|stable] [--index-url URL] [--current-version X.Y.Z[-pre]] [--hub-protocol P[:MIN]]
-//     (no Hub, no data dir: fetches the signed update index (env FRAMEBEAM_PLAYER_UPDATE_INDEX_URL, trust keys
-//      compiled in + env FRAMEBEAM_PLAYER_TRUST_KEYS), verifies it and prints the selection as one JSON object:
+//     (no Hub, no data dir: fetches the signed update index (env UZUME_APP_UPDATE_INDEX_URL, trust keys
+//      compiled in + env UZUME_APP_TRUST_KEYS), verifies it and prints the selection as one JSON object:
 //      {"status":"available|up_to_date|incompatible|disabled","current_version","channel","release":{...},
 //      "artifact":{...},"skipped":[...]}; exit 0, or 1 with {"status":"error","error":...} on fetch/signature errors.
 //      Without --channel the compiled channel applies (dev = disabled).)
@@ -12,7 +12,7 @@
 //   pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>] [wait-revoked]...
 //     wait-revoked: reports READY-FOR-REVOKE, renews the token every second and ends (exit 0) as soon as the
 //     hub has revoked the device (state NeedsPairing); exit 1 after 60 s without revocation (E2E script).
-//   redeem-invite <address> --code FB-XXXX-XXXX --name <display name> [--dev] [--accept-fingerprint] [follow-ups...]
+//   redeem-invite <address> --code UZ-XXXX-XXXX --name <display name> [--dev] [--accept-fingerprint] [follow-ups...]
 //     (onboarding invite instead of pair: 200 -> paired and connected, 202 -> waits for admin approval like pair;
 //      errors invite_invalid / display_name_taken / rate_limited exit 1)
 //   game upload <file> [--title T]     (needs handshake feature uploads_v1; streamed; output lines
@@ -27,7 +27,7 @@
 //     the others; share publishes a Session with synthetic frames/tone, watch exits 0 with >= 30 frames and audio)
 //   games | fetch-rom <sha256>      (uses the last connected profile; Linux: credential in memory only,
 //                                    so use them there as follow-up commands of "pair")
-// Options: --data-dir <path> (otherwise FRAMEBEAM_DATA_DIR / AppDataLocation).
+// Options: --data-dir <path> (otherwise UZUME_DATA_DIR / AppDataLocation).
 // Exit codes: 0 ok, 1 error, 2 user action required (confirm fingerprint, approval).
 #include <QCoreApplication>
 #include <QJsonDocument>
@@ -41,6 +41,7 @@
 #include <memory>
 
 #include "credentialstore.h"
+#include "envvar.h"
 #include "hubconnection.h"
 #include "gameuploader.h"
 #include "hublibrary.h"
@@ -57,7 +58,7 @@
 #include "updatesig.h"
 #include "version.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 
@@ -160,22 +161,22 @@ class Runner : public QObject {
 
  private:
   int usage() {
-    err() << "Usage: framebeam_player_cli identify <address> [--dev]\n"
-             "        framebeam_player_cli pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>]\n"
-             "        framebeam_player_cli redeem-invite <address> --code FB-XXXX-XXXX --name <name> [--dev] [--accept-fingerprint]\n"
-             "        framebeam_player_cli update-check [--channel beta|stable] [--index-url URL] [--current-version V] [--hub-protocol P[:MIN]]\n"
-             "        framebeam_player_cli games | fetch-rom <sha256>   [--data-dir <path>]\n"
-             "        framebeam_player_cli game upload <file> [--title T] | systems | fetch-core <system-id>\n"
-             "        framebeam_player_cli saves list | save push <game_id> <file> [--base N] | save pull <game_id> <out>\n"
-             "        framebeam_player_cli session-share [--game <id>] [--visibility V] --synthetic [--seconds N] [--force-relay]\n"
-             "        framebeam_player_cli session-watch (--session <id> | --first) [--seconds N] [--force-relay]\n"
+    err() << "Usage: uzume-cli identify <address> [--dev]\n"
+             "        uzume-cli pair <address> [--dev] [--accept-fingerprint] [games] [fetch-rom <sha256>]\n"
+             "        uzume-cli redeem-invite <address> --code UZ-XXXX-XXXX --name <name> [--dev] [--accept-fingerprint]\n"
+             "        uzume-cli update-check [--channel beta|stable] [--index-url URL] [--current-version V] [--hub-protocol P[:MIN]]\n"
+             "        uzume-cli games | fetch-rom <sha256>   [--data-dir <path>]\n"
+             "        uzume-cli game upload <file> [--title T] | systems | fetch-core <system-id>\n"
+             "        uzume-cli saves list | save push <game_id> <file> [--base N] | save pull <game_id> <out>\n"
+             "        uzume-cli session-share [--game <id>] [--visibility V] --synthetic [--seconds N] [--force-relay]\n"
+             "        uzume-cli session-watch (--session <id> | --first) [--seconds N] [--force-relay]\n"
              "                             | save resolve <game_id> <conflict_id> use_hub|use_local --expected N\n";
     return 1;
   }
 
   int updateCheck(const QStringList& opts) {
     QString channel = QString::fromUtf8(playerChannel().data(), static_cast<qsizetype>(playerChannel().size()));
-    QString indexUrl = qEnvironmentVariable("FRAMEBEAM_PLAYER_UPDATE_INDEX_URL");
+    QString indexUrl = uzume::env::get("UZUME_APP_UPDATE_INDEX_URL");
     QString current = QString::fromUtf8(playerVersion().data(), static_cast<qsizetype>(playerVersion().size()));
     std::optional<update::HubProtocol> hub;
     for (qsizetype i = 0; i < opts.size(); ++i) {
@@ -680,8 +681,8 @@ class Runner : public QObject {
 
 int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
-  QCoreApplication::setOrganizationName(QStringLiteral("FrameBeam"));
-  QCoreApplication::setApplicationName(QStringLiteral("FrameBeam Player"));
+  QCoreApplication::setOrganizationName(QStringLiteral("Uzume"));
+  QCoreApplication::setApplicationName(QStringLiteral("Uzume"));
   Runner runner(app.arguments().mid(1), &app);
   const int early = runner.start();
   if (early >= 0) {

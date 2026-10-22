@@ -1,7 +1,7 @@
 package web
 
 import (
-	"github.com/phabioo/framebeam/server/internal/health"
+	"github.com/phabioo/uzume/server/internal/health"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 func waitBackupIdle(t *testing.T, e *env) {
@@ -94,7 +94,7 @@ func TestBackupsWebFlow(t *testing.T) {
 	}
 	status(t, c.get("/settings/backups/download?file=../framebeam.db", nil), 404)
 
-	// Restore confirmation lists the consequences; this test Hub cannot restart itself.
+	// Restore confirmation lists the consequences; this test server cannot restart itself.
 	rec = c.get("/settings/backups?restore="+name, nil)
 	contains(t, rec, "Restore the backup from", "A safety backup of the current state comes first", "Saves and snapshots", "cannot restart itself")
 	notContains(t, rec, "Restore and restart")

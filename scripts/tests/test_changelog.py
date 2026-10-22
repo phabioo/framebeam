@@ -87,6 +87,15 @@ class CollectTest(unittest.TestCase):
         self.assertEqual([t for t, _ in player["Added"]], ["Shared line"])
         self.assertEqual(player["Fixed"][0][0], "Crash")
 
+    def test_new_prefixes_and_aliases(self):
+        self.assertEqual(cl.apply_product("Server: Thing", "hub"), "Thing")
+        self.assertEqual(cl.apply_product("App: Crash", "player"), "Crash")
+        self.assertIsNone(cl.apply_product("App: Crash", "hub"))
+        self.assertIsNone(cl.apply_product("Hub: Thing", "app"))
+        self.assertEqual(cl.apply_product("Player: Crash", "app"), "Crash")
+        self.assertEqual(cl.apply_product("Server: Thing", "server"), "Thing")
+        self.assertEqual(cl.apply_product("Server: Thing", None), "Server: Thing")
+
     def test_pr_lookup_by_sha(self):
         def api(path):
             if path.endswith("/pulls"):

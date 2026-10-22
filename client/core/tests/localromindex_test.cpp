@@ -9,7 +9,7 @@
 #include "localromindex.h"
 #include "playersettings.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 QString writeFile(const QString& path, const QByteArray& d) {

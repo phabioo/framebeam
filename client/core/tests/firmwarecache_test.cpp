@@ -5,7 +5,7 @@
 
 #include "firmwarecache.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 // Dummy bytes of the right size (not real firmware).

@@ -12,9 +12,9 @@
 // Called by the patched pattern matcher of the vendored lstrlib.c every 1024 matcher steps (global C++ symbol, see
 // third_party/lua-5.4.7/README.md). A pattern such as ("a"):rep(40000):find(".-b") needs seconds inside one C call, which
 // the instruction hook cannot interrupt: the matcher budget aborts it.
-void fbMatchBudget(lua_State* L) { framebeam::plugins::LuaSandbox::matchStep(L); }
+void fbMatchBudget(lua_State* L) { uzume::plugins::LuaSandbox::matchStep(L); }
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 namespace {
 
@@ -353,4 +353,4 @@ std::string LuaSandbox::firstLine(const std::string& err) {
   return nl == std::string::npos ? err : err.substr(0, nl);
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

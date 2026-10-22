@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/store"
 )
 
 func principal(t *testing.T, svc *hub.Service, userID, name string) hub.Principal {

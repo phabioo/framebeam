@@ -1,29 +1,35 @@
-# framebeam_player: Executable. The QML module and UI sources come from ../ui (framebeam_ui).
-qt_add_executable(framebeam_player main.cpp)
+# uzume_app: Executable. The QML module and UI sources come from ../ui (uzume_ui).
+qt_add_executable(uzume_app main.cpp)
 # Window icon from the Qt resource (all platforms), see main.cpp.
-qt_add_resources(framebeam_player app_icons PREFIX "/framebeam/app" BASE icons
+qt_add_resources(uzume_app app_icons PREFIX "/uzume/app" BASE icons
   FILES icons/player-16.png icons/player-24.png icons/player-32.png icons/player-48.png icons/player-64.png
         icons/player-128.png icons/player-256.png icons/player-512.png)
-target_link_libraries(framebeam_player PRIVATE
-  framebeam_core framebeam_emulation framebeam_ui framebeam_uiplugin
+target_link_libraries(uzume_app PRIVATE
+  uzume_core uzume_emulation uzume_ui uzume_uiplugin
   Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
-framebeam_warnings(framebeam_player)
+uzume_warnings(uzume_app)
+# Executable name: Uzume.exe on Windows (the launcher in ../launcher is Uzume.exe at the top level), uzume elsewhere.
+if(WIN32)
+  set_target_properties(uzume_app PROPERTIES OUTPUT_NAME Uzume)
+else()
+  set_target_properties(uzume_app PROPERTIES OUTPUT_NAME uzume)
+endif()
 if(WIN32)
   # GUI subsystem: no console window on start. Qt::EntryPoint maps main() to WinMain. Console output of
   # --version/--help/--version-json goes through printToStdout() in main.cpp (inherited handle or parent console).
-  set_target_properties(framebeam_player PROPERTIES WIN32_EXECUTABLE ON)
-  target_link_libraries(framebeam_player PRIVATE shell32)
+  set_target_properties(uzume_app PROPERTIES WIN32_EXECUTABLE ON)
+  target_link_libraries(uzume_app PRIVATE shell32)
   # Executable icon (Explorer/taskbar/shortcuts); the .rc is only compiled on Windows.
-  target_sources(framebeam_player PRIVATE player.rc)
+  target_sources(uzume_app PRIVATE player.rc)
   # Application manifest (longPathAware, UTF-8 active code page). MSVC: CMake merges a .manifest source into the linker's
   # manifest (mt.exe); embedding it through the .rc as well would give a duplicate resource. Other toolchains: player.rc.
   if(MSVC)
-    target_sources(framebeam_player PRIVATE framebeam.manifest)
+    target_sources(uzume_app PRIVATE uzume.manifest)
   endif()
 endif()
 
 if(BUILD_TESTING)
-  add_test(NAME app_smoke COMMAND framebeam_player --smoke-test)
+  add_test(NAME app_smoke COMMAND uzume_app --smoke-test)
   set_tests_properties(app_smoke PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software"
     TIMEOUT 60)

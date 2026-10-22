@@ -5,7 +5,7 @@
 
 #include "game_identity.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 namespace {
 void put(QByteArray& b, int off, const QByteArray& v) {

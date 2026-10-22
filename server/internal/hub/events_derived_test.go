@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // drainTopics collects the topics published within a short window.

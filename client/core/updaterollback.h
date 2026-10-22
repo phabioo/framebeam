@@ -11,7 +11,7 @@
 
 #include "updateindex.h"
 
-namespace framebeam::update {
+namespace uzume::update {
 
 inline constexpr int kMaxRollbackCandidates = 5;  // the list offers at most the last 5 releases
 inline constexpr int kMaxHistory = 20;
@@ -67,4 +67,4 @@ struct RollbackCandidate {
 // channels counts once (stable wins).
 QList<RollbackCandidate> rollbackCandidates(const Index& index, const RollbackQuery& q);
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

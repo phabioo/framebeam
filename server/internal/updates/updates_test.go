@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/corepkg"
 )
 
 var (
@@ -101,7 +101,7 @@ func TestParseIndexSkipsInvalidReleases(t *testing.T) {
 }
 
 func TestSemVerPrecedence(t *testing.T) {
-	// Ascending order per the SemVer 2.0 spec section 11 plus FrameBeam's own forms.
+	// Ascending order per the SemVer 2.0 spec section 11 plus Uzume's own forms.
 	asc := []string{"0.3.0-beta.2", "0.3.0-beta.10", "0.3.0-beta.10.1", "0.3.0-beta.a", "0.3.0-beta.b", "0.3.0-beta.b.1",
 		"0.3.0-beta.b.2", "0.3.0-dev", "0.3.0", "0.3.1", "0.10.0", "1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta", "1.0.0-beta.2",
 		"1.0.0-beta.11", "1.0.0-rc.1", "1.0.0", "2.0.0"}

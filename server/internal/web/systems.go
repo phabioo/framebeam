@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/rollwrite"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/rollwrite"
 )
 
 // maxFirmwareForm bounds the firmware upload form (the largest firmware image is 512 KiB).
@@ -72,7 +72,7 @@ type systemView struct {
 	Href                                           string
 	Selected                                       bool
 	FirmwareHint                                   string
-	// AutoMode is the per-system override ("" use the Hub default, "on", "off"); AutoEffective the result.
+	// AutoMode is the per-system override ("" use the server default, "on", "off"); AutoEffective the result.
 	AutoMode      string
 	AutoEffective bool
 	CoreLine      string // "Default core: melonDS DS"
@@ -96,7 +96,7 @@ type systemsBody struct {
 	ListURL, DetailURL string
 	TabHrefs           map[string]string
 	OOB                bool
-	// HubAutoLabel is "On" or "Off" for the Hub default (the first segment reads "Use Hub default (On)").
+	// HubAutoLabel is "On" or "Off" for the server default (the first segment reads "Use server default (On)").
 	HubAutoLabel string
 }
 
@@ -275,7 +275,7 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 			if core == "" {
 				core = "not installed"
 			}
-			cv.Versions = "Player " + c.PlayerVersion + " · " + coreLabel(e.CoreName) + " " + core
+			cv.Versions = "App " + c.PlayerVersion + " · " + coreLabel(e.CoreName) + " " + core
 			switch c.Status {
 			case hub.ClientCompatible:
 				cv.OK, cv.StatusText = true, "Compatible"
@@ -284,7 +284,7 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 			case hub.ClientCoreMissing:
 				cv.StatusText = "Core missing"
 			case hub.ClientPlayerTooOld:
-				cv.StatusText = "Player too old · protocol v" + c.Expected + " required"
+				cv.StatusText = "App too old · protocol v" + c.Expected + " required"
 			}
 			v.Clients = append(v.Clients, cv)
 		}
@@ -509,9 +509,9 @@ func (s *Server) coreRemoveConfirm(w http.ResponseWriter, r *http.Request, sess 
 	d := s.base(r, sess, "systems", "Remove core")
 	d.Body = confirmBody{
 		Heading: "Remove " + name + " from " + e.Name + "?",
-		Intro:   "Players can no longer download this core for " + e.Name + " from this Hub.",
-		Removes: []string{"The core and its files are removed from this Hub", "Games for " + e.Name + " cannot start on a Player until a core is installed again"},
-		Note:    "Players keep the copy they already downloaded. You can install the core again from the buildbot.",
+		Intro:   "Apps can no longer download this core for " + e.Name + " from this server.",
+		Removes: []string{"The core and its files are removed from this server", "Games for " + e.Name + " cannot start on an app until a core is installed again"},
+		Note:    "Apps keep the copy they already downloaded. You can install the core again from the buildbot.",
 		Action:  "/systems/" + url.PathEscape(sysID) + "/cores/" + url.PathEscape(coreID) + "/remove", Button: "Remove core",
 		Cancel: systemsURL(sysID, tabCore),
 	}
@@ -577,9 +577,9 @@ func (s *Server) firmwareRemoveConfirm(w http.ResponseWriter, r *http.Request, s
 		d := s.base(r, sess, "systems", "Remove firmware file")
 		d.Body = confirmBody{
 			Heading: "Remove " + f.DisplayName + " (" + e.Name + ")?",
-			Intro:   "The file is deleted from this Hub.",
-			Removes: []string{"The stored file (" + humanBytes(f.Size) + ", sha256 " + shortHash(f.SHA256) + ")", "Players that need it cannot get it from this Hub until you provide it again"},
-			Note:    "A pinned SHA-256 stays. Players keep files they already have.",
+			Intro:   "The file is deleted from this server.",
+			Removes: []string{"The stored file (" + humanBytes(f.Size) + ", sha256 " + shortHash(f.SHA256) + ")", "Apps that need it cannot get it from this server until you provide it again"},
+			Note:    "A pinned SHA-256 stays. Apps keep files they already have.",
 			Action:  "/systems/" + url.PathEscape(sysID) + "/firmware/" + url.PathEscape(fileID) + "/remove", Button: "Remove file",
 			Cancel: systemsURL(sysID, tabFirmware),
 		}
@@ -643,7 +643,7 @@ func (s *Server) coresSync(w http.ResponseWriter, r *http.Request, _ *session) {
 	http.Redirect(w, r, to, http.StatusSeeOther)
 }
 
-// coresAutoUpdate switches the Hub default of the automatic core update on or off (field "on" = "1" or "0").
+// coresAutoUpdate switches the server default of the automatic core update on or off (field "on" = "1" or "0").
 func (s *Server) coresAutoUpdate(w http.ResponseWriter, r *http.Request, _ *session) {
 	on := r.PostFormValue("on") == "1"
 	if err := s.svc.SetCoreAutoUpdate(r.Context(), on); err != nil {

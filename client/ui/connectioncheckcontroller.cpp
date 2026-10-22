@@ -5,7 +5,7 @@
 #include <QJsonDocument>
 #include <QVariantMap>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 // Lives on the worker thread: owns the ConnectionCheck (and with it the probes and their sockets) and forwards snapshots.
 class CheckWorker : public QObject {
@@ -25,7 +25,7 @@ class CheckWorker : public QObject {
     });
     connect(check_.get(), &ConnectionCheck::finished, this, [this]() { push(); });
   }
-  void run(const framebeam::ConnectionTarget& t) {
+  void run(const uzume::ConnectionTarget& t) {
     init();
     step_ = 1;
     check_->start(t);
@@ -35,7 +35,7 @@ class CheckWorker : public QObject {
   }
 
  signals:
-  void updated(const framebeam::CheckResult& r, bool running, int stepNumber);
+  void updated(const uzume::CheckResult& r, bool running, int stepNumber);
 
  private:
   void push() { emit updated(check_->result(), check_->running(), step_); }
@@ -47,8 +47,8 @@ class CheckWorker : public QObject {
 
 ConnectionCheckController::ConnectionCheckController(TargetProvider target, ProbesFactory probes, QObject* parent)
     : QObject(parent), targetProvider_(std::move(target)), probesFactory_(std::move(probes)) {
-  qRegisterMetaType<framebeam::CheckResult>();
-  qRegisterMetaType<framebeam::ConnectionTarget>();
+  qRegisterMetaType<uzume::CheckResult>();
+  qRegisterMetaType<uzume::ConnectionTarget>();
 }
 
 ConnectionCheckController::~ConnectionCheckController() {
@@ -206,6 +206,6 @@ void ConnectionCheckController::onUpdated(const CheckResult& r, bool running, in
   emit changed();
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui
 
 #include "connectioncheckcontroller.moc"

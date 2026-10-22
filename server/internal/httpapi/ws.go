@@ -7,7 +7,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // Transport settings of the WSS endpoint (variables so tests can shorten them).
@@ -19,7 +19,7 @@ var (
 
 const wsReadLimit = 64 << 10 // SDP and candidates are small
 
-// serveWS upgrades GET /api/v1/ws (Bearer access token in the upgrade request) and runs the Hub-side
+// serveWS upgrades GET /api/v1/ws (Bearer access token in the upgrade request) and runs the server-side
 // protocol (hub.Client) over the connection. It is registered directly on the mux because the upgrade
 // hijacks the connection.
 func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {

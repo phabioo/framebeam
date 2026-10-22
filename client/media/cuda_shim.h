@@ -1,5 +1,5 @@
 #pragma once
-// Minimal CUDA driver API declarations for FrameBeam's GPU-direct encoding (ADR 0019). No CUDA SDK: the driver is
+// Minimal CUDA driver API declarations for Uzume's GPU-direct encoding (ADR 0019). No CUDA SDK: the driver is
 // loaded at runtime (cudadriver.cpp). Include this BEFORE <libavutil/hwcontext_cuda.h>. Media-internal: include it
 // only from .cpp files and from testutil/fake_cuda.h.
 #include <cstddef>
@@ -22,7 +22,7 @@ typedef struct CUstream_st* CUstream;
 typedef struct CUarray_st* CUarray;
 typedef struct CUgraphicsResource_st* CUgraphicsResource;
 
-namespace framebeam::cuda {
+namespace uzume::cuda {
 constexpr CUresult kSuccess = 0;
 constexpr unsigned kCtxSchedBlockingSync = 0x04;  // CU_CTX_SCHED_BLOCKING_SYNC
 constexpr unsigned kStreamNonBlocking = 0x01;     // CU_STREAM_NON_BLOCKING
@@ -72,4 +72,4 @@ struct Api {
   FB_CUDA_SYMBOLS(FB_CUDA_MEMBER)
 #undef FB_CUDA_MEMBER
 };
-}  // namespace framebeam::cuda
+}  // namespace uzume::cuda

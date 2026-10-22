@@ -8,7 +8,7 @@
 #include <QSslConfiguration>
 #include <QSslError>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 constexpr const char* kMismatchProp = "fb_cert_mismatch";
@@ -204,4 +204,4 @@ HttpResult HubHttp::resultOf(QNetworkReply* reply) {
   return r;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

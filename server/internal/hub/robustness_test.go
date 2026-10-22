@@ -13,11 +13,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
-// Package 7 (repo scan 2026-10-19): Hub robustness fixes. One test per finding.
+// Package 7 (repo scan 2026-10-19): Server robustness fixes. One test per finding.
 
 // HC-1: a CLI sub-command opens the data directory next to the running service and must not wipe its staging area.
 func TestOpenWithoutCleanStagingKeepsTmp(t *testing.T) {
@@ -246,7 +246,7 @@ func TestCatalogRefreshSurvivesOnePlatformFailure(t *testing.T) {
 	if got := strings.Join(sc.Available[0].Platforms, ","); got != "windows-x64,linux-x64" {
 		t.Fatalf("previous builds of the failed platform lost: %s", got)
 	}
-	// A fresh Hub without a previous catalog gets the platform that works.
+	// A fresh server without a previous catalog gets the platform that works.
 	svc2, bb2 := bbEnv(t, nil)
 	bb2.FailDirs = []string{"windows/x86_64"}
 	rep, err = svc2.RefreshCatalog(ctx)

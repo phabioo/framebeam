@@ -36,7 +36,7 @@ func TestPlatformKindsInIndex(t *testing.T) {
 		!ok(ProductPlayer, "windows-x64", KindMSI) || !ok(ProductPlayer, "windows-x64", KindInstaller) || !ok(ProductHub, "linux-amd64", KindDeb) {
 		t.Fatalf("%v", platformKinds)
 	}
-	r := rel("hub", "stable", "0.9.0", art("windows-amd64", KindMSI, "FrameBeam-Hub-0.9.0.msi"))
+	r := rel("hub", "stable", "0.9.0", art("windows-amd64", KindMSI, "Uzume-Hub-0.9.0.msi"))
 	if _, errs := ParseIndex(indexJSON(t, 1, r)); len(errs) != 0 {
 		t.Fatal(errs)
 	}
@@ -59,7 +59,7 @@ func TestInstallCommand(t *testing.T) {
 
 func TestIsPackagedMarker(t *testing.T) {
 	bin, req := t.TempDir(), t.TempDir()
-	exe := filepath.Join(bin, "framebeam-hub.exe")
+	exe := filepath.Join(bin, "uzume-server.exe")
 	if IsPackaged("windows-amd64", exe, req) {
 		t.Fatal("no marker yet")
 	}
@@ -72,8 +72,11 @@ func TestIsPackagedMarker(t *testing.T) {
 	if IsPackaged("windows-amd64", exe, filepath.Join(req, "missing")) || IsPackaged("windows-amd64", "", req) {
 		t.Fatal("request dir must be writable")
 	}
+	if !IsPackaged("linux-amd64", LegacyPackagedExecutable, req) {
+		t.Fatal("an install made before the rename (/usr/bin/framebeam-hub) must count as packaged")
+	}
 	if IsPackaged("linux-amd64", exe, req) || !IsPackaged("linux-amd64", PackagedExecutable, req) {
-		t.Fatal("linux detection uses the .deb path only")
+		t.Fatal("linux detection uses the .deb paths only")
 	}
 }
 

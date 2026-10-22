@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Segment of the in-game view (always dark): track #1a1b1e, padding 3, active #2c2d32. options: [{ value, label, name, disabled? }]; a disabled option is greyed and does not react.
 // bordered/stretch = the panel variant (visibility).

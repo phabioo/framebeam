@@ -1,4 +1,5 @@
 #include "hubsetup.h"
+#include "envvar.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -14,9 +15,9 @@
 #include "installroot.h"
 #include "updatesig.h"
 
-namespace framebeam::update {
+namespace uzume::update {
 
-Q_LOGGING_CATEGORY(lcHubSetup, "framebeam.update.hubsetup")
+Q_LOGGING_CATEGORY(lcHubSetup, "uzume.update.hubsetup")
 
 std::optional<Artifact> findOwnMsi(const Index& index, const QString& version, Release* releaseOut) {
   for (const Release& r : index.releases) {
@@ -30,7 +31,7 @@ std::optional<Artifact> findOwnMsi(const Index& index, const QString& version, R
 }
 
 HubSetupInstaller::HubSetupInstaller(const Config& config, QObject* parent) : QObject(parent), config_(config) {
-  if (config_.indexUrl.isEmpty()) config_.indexUrl = qEnvironmentVariable("FRAMEBEAM_PLAYER_UPDATE_INDEX_URL");
+  if (config_.indexUrl.isEmpty()) config_.indexUrl = uzume::env::get("UZUME_APP_UPDATE_INDEX_URL");
   if (config_.indexUrl.isEmpty()) config_.indexUrl = QLatin1String(kDefaultIndexUrl);
   if (config_.trustedKeys.isEmpty()) config_.trustedKeys = trustedKeysFromEnvironment();
   if (config_.programFilesDir.isEmpty()) config_.programFilesDir = qEnvironmentVariable("ProgramFiles");
@@ -55,7 +56,7 @@ int HubSetupInstaller::cleanStaleTempDirs(const QString& tempBase, qint64 maxAge
   int removed = 0;
   const QDir base(tempBase);
   const QDateTime limit = QDateTime::currentDateTime().addSecs(-maxAgeSecs);
-  for (const QFileInfo& fi : base.entryInfoList({QStringLiteral("framebeam-hub-setup-*")}, QDir::Dirs | QDir::NoDotAndDotDot)) {
+  for (const QFileInfo& fi : base.entryInfoList({QStringLiteral("uzume-server-setup-*"), QStringLiteral("framebeam-hub-setup-*")}, QDir::Dirs | QDir::NoDotAndDotDot)) {
     if (fi.isSymLink() || fi.lastModified() >= limit) continue;
     if (QDir(fi.absoluteFilePath()).removeRecursively()) ++removed;
   }
@@ -93,7 +94,7 @@ void HubSetupInstaller::onIndex(const FetchedIndex& fi) {
   }
   const auto art = findOwnMsi(fi.index, config_.currentVersion);
   if (!art) {
-    fail(tr("There is no installer with the Hub for FrameBeam Player %1 yet.").arg(config_.currentVersion));
+    fail(tr("There is no installer with the Hub for Uzume %1 yet.").arg(config_.currentVersion));
     return;
   }
   if (!config_.indexUrl.startsWith(QLatin1String("file:")) && !art->url.startsWith(QLatin1String("https:"))) {
@@ -110,7 +111,7 @@ void HubSetupInstaller::download(const Artifact& art) {
   }
   QString dir = config_.downloadDir;
   if (dir.isEmpty()) {
-    dir = QDir::tempPath() + QStringLiteral("/framebeam-hub-setup-") + QUuid::createUuid().toString(QUuid::Id128);
+    dir = QDir::tempPath() + QStringLiteral("/uzume-server-setup-") + QUuid::createUuid().toString(QUuid::Id128);
     tempDir_ = dir;
   }
   if (!QDir().mkpath(dir)) {
@@ -200,4 +201,4 @@ void HubSetupInstaller::launch(const QString& msiPath, const Artifact& art) {
   emit quitRequested();
 }
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

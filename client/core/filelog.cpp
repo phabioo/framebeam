@@ -8,7 +8,7 @@
 #include <QMutexLocker>
 #include <QStringList>
 
-namespace framebeam::filelog {
+namespace uzume::filelog {
 
 namespace {
 
@@ -123,4 +123,4 @@ QString path() {
   return g_path;
 }
 
-}  // namespace framebeam::filelog
+}  // namespace uzume::filelog

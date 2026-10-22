@@ -1,7 +1,7 @@
 pragma Singleton
 import QtQuick
 
-// Design tokens of the FrameBeam Player (docs/design/tokens.md, v4: Signal Cyan). Dark is the designed palette;
+// Design tokens of the Uzume (docs/design/tokens.md, v4: Signal Cyan). Dark is the designed palette;
 // the light palette is derived from the hub tokens (not designed for the Player) and carries the same names.
 QtObject {
     id: root

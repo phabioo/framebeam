@@ -16,7 +16,7 @@
 
 #include "fbplugin.h"
 
-namespace framebeam::plugins::testutil {
+namespace uzume::plugins::testutil {
 
 struct ZipEntrySpec {
   QString name;
@@ -191,4 +191,4 @@ inline QByteArray makeFbPlugin(const FbSpec& s) {
   return buildZip(entries);
 }
 
-}  // namespace framebeam::plugins::testutil
+}  // namespace uzume::plugins::testutil

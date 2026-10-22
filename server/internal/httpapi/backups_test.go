@@ -19,16 +19,16 @@ func TestAdminBackupsAPI(t *testing.T) {
 	routes := []struct{ method, path string }{
 		{"GET", "/api/v1/admin/backups"}, {"POST", "/api/v1/admin/backups"}, {"GET", "/api/v1/admin/backups/status"},
 		{"POST", "/api/v1/admin/backups/cancel"}, {"GET", "/api/v1/admin/backups/settings"}, {"DELETE", "/api/v1/admin/backups/restore-result"},
-		{"DELETE", "/api/v1/admin/backups/framebeam-hub-x-20261014T010000Z.tar"},
-		{"POST", "/api/v1/admin/backups/framebeam-hub-x-20261014T010000Z.tar/restore"},
+		{"DELETE", "/api/v1/admin/backups/uzume-server-x-20261014T010000Z.tar"},
+		{"POST", "/api/v1/admin/backups/uzume-server-x-20261014T010000Z.tar/restore"},
 	}
 	for _, r := range routes {
 		wantStatus(t, s.do(r.method, r.path, nil, opt{}), 401, "")
 		wantStatus(t, s.do(r.method, r.path, nil, opt{token: user.tok}), 403, "")
 	}
 	wantStatus(t, s.do("PUT", "/api/v1/admin/backups/settings", map[string]any{"keep": 3}, opt{token: user.tok}), 403, "")
-	wantStatus(t, s.do("GET", "/api/v1/admin/backups/framebeam-hub-x-20261014T010000Z.tar/download", nil, opt{token: user.tok, raw: true}), 403, "")
-	wantStatus(t, s.do("GET", "/api/v1/admin/backups/framebeam-hub-x-20261014T010000Z.tar/download", nil, opt{raw: true}), 401, "")
+	wantStatus(t, s.do("GET", "/api/v1/admin/backups/uzume-server-x-20261014T010000Z.tar/download", nil, opt{token: user.tok, raw: true}), 403, "")
+	wantStatus(t, s.do("GET", "/api/v1/admin/backups/uzume-server-x-20261014T010000Z.tar/download", nil, opt{raw: true}), 401, "")
 
 	// Settings.
 	set := decode[map[string]any](t, s.do("GET", "/api/v1/admin/backups/settings", nil, opt{token: adminTok}))
@@ -75,12 +75,12 @@ func TestAdminBackupsAPI(t *testing.T) {
 	if rec.Body.Len() != int(list.Backups[0].Size) || !strings.Contains(rec.Header().Get("Content-Disposition"), name) {
 		t.Fatalf("download %d bytes, header %q", rec.Body.Len(), rec.Header().Get("Content-Disposition"))
 	}
-	wantStatus(t, s.do("GET", "/api/v1/admin/backups/framebeam-hub-x-20261014T010000Z.tar/download", nil, opt{token: adminTok, raw: true}), 404, "")
+	wantStatus(t, s.do("GET", "/api/v1/admin/backups/uzume-server-x-20261014T010000Z.tar/download", nil, opt{token: adminTok, raw: true}), 404, "")
 
 	// Cancel with nothing running; restore without a restart function; a second backup while none runs is fine.
 	wantStatus(t, s.do("POST", "/api/v1/admin/backups/cancel", nil, opt{token: adminTok}), 409, "")
 	wantStatus(t, s.do("POST", "/api/v1/admin/backups/"+name+"/restore", nil, opt{token: adminTok}), 400, "")
-	wantStatus(t, s.do("POST", "/api/v1/admin/backups/framebeam-hub-x-20261014T010000Z.tar/restore", nil, opt{token: adminTok}), 404, "")
+	wantStatus(t, s.do("POST", "/api/v1/admin/backups/uzume-server-x-20261014T010000Z.tar/restore", nil, opt{token: adminTok}), 404, "")
 
 	// Delete.
 	wantStatus(t, s.do("DELETE", "/api/v1/admin/backups/"+name, nil, opt{token: adminTok}), 204, "")

@@ -7,7 +7,7 @@
 
 #include "mediacaps.h"
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 QTextStream& out() {
@@ -316,4 +316,4 @@ void SessionCommands::watchTick() {
   api_->removeViewer(sid, vid, [this, good](const SessionApiResult&) { finish_(good ? 0 : 1); });
 }
 
-}  // namespace framebeam
+}  // namespace uzume

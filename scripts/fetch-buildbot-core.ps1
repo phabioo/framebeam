@@ -1,16 +1,16 @@
 # Downloads a libretro core from the nightly buildbot (ADR 0020 D10, CI test dependency) and prints the DLL path.
 #   scripts/fetch-buildbot-core.ps1 <core>      e.g. desmume  ->  desmume_libretro.dll
-# Source: $env:FRAMEBEAM_BUILDBOT_URL (default https://buildbot.libretro.com/nightly)/windows/x86_64/latest/<core>_libretro.dll.zip
+# Source: $env:UZUME_BUILDBOT_URL (default https://buildbot.libretro.com/nightly)/windows/x86_64/latest/<core>_libretro.dll.zip
 # CRC32 of the extracted library (not of the zip) is verified against ".index-extended" of the same directory; exactly one library is extracted to
-# <cache>\cores\buildbot\<core>\<date>-<crc>\ (cache = FRAMEBEAM_CACHE_DIR or $env:LOCALAPPDATA\framebeam).
+# <cache>\cores\buildbot\<core>\<date>-<crc>\ (cache = UZUME_CACHE_DIR or $env:LOCALAPPDATA\framebeam).
 # No pin on purpose: CI tests against the current nightly; date and CRC are logged. Idempotent (same date+crc = reuse),
 # retries with backoff, timeouts. http:// is accepted only for 127.0.0.1 (tests).
-# Env: FRAMEBEAM_FETCH_RETRIES (default 4), FRAMEBEAM_FETCH_BACKOFF seconds (default 2, doubled per attempt).
+# Env: UZUME_FETCH_RETRIES (default 4), UZUME_FETCH_BACKOFF seconds (default 2, doubled per attempt).
 param([Parameter(Mandatory = $true, Position = 0)][string]$Core)
 $ErrorActionPreference = 'Stop'
 if ($Core -notmatch '^[a-z0-9_]+$') { throw "usage: fetch-buildbot-core.ps1 <core>  (lower-case core name, e.g. desmume)" }
 
-$base = if ($env:FRAMEBEAM_BUILDBOT_URL) { $env:FRAMEBEAM_BUILDBOT_URL } else { 'https://buildbot.libretro.com/nightly' }
+$base = if ($env:UZUME_BUILDBOT_URL) { $env:UZUME_BUILDBOT_URL } else { 'https://buildbot.libretro.com/nightly' }
 $base = $base.TrimEnd('/')
 if ($base -notmatch '^https://' -and $base -notmatch '^http://127\.0\.0\.1(:\d+)?(/|$)') {
   throw "buildbot core: refusing URL '$base' (https required; http only for 127.0.0.1)"
@@ -18,9 +18,9 @@ if ($base -notmatch '^https://' -and $base -notmatch '^http://127\.0\.0\.1(:\d+)
 $dirUrl = "$base/windows/x86_64/latest"
 $lib = "${Core}_libretro.dll"
 $zipName = "$lib.zip"
-$retries = if ($env:FRAMEBEAM_FETCH_RETRIES) { [int]$env:FRAMEBEAM_FETCH_RETRIES } else { 4 }
-$backoff = if ($env:FRAMEBEAM_FETCH_BACKOFF) { [int]$env:FRAMEBEAM_FETCH_BACKOFF } else { 2 }
-$cache = if ($env:FRAMEBEAM_CACHE_DIR) { $env:FRAMEBEAM_CACHE_DIR } else { Join-Path $env:LOCALAPPDATA 'framebeam' }
+$retries = if ($env:UZUME_FETCH_RETRIES) { [int]$env:UZUME_FETCH_RETRIES } else { 4 }
+$backoff = if ($env:UZUME_FETCH_BACKOFF) { [int]$env:UZUME_FETCH_BACKOFF } else { 2 }
+$cache = if ($env:UZUME_CACHE_DIR) { $env:UZUME_CACHE_DIR } else { Join-Path $env:LOCALAPPDATA 'framebeam' }
 
 if (-not ('FbCrc32' -as [type])) {
   Add-Type -TypeDefinition @'
@@ -55,7 +55,7 @@ New-Item -ItemType Directory -Force $tmp | Out-Null
 try {
   $indexFile = Join-Path $tmp 'index'
   Invoke-Retry 'download of .index-extended' {
-    Invoke-WebRequest -UseBasicParsing -TimeoutSec 120 -Headers @{ 'User-Agent' = 'framebeam-ci' } -Uri "$dirUrl/.index-extended" -OutFile $indexFile
+    Invoke-WebRequest -UseBasicParsing -TimeoutSec 120 -Headers @{ 'User-Agent' = 'uzume-ci' } -Uri "$dirUrl/.index-extended" -OutFile $indexFile
   }
   # Line format: "<date> [<time>] <crc32 hex> [<size>] <file name>" (3 fields: crc is field 2, else field 3).
   $entry = $null
@@ -79,7 +79,7 @@ try {
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   # The index CRC32 is over the uncompressed library (like RetroArch's core updater), not over the zip.
   Invoke-Retry "download/verification of $zipName" {
-    Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Headers @{ 'User-Agent' = 'framebeam-ci' } -Uri "$dirUrl/$zipName" -OutFile $zip
+    Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Headers @{ 'User-Agent' = 'uzume-ci' } -Uri "$dirUrl/$zipName" -OutFile $zip
     $arc = [IO.Compression.ZipFile]::OpenRead($zip)
     try {
       $names = @($arc.Entries | ForEach-Object { $_.FullName })

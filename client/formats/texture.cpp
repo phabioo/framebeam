@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cstring>
 
-namespace framebeam::formats {
+namespace uzume::formats {
 namespace {
 
 using detail::u8at;
@@ -307,4 +307,4 @@ Result pngEncode(const Image& img) {
     return r;
 }
 
-}  // namespace framebeam::formats
+}  // namespace uzume::formats

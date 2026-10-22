@@ -6,7 +6,7 @@
 #include <QtConcurrent>
 #include <QRegularExpression>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 RomStatus makeStatus(RomState st, qint64 total, qint64 received, const QString& code = {}, const QString& msg = {}) {
@@ -422,4 +422,4 @@ void RomDownloader::finishDownload(Job* job) {
   finishJob(sha, s);
 }
 
-}  // namespace framebeam
+}  // namespace uzume

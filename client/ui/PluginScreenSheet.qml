@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // In-game plugin screen (docs/design/plugins.md, "In-game screen sheet"): opened by fb.ui.open("screen"). Covers the body
 // below the GameHeader (play area and side panel; in fullscreen the play area). Always dark. The game keeps running

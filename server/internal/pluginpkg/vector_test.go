@@ -9,9 +9,9 @@ import (
 	"testing"
 )
 
-// The signature test vector (testdata/signature-vector.json and testdata/vector.fbplugin) lets the Player
+// The signature test vector (testdata/signature-vector.json and testdata/vector.fbplugin) lets the app
 // implementation reproduce the exact bytes of the signed message and the signature. Seed: bytes 0x00..0x1f.
-// Regenerate with FRAMEBEAM_UPDATE_VECTOR=1 go test ./internal/pluginpkg -run TestSignatureVector.
+// Regenerate with UZUME_UPDATE_VECTOR=1 go test ./internal/pluginpkg -run TestSignatureVector.
 
 type vectorFile struct {
 	Path   string `json:"path"`
@@ -88,7 +88,7 @@ func TestSignatureVector(t *testing.T) {
 		t.Fatal(err)
 	}
 	want = append(want, '\n')
-	if os.Getenv("FRAMEBEAM_UPDATE_VECTOR") == "1" {
+	if os.Getenv("UZUME_UPDATE_VECTOR") == "1" {
 		os.WriteFile("testdata/signature-vector.json", want, 0o644)
 		os.WriteFile("testdata/vector.fbplugin", plugin, 0o644)
 	}
@@ -97,7 +97,7 @@ func TestSignatureVector(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(gotJSON) != string(want) {
-		t.Fatalf("testdata/signature-vector.json is stale; regenerate with FRAMEBEAM_UPDATE_VECTOR=1")
+		t.Fatalf("testdata/signature-vector.json is stale; regenerate with UZUME_UPDATE_VECTOR=1")
 	}
 	// The committed file verifies independently of how this test builds it.
 	data, err := os.ReadFile("testdata/vector.fbplugin")

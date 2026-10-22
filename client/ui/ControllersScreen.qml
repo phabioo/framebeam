@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // 3f: Controllers. Devices | profile and mapping table | input test. Profiles stay local on this device.
 Rectangle {
@@ -445,7 +445,7 @@ Rectangle {
                             Layout.topMargin: Theme.space8
                             Layout.bottomMargin: 6
                             spacing: Theme.space8
-                            Eyebrow { objectName: "frameBeamHotkeyGroup"; text: qsTr("FrameBeam"); Layout.fillWidth: false }
+                            Eyebrow { objectName: "uzumeHotkeyGroup"; text: qsTr("Uzume"); Layout.fillWidth: false }
                             Item { Layout.fillWidth: true }
                             FbMono { text: qsTr("always win"); color: Theme.textMuted }
                         }
@@ -612,7 +612,7 @@ Rectangle {
                                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
                             }
                         }
-                        // Fixed FrameBeam keys that are not Player actions of the table above: F4 and the panel tabs.
+                        // Fixed Uzume keys that are not Player actions of the table above: F4 and the panel tabs.
                         Repeater {
                             model: [
                                 { id: "hudAll", label: qsTr("Show or hide all HUD widgets"), key: "F4", pad: root.ctl.fixedPad.hudAll },
@@ -691,7 +691,7 @@ Rectangle {
                             }
                         }
 
-                        // One group per plugin that declares hotkeys (keyboard only). FrameBeam keys always win; a plugin key in
+                        // One group per plugin that declares hotkeys (keyboard only). Uzume keys always win; a plugin key in
                         // conflict is not active until the user chooses another one.
                         Repeater {
                             model: root.plugins.hotkeyGroups

@@ -7,7 +7,7 @@
 #include "firmware_materializer.h"
 #include "system_manifest.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 namespace {
 QString writeFile(const QString& path, const QByteArray& d) {

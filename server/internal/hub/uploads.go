@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	// UploadChunkBytes is the largest chunk of a resumable upload (64 MiB); it is also the chunk size the Hub proposes.
+	// UploadChunkBytes is the largest chunk of a resumable upload (64 MiB); it is also the chunk size the server proposes.
 	UploadChunkBytes int64 = 64 << 20
 	// UploadIdleTTL: a session untouched for this long is removed with its data.
 	UploadIdleTTL = 7 * 24 * time.Hour
@@ -69,7 +69,7 @@ func scanUpload(r scanner) (UploadSession, error) {
 
 // CreateUpload opens a resumable upload. An open session of the same user for the same SHA-256 (or the same file
 // name and size) is returned instead, so a client can resume after a restart. A SHA-256 that is already stored on
-// the Hub is a conflict naming the existing game.
+// the server is a conflict naming the existing game.
 func (s *Service) CreateUpload(ctx context.Context, userID string, in UploadInput) (UploadSession, error) {
 	filename := cleanText(filepath.Base(strings.ReplaceAll(in.Filename, `\`, "/")), 255)
 	if filename == "" || filename == "." || filename == "/" {
@@ -176,7 +176,7 @@ func (s *Service) checkDiskSpace(need int64) error {
 		return nil
 	}
 	if need < 0 || uint64(need)+uint64(DiskReserveBytes) > free {
-		return &Error{Code: CodePayloadTooLarge, Message: "Not enough free space on the Hub's disk for this ROM"}
+		return &Error{Code: CodePayloadTooLarge, Message: "Not enough free space on the server's disk for this ROM"}
 	}
 	return nil
 }

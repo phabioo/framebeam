@@ -1,7 +1,7 @@
 <#
-  Install tests of the FrameBeam MSI. Windows only, needs an elevated shell (CI runner). No ROMs or
+  Install tests of the Uzume MSI. Windows only, needs an elevated shell (CI runner). No ROMs or
   BIOS involved; only dummy files in data\.
-    pwsh scripts/test-windows-msi.ps1 -Scenario user    -Msi dist\msi\framebeam-X-windows-x64.msi
+    pwsh scripts/test-windows-msi.ps1 -Scenario user    -Msi dist\msi\uzume-X-windows-x64.msi
     pwsh scripts/test-windows-msi.ps1 -Scenario machine -Msi ... -Version X.Y.Z
   user:    Player only, per user (defaults): files, markers, Start menu shortcut, --version, uninstall keeps data\.
   machine: per-user Player first, then ALLUSERS=1 INSTALL_HUB=1 NETWORK_SHARING=0 HUB_PORT=18443: per-user product removed, both
@@ -23,7 +23,7 @@ if (-not $env:RUNNER_TEMP) { $work = Join-Path ([IO.Path]::GetTempPath()) "fb-ms
 New-Item -ItemType Directory -Force $work | Out-Null
 $userDir = Join-Path $env:LOCALAPPDATA 'Programs\FrameBeam Player'
 $machineDir = Join-Path $env:ProgramFiles 'FrameBeam'
-$userStartMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\FrameBeam Player.lnk'
+$userStartMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Uzume.lnk'
 $script:logN = 0
 
 $script:lastLog = $null
@@ -43,9 +43,9 @@ function Show-Diagnostics {
     Copy-Item $f.FullName (Join-Path $work $name) -Force -ErrorAction SilentlyContinue
     Write-Host "::group::$($f.FullName)"; Get-Content $f.FullName -Tail 60 | Out-Host; Write-Host '::endgroup::'
   }
-  Write-Host '::group::framebeam_player.exe on this machine'
+  Write-Host '::group::Uzume.exe on this machine'
   foreach ($root in (Join-Path $env:LOCALAPPDATA 'Programs'), $env:ProgramFiles) {
-    Get-ChildItem -Path $root -Recurse -Filter framebeam_player.exe -ErrorAction SilentlyContinue | ForEach-Object FullName | Out-Host
+    Get-ChildItem -Path $root -Recurse -Filter Uzume.exe -ErrorAction SilentlyContinue | ForEach-Object FullName | Out-Host
   }
   Write-Host '::endgroup::'
 }
@@ -65,17 +65,20 @@ function Uninstall-Msi { Invoke-Msiexec @('/x', "`"$Msi`"") }
 function Assert-Path([string] $p, [string] $what) { if (-not (Test-Path -LiteralPath $p)) { Fail "$what is missing: $p" } }
 function Assert-NoPath([string] $p, [string] $what) { if (Test-Path -LiteralPath $p) { Fail "$what is still there: $p" } }
 function Assert-PlayerFiles([string] $dir) {
-  foreach ($f in 'framebeam_player.exe', 'bin\framebeam_player.exe', 'THIRD-PARTY-NOTICE.txt', 'LICENSE.txt', 'framebeam-player.msi-installed') {
+  foreach ($f in 'Uzume.exe', 'framebeam_player.exe', 'bin\Uzume.exe', 'THIRD-PARTY-NOTICE.txt', 'LICENSE.txt', 'framebeam-player.msi-installed') {
     Assert-Path (Join-Path $dir $f) $f
   }
   if (-not (Get-ChildItem (Join-Path $dir 'licenses') -File -ErrorAction SilentlyContinue)) { Fail "licenses\ is missing or empty in $dir" }
 }
 function Assert-PlayerRuns([string] $dir) {
   $env:QT_QPA_PLATFORM = 'offscreen'
-  $p = Start-Process (Join-Path $dir 'framebeam_player.exe') -ArgumentList '--version' -WorkingDirectory $dir -PassThru -NoNewWindow
-  $null = $p.Handle
-  if (-not $p.WaitForExit(60000)) { $p.Kill(); Fail "$dir launcher --version did not exit within 60 s" }
-  if ($p.ExitCode -ne 0) { Fail "$dir launcher --version exited with $($p.ExitCode)" }
+  # Uzume.exe and its compat copy framebeam_player.exe (pinned shortcuts, relaunch after an older app's update).
+  foreach ($exe in 'Uzume.exe', 'framebeam_player.exe') {
+    $p = Start-Process (Join-Path $dir $exe) -ArgumentList '--version' -WorkingDirectory $dir -PassThru -NoNewWindow
+    $null = $p.Handle
+    if (-not $p.WaitForExit(60000)) { $p.Kill(); Fail "$dir $exe --version did not exit within 60 s" }
+    if ($p.ExitCode -ne 0) { Fail "$dir $exe --version exited with $($p.ExitCode)" }
+  }
 }
 function Get-UserProductCode { (Get-ItemProperty 'HKCU:\Software\FrameBeam\Player' -Name ProductCode -ErrorAction SilentlyContinue).ProductCode }
 function Wait-Until([scriptblock] $cond, [int] $seconds, [string] $what) {
@@ -97,7 +100,7 @@ switch ($Scenario) {
     New-Item -ItemType Directory -Force (Join-Path $userDir 'data') | Out-Null
     Set-Content (Join-Path $userDir 'data\keep-me') -Value 'keep-me'
     Uninstall-Msi
-    Assert-NoPath (Join-Path $userDir 'framebeam_player.exe') 'Player launcher after uninstall'
+    Assert-NoPath (Join-Path $userDir 'Uzume.exe') 'Player launcher after uninstall'
     Assert-NoPath $userStartMenu 'Start menu shortcut after uninstall'
     Assert-Path (Join-Path $userDir 'data\keep-me') 'data\keep-me'
     Remove-Item -Recurse -Force $userDir
@@ -118,7 +121,7 @@ switch ($Scenario) {
     $playerDir = Join-Path $machineDir 'Player'
     $hubDir = Join-Path $machineDir 'Hub'
     Assert-PlayerFiles $playerDir
-    Assert-Path (Join-Path $hubDir 'framebeam-hub.exe') 'framebeam-hub.exe'
+    Assert-Path (Join-Path $hubDir 'uzume-server.exe') 'uzume-server.exe'
     Assert-Path (Join-Path $hubDir 'framebeam-hub.msi-installed') 'Hub marker'
     Assert-PlayerRuns $playerDir
     $port = (Get-ItemProperty 'HKLM:\Software\FrameBeam\Hub' -Name Port).Port
@@ -172,7 +175,7 @@ switch ($Scenario) {
     if ($upd.Access | Where-Object { $_.IdentityReference.Value -notmatch 'SYSTEM$|Administrators$' }) { Fail 'HubUpdater folder has ACEs besides SYSTEM and Administrators' }
     # The per-user product is removed in the background after this installation (nested msiexec is not possible).
     if ($OldMsi) {
-      Wait-Until { -not (Get-UserProductCode) -and -not (Test-Path (Join-Path $userDir 'framebeam_player.exe')) } 120 'the per-user product to be removed'
+      Wait-Until { -not (Get-UserProductCode) -and -not (Test-Path (Join-Path $userDir 'Uzume.exe')) } 120 'the per-user product to be removed'
       # The product is gone from the registry before its uninstall has finished: wait for the detached removal to report success
       # and for Windows Installer to be idle (otherwise the next msiexec fails with 1618).
       $removeStatus = "$env:ProgramData\FrameBeam-remove-per-user.log.status.txt"
@@ -198,17 +201,17 @@ switch ($Scenario) {
         if (-not (Get-Service $s -ErrorAction SilentlyContinue)) { Fail "service $s is gone after the upgrade" }
       }
       Assert-PlayerFiles $playerDir
-      Assert-Path (Join-Path $hubDir 'framebeam-hub.exe') 'framebeam-hub.exe after the upgrade'
+      Assert-Path (Join-Path $hubDir 'uzume-server.exe') 'uzume-server.exe after the upgrade'
       Assert-HubCommandLine '18443' 'false'
       Wait-Until { (Get-Service FrameBeamHub).Status -eq 'Running' } 60 'FrameBeamHub to be Running after the upgrade'
       Invoke-Msiexec @('/x', "`"$upg`"")
       # Hub only, then the same upgrade: the Player must not appear, port and sharing (on for Hub only) stay.
       Install-Msi @('ALLUSERS=1', 'INSTALL_HUB=1', 'INSTALL_PLAYER=0', 'HUB_PORT=18444')
-      Assert-NoPath (Join-Path $playerDir 'framebeam_player.exe') 'Player after a Hub-only install'
+      Assert-NoPath (Join-Path $playerDir 'Uzume.exe') 'Player after a Hub-only install'
       Assert-HubCommandLine '18444' 'true'
       Invoke-Msiexec @('/i', "`"$upg`"", 'ALLUSERS=1')
-      Assert-NoPath (Join-Path $playerDir 'framebeam_player.exe') 'Player after a Hub-only upgrade'
-      Assert-Path (Join-Path $hubDir 'framebeam-hub.exe') 'framebeam-hub.exe after the Hub-only upgrade'
+      Assert-NoPath (Join-Path $playerDir 'Uzume.exe') 'Player after a Hub-only upgrade'
+      Assert-Path (Join-Path $hubDir 'uzume-server.exe') 'uzume-server.exe after the Hub-only upgrade'
       Assert-HubCommandLine '18444' 'true'
       if (-not (Get-Service FrameBeamHubUpdater -ErrorAction SilentlyContinue)) { Fail 'updater service gone after the Hub-only upgrade' }
       $Msi = $upg   # the installed product now comes from the upgrade package
@@ -218,8 +221,9 @@ switch ($Scenario) {
     foreach ($s in 'FrameBeamHub', 'FrameBeamHubUpdater') {
       if (Get-Service $s -ErrorAction SilentlyContinue) { Fail "service $s survived the uninstall" }
     }
-    Assert-NoPath (Join-Path $hubDir 'framebeam-hub.exe') 'framebeam-hub.exe after uninstall'
-    Assert-NoPath (Join-Path $playerDir 'framebeam_player.exe') 'Player after uninstall'
+    Assert-NoPath (Join-Path $hubDir 'uzume-server.exe') 'uzume-server.exe after uninstall'
+    Assert-NoPath (Join-Path $playerDir 'Uzume.exe') 'Player after uninstall'
+    Assert-NoPath (Join-Path $playerDir 'framebeam_player.exe') 'compat launcher after uninstall'
     Remove-Item -Recurse -Force $userDir -ErrorAction SilentlyContinue
   }
 }

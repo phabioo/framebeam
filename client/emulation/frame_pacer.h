@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 class FramePacer {
  public:
@@ -29,4 +29,4 @@ class FramePacer {
   int64_t nextSlotNs_ = 0;
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

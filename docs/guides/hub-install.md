@@ -4,14 +4,14 @@ Two ways to run the Uzume server as a systemd service: the Debian package (recom
 
 ## Install the Debian package (recommended)
 
-Download `framebeam-hub_<version>_<amd64|arm64>.deb` from the [GitHub releases](https://github.com/phabioo/framebeam/releases) (or the CI artifact `framebeam-hub-linux`) and install it:
+Download `framebeam-hub_<version>_<amd64|arm64>.deb` from the [GitHub releases](https://github.com/phabioo/uzume/releases) (or the CI artifact `uzume-server-linux`) and install it:
 
 ```sh
 sudo apt install ./framebeam-hub_<version>_arm64.deb
 ```
 
-The package installs
-`/usr/bin/framebeam-hub`, the units `framebeam-hub.service`, `framebeam-hub-update.path` and
+The package keeps its old name `framebeam-hub` (it moves with the installer transition, [ADR 0030](../adr/0030-one-app-one-server-uzume.md)). It installs
+`/usr/bin/uzume-server` plus the compatibility symlink `/usr/bin/framebeam-hub`, the units `framebeam-hub.service`, `framebeam-hub-update.path` and
 `framebeam-hub-update.service` (in `/lib/systemd/system`) and is the only install type the server can update itself
 (Settings > Updates). Configure flags (port, admin) in `/etc/framebeam/hub.env`, which an existing install keeps. Create the admin account as described under [Admin account](#admin-account).
 
@@ -21,12 +21,12 @@ Package details:
 - The postinst creates the `framebeam` user, `/var/lib/framebeam` (only if missing) and `/etc/framebeam/hub.env` (only
   if missing: an existing file is never overwritten), then enables and (re)starts the server and the update path unit.
 - Migration from `install-hub.sh`: the old unit in `/etc/systemd/system` is moved to
-  `/etc/framebeam/framebeam-hub.service.pre-deb`, `/usr/local/bin/framebeam-hub` is removed; drop-ins in
+  `/etc/framebeam/framebeam-hub.service.pre-deb`, `/usr/local/bin/uzume-server` and `/usr/local/bin/framebeam-hub` are removed; drop-ins in
   `framebeam-hub.service.d/`, `hub.env` and the data directory are kept.
 - Remove keeps config and data; purge removes `/etc/framebeam` only. The data directory (database, saves, ROM library)
   and the `framebeam` user are never deleted by the package.
 - Updates: the server (user `framebeam`) stages a verified `.deb` and creates `/run/framebeam/update-request`; the path
-  unit starts `framebeam-hub update apply-staged` as root, which verifies the staged package again and runs `dpkg -i`.
+  unit starts `uzume-server update apply-staged` as root, which verifies the staged package again and runs `dpkg -i`.
 - Build (dpkg-deb only): `packaging/linux/build-deb.sh --binary PATH --arch amd64|arm64 --version X.Y.Z[-pre] --out DIR`;
   all of it: `make build-hub package-hub-deb HUB_VERSION=...`. Checked by `make check-hub` (control, contents, units,
   shellcheck of the maintainer scripts in `deb/`).
@@ -38,36 +38,36 @@ Package details:
 
 ## 1. Get the binary
 
-- CI: download the artifact `framebeam-hub-linux` from a workflow run of `.github/workflows/ci.yml` (contains `framebeam-hub-linux-arm64` and `-amd64`).
-- Or build: `make build-hub` produces `server/dist/framebeam-hub-linux-{amd64,arm64}`.
+- CI: download the artifact `uzume-server-linux` from a workflow run of `.github/workflows/ci.yml` (contains `uzume-server-linux-arm64` and `-amd64`).
+- Or build: `make build-hub` produces `server/dist/uzume-server-linux-{amd64,arm64}`.
 
 Copy the binary and the files of `packaging/linux/` to the Pi, for example:
 
 ```sh
-scp framebeam-hub-linux-arm64 packaging/linux/install-hub.sh packaging/linux/framebeam-hub.service LICENSE server/THIRD-PARTY-NOTICES.txt pi@raspberrypi:
+scp uzume-server-linux-arm64 packaging/linux/install-hub.sh packaging/linux/framebeam-hub.service LICENSE server/THIRD-PARTY-NOTICES.txt pi@raspberrypi:
 ```
 
 ## 2. Install
 
 ```sh
-sudo ./install-hub.sh install --binary ./framebeam-hub-linux-arm64 --name "Living Room Hub" --admin alice
+sudo ./install-hub.sh install --binary ./uzume-server-linux-arm64 --name "Living Room Hub" --admin alice
 ```
 
 > **Port 8443 already in use? Pick another port: `--port 8444`**
 >
 > ```sh
-> sudo ./install-hub.sh install --binary ./framebeam-hub-linux-arm64 --port 8444
+> sudo ./install-hub.sh install --binary ./uzume-server-linux-arm64 --port 8444
 > ```
 >
-> The script warns if the chosen port is busy. Change it later by re-running `install` with `--port N` (only the given options are updated in `hub.env`, then restart: `sudo systemctl restart framebeam-hub`).
+> The script warns if the chosen port is busy. Change it later by re-running `install` with `--port N` (only the given options are updated in `hub.env`, then restart: `sudo systemctl restart uzume-server`).
 
-Options: `--binary PATH`, `--port N` or `--listen ADDR`, `--data-dir DIR`, `--name NAME` (first start only), `--admin USER`, `--no-start`; see `--help`. If `--binary` is omitted, `framebeam-hub-linux-<arch>` next to the script or in the current directory is used.
+Options: `--binary PATH`, `--port N` or `--listen ADDR`, `--data-dir DIR`, `--name NAME` (first start only), `--admin USER`, `--no-start`; see `--help`. If `--binary` is omitted, `uzume-server-linux-<arch>` next to the script or in the current directory is used.
 
 At the end the script prints the service status, the URL (`https://<ip>:<port>/`) and the TLS fingerprint.
 
 ## Admin account
 
-`--admin USER` asks for the password twice (or reads one line from stdin when not a terminal, e.g. `echo ... | sudo ./install-hub.sh ...`). It runs `framebeam-hub setup-admin` as the `framebeam` user and is skipped if an admin already exists. On a headless Pi this is needed because the web setup form only accepts connections from localhost. Without the script (for example after the `.deb` install) run `setup-admin` as the `framebeam` user with the data directory from `hub.env`, for example `sudo runuser -u framebeam -- env FRAMEBEAM_DATA_DIR=/var/lib/framebeam framebeam-hub setup-admin -username <name>` (use the `FRAMEBEAM_DATA_DIR` value from `/etc/framebeam/hub.env` if you changed it), or open `/setup` in a browser on the server host itself.
+`--admin USER` asks for the password twice (or reads one line from stdin when not a terminal, e.g. `echo ... | sudo ./install-hub.sh ...`). It runs `uzume-server setup-admin` as the `framebeam` user and is skipped if an admin already exists. On a headless Pi this is needed because the web setup form only accepts connections from localhost. Without the script (for example after the `.deb` install) run `setup-admin` as the `framebeam` user with the data directory from `hub.env`, for example `sudo runuser -u framebeam -- env UZUME_DATA_DIR=/var/lib/framebeam uzume-server setup-admin -username <name>` (use the `UZUME_DATA_DIR` value from `/etc/framebeam/hub.env` if you changed it), or open `/setup` in a browser on the server host itself.
 
 ## TLS fingerprint
 
@@ -80,7 +80,7 @@ journalctl -u framebeam-hub | grep -i fingerprint
 ## Upgrade
 
 ```sh
-sudo ./install-hub.sh upgrade --binary ./framebeam-hub-linux-arm64
+sudo ./install-hub.sh upgrade --binary ./uzume-server-linux-arm64
 ```
 
 Replaces the binary atomically, restarts the service and prints the old and new version. Data and config are untouched.
@@ -91,7 +91,7 @@ Replaces the binary atomically, restarts the service and prints the old and new 
 sudo ./install-hub.sh renew-cert
 ```
 
-Renews the self-generated TLS certificate as the `framebeam` user in the service's data dir (read from `/etc/framebeam/hub.env`), restarts the service and prints the new fingerprint. Refused when `FRAMEBEAM_TLS_CERT`/`FRAMEBEAM_TLS_KEY` are set. Do not call `framebeam-hub renew-cert` directly on a service install: another user or `-data-dir` renews a different certificate, and root would create root-owned files the service cannot read.
+Renews the self-generated TLS certificate as the `framebeam` user in the service's data dir (read from `/etc/framebeam/hub.env`), restarts the service and prints the new fingerprint. Refused when `UZUME_TLS_CERT`/`UZUME_TLS_KEY` are set. Do not call `uzume-server renew-cert` directly on a service install: another user or `-data-dir` renews a different certificate, and root would create root-owned files the service cannot read.
 
 ## Import cores offline
 
@@ -99,7 +99,7 @@ Renews the self-generated TLS certificate as the `framebeam` user in the service
 sudo ./install-hub.sh import-cores /path/to/dir
 ```
 
-For a server that cannot reach the libretro buildbot. `dir` holds buildbot core zips as `<platform>/<core>_libretro.<suffix>.zip` (platform `linux-x64` or `windows-x64`, for example `linux-x64/desmume_libretro.so.zip`), optionally `info.zip` and `<platform>/.index-extended`. The script copies the directory to a temporary location the service user can read and runs `framebeam-hub import-cores` as the `framebeam` user in the service's data dir (read from `/etc/framebeam/hub.env`, like `renew-cert`). Cores are not signed; the SHA-256 is pinned at import. The service keeps running. Details: [hub-configuration.md](hub-configuration.md).
+For a server that cannot reach the libretro buildbot. `dir` holds buildbot core zips as `<platform>/<core>_libretro.<suffix>.zip` (platform `linux-x64` or `windows-x64`, for example `linux-x64/desmume_libretro.so.zip`), optionally `info.zip` and `<platform>/.index-extended`. The script copies the directory to a temporary location the service user can read and runs `uzume-server import-cores` as the `framebeam` user in the service's data dir (read from `/etc/framebeam/hub.env`, like `renew-cert`). Cores are not signed; the SHA-256 is pinned at import. The service keeps running. Details: [hub-configuration.md](hub-configuration.md).
 
 ## Uninstall
 
@@ -114,11 +114,21 @@ The `framebeam` system user is kept. `status` shows the service state and URL.
 
 | Path | Purpose |
 | --- | --- |
-| `/usr/local/bin/framebeam-hub` | Server binary |
-| `/etc/framebeam/hub.env` | Config (`FRAMEBEAM_LISTEN`, `FRAMEBEAM_DATA_DIR`, optional `FRAMEBEAM_NAME`), `0640 root:framebeam` |
+| `/usr/local/bin/uzume-server` | Server binary (`/usr/local/bin/framebeam-hub` is a compatibility symlink to it) |
+| `/etc/framebeam/hub.env` | Config (`UZUME_LISTEN`, `UZUME_DATA_DIR`, optional `UZUME_NAME`), `0640 root:framebeam` |
 | `/var/lib/framebeam` | Default data dir (database, saves, `tls/`), `0750 framebeam:framebeam` |
 | `/etc/systemd/system/framebeam-hub.service` | Service unit |
 | `/etc/systemd/system/framebeam-hub.service.d/data-dir.conf` | Drop-in, only for a non-default data dir or ports below 1024 |
+
+## Upgrading from FrameBeam
+
+Servers installed before 0.18 need no manual step:
+
+- **Debian package, MSI, `install-hub.sh`, app:** install the new version as usual (or let the built-in update do it). Package name, units, service user, paths and Windows services keep their old names for now, so the update is an ordinary upgrade. The binary is now `uzume-server`; `/usr/bin/framebeam-hub` and `/usr/local/bin/framebeam-hub` stay as symlinks.
+- **Docker:** change the image name from `ghcr.io/<owner>/framebeam-hub` to `ghcr.io/<owner>/uzume-server`. Keep your container and volume names and the `-v` option, so the data stays attached. Both names get the same tags for now.
+- **Environment:** `FRAMEBEAM_*` variables keep working. Each one in use logs a line at startup ("FRAMEBEAM_X is deprecated, use UZUME_Y"); rename them at your leisure, see [hub-configuration.md](hub-configuration.md#flags-and-environment).
+- **Scripts and monitoring:** call `uzume-server` instead of `framebeam-hub` (the old name still works through the symlink on Linux, not in the Docker image). Metrics are now `uzume_*`. Backups are named `uzume-server-<name>-<UTC timestamp>.tar`; old `framebeam-hub-*.tar` files are still read.
+- **Invite codes:** new codes look like `UZ-XXXX-XXXX`; older `FB-` codes stay valid.
 
 ## Migrating an existing manual data dir
 
@@ -126,9 +136,9 @@ Do not point `--data-dir` into `/home` or `/root` (the script refuses it): home 
 
 ```sh
 # 1. stop the old, manually started server process
-sudo ./install-hub.sh install --binary ./framebeam-hub-linux-arm64 --no-start
+sudo ./install-hub.sh install --binary ./uzume-server-linux-arm64 --no-start
 sudo cp -a /home/pi/framebeam-data/. /var/lib/framebeam/
-sudo ./install-hub.sh install --binary ./framebeam-hub-linux-arm64   # fixes ownership, starts the service
+sudo ./install-hub.sh install --binary ./uzume-server-linux-arm64   # fixes ownership, starts the service
 ```
 
 Keep the old directory as a backup until the service works. `--data-dir DIR` remains available for directories outside `/home` and `/root`, e.g. `/srv/framebeam`; the script chowns them to `framebeam` and never deletes or overwrites their content.

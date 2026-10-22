@@ -9,7 +9,7 @@ import (
 var (
 	// ErrOff is returned for channel "dev" (or empty): the updater does not check.
 	ErrOff = errors.New("updates are off (development build; select a channel to enable them)")
-	// ErrCurrentNotSemVer is returned when the running version is not SemVer (e.g. Hub "dev").
+	// ErrCurrentNotSemVer is returned when the running version is not SemVer (e.g. Server "dev").
 	ErrCurrentNotSemVer = errors.New("the running version is not a release version; the updater is disabled")
 )
 
@@ -58,7 +58,7 @@ type Selection struct {
 
 // Select picks the highest release of the product in the channels of q.Channel that has an artifact for the
 // platform and kind and is strictly newer than q.Current. It never selects a downgrade. Protocol compatibility
-// is judged by the caller (ProtocolCompatible, BreaksPlayers), since it differs between Hub and Player.
+// is judged by the caller (ProtocolCompatible, BreaksPlayers), since it differs between server and app.
 func Select(idx Index, q Query) (Selection, error) {
 	chans := ChannelsFor(q.Channel)
 	if chans == nil {
@@ -109,14 +109,14 @@ func containsStr(s []string, v string) bool {
 	return false
 }
 
-// ProtocolCompatible reports whether a candidate release and a counterpart (e.g. the Hub a Player talks to)
+// ProtocolCompatible reports whether a candidate release and a counterpart (e.g. the server an app talks to)
 // can work together: candidate.protocol >= current.min && current.protocol >= candidate.min.
 func ProtocolCompatible(candProto, candMin, curProto, curMin int) bool {
 	return candProto >= curMin && curProto >= candMin
 }
 
-// BreaksPlayers reports whether installing a Hub release would lock out a Player: its min_protocol_version is
-// above the protocol version of a Player seen recently.
+// BreaksPlayers reports whether installing a server release would lock out an app: its min_protocol_version is
+// above the protocol version of an app seen recently.
 func BreaksPlayers(candMinProtocol int, playerProtocols []int) bool {
 	for _, p := range playerProtocols {
 		if candMinProtocol > p {

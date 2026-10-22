@@ -4,7 +4,7 @@
 #include <QMap>
 #include <QString>
 
-namespace framebeam {
+namespace uzume {
 
 // Local emulation settings: <data>/settings/emulation.json (never hub-specific, never contains a secret).
 //
@@ -12,12 +12,12 @@ namespace framebeam {
 //     "systems": { "nds": { "options": { "<key>": "<value>" } } },
 //     "games":   { "<game id>": { "<key>": "<value>" } } }
 //
-// The core choice (ADR 0020 D6) is the FrameBeam key kCoreKey ("framebeam.core") at system level (options) and at game
+// The core choice (ADR 0020 D6) is the Uzume key kCoreKey ("framebeam.core") at system level (options) and at game
 // level; effective core = game > system > the Hub's default core (see corechoice.h).
 //
 // Only explicit overrides are stored (partial, no full copies). Effective value =
 // game > system/core > global > manifest default > core default; removing a key restores inheritance.
-// Keys of the core stay assigned to the core; FrameBeam's own keys start with "framebeam.".
+// Keys of the core stay assigned to the core; Uzume's own keys start with "framebeam.".
 // Unknown content of the file is preserved when saving. A missing or corrupted file yields no overrides.
 class EmulationSettings {
  public:
@@ -58,4 +58,4 @@ class EmulationSettings {
   QJsonObject raw_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

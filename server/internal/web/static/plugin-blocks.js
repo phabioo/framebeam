@@ -1,5 +1,5 @@
-// FrameBeam Hub: read-only renderer of plugin building blocks (docs/design/plugins.md "Building blocks",
-// docs/architecture/12-plugins.md 16.8). The Player validates a board tree and publishes it to the Hub; this file
+// Uzume server: read-only renderer of plugin building blocks (docs/design/plugins.md "Building blocks",
+// docs/architecture/12-plugins.md 16.8). The app validates a board tree and publishes it to the server; this file
 // draws the same catalog for the Runs page. No framework, no network access.
 //
 // Safety rules (the board is written by a plugin, never trust it):
@@ -10,7 +10,7 @@
 (function (root) {
   "use strict";
 
-  var MAX_DEPTH = 24;      // same limits as the Player validator (client/plugins/plugin_ui.h)
+  var MAX_DEPTH = 24;      // same limits as the app validator (client/plugins/plugin_ui.h)
   var MAX_NODES = 2000;
   var GAPS = [4, 8, 12, 16, 20];
   var DATA_PNG = /^data:image\/png;base64,[A-Za-z0-9+\/]*={0,2}$/;

@@ -81,8 +81,8 @@ jobs:
         timeout-minutes: 60
         env:
           # Fetches melonDS DS and DeSmuME from the buildbot (a failed fetch fails the job) and fails when a real-core test skips.
-          FRAMEBEAM_REQUIRE_CORES: "1"
-          FRAMEBEAM_CTEST_REGEX: ${{ env.CORE_TESTS }}
+          UZUME_REQUIRE_CORES: "1"
+          UZUME_CTEST_REGEX: ${{ env.CORE_TESTS }}
           CMAKE_C_COMPILER_LAUNCHER: ccache
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: xvfb-run -a make check-client
@@ -94,7 +94,7 @@ jobs:
     env:
       VCPKG_ROOT: ${{ github.workspace }}\.vcpkg
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
-      FRAMEBEAM_CACHE_DIR: ${{ github.workspace }}\.framebeam-cache
+      UZUME_CACHE_DIR: ${{ github.workspace }}\.framebeam-cache
     steps:
       - uses: actions/checkout@v7
       - name: Cache vcpkg checkout
@@ -170,7 +170,7 @@ jobs:
       - name: Configure
         timeout-minutes: 200
         working-directory: client
-        run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.cores.outputs.melondsds }}" "-DFRAMEBEAM_DESMUME_CORE=${{ steps.cores.outputs.desmume }}"
+        run: cmake --preset windows-msvc-release "-DUZUME_MELONDS_DS_CORE=${{ steps.cores.outputs.melondsds }}" "-DUZUME_DESMUME_CORE=${{ steps.cores.outputs.desmume }}"
       - name: Build
         timeout-minutes: 60
         working-directory: client

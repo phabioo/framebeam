@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
 type oneOffered struct{}
@@ -110,7 +110,7 @@ func TestRunsPageListDetailAndActions(t *testing.T) {
 	rec = c.get("/runs/"+f.run.ID+"?ok=runpaused", nil)
 	contains(t, rec, "Resume run", "Paused", "Paused by admin", "events still visible, no new ones recorded", `role="status"`, "Run paused.", "admin paused the run")
 	notContains(t, rec, `action="/runs/`+f.run.ID+`/pause"`)
-	// A paused run refuses writes from Players (409 run_not_active) while it is paused.
+	// A paused run refuses writes from apps (409 run_not_active) while it is paused.
 	if _, _, err := f.svc.AppendRunEvent(bg, hub.AppendRunEventInput{UserID: f.admin.ID, DeviceID: "d", RunID: f.run.ID,
 		ClientID: "6f1d2c3b-4a5e-4b6c-8d7e-9f0a1b2c3d4e", PluginID: "net.example.board", Source: "manual", Type: "x"}); err == nil {
 		t.Fatal("event accepted while paused")
@@ -208,7 +208,7 @@ func TestRunsBoardJSONIsEmbeddedSafely(t *testing.T) {
 			t.Fatalf("raw plugin string %q reached the page", bad)
 		}
 	}
-	// Only the Hub's own static scripts are on the page, none inline.
+	// Only the server's own static scripts are on the page, none inline.
 	scripts := regexp.MustCompile(`<script[^>]*>`).FindAllString(body, -1)
 	for _, s := range scripts {
 		if !strings.Contains(s, `src="/static/`) {
@@ -238,7 +238,7 @@ func TestRunsBoardJSONIsEmbeddedSafely(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec = f.c.get("/runs/"+f.run.ID, nil)
-	contains(t, rec, "&lt;script&gt;alert(2)&lt;/script&gt;", "automatic · admin&#39;s Player")
+	contains(t, rec, "&lt;script&gt;alert(2)&lt;/script&gt;", "automatic · admin&#39;s app")
 	notContains(t, rec, "<script>alert(2)")
 }
 

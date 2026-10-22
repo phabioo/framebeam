@@ -20,7 +20,7 @@
 #include "problemreport.h"
 #include "reportuploader.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class ReportController : public QObject {
   Q_OBJECT
@@ -123,4 +123,4 @@ class ReportController : public QObject {
   int generation_ = 0;   // a late collect() result of a closed dialog is dropped
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

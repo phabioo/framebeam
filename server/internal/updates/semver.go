@@ -1,4 +1,4 @@
-// Package updates implements the FrameBeam update feed (0.3 "Automatic updates"): the signed updates index,
+// Package updates implements the Uzume update feed (0.3 "Automatic updates"): the signed updates index,
 // SemVer comparison, release selection, staging of a verified package and the root helper that applies it.
 // Signing primitives come from package corepkg (ADR 0010).
 package updates

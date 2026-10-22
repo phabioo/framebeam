@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/config"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
 func TestNetOverridesStoreAndReset(t *testing.T) {

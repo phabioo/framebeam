@@ -14,7 +14,7 @@
 #include "pluginimageprovider.h"
 #include "pluginscontroller.h"
 
-using namespace framebeam::ui;
+using namespace uzume::ui;
 
 namespace {
 
@@ -47,7 +47,7 @@ const char* kShellLua = R"LUA(
 )LUA";
 
 // fb.run of the run view: reads from a fixed run, every write attempt is counted (the controller must wrap it read-only).
-class FakeRunBridge : public framebeam::plugins::RunBridge {
+class FakeRunBridge : public uzume::plugins::RunBridge {
  public:
   QJsonObject current() const override {
     return {{"id", "run-1"}, {"name", "Tide Hardcore"}, {"status", "active"}, {"me", "u1"}, {"plugins", QJsonArray()}, {"participants", QJsonArray()}};
@@ -61,7 +61,7 @@ class FakeRunBridge : public framebeam::plugins::RunBridge {
   QString setState(const QString&, const QJsonObject&) override { ++writes; return {}; }
   QString postEvent(const QString&, const QString&, const QString&, const QString&, const QJsonObject&, QString*) override { ++writes; return {}; }
   QString setBoard(const QString&, const QJsonObject&) override { ++writes; return {}; }
-  QList<framebeam::plugins::RunNotification> takeNotifications() override { return {}; }
+  QList<uzume::plugins::RunNotification> takeNotifications() override { return {}; }
   std::atomic<int> writes{0};
 };
 
@@ -199,14 +199,14 @@ class PluginsRuntimeUiTest : public QObject {
 
   void installHubCopy(const QString& id, const QString& version, const QJsonObject& ui, const QStringList& perms, const QString& lua,
                       QString* sha, const QJsonObject& requires_ = {}) {
-    framebeam::plugins::testutil::FbSpec spec;
+    uzume::plugins::testutil::FbSpec spec;
     spec.id = id;
     spec.version = version;
     spec.permissions = perms;
     spec.ui = ui;
     spec.lua = lua;
-    const QByteArray file = framebeam::plugins::testutil::makeFbPlugin(spec);
-    *sha = framebeam::plugins::testutil::sha256Hex(file);
+    const QByteArray file = uzume::plugins::testutil::makeFbPlugin(spec);
+    *sha = uzume::plugins::testutil::sha256Hex(file);
     const auto r = m_pc->manager()->installHubCopy(file, id, version, *sha);
     QVERIFY2(r.ok, qPrintable(r.error));
   }

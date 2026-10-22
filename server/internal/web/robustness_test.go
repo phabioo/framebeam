@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // Package 7 (repo scan 2026-10-19): web robustness fixes.

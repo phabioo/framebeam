@@ -17,9 +17,9 @@
 #include "run_session_bridge.h"
 #include "runclient.h"
 
-using namespace framebeam;
-using namespace framebeam::plugins;
-using namespace framebeam::plugins::testutil;
+using namespace uzume;
+using namespace uzume::plugins;
+using namespace uzume::plugins::testutil;
 using State = HubConnection::State;
 
 namespace {

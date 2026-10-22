@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // Runs REST API (feature runs_v1). The hub package already produces the wire format (JSON tags), so the generated

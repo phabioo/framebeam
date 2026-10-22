@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// KnownSchemaVersion is the newest schema this Hub binary can migrate to.
+// KnownSchemaVersion is the newest schema this server binary can migrate to.
 func KnownSchemaVersion() int {
 	ents, err := fs.ReadDir(migrationsFS, "migrations")
 	if err != nil {
@@ -25,7 +25,7 @@ func KnownSchemaVersion() int {
 	return maxKnown
 }
 
-// SnapshotTo writes a consistent copy of the database to dest with VACUUM INTO while the Hub keeps using it.
+// SnapshotTo writes a consistent copy of the database to dest with VACUUM INTO while the server keeps using it.
 // dest must not exist.
 func SnapshotTo(db *sql.DB, dest string) error {
 	if err := os.Remove(dest); err != nil && !os.IsNotExist(err) {
@@ -39,7 +39,7 @@ func SnapshotTo(db *sql.DB, dest string) error {
 }
 
 // PutSettings writes settings into the database file at path without migrating it (the update rollback prepares a
-// restored pre-update database for an older Hub, which may use an older schema). The settings table exists in
+// restored pre-update database for an older server, which may use an older schema). The settings table exists in
 // every schema.
 func PutSettings(path string, kv map[string]string) error {
 	esc := strings.NewReplacer("%", "%25", "?", "%3F", "#", "%23").Replace(path)
@@ -62,7 +62,7 @@ func PutSettings(path string, kv map[string]string) error {
 	return tx.Commit()
 }
 
-// OpenExisting opens an existing database file without migrating it (for the CLI next to a running Hub).
+// OpenExisting opens an existing database file without migrating it (for the CLI next to a running server).
 func OpenExisting(path string) (*sql.DB, error) {
 	if _, err := os.Stat(path); err != nil {
 		return nil, err

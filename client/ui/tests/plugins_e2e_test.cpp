@@ -1,4 +1,4 @@
-// End to end: the FrameBeam test core runs with EmulationRunner, a PluginHost with the real memory adapter runs a plugin
+// End to end: the Uzume test core runs with EmulationRunner, a PluginHost with the real memory adapter runs a plugin
 // (homebrew Lua in a temp dir) that checks the magic, follows the party pointer, decrypts slot 1 with fb.codec.pk6_decrypt
 // and emits the species. Also: the manager resolves plugins for the game, developer mode gates local plugins, and a
 // plugin written to a linked folder reloads. Only synthetic data (test core party built with testutil/synth_formats.h).
@@ -20,10 +20,10 @@
 #include "synth_formats.h"
 #include "test_core_layout.h"
 
-using namespace framebeam;
-using namespace framebeam::emu;
-using namespace framebeam::plugins;
-namespace mem = framebeam::testcore::mem;
+using namespace uzume;
+using namespace uzume::emu;
+using namespace uzume::plugins;
+namespace mem = uzume::testcore::mem;
 
 namespace {
 
@@ -87,7 +87,7 @@ class PluginsE2eTest : public QObject {
 
   EmulationRunner::StartRequest request() const {
     EmulationRunner::StartRequest req;
-    req.corePath = qEnvironmentVariable("FRAMEBEAM_MELONDS_DS_CORE");
+    req.corePath = qEnvironmentVariable("UZUME_MELONDS_DS_CORE");
     req.gamePath = QStringLiteral(FB_TEST_ROM_PATH);
     req.systemDir = m_dir.filePath(QStringLiteral("system"));
     req.saveDir = m_dir.filePath(QStringLiteral("save"));

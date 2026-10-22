@@ -7,7 +7,7 @@
 //
 // Hardware rendering (ADR 0013): SET_HW_RENDER with OpenGL / OpenGL Core is served by an offscreen context
 // owned by the emulation thread (hw_render.h); every hardware frame is read back into the XRGB8888 frame.
-// Without a QGuiApplication, with FRAMEBEAM_DISABLE_HW_RENDER=1 or when the context fails, SET_HW_RENDER
+// Without a QGuiApplication, with UZUME_DISABLE_HW_RENDER=1 or when the context fails, SET_HW_RENDER
 // returns false (the core falls back to software). Other APIs are rejected. Unsupported environment
 // callbacks are answered with false.
 
@@ -22,7 +22,7 @@
 
 #include "emulator_backend.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 class HwRenderContext;
 
@@ -216,4 +216,4 @@ class LibretroBackend final : public EmulatorBackend {
   bool m_optionsDirty = false;
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

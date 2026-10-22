@@ -3,7 +3,7 @@
 
 #include "plugin_language.h"
 
-using namespace framebeam::plugins;
+using namespace uzume::plugins;
 
 class LanguageTest : public QObject {
   Q_OBJECT

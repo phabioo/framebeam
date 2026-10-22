@@ -73,13 +73,13 @@ type Game struct {
 	GameCodeKind string
 	// GameVersion is the ROM version of the identity (nil = unknown).
 	GameVersion *int
-	// ROMs are all known files of the game (primary first); OnHub is true when at least one is stored on the Hub.
+	// ROMs are all known files of the game (primary first); OnHub is true when at least one is stored on the server.
 	// ROMSHA256/ROMSize/Filename describe a stored file if there is one, else the primary file.
 	ROMs  []ROMFile
 	OnHub bool
 }
 
-// ROMFile is one known file of a game. Stored files are on the Hub; the others are only registered by their owners.
+// ROMFile is one known file of a game. Stored files are on the server; the others are only registered by their owners.
 type ROMFile struct {
 	SHA256, Filename, AddedBy string
 	Size                      int64
@@ -218,7 +218,7 @@ func (s *Service) ListGames(ctx context.Context) ([]Game, error) {
 	return s.queryGames(ctx, ``)
 }
 
-// ListGamesFor returns the games visible to a user: games with a file stored on the Hub, and games for which the
+// ListGamesFor returns the games visible to a user: games with a file stored on the server, and games for which the
 // user registered a local file.
 func (s *Service) ListGamesFor(ctx context.Context, userID string) ([]Game, error) {
 	return s.queryGames(ctx, visibleWhere, userID)
@@ -356,7 +356,7 @@ func (s *Service) oneGame(ctx context.Context, where string, arg string) (Game, 
 	return g, nil
 }
 
-// OpenROM opens a ROM file stored on the Hub; the caller closes it. A file that is only registered as local is
+// OpenROM opens a ROM file stored on the server; the caller closes it. A file that is only registered as local is
 // not found. The returned game describes that file.
 func (s *Service) OpenROM(ctx context.Context, sha string) (*os.File, Game, error) {
 	if !ValidSHA256(sha) {
@@ -414,7 +414,7 @@ func (s *Service) RenameGame(ctx context.Context, id, title string) (_ Game, err
 	return g, nil
 }
 
-// DeleteGame removes the entry and all its ROM files stored on the Hub (registrations of local files go with the
+// DeleteGame removes the entry and all its ROM files stored on the server (registrations of local files go with the
 // entry). Saves of the game are never touched (no foreign key, 0002_saves.sql): they stay and remain reachable on
 // the Saves page.
 func (s *Service) DeleteGame(ctx context.Context, id string) (err error) {

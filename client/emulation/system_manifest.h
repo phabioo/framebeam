@@ -16,7 +16,7 @@
 
 #include <optional>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 struct ScreenSpec {
   QString id;  // e.g. "top", "bottom"
@@ -82,7 +82,7 @@ struct SystemManifest {
   QStringList extensions;  // lowercase, with dot
   FirmwareSpec firmware;
   QString inputProfile;
-  // "input": {"map": {...}, "labels": {...}}: FrameBeam input id -> libretro target (names: input/inputmap.h), and optional
+  // "input": {"map": {...}, "labels": {...}}: Uzume input id -> libretro target (names: input/inputmap.h), and optional
   // per-input texts for the Controllers page. Systems with the same input_profile must carry identical maps (the registry
   // refuses a conflict); the input library tables are registered from these by the UI layer.
   QMap<QString, QString> inputMap;
@@ -97,13 +97,13 @@ struct SystemManifest {
   QString touchLabel;  // e.g. "DS touch"; defaults to "Touch"
   DisplayProfile display;
   QMap<QString, QString> coreOptions;  // defaults for core options (key -> value)
-  QStringList lockedCoreOptions;       // keys of coreOptions that FrameBeam controls: not editable by the user
+  QStringList lockedCoreOptions;       // keys of coreOptions that Uzume controls: not editable by the user
   QStringList alwaysShownCoreOptions;  // listed on the Emulation page even if the core hides them in its default state
 
   bool supportsExtension(const QString& ext) const;  // ".nds" or "nds", case-insensitive
 };
 
-// Per-core data (manifests/cores/<core_id>.json): how FrameBeam drives one libretro core.
+// Per-core data (manifests/cores/<core_id>.json): how Uzume drives one libretro core.
 struct CoreProfile {
   QString coreId;
   QStringList aliases;  // legacy ids, e.g. "melonds_ds" for "melondsds"
@@ -143,7 +143,7 @@ class ManifestRegistry {
   static std::optional<SystemManifest> parse(const QByteArray& json, QString* error = nullptr);
   static std::optional<CoreProfile> parseProfile(const QByteArray& json, QString* error = nullptr);
 
-  // Built-in manifests (Qt resource :/framebeam/emulation/manifests/{systems,cores}/*.json).
+  // Built-in manifests (Qt resource :/uzume/emulation/manifests/{systems,cores}/*.json).
   bool loadBuiltin(QString* error = nullptr);
   // Additional manifests from a directory holding systems/*.json and cores/*.json (either may be missing).
   bool loadDirectory(const QString& dir, QString* error = nullptr);
@@ -167,4 +167,4 @@ class ManifestRegistry {
   QList<CoreProfile> m_profiles;
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

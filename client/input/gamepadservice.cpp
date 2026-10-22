@@ -4,7 +4,7 @@
 
 #include "controllerprofiles.h"
 
-namespace framebeam::input {
+namespace uzume::input {
 
 namespace {
 constexpr int kPressThreshold = 16384;   // about 50 % of the axis range
@@ -260,4 +260,4 @@ void GamepadService::startCapture() {
 
 void GamepadService::cancelCapture() { capturing_ = false; }
 
-}  // namespace framebeam::input
+}  // namespace uzume::input

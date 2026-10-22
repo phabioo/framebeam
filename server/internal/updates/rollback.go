@@ -13,9 +13,9 @@ import (
 )
 
 // Update rollback (ADR 0029 D4, finishes ADR 0011 D8). The functions here are pure selection and bookkeeping; the
-// Hub service, the root helper and the CLI build on them.
+// Server service, the root helper and the CLI build on them.
 
-// Setting keys in the Hub settings table that the rollback uses. They live in the database so that every Hub
+// Setting keys in the server settings table that the rollback uses. They live in the database so that every server
 // binary (also an older one that does not know the rollback) sees `update_auto` = 0 after going back.
 const (
 	SettingAuto    = "update_auto"
@@ -39,7 +39,7 @@ type HistoryEntry struct {
 	Version string    `json:"version"`
 	First   time.Time `json:"first"`
 	Last    time.Time `json:"last"`
-	// Schema is the database schema version the Hub had while it ran this version (0 = unknown). It lets a later
+	// Schema is the database schema version the server had while it ran this version (0 = unknown). It lets a later
 	// rollback know the schema of a release whose index entry does not say.
 	Schema int `json:"schema,omitempty"`
 }
@@ -167,7 +167,7 @@ type Candidate struct {
 // when this device ran the version before (the history). It must speak the running protocol version
 // (min_protocol_version <= q.Protocol <= protocol_version), so the floor is the oldest version that does. An MSI
 // is only offered when it can be installed over a newer version (Release.MSIDowngrade). Companion entries of
-// the legacy Hub index are skipped. A version that exists in several channels appears once (stable first).
+// the legacy server index are skipped. A version that exists in several channels appears once (stable first).
 func RollbackCandidates(idx Index, q RollbackQuery) []Candidate {
 	cur, err := ParseSemVer(q.Current)
 	if err != nil {
@@ -276,7 +276,7 @@ func PlanSchema(targetSchema, currentSchema int, backups []DBBackup) SchemaPlan 
 	switch {
 	case targetSchema <= 0:
 		p.Action = SchemaRefuse
-		p.Reason = "The release index does not say which database schema this version uses, so going back to it could leave the Hub unable to start. Use the manual steps in docs/guides/updates.md."
+		p.Reason = "The release index does not say which database schema this version uses, so going back to it could leave the server unable to start. Use the manual steps in docs/guides/updates.md."
 	case currentSchema <= 0 || targetSchema >= currentSchema:
 		p.Action = SchemaKeep
 	default:
@@ -289,7 +289,7 @@ func PlanSchema(targetSchema, currentSchema int, backups []DBBackup) SchemaPlan 
 		}
 		if best == nil {
 			p.Action = SchemaRefuse
-			p.Reason = fmt.Sprintf("This version uses database schema %d and the Hub is on schema %d. Going back needs the automatic database backup made before the update, and none exists (the Hub keeps the newest %d in backups/).",
+			p.Reason = fmt.Sprintf("This version uses database schema %d and the server is on schema %d. Going back needs the automatic database backup made before the update, and none exists (the server keeps the newest %d in backups/).",
 				targetSchema, currentSchema, dbBackupsKept)
 		} else {
 			p.Action, p.Backup = SchemaRestore, best

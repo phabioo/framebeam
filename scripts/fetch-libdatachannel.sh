@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 . "$ROOT/scripts/libdatachannel.pin"
-CACHE="${FRAMEBEAM_CACHE_DIR:-$HOME/.cache/framebeam}"
+CACHE="${UZUME_CACHE_DIR:-$HOME/.cache/framebeam}"
 PREFIX="$CACHE/deps/libdatachannel/$LIBDATACHANNEL_TAG-$(uname -m)"
 
 if [ -f "$PREFIX/.complete" ]; then echo "$PREFIX"; exit 0; fi

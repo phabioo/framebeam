@@ -7,9 +7,9 @@
 #include <QStringList>
 #include <optional>
 
-namespace framebeam {
+namespace uzume {
 
-// Session data model and WSS messages (ADR 0006 D1-D3, protocol/openapi/framebeam.yaml tag `sessions`,
+// Session data model and WSS messages (ADR 0006 D1-D3, protocol/openapi/uzume.yaml tag `sessions`,
 // protocol/schemas/ws-*.schema.json). Plain data, no I/O.
 
 inline constexpr const char* kSessionsFeature = "sessions_v1";
@@ -126,12 +126,12 @@ struct PresenceUpdate {
   QString gameId;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::SessionInfo)
-Q_DECLARE_METATYPE(framebeam::SessionSignal)
-Q_DECLARE_METATYPE(framebeam::HelloAck)
-Q_DECLARE_METATYPE(framebeam::ViewerJoined)
-Q_DECLARE_METATYPE(framebeam::ViewerLeft)
-Q_DECLARE_METATYPE(framebeam::SessionEnded)
-Q_DECLARE_METATYPE(framebeam::PresenceUpdate)
+Q_DECLARE_METATYPE(uzume::SessionInfo)
+Q_DECLARE_METATYPE(uzume::SessionSignal)
+Q_DECLARE_METATYPE(uzume::HelloAck)
+Q_DECLARE_METATYPE(uzume::ViewerJoined)
+Q_DECLARE_METATYPE(uzume::ViewerLeft)
+Q_DECLARE_METATYPE(uzume::SessionEnded)
+Q_DECLARE_METATYPE(uzume::PresenceUpdate)

@@ -3,7 +3,7 @@
 #include <QCoreApplication>
 #include <QLocale>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 QString dayMonth(const QDate& d) { return QStringLiteral("%1 %2").arg(d.day()).arg(QLocale::c().monthName(d.month(), QLocale::ShortFormat)); }
@@ -36,4 +36,4 @@ QString TimeFormat::whenIso(const QString& iso, const QDateTime& now) {
 
 QString TimeFormat::fullIso(const QString& iso) { return full(QDateTime::fromString(iso, Qt::ISODate)); }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

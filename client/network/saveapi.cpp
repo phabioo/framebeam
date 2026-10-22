@@ -6,7 +6,7 @@
 #include <QTimer>
 #include <QUrl>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 QString str(const QJsonObject& o, const char* k) { return o.value(QLatin1String(k)).toString(); }
@@ -369,4 +369,4 @@ void SaveApi::createSnapshot(const QString& gameId, const QString& slot, const Q
   run(reply, Expect::Snapshot, std::move(cb));
 }
 
-}  // namespace framebeam
+}  // namespace uzume

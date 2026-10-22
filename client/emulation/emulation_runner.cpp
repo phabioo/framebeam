@@ -20,7 +20,7 @@
 #include <deque>
 #include <memory>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 std::atomic<int> EmulationRunner::sleepQuantumMsForTest{0};
 
@@ -250,9 +250,9 @@ class EmulationRunner::Worker : public QThread {
 
 EmulationRunner::EmulationRunner(std::unique_ptr<EmulatorBackend> backend, QObject* parent)
     : QObject(parent), m_backend(std::move(backend)) {
-  qRegisterMetaType<framebeam::emu::AvInfo>();
-  qRegisterMetaType<framebeam::emu::CoreInfo>();
-  qRegisterMetaType<framebeam::emu::EmulationRunner::State>();
+  qRegisterMetaType<uzume::emu::AvInfo>();
+  qRegisterMetaType<uzume::emu::CoreInfo>();
+  qRegisterMetaType<uzume::emu::EmulationRunner::State>();
   // Called on the emulation thread; the signal reaches the GUI thread queued.
   m_backend->setSaveProblemNotifier([this](const QString& message) { emit saveProblem(message); });
 }
@@ -379,4 +379,4 @@ bool EmulationRunner::setCoreOption(const QString& key, const QString& value) { 
 QList<CoreOption> EmulationRunner::coreOptions() const { return m_backend->coreOptions(); }
 QList<CoreOptionCategory> EmulationRunner::coreOptionCategories() const { return m_backend->coreOptionCategories(); }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

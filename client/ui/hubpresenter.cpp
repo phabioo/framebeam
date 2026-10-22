@@ -15,7 +15,7 @@
 #include "semver.h"
 #include "version.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 QString trimmedScheme(const QString& address) {
   QString a = address;
@@ -31,10 +31,10 @@ QString friendlyConnectError(const QString& raw, QString* detail) {
   const QString lower = raw.toLower();
   QString friendly;
   if (lower.contains(QLatin1String("wrong version number")) || lower.contains(QLatin1String("http request"))) {
-    friendly = QCoreApplication::translate("framebeam::ui::HubPresenter",
+    friendly = QCoreApplication::translate("uzume::ui::HubPresenter",
                                            "The Hub does not answer with HTTPS on this port. Check the address and the port.");
   } else if (lower.contains(QLatin1String("ssl handshake failed")) || lower.contains(QLatin1String("ssl routines"))) {
-    friendly = QCoreApplication::translate("framebeam::ui::HubPresenter",
+    friendly = QCoreApplication::translate("uzume::ui::HubPresenter",
                                            "A secure connection to the Hub could not be set up. Check the address and the port.");
   }
   if (friendly.isEmpty()) return raw;
@@ -228,4 +228,4 @@ QString HubPresenter::platformLabel(const QString& platform, const QString& arch
   return a.isEmpty() ? p : p + QLatin1Char(' ') + a;
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

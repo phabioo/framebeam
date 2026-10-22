@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // In-game screen layout switch (3g-3i, D12): segment with mini icons. layouts = the values the system offers
 // ("stacked" | "side" | "top"); applies to the running game only.

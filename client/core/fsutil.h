@@ -3,7 +3,7 @@
 #include <QJsonObject>
 #include <QString>
 
-namespace framebeam::fsutil {
+namespace uzume::fsutil {
 
 // Moves a file that cannot be parsed aside to "<path>.corrupt-<yyyyMMdd-HHmmss>" (never overwrites an existing
 // quarantine file) and logs a warning. Returns the new path, empty if the move failed.
@@ -22,4 +22,4 @@ bool replaceFile(const QString& from, const QString& to);
 // for characters outside the ANSI code page). Empty if unset.
 QString envPath(const char* name);
 
-}  // namespace framebeam::fsutil
+}  // namespace uzume::fsutil

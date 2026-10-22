@@ -3,7 +3,7 @@
 #include <QBuffer>
 #include <QTimer>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 constexpr const char* kFeature = "reports_v1";
@@ -141,4 +141,4 @@ void ReportUploader::reset() {
   errorText_.clear();
 }
 
-}  // namespace framebeam
+}  // namespace uzume

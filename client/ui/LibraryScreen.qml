@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // 3c: Library (reduced): shell, game grid, detail pane.
 Rectangle {

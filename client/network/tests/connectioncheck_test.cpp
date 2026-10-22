@@ -7,7 +7,7 @@
 
 #include "connectioncheck.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 
@@ -292,7 +292,7 @@ class ConnectionCheckTest : public QObject {
     const CheckResult r = run(s, t);
     QVERIFY(s.lastRelayOnly);
     QCOMPARE(r.outcome, CheckOutcome::Relayed);
-    QVERIFY(r.summaryDetail.contains("FRAMEBEAM_FORCE_RELAY"));
+    QVERIFY(r.summaryDetail.contains("UZUME_FORCE_RELAY"));
   }
 
   void cancelStopsTheRunAndIgnoresLateAnswers() {

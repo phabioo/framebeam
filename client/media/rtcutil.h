@@ -2,6 +2,7 @@
 
 // Helpers shared by SessionHost and SessionViewer (libdatachannel callbacks run on its own threads).
 
+#include "envvar.h"
 #include <QDebug>
 #include <QList>
 #include <QMetaObject>
@@ -19,7 +20,7 @@
 #include "connectionpath.h"
 #include "sessiontypes.h"
 
-namespace framebeam {
+namespace uzume {
 
 // Posts work to the Qt thread of an object from foreign threads; after detach() nothing is posted any more
 // (waits for a post in flight), so callbacks never touch a destroyed object.
@@ -159,9 +160,9 @@ inline std::optional<double> rttOf(rtc::PeerConnection& pc) {
   return static_cast<double>(r->count());
 }
 
-// FRAMEBEAM_FORCE_RELAY=1: only relayed candidates (tests the TURN path on a LAN, ADR 0012 D5).
+// UZUME_FORCE_RELAY=1: only relayed candidates (tests the TURN path on a LAN, ADR 0012 D5).
 inline bool forceRelayFromEnv() {
-  const QString v = qEnvironmentVariable("FRAMEBEAM_FORCE_RELAY").trimmed();
+  const QString v = uzume::env::get("UZUME_FORCE_RELAY").trimmed();
   return v == QLatin1String("1") || v.compare(QLatin1String("true"), Qt::CaseInsensitive) == 0;
 }
 
@@ -242,4 +243,4 @@ inline rtc::Configuration makeRtcConfig(const QStringList& iceServers, const QLi
   return cfg;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

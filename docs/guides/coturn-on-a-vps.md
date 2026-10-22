@@ -67,11 +67,11 @@ Easiest: in the server web interface open Settings → Network → External TURN
 Alternatively on the server (`/etc/framebeam/hub.env` or the service environment), as the initial value:
 
 ```
-FRAMEBEAM_TURN_EXTERNAL="name=vps;urls=turn:turn.example.org:3478?transport=udp,turn:turn.example.org:3478?transport=tcp,turns:turn.example.org:5349?transport=tcp;secret-file=/etc/framebeam/turn-vps.secret"
+UZUME_TURN_EXTERNAL="name=vps;urls=turn:turn.example.org:3478?transport=udp,turn:turn.example.org:3478?transport=tcp,turns:turn.example.org:5349?transport=tcp;secret-file=/etc/framebeam/turn-vps.secret"
 ```
 
 Leave out the `turns:` URL without TLS. Restart the server after editing `hub.env` (not needed for the web interface). Settings → Network lists the server under "External TURN servers". You can keep `-turn` on as well; apps then get both and ICE picks a working path. For a provider that only gives a fixed login use `mode=static;username=...;password-file=...` instead (see [hub-configuration.md](hub-configuration.md)).
 
 ## 6. Check
 
-Force the relay on an app (`FRAMEBEAM_FORCE_RELAY=1`, see [sessions-over-the-internet.md](sessions-over-the-internet.md)) and join a Session: the overlay should show "relay". If it does not, check on the VPS `journalctl -u coturn` (wrong secret shows as "Wrong credentials" / 401), the firewall and that the server clock and the VPS clock are within a few minutes (the username carries an expiry time).
+Force the relay on an app (`UZUME_FORCE_RELAY=1`, see [sessions-over-the-internet.md](sessions-over-the-internet.md)) and join a Session: the overlay should show "relay". If it does not, check on the VPS `journalctl -u coturn` (wrong secret shows as "Wrong credentials" / 401), the firewall and that the server clock and the VPS clock are within a few minutes (the username carries an expiry time).

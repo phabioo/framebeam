@@ -1,4 +1,5 @@
 #include "libretro_backend.h"
+#include "envvar.h"
 
 #include <QDateTime>
 #include <QDir>
@@ -20,12 +21,12 @@
 #include "hw_render.h"
 #include "third_party/libretro/libretro.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 namespace {
 constexpr int kSaveOpenAttempts = 5;      // an existing save file is opened up to 5 times ...
 constexpr unsigned kSaveOpenRetryMs = 300;  // ... 300 ms apart (about 1.2 s) before saving is blocked
-Q_LOGGING_CATEGORY(lcCore, "framebeam.emulation.core")
+Q_LOGGING_CATEGORY(lcCore, "uzume.emulation.core")
 
 // The core repeats the same lines for every frame (OSD texts via SET_MESSAGE, debug lines): only the first
 // occurrence of each distinct message is reported, then every 1000th (with the count). false = suppress.
@@ -329,7 +330,7 @@ bool LibretroBackend::loadGame(const QString& path, QString* error) {
     m_api->unload_game();
     teardownHw();
     return fail(QStringLiteral("This game needs hardware rendering (OpenGL Core 3.3 or newer), which is not available here. "
-                               "Update the graphics driver, or check that FRAMEBEAM_DISABLE_HW_RENDER is not set."));
+                               "Update the graphics driver, or check that UZUME_DISABLE_HW_RENDER is not set."));
   }
   retro_system_av_info av{};
   m_api->get_system_av_info(&av);
@@ -636,8 +637,8 @@ bool LibretroBackend::setupHwRender(void* data) {
     return false;
   }
   if (!HwRenderContext::allowed()) {
-    qCInfo(lcCore) << "Hardware rendering disabled (no GUI application or FRAMEBEAM_DISABLE_HW_RENDER=1); core falls back to software";
-    fallback(qEnvironmentVariable("FRAMEBEAM_DISABLE_HW_RENDER") == QLatin1String("1") ? kFallbackDisabled : kFallbackNoContext);
+    qCInfo(lcCore) << "Hardware rendering disabled (no GUI application or UZUME_DISABLE_HW_RENDER=1); core falls back to software";
+    fallback(uzume::env::get("UZUME_DISABLE_HW_RENDER") == QLatin1String("1") ? kFallbackDisabled : kFallbackNoContext);
     return false;
   }
   if (!m_hw) m_hw = std::make_unique<HwRenderContext>();
@@ -1092,4 +1093,4 @@ bool LibretroBackend::handleEnvironment(unsigned rawCmd, void* data) {
   }
 }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

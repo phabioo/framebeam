@@ -1,5 +1,5 @@
-// FrameBeam Hub invites: "Copy link" on the Users page and the code display on /invite.
-// The code is only ever in the URL fragment (never sent to the Hub). No inline handlers (CSP script-src 'self').
+// Uzume server invites: "Copy link" on the Users page and the code display on /invite.
+// The code is only ever in the URL fragment (never sent to the server). No inline handlers (CSP script-src 'self').
 (function () {
   "use strict";
 
@@ -43,7 +43,7 @@
     var code = "";
     try {
       code = decodeURIComponent((window.location.hash || "").replace(/^#/, "")).trim().toUpperCase();
-    } catch (e) { /* truncated link such as #FB-AB%2: treat as missing */ }
+    } catch (e) { /* truncated link such as #UZ-AB%2: treat as missing */ }
     if (/^[A-Z0-9 -]{4,40}$/.test(code)) {
       out.textContent = code;
     } else {

@@ -21,7 +21,7 @@ func TestOpenRefusesNewerSchema(t *testing.T) {
 		db.Close()
 		t.Fatal("a database newer than the binary must be refused")
 	}
-	if !strings.Contains(err.Error(), "newer than this Hub") {
+	if !strings.Contains(err.Error(), "newer than this server") {
 		t.Fatalf("error %q", err)
 	}
 }

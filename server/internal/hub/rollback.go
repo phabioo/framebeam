@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/backup"
-	"github.com/phabioo/framebeam/server/internal/store"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/backup"
+	"github.com/phabioo/uzume/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 // Update rollback (ADR 0029 D4, finishes ADR 0011 D8): go back to one of the last five releases from the signed
@@ -20,7 +20,7 @@ import (
 // Errors of the rollback functions.
 var (
 	// ErrInContainer: a container is rolled back by pulling the older image tag.
-	ErrInContainer = errors.New("this Hub runs in a container; pull the older image tag and recreate the container instead")
+	ErrInContainer = errors.New("this server runs in a container; pull the older image tag and recreate the container instead")
 	// ErrRollbackConfirm: the rollback replaces the database; the caller has to confirm the loss first.
 	ErrRollbackConfirm = errors.New("going back replaces the database with the backup made before the update; confirm to go on")
 )
@@ -45,7 +45,7 @@ func (s *Service) recordRunning(ctx context.Context) []updates.HistoryEntry {
 
 // ---- pause and skip ----
 
-// UpdatePause returns the pause after going back, or nil. A pause whose rollback did not happen (the Hub still
+// UpdatePause returns the pause after going back, or nil. A pause whose rollback did not happen (the server still
 // runs the version it was meant to leave) is ended: at once when the helper reported a failure, after
 // pauseStaleAfter otherwise.
 func (s *Service) UpdatePause(ctx context.Context) *updates.Pause {
@@ -145,7 +145,7 @@ type RollbackVersion struct {
 	Channel     string
 	PublishedAt time.Time
 	NotesURL    string
-	// FirstUsed and LastUsed come from the local history (zero: this version never ran on this Hub).
+	// FirstUsed and LastUsed come from the local history (zero: this version never ran on this server).
 	FirstUsed, LastUsed time.Time
 	// SchemaVersion is the database schema the version uses (0 = unknown).
 	SchemaVersion int
@@ -159,7 +159,7 @@ type RollbackVersion struct {
 	Artifact  string
 	Size      int64
 	URL       string
-	// ManualCommand is what an admin does by hand when the Hub cannot go back itself.
+	// ManualCommand is what an admin does by hand when the server cannot go back itself.
 	ManualCommand string
 }
 
@@ -167,7 +167,7 @@ type RollbackVersion struct {
 type RollbackInfo struct {
 	Current       string
 	CurrentSchema int
-	// CanRollback: this Hub can go back itself (packaged install, not a container, updates on).
+	// CanRollback: this server can go back itself (packaged install, not a container, updates on).
 	CanRollback bool
 	// Unavailable says why not (shown instead of the buttons).
 	Unavailable string
@@ -241,9 +241,9 @@ func (s *Service) RollbackVersions(ctx context.Context) (RollbackInfo, error) {
 	backups := updates.ListDBBackups(s.dataDir)
 	switch {
 	case info.InContainer:
-		info.Unavailable = "This Hub runs in a container. Pull the older image tag and recreate the container."
+		info.Unavailable = "This server runs in a container. Pull the older image tag and recreate the container."
 	case !s.packaged():
-		info.Unavailable = "This Hub was not installed from the package, so it cannot go back by itself. Use the manual steps below."
+		info.Unavailable = "This server was not installed from the package, so it cannot go back by itself. Use the manual steps below."
 	default:
 		info.CanRollback = true
 	}
@@ -263,7 +263,7 @@ func (s *Service) RollbackVersions(ctx context.Context) (RollbackInfo, error) {
 // manualRollbackCommand is what an admin does by hand for one version.
 func manualRollbackCommand(platform string, c updates.Candidate) string {
 	if updates.InContainer() {
-		return "docker pull ghcr.io/phabioo/framebeam-hub:" + c.Release.Version + " and recreate the container"
+		return "docker pull ghcr.io/phabioo/uzume-server:" + c.Release.Version + " and recreate the container"
 	}
 	if updates.KindFor(platform) == updates.KindMSI {
 		return "Download " + c.Artifact.URL + " and run " + c.Artifact.Name + " as Administrator."
@@ -293,7 +293,7 @@ type RollbackResult struct {
 
 // Rollback goes back to req.Version: it checks the version against the candidates, applies the schema rule (a
 // restore needs ConfirmDataLoss; no way to keep the data is a refusal), writes a safety backup without ROMs,
-// stages the older package, pauses automatic updates and asks the root helper. The Hub restarts a moment later
+// stages the older package, pauses automatic updates and asks the root helper. The server restarts a moment later
 // with the older version.
 func (s *Service) Rollback(ctx context.Context, req RollbackRequest) (res RollbackResult, err error) {
 	defer s.publishOK(&err, TopicUpdates)
@@ -324,7 +324,7 @@ func (s *Service) Rollback(ctx context.Context, req RollbackRequest) (res Rollba
 		return res, &Error{Code: CodeConflict, Message: res.Plan.Reason}
 	case updates.SchemaRestore:
 		if !req.ConfirmDataLoss {
-			return res, fmt.Errorf("%w: changes since %s are lost from the running Hub and kept in the safety backup", ErrRollbackConfirm, res.Plan.Backup.Time.Local().Format("2 Jan 15:04"))
+			return res, fmt.Errorf("%w: changes since %s are lost from the running server and kept in the safety backup", ErrRollbackConfirm, res.Plan.Backup.Time.Local().Format("2 Jan 15:04"))
 		}
 	}
 
@@ -346,7 +346,7 @@ func (s *Service) Rollback(ctx context.Context, req RollbackRequest) (res Rollba
 	}
 	res.Safety, res.SafetyDir = safety.Name, dir
 
-	// 2. The update state the older Hub finds: automatic install off, the pause, the skipped version, the history.
+	// 2. The update state the older server finds: automatic install off, the pause, the skipped version, the history.
 	prevAuto, _, _ := s.getSetting(ctx, updates.SettingAuto)
 	pause := updates.Pause{From: s.hubVer, To: cand.Release.Version, At: s.now().UTC().Truncate(time.Second), By: req.By, Backup: safety.Name, PrevAuto: prevAuto}
 	restoreDB := ""

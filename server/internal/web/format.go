@@ -42,7 +42,7 @@ func initial(title string) string {
 // When is a formatted point in time: Text for lists, Title for the tooltip (full timestamp).
 type When struct{ Text, Title string }
 
-// fmtWhen is the one date/time helper of the Hub (design sheet 0-2): "just now", "5 min ago", "today 18:52",
+// fmtWhen is the one date/time helper of the server (design sheet 0-2): "just now", "5 min ago", "today 18:52",
 // "yesterday 18:52", "16 Oct", "3 Mar 2025". The tooltip holds the full timestamp. Lists never show seconds.
 func fmtWhen(t, now time.Time) When {
 	if t.IsZero() {

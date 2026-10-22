@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/pluginpkg"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/pluginpkg"
 )
 
 func TestPluginsAPI(t *testing.T) {

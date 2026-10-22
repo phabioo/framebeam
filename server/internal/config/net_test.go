@@ -157,7 +157,7 @@ func TestNetSharingAndImportDir(t *testing.T) {
 	}
 	fs = flag.NewFlagSet("t", flag.ContinueOnError)
 	c = register(fs, func(k string) string {
-		if k == "FRAMEBEAM_NETWORK_SHARING" {
+		if k == "UZUME_NETWORK_SHARING" {
 			return "false"
 		}
 		return ""

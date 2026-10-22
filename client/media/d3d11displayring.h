@@ -29,7 +29,7 @@
 #include "d3d11glbridge.h"
 #include "gpudisplay.h"
 
-namespace framebeam {
+namespace uzume {
 
 struct D3d11RingShared;
 
@@ -95,4 +95,4 @@ D3d11Display makeD3d11Display(std::shared_ptr<GlD3d11Bridge> bridge);
 // Test seam: the producer creates its textures on `producerD3dDevice` (an ID3D11Device*) and skips GL/interop.
 D3d11Display makeD3d11DisplayForTest(void* producerD3dDevice);
 
-}  // namespace framebeam
+}  // namespace uzume

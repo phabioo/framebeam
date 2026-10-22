@@ -380,7 +380,7 @@ Marker ids are strings (`[A-Za-z0-9_.-]{1,64}`) or non-negative integers; coordi
 
 #### Hotkeys
 
-- Controllers → Hotkeys shows a FRAMEBEAM group first (these keys always win), then one group per enabled plugin that declares hotkeys, ordered by plugin id, each with an origin marker and its key count. The user can choose a key, clear it or reset it to the declared default.
+- Controllers → Hotkeys shows an Uzume group first (these keys always win), then one group per enabled plugin that declares hotkeys, ordered by plugin id, each with an origin marker and its key count. The user can choose a key, clear it or reset it to the declared default.
 - Overrides are stored locally in the app settings (`plugin_hotkeys`): `"<pluginId>/<hotkeyId>"` → key text, `"none"` = unassigned.
 - Conflicts: Uzume keys win (configured Uzume hotkeys, Esc, F4, Alt+1 to Alt+9), then the earlier plugin. A losing key is not active; it is shown as "<key> · not active" in amber with "Already used by <owner>. Unassigned until you choose."
 - In a game, an active plugin key calls the plugin's `fb.ui.on_action` handler as `fn(id, nil, "hotkey")`. Keys do not fire while a text field has focus or on auto-repeat. Plugin keys and Alt+n are not passed to the core.

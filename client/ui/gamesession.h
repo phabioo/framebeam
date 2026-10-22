@@ -25,7 +25,7 @@
 #include "inputmapping.h"
 #include "system_manifest.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 // Measurements of the running game for the diagnostics overlay (0.6 D6), assembled on the UI thread from the thread-safe
 // values of the emulation runner and the audio output. `valid` = a game runs (or a preview was set).
@@ -285,4 +285,4 @@ class GameSession : public QObject {
   EmulationDiagnostics previewDiag_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

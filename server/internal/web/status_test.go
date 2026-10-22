@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/config"
-	"github.com/phabioo/framebeam/server/internal/diag"
-	"github.com/phabioo/framebeam/server/internal/health"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/diag"
+	"github.com/phabioo/uzume/server/internal/health"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 func navLabels(gs []navGroup) (eyebrows, labels []string) {
@@ -243,7 +243,7 @@ func TestStatusPage(t *testing.T) {
 	status(t, rec, 200)
 	contains(t, rec, "<h1>Status</h1>", "hub.example.com:8443", "CPU", "Memory", "Disk · data",
 		"TURN relay down", "The built-in TURN relay could not be started.", `href="/settings/network"`, "Open Network", // problem banner
-		"ACTIVE SESSIONS · 0 · 0 VIEWERS", "No Session is running.", "CONNECTED PLAYERS · 0", "No Player is connected.",
+		"ACTIVE SESSIONS · 0 · 0 VIEWERS", "No Session is running.", "CONNECTED PLAYERS · 0", "No app is connected.",
 		"LAST ERRORS · 24 H", "database slow", "update check failed", "Download log", `href="/status/log"`,
 		"METRICS ENDPOINT", "Off", "http://hub.example.com:8443/metrics",
 		`hx-trigger="every 10s"`, `id="status-body"`, "Updated ")
@@ -367,12 +367,12 @@ func TestMetricsFormat(t *testing.T) {
 	status(t, rec, 200)
 	body := rec.Body.String()
 	contains(t, rec,
-		"# HELP framebeam_hub_uptime_seconds ", "# TYPE framebeam_hub_uptime_seconds gauge\n",
-		"# TYPE framebeam_sessions_active gauge\nframebeam_sessions_active 0\n",
-		"framebeam_session_viewers 0\n", "framebeam_players_connected 0\n", "framebeam_turn_enabled 0\n",
-		"# TYPE framebeam_log_records_total counter\n", `framebeam_log_records_total{level="error"} 1`+"\n", `framebeam_log_records_total{level="warn"} 1`+"\n",
-		"framebeam_process_memory_bytes ", `framebeam_hub_info{version="`)
-	notContains(t, rec, "framebeam_turn_allocations") // no TURN relay running
+		"# HELP uzume_server_uptime_seconds ", "# TYPE uzume_server_uptime_seconds gauge\n",
+		"# TYPE uzume_sessions_active gauge\nuzume_sessions_active 0\n",
+		"uzume_session_viewers 0\n", "uzume_apps_connected 0\n", "uzume_turn_enabled 0\n",
+		"# TYPE uzume_log_records_total counter\n", `uzume_log_records_total{level="error"} 1`+"\n", `uzume_log_records_total{level="warn"} 1`+"\n",
+		"uzume_process_memory_bytes ", `uzume_server_info{version="`)
+	notContains(t, rec, "uzume_turn_allocations") // no TURN relay running
 	if !strings.HasSuffix(body, "\n") {
 		t.Fatal("exposition ends with a newline")
 	}

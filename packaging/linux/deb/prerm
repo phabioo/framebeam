@@ -1,5 +1,5 @@
 #!/bin/sh
-# framebeam-hub prerm: stop the units on removal. On upgrade the postinst of the new version restarts the Hub.
+# framebeam-hub prerm: stop the units on removal. On upgrade the postinst of the new version restarts the service.
 set -e
 
 case "$1" in

@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 type updFeed struct {
@@ -69,7 +69,7 @@ type updEnv struct {
 	reqDir string
 }
 
-// newUpdEnv builds a Hub running version `current`, compiled channel `compiled`, "installed" as the package.
+// newUpdEnv builds a server running version `current`, compiled channel `compiled`, "installed" as the package.
 func newUpdEnv(t *testing.T, current, compiled string, packaged bool) *updEnv {
 	t.Helper()
 	e := &updEnv{feed: newUpdFeed(t), reqDir: t.TempDir()}
@@ -80,7 +80,7 @@ func newUpdEnv(t *testing.T, current, compiled string, packaged bool) *updEnv {
 		if packaged {
 			o.Executable = updates.PackagedExecutable
 		} else {
-			o.Executable = "/usr/local/bin/framebeam-hub"
+			o.Executable = "/usr/local/bin/uzume-server"
 		}
 	})
 	return e
@@ -246,13 +246,13 @@ func TestAutomaticInstall(t *testing.T) {
 func TestBreakingUpdateWarnsAndNeedsConfirmation(t *testing.T) {
 	e := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
 	admin, _ := e.svc.CreateAdmin(ctx, "fabio", "secret-12345")
-	dev := pairDevice(t, e.svc, admin.ID, "Old Player")
+	dev := pairDevice(t, e.svc, admin.ID, "Old app")
 	cores := []hub.CoreReport{}
 	if _, err := e.svc.Handshake(ctx, dev, hub.HandshakeInput{Platform: "linux", Arch: "x86_64", PlayerVersion: "0.1.0", ProtocolVersion: 1,
 		MinProtocolVersion: 1, Cores: &cores}); err != nil {
 		t.Fatal(err)
 	}
-	e.feed.add(t, "beta", "0.3.0-beta.6", 2) // needs Players with protocol >= 2
+	e.feed.add(t, "beta", "0.3.0-beta.6", 2) // needs apps with protocol >= 2
 	rep, err := e.svc.CheckUpdates(ctx)
 	if err != nil || rep.Available == nil || !rep.Available.Breaking || rep.Available.Warning() == "" || rep.Staged {
 		t.Fatalf("breaking must warn and skip automatic install: %+v %v", rep, err)
@@ -263,15 +263,15 @@ func TestBreakingUpdateWarnsAndNeedsConfirmation(t *testing.T) {
 	if _, err := e.svc.InstallUpdate(ctx, true); err != nil {
 		t.Fatalf("confirmed: %v", err)
 	}
-	// A Player not seen for 30 days no longer counts.
+	// An app not seen for 30 days no longer counts.
 	e2 := newUpdEnv(t, "0.3.0-beta.5", "beta", true)
 	admin2, _ := e2.svc.CreateAdmin(ctx, "fabio", "secret-12345")
-	dev2 := pairDevice(t, e2.svc, admin2.ID, "Old Player")
+	dev2 := pairDevice(t, e2.svc, admin2.ID, "Old app")
 	e2.svc.Handshake(ctx, dev2, hub.HandshakeInput{Platform: "linux", Arch: "x86_64", PlayerVersion: "0.1.0", ProtocolVersion: 1, MinProtocolVersion: 1, Cores: &cores})
 	e2.feed.add(t, "beta", "0.3.0-beta.6", 2)
 	e2.clk.Advance(31 * 24 * time.Hour)
 	if rep, err := e2.svc.CheckUpdates(ctx); err != nil || rep.Available == nil || rep.Available.Breaking {
-		t.Fatalf("a Player not seen for 30 days must not count: %+v %v", rep, err)
+		t.Fatalf("An app not seen for 30 days must not count: %+v %v", rep, err)
 	}
 }
 
@@ -371,9 +371,9 @@ func TestChannelDefaultResolution(t *testing.T) {
 
 func TestWindowsUpdatePlatform(t *testing.T) {
 	feed := newUpdFeed(t)
-	feed.addFor(t, "beta", "0.9.1", 1, "windows-amd64", "msi", "FrameBeam-Hub-0.9.1.msi")
+	feed.addFor(t, "beta", "0.9.1", 1, "windows-amd64", "msi", "Uzume-Hub-0.9.1.msi")
 	bin, reqDir := t.TempDir(), t.TempDir()
-	exe := filepath.Join(bin, "framebeam-hub.exe")
+	exe := filepath.Join(bin, "uzume-server.exe")
 	svc, _ := hubtest.New(t, func(o *hub.Options) {
 		o.HubVersion, o.UpdateChannel = "0.9.0", "beta"
 		o.UpdateIndexURL, o.UpdateRequestDir, o.UpdatePlatform = feed.url(), reqDir, "windows-amd64"

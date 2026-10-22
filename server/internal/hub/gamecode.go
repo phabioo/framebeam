@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-// Game identity kinds (same names as the Player's fb.game.kind).
+// Game identity kinds (same names as the app's fb.game.kind).
 const (
 	GameCodeNDS = "nds-gamecode"
 	Game3DS     = "3ds-titleid"
@@ -22,7 +22,7 @@ const (
 )
 
 // identityReader reads the identity of one header format. Names are the "identity" values of systems/<id>.json and
-// of the Player manifests (client/emulation/game_identity.cpp).
+// of the app manifests (client/emulation/game_identity.cpp).
 type identityReader struct {
 	kind string
 	read func(f *os.File) (code string, version *int)
@@ -59,7 +59,7 @@ func identityFor(system string) (identityReader, bool) {
 	return r, ok
 }
 
-// ReadGameIdentity reads the identity of a ROM file from its header, following the Player
+// ReadGameIdentity reads the identity of a ROM file from its header, following the app
 // (client/emulation/game_identity.cpp), with the header format given by the system's "identity". Only header bytes
 // are read. Anything unreadable, encrypted or compressed without the magic, or of another system gives "", "".
 func ReadGameIdentity(path, system string) (code, kind string) {
@@ -161,7 +161,7 @@ func gbaIdentity(f *os.File) (string, *int) {
 	return string(h[0xAC:0xB0]), &n
 }
 
-// headerText is the Player's text field rule: up to the first NUL, bytes outside 0x20..0x7E shown as '?', trimmed.
+// headerText is the app's text field rule: up to the first NUL, bytes outside 0x20..0x7E shown as '?', trimmed.
 func headerText(b []byte) string {
 	var sb strings.Builder
 	for _, c := range b {

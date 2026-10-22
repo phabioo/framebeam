@@ -8,8 +8,8 @@ import (
 )
 
 // TestManifestCorpus runs the shared manifest corpus (testdata/manifests/*.json). valid-*.json must parse,
-// invalid-*.json must be rejected. The Player test (client/plugins/tests) is meant to run the same files through
-// parseManifest, so the Hub never offers a plugin a Player refuses to install.
+// invalid-*.json must be rejected. The app test (client/plugins/tests) is meant to run the same files through
+// parseManifest, so the server never offers a plugin an app refuses to install.
 func TestManifestCorpus(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join("testdata", "manifests", "*.json"))
 	if err != nil || len(files) == 0 {

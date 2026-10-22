@@ -7,9 +7,9 @@
 #include <QLoggingCategory>
 #include <QRegularExpression>
 
-Q_LOGGING_CATEGORY(lcPluginImage, "framebeam.plugins.image")
+Q_LOGGING_CATEGORY(lcPluginImage, "uzume.plugins.image")
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 void PluginImageSources::set(const QHash<QString, PluginImageSource>& sources) {
   std::lock_guard<std::mutex> l(m_mutex);
@@ -130,4 +130,4 @@ QImage PluginImageProvider::requestImage(const QString& id, QSize* size, const Q
   return img;
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

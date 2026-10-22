@@ -4,8 +4,8 @@ import (
 	"context"
 	"sort"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // ListPlugins lists every offered plugin version (`plugins_v1`).

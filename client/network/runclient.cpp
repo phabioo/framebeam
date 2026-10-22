@@ -11,9 +11,9 @@
 #include <algorithm>
 #include <chrono>
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcRuns, "framebeam.runs")
+Q_LOGGING_CATEGORY(lcRuns, "uzume.runs")
 
 namespace {
 
@@ -57,7 +57,7 @@ qint64 RunClient::nowMs() {
 
 RunClient::RunClient(HubConnection* connection, HubSocket* socket, const QString& dataDir, QObject* parent)
     : QObject(parent), conn_(connection), socket_(socket), dataDir_(dataDir) {
-  qRegisterMetaType<framebeam::RunEvent>("framebeam::RunEvent");
+  qRegisterMetaType<uzume::RunEvent>("uzume::RunEvent");
   saveTimer_.setSingleShot(true);
   saveTimer_.setInterval(500);
   connect(&saveTimer_, &QTimer::timeout, this, &RunClient::saveCache);
@@ -817,4 +817,4 @@ QJsonArray RunClient::helloRuns() {
   return out;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

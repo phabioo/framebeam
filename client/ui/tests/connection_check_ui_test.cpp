@@ -1,6 +1,6 @@
 // Connection check dialog (design 6e) in the real window: opened from Settings, five rows, the four outcomes, keys R / Ctrl+C / Esc,
 // Copy result, Add to problem report (lands in the next diagnostics bundle), Edit Hub address…. Scripted probes (no network);
-// FakeHub only for the paired Hub profile. Screenshots with FRAMEBEAM_SHOT_DIR.
+// FakeHub only for the paired Hub profile. Screenshots with UZUME_SHOT_DIR.
 #include <QClipboard>
 #include <QSignalSpy>
 #include <QtTest>
@@ -12,8 +12,8 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 using S = HubConnection::State;
 
@@ -93,7 +93,7 @@ class ConnectionCheckUiTest : public QObject {
 
  private slots:
   void initTestCase() {
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     uitest::installWarningCounter();
   }
   void init() { uitest::warningCount() = 0; }

@@ -8,7 +8,7 @@ import (
 
 // The AuthHandler of the TURN library runs before the message integrity can be checked, so anybody who can reach
 // the port can make the server look up arbitrary device IDs. Results are therefore cached (positive and negative,
-// bounded) and lookups of IDs that are not cached are rate limited, so a flood cannot saturate the Hub's one
+// bounded) and lookups of IDs that are not cached are rate limited, so a flood cannot saturate the server's one
 // database connection.
 const (
 	// DefaultAuthCacheTTL is how long a DeviceOK result is reused.

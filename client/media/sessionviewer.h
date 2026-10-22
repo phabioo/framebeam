@@ -24,7 +24,7 @@ class Track;
 class DataChannel;
 }  // namespace rtc
 
-namespace framebeam {
+namespace uzume {
 
 class ThreadBridge;
 class LossReceivingSession;
@@ -45,7 +45,7 @@ class SessionViewer : public QObject {
   // `turnServers`: relay credentials from the join response / hello_ack (ADR 0012 D3-D5).
   void open(const QString& sessionId, const QString& viewerId, const QStringList& iceServers,
             const QList<TurnServer>& turnServers = {});
-  // ICE transport policy "relay" for the PeerConnection created from now on (default: FRAMEBEAM_FORCE_RELAY=1).
+  // ICE transport policy "relay" for the PeerConnection created from now on (default: UZUME_FORCE_RELAY=1).
   void setForceRelay(bool force) { forceRelay_ = force; }
   bool forceRelay() const { return forceRelay_; }
   // Leave / Session ended / viewer removed: closes the PeerConnection immediately.
@@ -78,10 +78,10 @@ class SessionViewer : public QObject {
   void requestKeyframe();  // sends a PLI now (rate-limited to one per 500 ms)
 
  public slots:
-  void handleSignal(const framebeam::SessionSignal& signal);  // offer / candidate from the owner
+  void handleSignal(const uzume::SessionSignal& signal);  // offer / candidate from the owner
 
  signals:
-  void signalOut(const framebeam::SessionSignal& signal);
+  void signalOut(const uzume::SessionSignal& signal);
   void frameReady(const QImage& frame);
   void connectedChanged(bool connected);
   void closed(const QString& reason);  // the PeerConnection failed or closed on its own
@@ -153,4 +153,4 @@ class SessionViewer : public QObject {
   ViewerLinkStats link_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

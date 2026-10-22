@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/clientip"
+	"github.com/phabioo/uzume/server/internal/clientip"
 )
 
 // proxyEnv serves the web interface behind clientip.Middleware with the given trusted proxy list.

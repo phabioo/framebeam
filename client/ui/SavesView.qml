@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Saves mode of the Library detail column (3c-3, 3c-4): back row, slot tabs or switcher, CURRENT bar, snapshot / upload
 // actions with inline confirmations, and the HISTORY timeline (SaveRow). Reuses SaveHistoryController for everything the

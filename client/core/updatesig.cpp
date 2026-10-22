@@ -1,14 +1,15 @@
 #include "updatesig.h"
+#include "envvar.h"
 
 #include <QCryptographicHash>
 #include <QRegularExpression>
 
 #include <openssl/evp.h>
 
-namespace framebeam::update {
+namespace uzume::update {
 
 QList<QByteArray> defaultTrustedKeys() {
-  // FrameBeam release key (2026-10-07); the private counterpart lives only in the secret FRAMEBEAM_SIGNING_KEY.
+  // Uzume release key (2026-10-07); the private counterpart lives only in the secret FRAMEBEAM_SIGNING_KEY.
   return parsePublicKeys({QStringLiteral("XNEQ9t7C2AtGzhfsg+oZwDKp8G2SG0iLxAQGg1u86PI=")});
 }
 
@@ -29,7 +30,7 @@ QList<QByteArray> parsePublicKeys(const QStringList& base64Keys, QString* error)
 
 QList<QByteArray> trustedKeysFromEnvironment() {
   QList<QByteArray> keys = defaultTrustedKeys();
-  const QString extra = qEnvironmentVariable("FRAMEBEAM_PLAYER_TRUST_KEYS");
+  const QString extra = uzume::env::get("UZUME_APP_TRUST_KEYS");
   if (!extra.isEmpty()) keys += parsePublicKeys(extra.split(QLatin1Char(','), Qt::SkipEmptyParts));
   return keys;
 }
@@ -123,4 +124,4 @@ SigCheck verifyIndexSignature(const QByteArray& index, const QByteArray& sigFile
   return r;
 }
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

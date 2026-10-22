@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // One HUD widget (docs/design/plugins.md 4e): always dark, surface rgba(17,18,20,.82), border rgba(255,255,255,.08),
 // radius 8, padding 6 10, at most 240 wide. It takes no input: hover (or focus) only brightens it and shows the "⋯"

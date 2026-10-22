@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 func hexSHA(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }

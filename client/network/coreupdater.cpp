@@ -4,7 +4,7 @@
 #include <algorithm>
 
 
-namespace framebeam {
+namespace uzume {
 
 Q_DECLARE_LOGGING_CATEGORY(lcCores)
 
@@ -14,7 +14,7 @@ constexpr int kMaxRetryMs = 30 * 60 * 1000;
 
 CoreUpdater::CoreUpdater(HubConnection* connection, CoreCache* cache, QObject* parent)
     : QObject(parent), conn_(connection), cache_(cache), prov_(connection, cache, this), platform_(CoreCache::currentPlatform()) {
-  qRegisterMetaType<framebeam::CoreUpdater::Candidate>("framebeam::CoreUpdater::Candidate");
+  qRegisterMetaType<uzume::CoreUpdater::Candidate>("uzume::CoreUpdater::Candidate");
   retryTimer_.setSingleShot(true);
   connect(&retryTimer_, &QTimer::timeout, this, [this]() {
     failedCores_.clear();
@@ -156,4 +156,4 @@ void CoreUpdater::reset() {
   }
 }
 
-}  // namespace framebeam
+}  // namespace uzume

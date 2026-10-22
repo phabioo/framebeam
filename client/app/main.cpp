@@ -112,26 +112,27 @@ void installTerminationSignals(QObject* parent) {
 // Named mutex: every Player instance holds a handle; the installer (/UPDATE) waits until no process holds it.
 // Instances are not limited to one.
 HANDLE g_instanceMutex = nullptr;
-void holdInstanceMutex() { g_instanceMutex = CreateMutexW(nullptr, FALSE, L"FrameBeamPlayer"); }
+void holdInstanceMutex() { g_instanceMutex = CreateMutexW(nullptr, FALSE, L"UzumeApp"); }
 #endif
 
 // `--collect-logs <out.zip> [--data-dir <path>]`: writes the diagnostics bundle without the GUI (also when the Player
 // does not start). Offline: reads the data directory only, never connects to a Hub. Refuses to overwrite a file.
 int collectLogsCli(int argc, char* argv[], const QString& out) {
   QCoreApplication app(argc, argv);
-  QCoreApplication::setApplicationName(QStringLiteral("FrameBeam Player"));
+  QCoreApplication::setOrganizationName(QStringLiteral("Uzume"));
+  QCoreApplication::setApplicationName(QStringLiteral("Uzume"));
   QString dataDir;
   for (int i = 1; i + 1 < argc; ++i) {
     if (std::strcmp(argv[i], "--data-dir") == 0) dataDir = QString::fromLocal8Bit(argv[i + 1]);
   }
-  if (dataDir.isEmpty()) dataDir = framebeam::ProfileStore::defaultBaseDir();
+  if (dataDir.isEmpty()) dataDir = uzume::ProfileStore::defaultBaseDir();
   if (QFileInfo::exists(out)) {
-    printToStdout("framebeam_player: " + out.toStdString() + " already exists, not overwriting\n");
+    printToStdout("uzume: " + out.toStdString() + " already exists, not overwriting\n");
     return 1;
   }
   QString err;
-  if (!framebeam::diag::writeBundle(out, framebeam::diag::offlineInfo(dataDir), dataDir, {}, &err)) {
-    printToStdout("framebeam_player: could not write the bundle: " + err.toStdString() + "\n");
+  if (!uzume::diag::writeBundle(out, uzume::diag::offlineInfo(dataDir), dataDir, {}, &err)) {
+    printToStdout("uzume: could not write the bundle: " + err.toStdString() + "\n");
     return 1;
   }
   printToStdout("Diagnostics bundle written to " + QDir::toNativeSeparators(out).toStdString() + "\n");
@@ -146,23 +147,23 @@ int main(int argc, char* argv[]) {
   // that blocks forever when nobody clicks (CI package smoke check).
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "--version-json") == 0) {
-      printToStdout(framebeam::playerVersionJson() + "\n");
+      printToStdout(uzume::playerVersionJson() + "\n");
       return 0;
     }
     if (std::strcmp(argv[i], "--version") == 0 || std::strcmp(argv[i], "-v") == 0) {
-      printToStdout("FrameBeam Player " + std::string(framebeam::playerVersion()) + "\n");
+      printToStdout("Uzume " + std::string(uzume::playerVersion()) + "\n");
       return 0;
     }
     if (std::strcmp(argv[i], "--collect-logs") == 0) {
       if (i + 1 >= argc) {
-        printToStdout("framebeam_player: --collect-logs needs an output file (<out.zip>)\n");
+        printToStdout("uzume: --collect-logs needs an output file (<out.zip>)\n");
         return 2;
       }
       return collectLogsCli(argc, argv, QString::fromLocal8Bit(argv[i + 1]));
     }
     if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0 || std::strcmp(argv[i], "-?") == 0) {
       printToStdout(
-          "Usage: framebeam_player [options]\n"
+          "Usage: uzume [options]\n"
           "  --version            Print the version and exit.\n"
           "  --version-json       Print version, channel, commit and protocol versions as JSON and exit.\n"
           "  --smoke-test         Load QML and exit with code 0 (code 1 on QML warnings).\n"
@@ -177,19 +178,20 @@ int main(int argc, char* argv[]) {
   SetCurrentProcessExplicitAppUserModelID(L"FrameBeam.Player");  // same id as the installer shortcuts
 #endif
   QGuiApplication app(argc, argv);
-  QGuiApplication::setApplicationName(QStringLiteral("FrameBeam Player"));
+  QGuiApplication::setOrganizationName(QStringLiteral("Uzume"));
+  QGuiApplication::setApplicationName(QStringLiteral("Uzume"));
 #ifdef Q_OS_UNIX
   installTerminationSignals(&app);
 #endif
   {
     QIcon icon;
     for (const int s : {16, 24, 32, 48, 64, 128, 256, 512}) {
-      icon.addFile(QStringLiteral(":/framebeam/app/player-%1.png").arg(s), QSize(s, s));
+      icon.addFile(QStringLiteral(":/uzume/app/player-%1.png").arg(s), QSize(s, s));
     }
     QGuiApplication::setWindowIcon(icon);
   }
-  QGuiApplication::setApplicationVersion(QString::fromUtf8(framebeam::playerVersion().data(),
-                                                           static_cast<qsizetype>(framebeam::playerVersion().size())));
+  QGuiApplication::setApplicationVersion(QString::fromUtf8(uzume::playerVersion().data(),
+                                                           static_cast<qsizetype>(uzume::playerVersion().size())));
 
   QCommandLineParser parser;
   const QCommandLineOption smoke(QStringLiteral("smoke-test"),
@@ -214,7 +216,7 @@ int main(int argc, char* argv[]) {
 #endif
 
   QTemporaryDir smokeDir;  // smoke test without --data-dir does not touch real user data
-  framebeam::ui::PlayerController::Options opts;
+  uzume::ui::PlayerController::Options opts;
   opts.dataDir = parser.value(dataDir);
   opts.allowHttp = parser.isSet(devHttp);
   opts.enableUpdates = !smokeMode;
@@ -231,11 +233,11 @@ int main(int argc, char* argv[]) {
   // Log file <data>/logs/player.log (the GUI exe has no console). Lines before the data directory is known are
   // buffered. Not in smoke mode (temporary data directory).
   if (!smokeMode) {
-    framebeam::filelog::install();
+    uzume::filelog::install();
   }
-  framebeam::ui::PlayerController controller(opts);
+  uzume::ui::PlayerController controller(opts);
   if (!smokeMode) {
-    framebeam::filelog::setDirectory(controller.profileStore()->baseDir());
+    uzume::filelog::setDirectory(controller.profileStore()->baseDir());
   }
   // Beta channel + automatic install: a verified staged installer from the last run is applied before the
   // main window appears (never during a game: none can be running yet). The installer waits for this process.
@@ -245,9 +247,9 @@ int main(int argc, char* argv[]) {
 
   QQmlApplicationEngine engine;
   engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
-  engine.addImageProvider(QStringLiteral("fbplugin"), new framebeam::ui::PluginImageProvider(controller.plugins()->imageSources()));
+  engine.addImageProvider(QStringLiteral("fbplugin"), new uzume::ui::PluginImageProvider(controller.plugins()->imageSources()));
   engine.setInitialProperties({{QStringLiteral("player"), QVariant::fromValue(&controller)}});
-  engine.load(QUrl(QStringLiteral("qrc:/qt/qml/FrameBeam/Player/Main.qml")));
+  engine.load(QUrl(QStringLiteral("qrc:/qt/qml/Uzume/App/Main.qml")));
   if (engine.rootObjects().isEmpty()) {
     return 1;
   }

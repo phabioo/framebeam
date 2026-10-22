@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import FrameBeam.Player
+import Uzume.App
 
 // Select field (34 high) over a C++ list model with the roles pickValue / pickLabel (large lists: the rows are created
 // lazily, nothing is converted to JS up front). current = selected value; picked(value) on user choice. Same look as FbSelect.

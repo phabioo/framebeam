@@ -1,4 +1,4 @@
-// Package hub is the service layer of the FrameBeam Hub (hub identity, users, devices, pairing,
+// Package hub is the service layer of the Uzume server (hub identity, users, devices, pairing,
 // tokens, library). The web interface and HTTP API use the same functions.
 package hub
 
@@ -16,9 +16,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
-	"github.com/phabioo/framebeam/server/internal/backup"
-	"github.com/phabioo/framebeam/server/internal/clientip"
+	"github.com/phabioo/uzume/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/backup"
+	"github.com/phabioo/uzume/server/internal/clientip"
 )
 
 // Protocol constants in one place (ADR 0002); the info endpoint and handshake read them here.
@@ -46,7 +46,7 @@ const (
 // Options configure the service.
 type Options struct {
 	DataDir string
-	// Name is the hub name on first start (empty: hostname, or "FrameBeam Hub").
+	// Name is the hub name on first start (empty: hostname, or "Uzume server").
 	Name       string
 	HubVersion string
 	// Now is the clock (injectable for tests); default time.Now.
@@ -82,13 +82,13 @@ type Options struct {
 	// UpdateChannel is the compiled-in default channel: stable, beta or dev (dev = no automatic checks).
 	UpdateChannel string
 	// Executable is the path of the running binary (default os.Executable); updates are installable only when it
-	// is /usr/bin/framebeam-hub. UpdatePlatform defaults to linux-<GOARCH>. Both are injectable for tests.
+	// is /usr/bin/uzume-server. UpdatePlatform defaults to linux-<GOARCH>. Both are injectable for tests.
 	Executable     string
 	UpdatePlatform string
 	// SaveKeepRecent, SaveKeepDaily and SaveKeepWeekly are the history retention rules (ADR 0012 D7): newest versions,
 	// days and weeks to keep one version of. 0 = unlimited for that rule (SaveKeepRecent 0 = no thinning at all).
 	SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly int
-	// PluginIndexURL is the signed plugin index (https or file://; empty = no index, the Hub binary passes "none" as empty), fetched with CoreHTTPClient and
+	// PluginIndexURL is the signed plugin index (https or file://; empty = no index, the server binary passes "none" as empty), fetched with CoreHTTPClient and
 	// verified with CoreTrustKeys.
 	PluginIndexURL string
 	// BackupExtras are files outside the data directory that go into every backup (own TLS certificate and key, hub.env).
@@ -171,7 +171,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	// The plugin store is the run plugin catalog, and a version used by a running run cannot be removed.
 	s.SetPluginCatalog(s)
 	s.SetPluginInUseCheck(s.RunsUsingPluginVersion)
-	s.PruneOldPlugins(ctx) // clean up Hubs that already hold superseded versions
+	s.PruneOldPlugins(ctx) // clean up servers that already hold superseded versions
 	if o.CleanStaging {
 		s.cleanReportStaging()
 		s.cleanStaging()
@@ -191,7 +191,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 			name, _ = os.Hostname()
 		}
 		if name == "" {
-			name = "FrameBeam Hub"
+			name = "Uzume server"
 		}
 		s.hubID, s.name = uuid.NewString(), name
 		_, err = db.ExecContext(ctx, `INSERT INTO hub(id, name) VALUES (?, ?)`, s.hubID, s.name)
@@ -325,7 +325,7 @@ func isUnique(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
 
-// IsLocalRequest reports whether r comes from the machine the Hub runs on (see clientip.Local): never through a
+// IsLocalRequest reports whether r comes from the machine the server runs on (see clientip.Local): never through a
 // trusted proxy; otherwise a loopback peer without reverse-proxy headers and with a loopback Host header.
 func IsLocalRequest(r *http.Request) bool { return clientip.Local(r) }
 

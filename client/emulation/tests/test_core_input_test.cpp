@@ -1,4 +1,4 @@
-// Input mapping chain end to end against the FrameBeam test core (no emulator): FrameBeam input -> system profile ->
+// Input mapping chain end to end against the Uzume test core (no emulator): Uzume input -> system profile ->
 // libretro joypad mask -> LibretroBackend -> core. ZR must arrive as R2 (bit 13) in the 3ds profile and as R in nds.
 #include <QCoreApplication>
 #include <QDir>
@@ -11,9 +11,9 @@
 #include "system_manifest.h"
 #include "test_core_layout.h"
 
-using namespace framebeam::emu;
-namespace tc = framebeam::testcore;
-namespace fi = framebeam::input;
+using namespace uzume::emu;
+namespace tc = uzume::testcore;
+namespace fi = uzume::input;
 
 class TestCoreInputTest : public QObject {
   Q_OBJECT

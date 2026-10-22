@@ -3,9 +3,9 @@ package version
 
 // Build information, set at build time:
 //
-//	-ldflags "-X github.com/phabioo/framebeam/server/internal/version.Version=1.2.3
-//	          -X github.com/phabioo/framebeam/server/internal/version.Channel=stable
-//	          -X github.com/phabioo/framebeam/server/internal/version.Commit=<sha>"
+//	-ldflags "-X github.com/phabioo/uzume/server/internal/version.Version=1.2.3
+//	          -X github.com/phabioo/uzume/server/internal/version.Channel=stable
+//	          -X github.com/phabioo/uzume/server/internal/version.Commit=<sha>"
 var (
 	Version = "dev"
 	// Channel is the compiled-in default update channel: stable, beta or dev.

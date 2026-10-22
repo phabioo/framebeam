@@ -11,15 +11,15 @@
 
 #include "filelog.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 class FileLogTest : public QObject {
   Q_OBJECT
   std::unique_ptr<QTemporaryDir> keep_;
  private slots:
   void formatHasTimestampLevelCategory() {
-    const QString l = filelog::formatLine(QtWarningMsg, "framebeam.test", "a\nb");
-    QVERIFY(l.contains("[W] framebeam.test: a\\nb"));
+    const QString l = filelog::formatLine(QtWarningMsg, "uzume.test", "a\nb");
+    QVERIFY(l.contains("[W] uzume.test: a\\nb"));
     QVERIFY(QDateTime::fromString(l.left(23), Qt::ISODateWithMs).isValid());
   }
   void rotateKeepsThree() {

@@ -1,7 +1,7 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
-// Origin pill of a plugin (docs/design/plugins.md, common rules): "✓ Official" (info tone, signed by FrameBeam),
+// Origin pill of a plugin (docs/design/plugins.md, common rules): "✓ Official" (info tone, signed by Uzume),
 // "Hub upload · unverified" (warning tone, unsigned and offered by the Hub), "Local file" (neutral).
 // origin: official | unverified | local; text comes from the controller (translated).
 Rectangle {

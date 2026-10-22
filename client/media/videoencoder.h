@@ -16,7 +16,7 @@ struct AVFrame;
 struct AVPacket;
 struct SwsContext;
 
-namespace framebeam {
+namespace uzume {
 
 struct EncodedVideoPacket {
   std::vector<uint8_t> data;  // Annex B (start codes), SPS/PPS in-band before keyframes
@@ -40,9 +40,9 @@ class VideoEncoder {
   // Present does not mean the hardware works; the encoder actually opened is reported by the Session (diagnostics).
   static QStringList availableEncoders();
 
-  // ADR 0019: GPU-direct input is configured: FRAMEBEAM_DISABLE_GPU_ENCODE != "1" and FRAMEBEAM_H264_ENCODER unset (a
+  // ADR 0019: GPU-direct input is configured: UZUME_DISABLE_GPU_ENCODE != "1" and UZUME_H264_ENCODER unset (a
   // forced encoder, also h264_nvenc, keeps the readback path so both paths can be compared). *why: reason when false,
-  // e.g. "FRAMEBEAM_DISABLE_GPU_ENCODE=1" or "FRAMEBEAM_H264_ENCODER=h264_nvenc forces the readback path".
+  // e.g. "UZUME_DISABLE_GPU_ENCODE=1" or "UZUME_H264_ENCODER=h264_nvenc forces the readback path".
   static bool gpuInputConfigured(QString* why = nullptr);
   // FFmpeg can feed h264_nvenc with CUDA frames: avcodec_get_hw_config lists AV_PIX_FMT_CUDA with
   // AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX, and av_hwdevice_iterate_types includes AV_HWDEVICE_TYPE_CUDA.
@@ -116,4 +116,4 @@ class VideoEncoder {
   std::atomic<bool> forceKeyframe_{true};  // may be set from other threads
 };
 
-}  // namespace framebeam
+}  // namespace uzume

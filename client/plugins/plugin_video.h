@@ -6,7 +6,7 @@
 
 // Seam between the plugin runtime and the emulation layer for fb.video (permission video.capture). The runtime never
 // touches Qt Gui: the Player hands over raw RGBA pixels, the runtime crops and encodes the PNG itself.
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 // Where one emulated screen lies in the core's output frame, in source-frame pixels.
 struct ScreenInfo {
@@ -30,4 +30,4 @@ class VideoProvider {
   virtual void captureFrame(std::function<void(RawFrame)> done) = 0;
 };
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

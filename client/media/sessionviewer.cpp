@@ -15,10 +15,10 @@
 #include "rtcutil.h"
 #include "viewerbacklog.h"
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
-Q_LOGGING_CATEGORY(lcViewer, "framebeam.sessionviewer")
+Q_LOGGING_CATEGORY(lcViewer, "uzume.sessionviewer")
 
 QString stateName(rtc::PeerConnection::State s) {
   using S = rtc::PeerConnection::State;
@@ -604,4 +604,4 @@ SessionStats SessionViewer::stats() const {
 
 ViewerLinkStats SessionViewer::link() const { return link_; }
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -13,7 +13,7 @@
 
 class QThread;
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 class ConsoleStore;
 class PluginEngine;
@@ -72,4 +72,4 @@ class PluginHost : public QObject {
   HostWorker* m_worker = nullptr;
 };
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

@@ -15,7 +15,7 @@
 
 #include "connectioncheck.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class CheckWorker;
 
@@ -96,7 +96,7 @@ class ConnectionCheckController : public QObject {
   void editHubRequested();
 
  private slots:
-  void onUpdated(const framebeam::CheckResult& r, bool running, int stepNumber);
+  void onUpdated(const uzume::CheckResult& r, bool running, int stepNumber);
 
  private:
   void ensureWorker();
@@ -118,4 +118,4 @@ class ConnectionCheckController : public QObject {
   QDateTime lastAt_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

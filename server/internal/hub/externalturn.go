@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/config"
-	"github.com/phabioo/framebeam/server/internal/turnsrv"
+	"github.com/phabioo/uzume/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/turnsrv"
 )
 
 const settingExternalTURN = "external_turn"
@@ -30,12 +30,12 @@ const (
 // External TURN servers (own coturn on a VPS or a third-party provider) as relay providers next to the embedded
 // TURN server and Cloudflare TURN. Two credential modes per server:
 //
-//   - ExternalTURNStatic: one fixed username and password, handed to every Player as is (no expiry).
-//   - ExternalTURNSecret: shared secret of the TURN REST API (coturn use-auth-secret). The Hub issues time-limited
+//   - ExternalTURNStatic: one fixed username and password, handed to every app as is (no expiry).
+//   - ExternalTURNSecret: shared secret of the TURN REST API (coturn use-auth-secret). The server issues time-limited
 //     credentials per device (username "<expiry-unix>:<device-id>", password base64(HMAC-SHA1(secret, username)),
 //     TTL like the embedded TURN) and re-sends them by ice_update before they expire.
 //
-// Two sources, the same precedence as the other Hub settings: the list saved in the web interface (Settings,
+// Two sources, the same precedence as the other server settings: the list saved in the web interface (Settings,
 // Network) wins; without a saved list the servers from the flags/hub.env (-turn-external) apply. Secrets of
 // flag-configured servers only exist in memory (read from the environment or a file); secrets saved in the web
 // interface live in the settings table like the embedded TURN secret. Neither is ever logged or part of
@@ -72,7 +72,7 @@ type ExternalTURNOptions struct {
 	// Refresh is the interval of the ice_update push that renews shared-secret credentials (default half of the
 	// credential lifetime).
 	Refresh time.Duration
-	// Disabled loads and keeps the configuration (so it can be edited) but does not hand it to Players, e.g. while
+	// Disabled loads and keeps the configuration (so it can be edited) but does not hand it to apps, e.g. while
 	// Network sharing is off.
 	Disabled bool
 }
@@ -80,7 +80,7 @@ type ExternalTURNOptions struct {
 type externalState struct {
 	edit sync.Mutex // serializes read-modify-write of the saved list
 
-	p atomic.Pointer[[]ExternalTURN] // servers handed to Players (secret set, Hub running with the feature enabled)
+	p atomic.Pointer[[]ExternalTURN] // servers handed to apps (secret set, server running with the feature enabled)
 
 	mu     sync.RWMutex
 	flags  []ExternalTURN // from -turn-external, with secrets read at startup
@@ -134,7 +134,7 @@ func (s *Service) ExternalTURNSource() string {
 	return s.ext.source
 }
 
-// ExternalTURNActive reports whether the configured servers are handed to Players (false while Network sharing is
+// ExternalTURNActive reports whether the configured servers are handed to apps (false while Network sharing is
 // off or before StartExternalTURN).
 func (s *Service) ExternalTURNActive() bool {
 	s.ext.mu.RLock()
@@ -203,7 +203,7 @@ func (s *Service) reloadExternal(ctx context.Context) error {
 }
 
 // StartExternalTURN activates the external TURN servers until ctx ends. flags is the list from -turn-external; a
-// list saved in the web interface replaces it. Players get the servers by ice_update; shared-secret credentials are
+// list saved in the web interface replaces it. Apps get the servers by ice_update; shared-secret credentials are
 // renewed by a periodic ice_update push that always reads the current list, so edits apply without a restart.
 func (s *Service) StartExternalTURN(ctx context.Context, flags []ExternalTURN, o ExternalTURNOptions) {
 	s.ext.mu.Lock()
@@ -300,7 +300,7 @@ func (s *Service) saveExternal(ctx context.Context, st []storedExternalTURN) err
 }
 
 // SaveExternalTURN adds or edits an external TURN server and saves the whole list as the web setting (it then
-// replaces the flag list). The change applies to new joins and by ice_update to connected Players.
+// replaces the flag list). The change applies to new joins and by ice_update to connected apps.
 func (s *Service) SaveExternalTURN(ctx context.Context, in ExternalTURNInput) error {
 	in.Name, in.Mode, in.Username, in.Secret = strings.TrimSpace(in.Name), strings.ToLower(strings.TrimSpace(in.Mode)),
 		strings.TrimSpace(in.Username), strings.TrimSpace(in.Secret)

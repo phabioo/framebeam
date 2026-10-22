@@ -15,14 +15,14 @@ type WatchOptions struct {
 	// Interval defaults to DefaultWatchInterval.
 	Interval time.Duration
 	// Apply runs when the request file exists; ApplyStaged removes it first, so a failed apply is not retried
-	// until the Hub writes a new request. Required.
+	// until the server writes a new request. Required.
 	Apply func(ctx context.Context) error
 	// Done is called after every Apply with its error (optional; used for logging).
 	Done func(err error)
 }
 
 // Watch polls for the request file until ctx ends. It is the Windows counterpart of the systemd path unit: the
-// privileged helper service waits here and applies the staged update when the Hub asks for it. A request that is
+// privileged helper service waits here and applies the staged update when the server asks for it. A request that is
 // already present at start is handled immediately.
 func Watch(ctx context.Context, o WatchOptions) {
 	if o.Interval <= 0 {

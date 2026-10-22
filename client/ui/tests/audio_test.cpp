@@ -4,7 +4,7 @@
 
 #include "audiooutput.h"
 
-using namespace framebeam::ui;
+using namespace uzume::ui;
 
 namespace {
 QByteArray pcm(std::initializer_list<qint16> v) {

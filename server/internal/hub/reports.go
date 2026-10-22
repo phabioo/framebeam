@@ -18,13 +18,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/redact"
+	"github.com/phabioo/uzume/server/internal/redact"
 )
 
-// Problem reports (0.17, ADR 0029 D3, handshake feature `reports_v1`). A Player sends a description and a few
-// attachments to the Hub of its user; admins list, download and delete them. Files live under <data>/reports/<id>/,
-// SQLite holds the metadata. Nothing is shared with another Hub. Text is run through the redactor again here (the
-// Player already removes secrets): defense in depth, never the only protection.
+// Problem reports (0.17, ADR 0029 D3, handshake feature `reports_v1`). An app sends a description and a few
+// attachments to the server of its user; admins list, download and delete them. Files live under <data>/reports/<id>/,
+// SQLite holds the metadata. Nothing is shared with another server. Text is run through the redactor again here (the
+// App already removes secrets): defense in depth, never the only protection.
 
 // FeatureReportsV1 is the handshake feature flag for problem reports.
 const FeatureReportsV1 = "reports_v1"
@@ -35,7 +35,7 @@ const (
 	ReportMaxFiles         = 12
 	ReportMaxDescription   = 8000
 	ReportsPerDevicePerHr  = 5   // reports one device may send per hour
-	ReportsKeptMax         = 300 // reports the Hub keeps before it refuses new ones (until an admin deletes some)
+	ReportsKeptMax         = 300 // reports the server keeps before it refuses new ones (until an admin deletes some)
 	reportNameMax          = 80
 	reportTitleMax         = 80
 	reportDescriptionFile  = "report.txt" // the description in the zip archive; no attachment may use this name
@@ -54,11 +54,11 @@ const (
 
 var reportNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
-// reportTextExt are the attachment types the Hub redacts; others are stored as they arrive.
+// reportTextExt are the attachment types the server redacts; others are stored as they arrive.
 var reportTextExt = map[string]bool{".txt": true, ".log": true, ".json": true, ".ini": true, ".cfg": true, ".conf": true,
 	".csv": true, ".md": true, ".xml": true}
 
-// ErrReportRateLimited: the device sent too many reports within the last hour, or the Hub keeps too many.
+// ErrReportRateLimited: the device sent too many reports within the last hour, or the server keeps too many.
 var ErrReportRateLimited = &Error{Code: CodeRateLimited, Message: "Too many reports. Try again later."}
 
 // Report is one stored problem report.
@@ -88,7 +88,7 @@ type ReportFile struct {
 // ReportCounts are the list chips.
 type ReportCounts struct{ All, New, Seen int }
 
-// ReportInput is what a Player sends besides the files.
+// ReportInput is what an app sends besides the files.
 type ReportInput struct {
 	Description   string
 	EventTitle    string
@@ -170,7 +170,7 @@ func (s *Service) CreateReport(ctx context.Context, p Principal, in ReportInput,
 		return 0, internal(err)
 	}
 	if kept >= ReportsKeptMax {
-		return 0, &Error{Code: CodeRateLimited, Message: "This Hub keeps too many reports. An admin has to delete some first."}
+		return 0, &Error{Code: CodeRateLimited, Message: "This server keeps too many reports. An admin has to delete some first."}
 	}
 
 	if err := os.MkdirAll(s.reportsDir(), 0o750); err != nil {
@@ -462,7 +462,7 @@ func ReportText(x Report) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Report #%d\nSent: %s\nFrom: %s (%s)\n", x.ID, x.CreatedAt.Format(time.RFC3339), x.User, x.Device)
 	if x.PlayerVersion != "" || x.OS != "" {
-		fmt.Fprintf(&b, "Player: %s\nSystem: %s\n", x.PlayerVersion, x.OS)
+		fmt.Fprintf(&b, "App: %s\nSystem: %s\n", x.PlayerVersion, x.OS)
 	}
 	if x.EventTitle != "" {
 		fmt.Fprintf(&b, "Linked to: %s", x.EventTitle)
@@ -506,7 +506,7 @@ func (s *Service) WriteReportArchive(ctx context.Context, id int64, w io.Writer)
 	return zw.Close()
 }
 
-// cleanReportStaging removes upload leftovers of a crashed Hub (<data>/reports/.tmp-*).
+// cleanReportStaging removes upload leftovers of a crashed server (<data>/reports/.tmp-*).
 func (s *Service) cleanReportStaging() {
 	entries, err := os.ReadDir(s.reportsDir())
 	if err != nil {

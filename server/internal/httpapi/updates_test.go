@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/phabioo/framebeam/server/internal/corepkg"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/store"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 // writeUpdateFeed publishes a signed index with hub releases (version -> schema) for linux-amd64 and returns its URL.

@@ -13,12 +13,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/backup"
-	"github.com/phabioo/framebeam/server/internal/store"
-	"github.com/phabioo/framebeam/server/internal/sysmetrics"
+	"github.com/phabioo/uzume/server/internal/backup"
+	"github.com/phabioo/uzume/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/sysmetrics"
 )
 
-// Hub backup and restore (ADR 0029 D2). The archive format and the swap live in internal/backup; this file holds
+// Server backup and restore (ADR 0029 D2). The archive format and the swap live in internal/backup; this file holds
 // the settings, the one running job, the schedule and the status the interfaces show.
 
 const (
@@ -43,7 +43,7 @@ const (
 type BackupSettings struct {
 	Mode        string // backup.ModeOff, ModeDaily, ModeWeekly
 	Weekday     int    // 0 = Sunday, used by weekly
-	Time        string // HH:MM in the Hub's local time zone
+	Time        string // HH:MM in the server's local time zone
 	Keep        int
 	IncludeROMs bool
 	Folder      string // "" = no folder: backups are off
@@ -146,7 +146,7 @@ func (s *Service) initBackup(o Options) {
 	s.bk.extras, s.bk.free = o.BackupExtras, o.BackupFree
 }
 
-// SetBackupRestart sets the function that restarts the Hub process after a restore is prepared (nil: no restore).
+// SetBackupRestart sets the function that restarts the server process after a restore is prepared (nil: no restore).
 func (s *Service) SetBackupRestart(f func()) {
 	s.bk.mu.Lock()
 	s.bk.restart = f
@@ -405,7 +405,7 @@ func (s *Service) BackupProblem(ctx context.Context) *BackupProblem {
 		return nil
 	}
 	if e := s.folderError(set.Folder, false); e != "" {
-		return &BackupProblem{Title: "Cannot write", Detail: fmt.Sprintf("The Hub cannot write to the backup folder %s: %s. Check that the disk is mounted, or choose another folder.", set.Folder, e)}
+		return &BackupProblem{Title: "Cannot write", Detail: fmt.Sprintf("The server cannot write to the backup folder %s: %s. Check that the disk is mounted, or choose another folder.", set.Folder, e)}
 	}
 	if last := s.readRun(ctx, settingBackupLast); last != nil && !last.OK {
 		d := last.Error
@@ -515,7 +515,7 @@ func (j *backupJob) report(p backup.Progress) {
 	j.total.Store(p.Total)
 }
 
-// begin registers the one running job. The job context ends with the Hub.
+// begin registers the one running job. The job context ends with the server.
 func (s *Service) begin(kind, by string) (*backupJob, context.Context, error) {
 	s.bk.mu.Lock()
 	defer s.bk.mu.Unlock()
@@ -601,7 +601,7 @@ func (s *Service) CancelBackup() bool {
 
 // ---- schedule ----
 
-// RunBackupSchedule runs the scheduled backups until ctx ends. A run missed while the Hub was down is not made up.
+// RunBackupSchedule runs the scheduled backups until ctx ends. A run missed while the server was down is not made up.
 func (s *Service) RunBackupSchedule(ctx context.Context, log func(msg string, args ...any)) {
 	s.bk.mu.Lock()
 	s.bk.base = ctx
@@ -702,9 +702,9 @@ func checkNewer(m backup.Manifest) error {
 	return nil
 }
 
-// StartRestore restores a backup of the folder: safety backup, verify and unpack to staging, then the Hub restarts
+// StartRestore restores a backup of the folder: safety backup, verify and unpack to staging, then the server restarts
 // and swaps the data in before it opens the database. A newer backup is rejected here, before anything happens.
-// Anything that fails later is stored as the restore result and the Hub runs as before.
+// Anything that fails later is stored as the restore result and the server runs as before.
 func (s *Service) StartRestore(ctx context.Context, name, by string) error {
 	set := s.backupSettings(ctx)
 	p, err := s.backupPath(ctx, name)
@@ -722,7 +722,7 @@ func (s *Service) StartRestore(ctx context.Context, name, by string) error {
 	restart := s.bk.restart
 	s.bk.mu.Unlock()
 	if restart == nil {
-		return badRequest("This Hub cannot restart itself. Restore with 'framebeam-hub restore <file>' while the Hub is stopped")
+		return badRequest("This server cannot restart itself. Restore with 'uzume-server restore <file>' while the server is stopped")
 	}
 	if e := s.folderError(set.Folder, true); e != "" {
 		return badRequest("The backup folder cannot be written, so the safety backup is not possible: %s", e)

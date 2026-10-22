@@ -9,19 +9,19 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/config"
 )
 
-// Local setup (0.9): the Player on the same PC sets up or pairs with the Hub without an admin approving the
+// Local setup (0.9): the app on the same PC sets up or pairs with the server without an admin approving the
 // request. The HTTP layer only lets loopback callers in; the rules below do not depend on that.
 
-// FeatureLocalSetupV1 marks a Hub that offers the /api/v1/local endpoints.
+// FeatureLocalSetupV1 marks a server that offers the /api/v1/local endpoints.
 const FeatureLocalSetupV1 = "local_setup_v1"
 
 // CodeImportDirUnreadable: the import folder is not an absolute, existing, readable directory (400).
 const CodeImportDirUnreadable Code = "import_dir_unreadable"
 
-// LocalStatus is the state of the local setup as reported to the Player.
+// LocalStatus is the state of the local setup as reported to the app.
 type LocalStatus struct {
 	AdminExists    bool
 	NetworkSharing bool
@@ -129,7 +129,7 @@ func (s *Service) pairLocally(ctx context.Context, userID string, in PairingInpu
 	return res, nil
 }
 
-// LocalSetup creates the first admin and pairs the calling Player as that admin. ErrAdminExists when an admin
+// LocalSetup creates the first admin and pairs the calling app as that admin. ErrAdminExists when an admin
 // already exists.
 func (s *Service) LocalSetup(ctx context.Context, in LocalInput) (PairingResult, User, error) {
 	if err := s.validLocalDevice(in.Device); err != nil {
@@ -145,7 +145,7 @@ func (s *Service) LocalSetup(ctx context.Context, in LocalInput) (PairingResult,
 	res, err := s.pairLocally(ctx, u.ID, in.Device)
 	if err != nil {
 		// Admin and pairing succeed or fail together: the next /local/setup must work again instead of
-		// answering 409 for an admin the Player never received credentials for.
+		// answering 409 for an admin the app never received credentials for.
 		s.discardLocalAdmin(u.ID, in.Device.DeviceID)
 		return PairingResult{}, User{}, err
 	}
@@ -179,7 +179,7 @@ func (s *Service) discardLocalAdmin(userID, deviceID string) {
 	}
 }
 
-// LocalPair pairs the calling Player as an enabled admin whose credentials are given (ErrInvalidCredentials
+// LocalPair pairs the calling app as an enabled admin whose credentials are given (ErrInvalidCredentials
 // otherwise).
 func (s *Service) LocalPair(ctx context.Context, in LocalInput) (PairingResult, User, error) {
 	if err := s.validLocalDevice(in.Device); err != nil {

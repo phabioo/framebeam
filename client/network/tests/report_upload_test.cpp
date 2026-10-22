@@ -14,7 +14,7 @@
 #include "profilestore.h"
 #include "reportuploader.h"
 
-using namespace framebeam;
+using namespace uzume;
 using State = HubConnection::State;
 using US = ReportUploader::State;
 

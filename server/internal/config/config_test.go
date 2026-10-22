@@ -24,11 +24,11 @@ func TestDefaultsEnvAndFlags(t *testing.T) {
 	if c.DataDir != DefaultDataDir(runtime.GOOS, func(string) string { return "" }) || c.Listen != ":8443" || c.Dev || !c.UseTLS() {
 		t.Fatalf("defaults: %+v", c)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_LISTEN": ":9000", "FRAMEBEAM_DEV": "true"}, "-data-dir", "/x")
+	c = parse(t, map[string]string{"UZUME_LISTEN": ":9000", "UZUME_DEV": "true"}, "-data-dir", "/x")
 	if c.Listen != ":9000" || !c.Dev || c.DataDir != "/x" || c.UseTLS() {
 		t.Fatalf("env/flag: %+v", c)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_LISTEN": ":9000"}, "-listen", "127.0.0.1:1")
+	c = parse(t, map[string]string{"UZUME_LISTEN": ":9000"}, "-listen", "127.0.0.1:1")
 	if c.Listen != "127.0.0.1:1" || !c.ListenIsLoopback() {
 		t.Fatalf("flag override: %+v", c)
 	}
@@ -50,11 +50,11 @@ func TestICEServers(t *testing.T) {
 	if c := parse(t, nil); len(c.ICEServers) != 0 || c.Validate() != nil {
 		t.Fatalf("default must be empty: %+v", c.ICEServers)
 	}
-	c := parse(t, map[string]string{"FRAMEBEAM_ICE_SERVERS": "stun:a.example:3478"})
+	c := parse(t, map[string]string{"UZUME_ICE_SERVERS": "stun:a.example:3478"})
 	if len(c.ICEServers) != 1 || c.ICEServers[0] != "stun:a.example:3478" || c.Validate() != nil {
 		t.Fatalf("env: %v", c.ICEServers)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_ICE_SERVERS": "stun:env.example"}, "-ice-servers", "stun:a.example:1, stun:b.example:2")
+	c = parse(t, map[string]string{"UZUME_ICE_SERVERS": "stun:env.example"}, "-ice-servers", "stun:a.example:1, stun:b.example:2")
 	if len(c.ICEServers) != 2 || c.ICEServers[1] != "stun:b.example:2" || c.Validate() != nil {
 		t.Fatalf("flag overrides env: %v", c.ICEServers)
 	}
@@ -70,19 +70,19 @@ func TestCoreSourceConfig(t *testing.T) {
 		c.CoreIndexURL != "" || len(c.CoreTrustKeys) != 0 || c.Validate() != nil {
 		t.Fatalf("defaults: %+v", c)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_HUB_CORE_BUILDBOT_URL": "https://mirror.example/nightly", "FRAMEBEAM_HUB_CORE_INFO_URL": "https://mirror.example/info.zip",
-		"FRAMEBEAM_HUB_CORE_TRUST_KEYS": good + " , " + good})
+	c = parse(t, map[string]string{"UZUME_SERVER_CORE_BUILDBOT_URL": "https://mirror.example/nightly", "UZUME_SERVER_CORE_INFO_URL": "https://mirror.example/info.zip",
+		"UZUME_SERVER_CORE_TRUST_KEYS": good + " , " + good})
 	if c.CoreBuildbotURL != "https://mirror.example/nightly" || c.CoreInfoURL != "https://mirror.example/info.zip" || len(c.CoreTrustKeys) != 2 || c.Validate() != nil {
 		t.Fatalf("env: %+v", c)
 	}
 	// Repeatable flag replaces the environment list, further uses append; flags win over the environment.
-	c = parse(t, map[string]string{"FRAMEBEAM_HUB_CORE_TRUST_KEYS": "env", "FRAMEBEAM_HUB_CORE_BUILDBOT_URL": "https://env.example/n"},
+	c = parse(t, map[string]string{"UZUME_SERVER_CORE_TRUST_KEYS": "env", "UZUME_SERVER_CORE_BUILDBOT_URL": "https://env.example/n"},
 		"-core-trust-key", good, "-core-trust-key", good, "-core-buildbot-url", "https://x.example/n", "-core-info-url", "https://x.example/info.zip")
 	if len(c.CoreTrustKeys) != 2 || c.CoreBuildbotURL != "https://x.example/n" || c.CoreInfoURL != "https://x.example/info.zip" || c.Validate() != nil {
 		t.Fatalf("flags: %+v", c)
 	}
 	// The deprecated -core-index-url is still accepted (and ignored), even with an old http value.
-	c = parse(t, map[string]string{"FRAMEBEAM_HUB_CORE_INDEX_URL": "https://old.example/i.json"})
+	c = parse(t, map[string]string{"UZUME_SERVER_CORE_INDEX_URL": "https://old.example/i.json"})
 	if c.CoreIndexURL != "https://old.example/i.json" || c.Validate() != nil {
 		t.Fatalf("deprecated env: %+v", c)
 	}
@@ -99,15 +99,15 @@ func TestCoreSourceConfig(t *testing.T) {
 
 func TestUpdateConfig(t *testing.T) {
 	c := parse(t, nil)
-	if c.Validate() != nil || c.UpdateIndexURL != "https://github.com/phabioo/framebeam/releases/download/updates-index/updates-index.json" ||
+	if c.Validate() != nil || c.UpdateIndexURL != "https://github.com/phabioo/uzume/releases/download/updates-index/updates-index.json" ||
 		c.UpdateRequestDir != DefaultUpdateRequestDir(runtime.GOOS, c.DataDir) {
 		t.Fatalf("defaults: %+v", c)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_HUB_UPDATE_INDEX_URL": "file:///tmp/updates-index.json", "FRAMEBEAM_HUB_UPDATE_REQUEST_DIR": "/tmp/req"})
+	c = parse(t, map[string]string{"UZUME_SERVER_UPDATE_INDEX_URL": "file:///tmp/updates-index.json", "UZUME_SERVER_UPDATE_REQUEST_DIR": "/tmp/req"})
 	if c.UpdateIndexURL != "file:///tmp/updates-index.json" || c.UpdateRequestDir != "/tmp/req" || c.Validate() != nil {
 		t.Fatalf("env: %+v", c)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_HUB_UPDATE_INDEX_URL": "https://env.example/i"}, "-update-index-url", "https://flag.example/i", "-update-request-dir", "/x")
+	c = parse(t, map[string]string{"UZUME_SERVER_UPDATE_INDEX_URL": "https://env.example/i"}, "-update-index-url", "https://flag.example/i", "-update-request-dir", "/x")
 	if c.UpdateIndexURL != "https://flag.example/i" || c.UpdateRequestDir != "/x" {
 		t.Fatalf("flags: %+v", c)
 	}
@@ -117,12 +117,12 @@ func TestUpdateConfig(t *testing.T) {
 }
 
 func TestPluginIndexConfig(t *testing.T) {
-	if c := parse(t, nil); c.PluginIndexURL != "https://github.com/phabioo/framebeam/releases/download/plugin-index/plugin-index.json" ||
+	if c := parse(t, nil); c.PluginIndexURL != "https://github.com/phabioo/uzume/releases/download/plugin-index/plugin-index.json" ||
 		c.PluginIndex() != c.PluginIndexURL || c.Validate() != nil {
 		t.Fatalf("default: %+v", c)
 	}
 	for _, c := range []*Config{
-		parse(t, map[string]string{"FRAMEBEAM_PLUGIN_INDEX_URL": "none"}),
+		parse(t, map[string]string{"UZUME_PLUGIN_INDEX_URL": "none"}),
 		parse(t, nil, "-plugin-index-url", "none"),
 		parse(t, nil, "-plugin-index-url", "NONE"),
 	} {
@@ -130,11 +130,11 @@ func TestPluginIndexConfig(t *testing.T) {
 			t.Fatalf("none: %+v", c)
 		}
 	}
-	c := parse(t, map[string]string{"FRAMEBEAM_PLUGIN_INDEX_URL": "https://env.example/plugin-index.json"})
+	c := parse(t, map[string]string{"UZUME_PLUGIN_INDEX_URL": "https://env.example/plugin-index.json"})
 	if c.PluginIndexURL != "https://env.example/plugin-index.json" || c.Validate() != nil {
 		t.Fatalf("env: %+v", c)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_PLUGIN_INDEX_URL": "https://env.example/i"}, "-plugin-index-url", "file:///tmp/plugin-index.json")
+	c = parse(t, map[string]string{"UZUME_PLUGIN_INDEX_URL": "https://env.example/i"}, "-plugin-index-url", "file:///tmp/plugin-index.json")
 	if c.PluginIndexURL != "file:///tmp/plugin-index.json" || c.Validate() != nil {
 		t.Fatalf("flag: %+v", c)
 	}
@@ -151,13 +151,13 @@ func TestTURNConfig(t *testing.T) {
 	if c = parse(t, nil, "-turn"); c.Validate() == nil {
 		t.Fatal("-turn without -public-host accepted")
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_TURN": "1", "FRAMEBEAM_PUBLIC_HOST": "hub.example.org", "FRAMEBEAM_TURN_PORT": "3479",
-		"FRAMEBEAM_TURN_RELAY_PORTS": "50000-50009", "FRAMEBEAM_TURN_RELAY_IP": "203.0.113.7"})
+	c = parse(t, map[string]string{"UZUME_TURN": "1", "UZUME_PUBLIC_HOST": "hub.example.org", "UZUME_TURN_PORT": "3479",
+		"UZUME_TURN_RELAY_PORTS": "50000-50009", "UZUME_TURN_RELAY_IP": "203.0.113.7"})
 	lo, hi, rerr := c.TURNRelayRange()
 	if err := c.Validate(); err != nil || !c.TURN || c.TURNPort != 3479 || lo != 50000 || hi != 50009 || rerr != nil {
 		t.Fatalf("env: %+v %v", c, err)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_TURN_PORT": "3479"}, "-turn", "-public-host", "hub.example.org", "-turn-port", "4000")
+	c = parse(t, map[string]string{"UZUME_TURN_PORT": "3479"}, "-turn", "-public-host", "hub.example.org", "-turn-port", "4000")
 	if c.TURNPort != 4000 || c.Validate() != nil {
 		t.Fatalf("flag: %+v", c)
 	}
@@ -175,7 +175,7 @@ func TestSaveRetentionConfig(t *testing.T) {
 	if c.SaveKeepRecent != 20 || c.SaveKeepDaily != 30 || c.SaveKeepWeekly != 26 {
 		t.Fatalf("defaults: %+v", c)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_SAVE_KEEP_RECENT": "5", "FRAMEBEAM_SAVE_KEEP_DAILY": "0"}, "-save-keep-weekly", "3")
+	c = parse(t, map[string]string{"UZUME_SAVE_KEEP_RECENT": "5", "UZUME_SAVE_KEEP_DAILY": "0"}, "-save-keep-weekly", "3")
 	if c.SaveKeepRecent != 5 || c.SaveKeepDaily != 0 || c.SaveKeepWeekly != 3 {
 		t.Fatalf("env/flag: %+v", c)
 	}
@@ -230,7 +230,7 @@ func TestICEServersDefaultAndNone(t *testing.T) {
 	if c := parse(t, nil); c.ICEServers != nil || len(EffectiveICE(c.ICEServers)) != 1 || EffectiveICE(c.ICEServers)[0] != DefaultSTUNServer {
 		t.Fatalf("unset must mean the default: %#v", c.ICEServers)
 	}
-	for _, c := range []*Config{parse(t, map[string]string{"FRAMEBEAM_ICE_SERVERS": "none"}), parse(t, nil, "-ice-servers", " None ")} {
+	for _, c := range []*Config{parse(t, map[string]string{"UZUME_ICE_SERVERS": "none"}), parse(t, nil, "-ice-servers", " None ")} {
 		if c.ICEServers == nil || len(c.ICEServers) != 0 || len(EffectiveICE(c.ICEServers)) != 0 || c.Validate() != nil {
 			t.Fatalf("none must be explicitly empty: %#v", c.ICEServers)
 		}
@@ -253,7 +253,7 @@ func TestICEServersDefaultAndNone(t *testing.T) {
 }
 
 func TestCloudflareTURNConfig(t *testing.T) {
-	c := parse(t, map[string]string{"FRAMEBEAM_CLOUDFLARE_TURN_KEY_ID": "abc-123"})
+	c := parse(t, map[string]string{"UZUME_CLOUDFLARE_TURN_KEY_ID": "abc-123"})
 	if c.CloudflareTURNKeyID != "abc-123" || c.Validate() != nil {
 		t.Fatalf("%+v", c)
 	}
@@ -261,7 +261,7 @@ func TestCloudflareTURNConfig(t *testing.T) {
 		t.Fatal("token source missing must fail")
 	}
 	if tok, err := c.CloudflareTURNToken(func(k string) string {
-		if k == "FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN" {
+		if k == "UZUME_CLOUDFLARE_TURN_API_TOKEN" {
 			return " tok "
 		}
 		return ""
@@ -281,21 +281,21 @@ func TestCloudflareTURNConfig(t *testing.T) {
 
 func TestExternalTURNFlagAndEnv(t *testing.T) {
 	fs := flag.NewFlagSet("t", flag.ContinueOnError)
-	env := map[string]string{"FRAMEBEAM_TURN_EXTERNAL": "urls=turn:env.example.org:3478"}
+	env := map[string]string{"UZUME_TURN_EXTERNAL": "urls=turn:env.example.org:3478"}
 	c := Register(fs, func(k string) string { return env[k] })
 	if err := fs.Parse([]string{
-		"-turn-external", "name=vps;urls=turn:turn.example.org:3478?transport=udp,turns:turn.example.org:5349?transport=tcp;secret-file=/etc/framebeam/turn.secret",
-		"-turn-external", "mode=static;username=u1;urls=turn:turn2.example.org:3478;password-file=/etc/framebeam/pw"}); err != nil {
+		"-turn-external", "name=vps;urls=turn:turn.example.org:3478?transport=udp,turns:turn.example.org:5349?transport=tcp;secret-file=/etc/uzume/turn.secret",
+		"-turn-external", "mode=static;username=u1;urls=turn:turn2.example.org:3478;password-file=/etc/uzume/pw"}); err != nil {
 		t.Fatal(err)
 	}
 	specs, err := c.ExternalTURNSpecs()
 	if err != nil || len(specs) != 2 { // the flag replaces the environment value
 		t.Fatalf("%v %+v", err, specs)
 	}
-	if s := specs[0]; s.Name != "vps" || s.Mode != ExternalModeSecret || len(s.URLs) != 2 || s.SecretFile != "/etc/framebeam/turn.secret" {
+	if s := specs[0]; s.Name != "vps" || s.Mode != ExternalModeSecret || len(s.URLs) != 2 || s.SecretFile != "/etc/uzume/turn.secret" {
 		t.Errorf("%+v", s)
 	}
-	if s := specs[1]; s.Name != "external-2" || s.Mode != ExternalModeStatic || s.Username != "u1" || s.PasswordFile != "/etc/framebeam/pw" {
+	if s := specs[1]; s.Name != "external-2" || s.Mode != ExternalModeStatic || s.Username != "u1" || s.PasswordFile != "/etc/uzume/pw" {
 		t.Errorf("%+v", s)
 	}
 	// Environment only.
@@ -343,7 +343,7 @@ func TestExternalTURNSecretSources(t *testing.T) {
 		t.Fatalf("%q %v", v, err)
 	}
 	get := func(k string) string {
-		if k == "FRAMEBEAM_TURN_EXTERNAL_2_SECRET" {
+		if k == "UZUME_TURN_EXTERNAL_2_SECRET" {
 			return " env-secret-0123 "
 		}
 		return ""
@@ -352,7 +352,7 @@ func TestExternalTURNSecretSources(t *testing.T) {
 		t.Fatalf("env wins: %q %v", v, err)
 	}
 	st := ExternalTURNSpec{Name: "p", Mode: ExternalModeStatic}
-	if _, err := c.ExternalTURNSecret(st, 1, func(string) string { return "" }); err == nil || !strings.Contains(err.Error(), "FRAMEBEAM_TURN_EXTERNAL_1_PASSWORD") {
+	if _, err := c.ExternalTURNSecret(st, 1, func(string) string { return "" }); err == nil || !strings.Contains(err.Error(), "UZUME_TURN_EXTERNAL_1_PASSWORD") {
 		t.Fatalf("%v", err)
 	}
 	os.WriteFile(file, []byte("\n"), 0o600)
@@ -362,11 +362,11 @@ func TestExternalTURNSecretSources(t *testing.T) {
 }
 
 func TestTrustedProxy(t *testing.T) {
-	c := parse(t, map[string]string{"FRAMEBEAM_TRUSTED_PROXY": "10.0.0.0/8"})
+	c := parse(t, map[string]string{"UZUME_TRUSTED_PROXY": "10.0.0.0/8"})
 	if c.TrustedProxy != "10.0.0.0/8" {
 		t.Fatalf("env: %q", c.TrustedProxy)
 	}
-	c = parse(t, map[string]string{"FRAMEBEAM_TRUSTED_PROXY": "10.0.0.0/8"}, "-trusted-proxy", "127.0.0.1,172.16.0.0/12")
+	c = parse(t, map[string]string{"UZUME_TRUSTED_PROXY": "10.0.0.0/8"}, "-trusted-proxy", "127.0.0.1,172.16.0.0/12")
 	if c.TrustedProxy != "127.0.0.1,172.16.0.0/12" {
 		t.Fatalf("flag wins: %q", c.TrustedProxy)
 	}

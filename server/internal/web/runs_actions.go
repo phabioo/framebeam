@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // Run actions of the 0.14 run detail (4jh-3): start (with or without the players who have not joined), finish,
@@ -99,9 +99,9 @@ func (s *Server) runRemoveInviteConfirm(w http.ResponseWriter, r *http.Request, 
 		Intro:   p.UserName + " will no longer be part of “" + run.Name + "”. The following changes:",
 		Removes: []string{
 			p.UserName + " is removed from the participants",
-			"Their Player learns of it on its next sync",
+			"Their app learns of it on its next sync",
 		},
-		Note:   "You can invite them to a run again from the Player.",
+		Note:   "You can invite them to a run again from the app.",
 		Action: "/runs/" + run.ID + "/invites/" + p.UserID + "/remove", Button: "Remove invite", Cancel: "/runs/" + run.ID,
 	}
 	s.render(w, http.StatusOK, "confirm", "layout", d)

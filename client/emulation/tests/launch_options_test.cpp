@@ -4,7 +4,7 @@
 #include "core_options.h"
 #include "system_manifest.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 class LaunchOptionsTest : public QObject {
   Q_OBJECT
@@ -15,7 +15,7 @@ class LaunchOptionsTest : public QObject {
   }
 
  private slots:
-  void lockedOptionsStayUnderFrameBeamControl() {
+  void lockedOptionsStayUnderUzumeControl() {
     const SystemManifest m = nds();
     for (const char* k : {"melonds_screen_layout1", "melonds_show_current_layout", "melonds_show_lid_state",
                           "melonds_sysfile_mode", "melonds_firmware_nds_path"}) {

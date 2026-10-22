@@ -33,11 +33,12 @@
 #include <wrl/client.h>
 
 #include "d3d11displayring.h"
+#include "envvar.h"
 #include "d3d11glbridge.h"
 #include "displayslots.h"
 #include "gpudisplaybridge.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 
@@ -66,15 +67,15 @@ struct RenderState {
   bool disabled = false;          // not D3D11 / no device: the CPU frame is drawn, forever
   bool cleaned = false;
   quint64 wrapGeneration = 0;
-  QSGTexture* wrapped[framebeam::DisplaySlots::kCount] = {};
-  void* wrappedNative[framebeam::DisplaySlots::kCount] = {};
+  QSGTexture* wrapped[uzume::DisplaySlots::kCount] = {};
+  void* wrappedNative[uzume::DisplaySlots::kCount] = {};
   std::vector<QSGTexture*> retired;  // old generation, deleted in afterFrameEnd (after Qt rendered the frame)
   QMetaObject::Connection endConn;
   QMetaObject::Connection invalidatedConn;
   std::atomic<bool> failed{false};
 
   void retireWrappers() {  // m held
-    for (int i = 0; i < framebeam::DisplaySlots::kCount; ++i) {
+    for (int i = 0; i < uzume::DisplaySlots::kCount; ++i) {
       if (wrapped[i]) {
         retired.push_back(wrapped[i]);
       }
@@ -112,7 +113,7 @@ struct RenderState {
       return;
     }
     cleaned = true;
-    for (int i = 0; i < framebeam::DisplaySlots::kCount; ++i) wrapped[i] = nullptr;
+    for (int i = 0; i < uzume::DisplaySlots::kCount; ++i) wrapped[i] = nullptr;
     retired.clear();
     new std::shared_ptr<D3d11DisplayConsumer>(consumer);  // one reference never dropped
     failed = true;
@@ -275,8 +276,8 @@ class D3d11TextureSource final : public DisplayTextureSource {
 }  // namespace
 
 PlatformDisplay makePlatformDisplay(QString* reason) {
-  if (qgetenv("FRAMEBEAM_DISABLE_ZERO_COPY") == "1") {
-    if (reason) *reason = QStringLiteral("FRAMEBEAM_DISABLE_ZERO_COPY=1");
+  if (uzume::env::bytes("UZUME_DISABLE_ZERO_COPY") == "1") {
+    if (reason) *reason = QStringLiteral("UZUME_DISABLE_ZERO_COPY=1");
     return {};
   }
   auto bridge = std::make_shared<GlD3d11Bridge>();  // no D3D/GL work until the emulation thread calls open()
@@ -288,6 +289,6 @@ PlatformDisplay makePlatformDisplay(QString* reason) {
   return out;
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui
 
 #endif  // Q_OS_WIN

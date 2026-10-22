@@ -8,7 +8,7 @@
 #include "playersettings.h"
 #include "emulationsettings.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 void writeFile(const QString& path, const QByteArray& d) {
@@ -89,10 +89,10 @@ class FsUtilTest : public QObject {
   }
 
   void envPathReadsTheEnvironment() {
-    qputenv("FRAMEBEAM_TEST_ENV_PATH", "/tmp/x y");
-    QCOMPARE(fsutil::envPath("FRAMEBEAM_TEST_ENV_PATH"), QStringLiteral("/tmp/x y"));
-    qunsetenv("FRAMEBEAM_TEST_ENV_PATH");
-    QVERIFY(fsutil::envPath("FRAMEBEAM_TEST_ENV_PATH").isEmpty());
+    qputenv("UZUME_TEST_ENV_PATH", "/tmp/x y");
+    QCOMPARE(fsutil::envPath("UZUME_TEST_ENV_PATH"), QStringLiteral("/tmp/x y"));
+    qunsetenv("UZUME_TEST_ENV_PATH");
+    QVERIFY(fsutil::envPath("UZUME_TEST_ENV_PATH").isEmpty());
   }
 };
 

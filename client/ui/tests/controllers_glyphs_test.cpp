@@ -13,8 +13,8 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 using S = HubConnection::State;
 
@@ -376,9 +376,9 @@ class ControllersGlyphsTest : public QObject {
     QVERIFY(!h.item("testTile_l")->property("active").toBool());
   }
 
-  // Screenshots 3f-2 (Xbox) and 3f-3 (DualSense) at 1280 x 800, dark; only written with FRAMEBEAM_SHOT_DIR.
+  // Screenshots 3f-2 (Xbox) and 3f-3 (DualSense) at 1280 x 800, dark; only written with UZUME_SHOT_DIR.
   void screenshotsXboxAndDualSense() {
-    if (qEnvironmentVariableIsEmpty("FRAMEBEAM_SHOT_DIR")) QSKIP("FRAMEBEAM_SHOT_DIR not set");
+    if (qEnvironmentVariableIsEmpty("UZUME_SHOT_DIR")) QSKIP("UZUME_SHOT_DIR not set");
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());
     Harness h;

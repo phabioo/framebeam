@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 func TestCoreAutoUpdateSystemOverrideAndCorePin(t *testing.T) {
@@ -15,7 +15,7 @@ func TestCoreAutoUpdateSystemOverrideAndCorePin(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// Hub default off, nds overridden to on: only nds updates.
+	// Server default off, nds overridden to on: only nds updates.
 	if err := svc.SetCoreAutoUpdate(ctx, false); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestCoreAutoUpdateSystemOverrideAndCorePin(t *testing.T) {
 	if len(rep.Updated) != 1 || rep.Updated[0].CoreID != "desmume" {
 		t.Fatalf("%+v", rep)
 	}
-	// System off beats the Hub default on.
+	// System off beats the server default on.
 	if err := svc.SetCoreAutoUpdate(ctx, true); err != nil {
 		t.Fatal(err)
 	}

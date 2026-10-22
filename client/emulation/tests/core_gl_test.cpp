@@ -1,5 +1,5 @@
 // melonDS DS with its OpenGL renderer (hardware frames read back by LibretroBackend) and the homebrew test ROM.
-// Without FRAMEBEAM_MELONDS_DS_CORE or without a working OpenGL 3.3 core context: return code 77 (ctest: SKIP),
+// Without UZUME_MELONDS_DS_CORE or without a working OpenGL 3.3 core context: return code 77 (ctest: SKIP),
 // except on Linux CI where the context is required (see hw_render_test.cpp).
 #include <QGuiApplication>
 #include <QOffscreenSurface>
@@ -10,7 +10,7 @@
 
 #include "libretro_backend.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 namespace {
 bool canCreateGl33Core() {
@@ -35,7 +35,7 @@ class CoreGlTest : public QObject {
     be.prepareForStart();
     be.setSystemDirectory(m_dirs.filePath(QStringLiteral("system")));
     be.setSaveDirectory(m_dirs.filePath(QStringLiteral("save")));
-    if (!be.loadCore(qEnvironmentVariable("FRAMEBEAM_MELONDS_DS_CORE"), err)) return false;
+    if (!be.loadCore(qEnvironmentVariable("UZUME_MELONDS_DS_CORE"), err)) return false;
     be.setCoreOption(QStringLiteral("melonds_render_mode"), mode);
     be.setCoreOption(QStringLiteral("melonds_opengl_resolution"), resolution);
     be.setCoreOption(QStringLiteral("melonds_screen_layout1"), QStringLiteral("top-bottom"));
@@ -80,8 +80,8 @@ class CoreGlTest : public QObject {
 };
 
 int main(int argc, char** argv) {
-  if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
-    std::puts("FRAMEBEAM_MELONDS_DS_CORE not set - test skipped");
+  if (qEnvironmentVariableIsEmpty("UZUME_MELONDS_DS_CORE")) {
+    std::puts("UZUME_MELONDS_DS_CORE not set - test skipped");
     return 77;
   }
   QGuiApplication app(argc, argv);

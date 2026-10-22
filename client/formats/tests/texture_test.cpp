@@ -6,8 +6,8 @@
 
 #include <array>
 
-using namespace framebeam::formats;
-namespace syn = framebeam::synth;
+using namespace uzume::formats;
+namespace syn = uzume::synth;
 
 namespace {
 

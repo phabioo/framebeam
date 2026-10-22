@@ -5,8 +5,8 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 class ScreensTest : public QObject {
@@ -28,7 +28,7 @@ class ScreensTest : public QObject {
 
  private slots:
   void initTestCase() {
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");  // core deliberately not set: detail pane shows "missing"
+    qunsetenv("UZUME_MELONDS_DS_CORE");  // core deliberately not set: detail pane shows "missing"
     uitest::installWarningCounter();
   }
 
@@ -236,7 +236,7 @@ class ScreensTest : public QObject {
     Harness h;
     QVERIFY(h.start());
     HubProfile p = profile(QStringLiteral("hub-paired"), QStringLiteral("Paired"), QStringLiteral("http://127.0.0.1:1"));
-    p.credentialRef = QStringLiteral("framebeam/test-credential");
+    p.credentialRef = QStringLiteral("uzume/test-credential");
     QVERIFY(h.controller->profileStore()->upsertProfile(p));
     h.controller->addHub(QStringLiteral("http://127.0.0.1:1"));
     QTRY_COMPARE(h.controller->connection()->state(), HubConnection::State::Unreachable);
@@ -352,7 +352,7 @@ class ScreensTest : public QObject {
     QCOMPARE(g.value(QStringLiteral("systemName")).toString(), QStringLiteral("Nintendo DS"));
     QCOMPARE(g.value(QStringLiteral("romText")).toString(), QStringLiteral("Cached locally · verified"));
     QVERIFY(g.value(QStringLiteral("coreText")).toString().contains(QStringLiteral("missing")));
-    QVERIFY(!g.value(QStringLiteral("coreHint")).toString().contains(QStringLiteral("FRAMEBEAM_")));  // no developer env var in the UI
+    QVERIFY(!g.value(QStringLiteral("coreHint")).toString().contains(QStringLiteral("UZUME_")));  // no developer env var in the UI
     QCOMPARE(g.value(QStringLiteral("firmwareText")).toString(), QStringLiteral("Not required"));
     QVERIFY(!g.value(QStringLiteral("canPlay")).toBool());
     QCOMPARE(g.value(QStringLiteral("checklist")).toList().size(), 5);
@@ -398,7 +398,7 @@ class ScreensTest : public QObject {
     QCOMPARE(lib->data(lib->index(lib->rowOfGame(QStringLiteral("g1"))), LibraryModel::TileTextRole).toString(), QStringLiteral("▲ Core missing"));
     lib->setFilter(QStringLiteral("all"));
     // D15: the core appears (as after a download) and the state is re-evaluated without a restart.
-    qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());
+    qputenv("UZUME_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());
     h.controller->refreshCoreState();
     QVERIFY(h.controller->selectedGame().value(QStringLiteral("coreText")).toString().contains(QStringLiteral("ready")));
     QCOMPARE(lib->counts().value(QStringLiteral("attention")).toInt(), 1);  // Copper Courier: hash mismatch
@@ -415,7 +415,7 @@ class ScreensTest : public QObject {
     lib->setFilterText(QString());
     lib->setReadyOnly(false);
     QCOMPARE(lib->rowCount(), 6);
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     QVERIFY(h.item("gameGrid") != nullptr);
     QVERIFY(h.item("searchField") != nullptr);
     uitest::saveShot(h.window, QStringLiteral("3c-library"));

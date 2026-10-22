@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-hello.schema.json",
-  "title": "ws-hello (Player to Hub, first message)",
+  "$id": "https://uzume.invalid/schemas/ws-hello.schema.json",
+  "title": "ws-hello (app to server, first message)",
   "type": "object",
   "required": [
     "type",
@@ -31,7 +31,7 @@
         },
         "runs": {
           "type": "array",
-          "description": "Optional (feature runs_v1): the last event seq the Player has seen per run. After hello_ack the Hub sends run_updated for every non-archived run the user participates in and, for the listed runs the user joined, the run_events with seq > last_seq (at most 500 per run; none when more are missing, then the Player pages with GET /api/v1/runs/{run_id}/events).",
+          "description": "Optional (feature runs_v1): the last event seq the app has seen per run. After hello_ack the server sends run_updated for every non-archived run the user participates in and, for the listed runs the user joined, the run_events with seq > last_seq (at most 500 per run; none when more are missing, then the app pages with GET /api/v1/runs/{run_id}/events).",
           "items": {
             "type": "object",
             "required": [

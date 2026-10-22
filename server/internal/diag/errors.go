@@ -26,7 +26,7 @@ type ErrorRing struct {
 	warns   uint64
 }
 
-// RecentErrors receives the WARN and ERROR records of the Hub's logger (see newLogger in cmd/framebeam-hub).
+// RecentErrors receives the WARN and ERROR records of the server's logger (see newLogger in cmd/uzume-server).
 var RecentErrors = NewErrorRing(200)
 
 // NewErrorRing creates a ring holding at most max records.

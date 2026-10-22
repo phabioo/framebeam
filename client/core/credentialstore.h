@@ -8,7 +8,7 @@
 #include <QHash>
 #include <QMutex>
 
-namespace framebeam {
+namespace uzume {
 
 // Storage for the long-lived device credential. Never put secrets in files or logs.
 class CredentialStore {
@@ -22,7 +22,7 @@ class CredentialStore {
   virtual bool isPersistent() const = 0;
 };
 
-// Target/reference in the store: "FrameBeam/<hub_id>/<device_id>".
+// Target/reference in the store: "Uzume/<hub_id>/<device_id>" (until 0.17: "FrameBeam/<hub_id>/<device_id>").
 QString credentialTarget(const QString& hubId, const QString& deviceId);
 
 // Memory only (Linux/macOS are not part of the PoC). Warns once in the log.
@@ -52,6 +52,14 @@ class WindowsCredentialStore final : public CredentialStore {
 };
 #endif
 
+// Old-name compatibility (0.18 rename). `ref` is a stored credential reference, either name.
+//  readCredential: reads the "Uzume/..." target first, then the old "FrameBeam/..." one; a secret found only under
+//    the old name is written under the new name too (the old entry stays, so a rollback finds it).
+//  removeCredential: removes both targets (sign-out must leave no secret behind).
+// A reference with neither prefix is used as given.
+std::optional<QString> readCredential(CredentialStore& store, const QString& ref);
+bool removeCredential(CredentialStore& store, const QString& ref);
+
 std::unique_ptr<CredentialStore> createDefaultCredentialStore();
 
-}  // namespace framebeam
+}  // namespace uzume

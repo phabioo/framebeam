@@ -14,9 +14,9 @@
 #include "run_session_bridge.h"
 #include "semver.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
-Q_LOGGING_CATEGORY(lcRunsUi, "framebeam.runs.ui")
+Q_LOGGING_CATEGORY(lcRunsUi, "uzume.runs.ui")
 
 namespace {
 QString statusText(const QString& s) {
@@ -69,7 +69,7 @@ bool RunsController::available() const {
 }
 
 QString RunsController::unverifiedWarning() const {
-  return tr("FrameBeam has not checked this plugin. Turn it on only if you trust the admin of your Hub and where the file came from.");
+  return tr("Uzume has not checked this plugin. Turn it on only if you trust the admin of your Hub and where the file came from.");
 }
 
 bool RunsController::startUnverified() const {
@@ -1008,4 +1008,4 @@ void RunsController::inviteSelected(const QString& runId) {
   });
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

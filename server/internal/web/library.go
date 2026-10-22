@@ -15,15 +15,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/rollwrite"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/rollwrite"
 )
 
 type libRow struct {
 	ID, Title, Initial, System, Size, SHA, ShortSHA, Uploader string
 	Added                                                     When
 	GameCode                                                  string // identity read from the ROM header, "" when unknown
-	LocalOnly                                                 bool   // no file of the game is stored on the Hub
+	LocalOnly                                                 bool   // no file of the game is stored on the server
 	Files                                                     int    // known files of the game
 	Owners                                                    string // users who registered a file as local
 	LocalLine                                                 string // "Only on Lena-PC · not uploaded"
@@ -168,7 +168,7 @@ type libBody struct {
 	FilterQS template.URL // trusted: built by libFilter.URL, so '&' is not re-encoded inside href
 }
 
-// middleEllipsis shortens a long path to its first two and its last segment: /srv/framebeam/…/library-import.
+// middleEllipsis shortens a long path to its first two and its last segment: /srv/uzume/…/library-import.
 func middleEllipsis(p string) string {
 	if len(p) <= 34 {
 		return p
@@ -301,7 +301,7 @@ func (s *Server) libraryBody(ctx context.Context, viewer string, f libFilter, pa
 			Added: when(g.AddedAt, now), GameCode: g.GameCode, LocalOnly: !g.OnHub, Files: len(g.ROMs), Owners: strings.Join(on, ", "),
 			Saves: saves[g.ID], Conflict: conflicts[g.ID], UploadHref: uploadHref(viewer, g.ID, own[g.ID])}
 		if row.LocalOnly {
-			row.LocalLine = "Not uploaded to the Hub"
+			row.LocalLine = "Not uploaded to the server"
 			if row.Owners != "" {
 				row.LocalLine = "Only on " + row.Owners + " · not uploaded"
 			}
@@ -428,7 +428,7 @@ func (s *Server) libraryRename(w http.ResponseWriter, r *http.Request, sess *ses
 	}
 }
 
-// libraryDownload sends the ROM file stored on the Hub (admin only).
+// libraryDownload sends the ROM file stored on the server (admin only).
 func (s *Server) libraryDownload(w http.ResponseWriter, r *http.Request, _ *session) {
 	g, err := s.svc.GetGame(r.Context(), r.PathValue("id"))
 	if err == nil && !g.OnHub {

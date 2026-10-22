@@ -99,7 +99,7 @@
 <div class="users">
 <div class="users-main stack">
   {{template "flash" .}}
-  <div class="page-head"><div><h1>Users</h1><p class="sub">Accounts on this Hub. Users sign in with a paired device, not a password.</p></div>
+  <div class="page-head"><div><h1>Users</h1><p class="sub">Accounts on this server. Users sign in with a paired device, not a password.</p></div>
     <div class="head-actions">
       <a class="btn" href="/users?create=1" hx-get="/users?create=1" hx-target="#users-table" hx-swap="outerHTML">Create user</a>
       <a class="btn primary invite-jump" href="#invites">Invite</a>
@@ -109,7 +109,7 @@
 </div>
 <aside class="users-side" id="invites" aria-label="Onboarding invites">
   <h2>Invites</h2>
-  <p class="help">The invited person enters the code in the Player and picks a display name. Not a Session invite.</p>
+  <p class="help">The invited person enters the code in the app and picks a display name. Not a Session invite.</p>
   <form class="invite-form" method="post" action="/users/invites">
     <input type="hidden" name="_csrf" value="{{.CSRF}}">
     <div class="field"><span class="field-label" id="expiry-label">Expires after</span>
@@ -128,7 +128,7 @@
       <button class="btn small" type="button" data-copy-link="{{.Body.NewLink}}">Copy link</button>
       <input class="mono" type="text" readonly hidden data-copy-fallback value="{{.Body.NewLink}}" aria-label="Invite link">
     </div>{{end}}
-    <div class="help">Shown once. Only a hash of the code is stored, so it cannot be displayed again. The link carries the code in its fragment, which is never sent to the Hub.</div>
+    <div class="help">Shown once. Only a hash of the code is stored, so it cannot be displayed again. The link carries the code in its fragment, which is never sent to the server.</div>
   </div>{{end}}
   {{template "users-invites" .}}
 </aside>

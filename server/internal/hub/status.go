@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 // Data for the admin Status page and the metrics endpoint (read-only; nothing here changes Sessions).
@@ -43,7 +43,7 @@ func (s *Service) ActiveSessionSummaries(ctx context.Context) ([]SessionSummary,
 	return out, nil
 }
 
-// Player states shown on the Status page.
+// App states shown on the Status page.
 const (
 	PlayerInSession = "in_session" // owns a running Session
 	PlayerWatching  = "watching"   // views a running Session
@@ -51,17 +51,17 @@ const (
 	PlayerIdle      = "idle"
 )
 
-// PlayerStatus is a Player with an open WSS connection.
+// PlayerStatus is an app with an open WSS connection.
 type PlayerStatus struct {
 	DeviceName string
 	User       string
 	Version    string
 	State      string
-	// Outdated: the Player's version is below the Hub's (both are release versions).
+	// Outdated: the app's version is below the server's (both are release versions).
 	Outdated bool
 }
 
-// ConnectedPlayers lists the connected Players, sorted by device name.
+// ConnectedPlayers lists the connected apps, sorted by device name.
 func (s *Service) ConnectedPlayers(ctx context.Context) ([]PlayerStatus, error) {
 	conns := s.clients()
 	if len(conns) == 0 {

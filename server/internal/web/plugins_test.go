@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/pluginpkg"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/pluginpkg"
 )
 
 func pluginEnv(t *testing.T, indexURL string) (*env, *client, string) {
@@ -70,8 +70,8 @@ func TestPluginUploadFlowWeb(t *testing.T) {
 	data := hubtest.PluginZip(t, "net.example.notes", "0.2.0", []string{"ui", "run.state", "memory.read"}, nil)
 	rec := c.multipartPost("/plugins/upload", map[string]string{"_csrf": tok}, "notes.fbplugin", data)
 	status(t, rec, 200)
-	contains(t, rec, "Offer Plugin net.example.notes 0.2.0 to Players?", "Upload · not signed", "Hub upload · unverified", "It asks to:",
-		"Show panels in game", "Share run progress with your Hub", "Read game memory", "Tick every permission to confirm you reviewed it.", "Offer to Players", `action="/plugins/offer"`)
+	contains(t, rec, "Offer Plugin net.example.notes 0.2.0 to apps?", "Upload · not signed", "Server upload · unverified", "It asks to:",
+		"Show panels in game", "Share run progress with your server", "Read game memory", "Tick every permission to confirm you reviewed it.", "Offer to apps", `action="/plugins/offer"`)
 	notContains(t, rec, "<no value>")
 	m := stageRe.FindStringSubmatch(rec.Body.String())
 	if m == nil {
@@ -108,12 +108,12 @@ func TestPluginUploadFlowWeb(t *testing.T) {
 		t.Fatalf("%+v", ps)
 	}
 	rec = c.get("/plugins?ok=pluginoffered", nil)
-	contains(t, rec, "Plugin offered to Players.", "Plugin net.example.notes", "0.2.0", "Hub upload · unverified", `href="/plugins/net.example.notes/0.2.0"`)
+	contains(t, rec, "Plugin offered to apps.", "Plugin net.example.notes", "0.2.0", "Server upload · unverified", `href="/plugins/net.example.notes/0.2.0"`)
 
 	// Detail, download, remove.
 	rec = c.get("/plugins/net.example.notes/0.2.0", nil)
-	contains(t, rec, "Not signed by FrameBeam", "Permissions · confirmed by admin", "Read game memory", "uploaded by admin", pluginpkg.SHA256Hex(data),
-		`href="/plugins/net.example.notes/0.2.0/download"`, "Remove from Hub", "Players keep their copy until they uninstall it.")
+	contains(t, rec, "Not signed by Uzume", "Permissions · confirmed by admin", "Read game memory", "uploaded by admin", pluginpkg.SHA256Hex(data),
+		`href="/plugins/net.example.notes/0.2.0/download"`, "Remove from server", "Apps keep their copy until they uninstall it.")
 	rec = c.get("/plugins/net.example.notes/0.2.0/download", nil)
 	status(t, rec, 200)
 	if !bytes.Equal(rec.Body.Bytes(), data) || !strings.Contains(rec.Header().Get("Content-Disposition"), "net.example.notes-0.2.0.fbplugin") {
@@ -123,7 +123,7 @@ func TestPluginUploadFlowWeb(t *testing.T) {
 	rec = c.get("/plugins/net.example.notes/9.9.9", nil)
 	status(t, rec, 404)
 	contains(t, rec, "Page not found", "Back to Library")
-	contains(t, c.get("/plugins/net.example.notes/0.2.0/remove", nil), "Remove “Plugin net.example.notes 0.2.0” from the Hub?")
+	contains(t, c.get("/plugins/net.example.notes/0.2.0/remove", nil), "Remove “Plugin net.example.notes 0.2.0” from the server?")
 
 }
 
@@ -140,7 +140,7 @@ func TestPluginUploadRulesWeb(t *testing.T) {
 	rec = c.multipartPost("/plugins/upload", map[string]string{"_csrf": tok}, "b.fbplugin", b)
 	status(t, rec, 200)
 	contains(t, rec, "A different file with this version is already offered")
-	notContains(t, rec, "Offer to Players</button>")
+	notContains(t, rec, "Offer to apps</button>")
 	stageB := stageRe.FindStringSubmatch(rec.Body.String())[1]
 	rec = c.postForm("/plugins/offer", url.Values{"_csrf": {tok}, "stage": {stageB}}, nil)
 	status(t, rec, http.StatusConflict)
@@ -164,7 +164,7 @@ func TestPluginSignedUploadWeb(t *testing.T) {
 	e, c, tok := pluginEnv(t, "")
 	signed := hubtest.SignPlugin(t, hubtest.PluginZip(t, "net.example.signed", "1.0.0", []string{"ui"}, nil))
 	rec := c.multipartPost("/plugins/upload", map[string]string{"_csrf": tok}, "s.fbplugin", signed)
-	contains(t, rec, "Upload · signed by FrameBeam", "Signed by FrameBeam. Players see it as “Official”.")
+	contains(t, rec, "Upload · signed by Uzume", "Signed by Uzume. Apps see it as “Official”.")
 	stage := stageRe.FindStringSubmatch(rec.Body.String())[1]
 	status(t, c.postForm("/plugins/offer", url.Values{"_csrf": {tok}, "stage": {stage}, "perm": {"ui"}}, nil), http.StatusSeeOther)
 	ps, _ := e.svc.ListPlugins(bg)
@@ -173,7 +173,7 @@ func TestPluginSignedUploadWeb(t *testing.T) {
 	}
 	rec = c.get("/plugins/net.example.signed/1.0.0", nil)
 	contains(t, rec, "✓ Official", "Permissions")
-	notContains(t, rec, "Not signed by FrameBeam")
+	notContains(t, rec, "Not signed by Uzume")
 }
 
 func TestPluginRemoveWeb(t *testing.T) {
@@ -296,7 +296,7 @@ func TestPluginsListNeedsUsedByAndOrigin(t *testing.T) {
 	contains(t, rec, ">SL<", "Used by Soul &amp; Link", "Needs Core Base", `class="pill sm amber"`)
 	notContains(t, rec, `pill sm warn`, "(s)")
 	rec = c.get("/plugins/net.example.user/0.3.2", nil)
-	contains(t, rec, "Core Base 1.0 or newer", "✓ on this Hub", "Remove from Hub…", "Copy")
+	contains(t, rec, "Core Base 1.0 or newer", "✓ on this server", "Remove from server…", "Copy")
 	rec = c.get("/plugins/net.example.base/1.0.0", nil)
 	contains(t, rec, "Used by", "Soul &amp; Link")
 }

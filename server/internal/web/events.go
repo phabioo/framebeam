@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 const (

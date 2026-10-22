@@ -1,4 +1,5 @@
 #include "diagbundle.h"
+#include "envvar.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -20,7 +21,7 @@
 #include "profilestore.h"
 #include "version.h"
 
-namespace framebeam::diag {
+namespace uzume::diag {
 
 namespace {
 
@@ -411,7 +412,7 @@ QByteArray redactedTail(const QString& path, qint64 budget, qint64* used, QStrin
 }
 
 const char* kReadme =
-    "FrameBeam Player diagnostics bundle\n"
+    "Uzume diagnostics bundle\n"
     "\n"
     "player-info.json   versions, system, Hubs (no tokens), installed cores, media encoders, controllers, settings\n"
     "connection-check.json  result of the connection check, only when it was added to the bundle\n"
@@ -437,7 +438,7 @@ QByteArray redact(const QByteArray& text) {
 }
 
 QString fileName(const QDateTime& when) {
-  return QStringLiteral("framebeam-player-diagnostics-") + when.toUTC().toString(QStringLiteral("yyyyMMdd'T'HHmmss'Z'")) +
+  return QStringLiteral("uzume-diagnostics-") + when.toUTC().toString(QStringLiteral("yyyyMMdd'T'HHmmss'Z'")) +
          QStringLiteral(".zip");
 }
 
@@ -495,13 +496,13 @@ QJsonObject offlineInfo(const QString& dataDir) {
   }
   info.insert(QStringLiteral("emulation"),
               QJsonObject{{QStringLiteral("cores"), cores},
-                          {QStringLiteral("hw_render"), qEnvironmentVariable("FRAMEBEAM_DISABLE_HW_RENDER") != QLatin1String("1")},
+                          {QStringLiteral("hw_render"), uzume::env::get("UZUME_DISABLE_HW_RENDER") != QLatin1String("1")},
                           {QStringLiteral("gl_renderer"), QString()},
                           {QStringLiteral("gl_version"), QString()}});
   info.insert(QStringLiteral("media"),
               QJsonObject{{QStringLiteral("encoders_available"), QJsonArray()},
                           {QStringLiteral("encoder_last_chosen"), QString()},
-                          {QStringLiteral("forced_encoder"), qEnvironmentVariable("FRAMEBEAM_H264_ENCODER")}});
+                          {QStringLiteral("forced_encoder"), uzume::env::get("UZUME_H264_ENCODER")}});
   info.insert(QStringLiteral("controllers"), QJsonObject{{QStringLiteral("connected"), QJsonArray()}});
 
   const PlayerSettings s(dataDir);
@@ -510,8 +511,8 @@ QJsonObject offlineInfo(const QString& dataDir) {
                        {QStringLiteral("update_auto_install"), s.updateAutoInstall().has_value() ? QJsonValue(*s.updateAutoInstall()) : QJsonValue(QStringLiteral("default"))},
                        {QStringLiteral("developer_mode"), s.developerMode()},
                        {QStringLiteral("rom_cache_limit_bytes"), static_cast<double>(s.romCacheLimitBytes())},
-                       {QStringLiteral("force_relay"), qEnvironmentVariable("FRAMEBEAM_FORCE_RELAY") == QLatin1String("1")},
-                       {QStringLiteral("disable_gpu_encode"), qEnvironmentVariable("FRAMEBEAM_DISABLE_GPU_ENCODE") == QLatin1String("1")}};
+                       {QStringLiteral("force_relay"), uzume::env::get("UZUME_FORCE_RELAY") == QLatin1String("1")},
+                       {QStringLiteral("disable_gpu_encode"), uzume::env::get("UZUME_DISABLE_GPU_ENCODE") == QLatin1String("1")}};
   info.insert(QStringLiteral("settings"), settings);
   return info;
 }
@@ -650,4 +651,4 @@ bool readZip(const QString& path, QMap<QString, QByteArray>* entries, QString* e
   return true;
 }
 
-}  // namespace framebeam::diag
+}  // namespace uzume::diag

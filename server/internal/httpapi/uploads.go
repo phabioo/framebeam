@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // UploadGame streams a raw ROM body to disk (same validation and de-duplication as the web upload).

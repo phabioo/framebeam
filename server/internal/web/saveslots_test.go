@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // slotFixture is the upload fixture plus a second slot "run" created from the default one.

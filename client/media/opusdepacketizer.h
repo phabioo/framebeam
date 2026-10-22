@@ -5,7 +5,7 @@
 #include <rtc/rtc.hpp>
 #include <span>
 
-namespace framebeam {
+namespace uzume {
 
 // Result of parsing one RTP packet (RFC 3550): payload range inside the packet plus header fields.
 struct RtpPayloadView {
@@ -33,4 +33,4 @@ public:
   void incoming(rtc::message_vector &messages, const rtc::message_callback &send) override;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -17,7 +17,7 @@ Draft 0.1, the design basis of the PoC. The PoC (phases 0-5) is implemented; whe
 
 Design specification of the UI screens: `../design/README.md` (valid from 0.18: `../design/uzume/README.md`).
 
-Naming: these files were written for FrameBeam. Since 0.18 the product is Uzume, the Player is the app and the Hub is the Uzume server ([ADR 0030](../adr/0030-one-app-one-server-uzume.md)); the files keep the old terms.
+Naming: these files were written for FrameBeam. Since 0.18 the product is Uzume, the Player is the app and the Hub is the Uzume server ([ADR 0030](../adr/0030-one-app-one-server-uzume.md)); the files keep the old terms and identifiers. Current names of binaries, variables, files and images are in `docs/guides/` and `docs/reference/`; what kept its old name is listed in the amendment of ADR 0030 D1.
 
 ## Status after the PoC
 

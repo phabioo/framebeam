@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // 3a: Connect to a hub.
 Rectangle {
@@ -32,7 +32,7 @@ Rectangle {
                     Layout.bottomMargin: 10
                     spacing: 10
                     Logo { size: 22 }
-                    FbLabel { text: qsTr("FrameBeam Player"); font.pixelSize: 16; font.weight: Font.DemiBold }
+                    FbLabel { text: qsTr("Uzume"); font.pixelSize: 16; font.weight: Font.DemiBold }
                 }
                 Eyebrow {
                     objectName: "connectEyebrow"
@@ -52,7 +52,7 @@ Rectangle {
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontBody
                     lineHeight: 1.4
-                    text: qsTr("Enter the address of your FrameBeam Hub. You find it in the Hub under Settings → General.")
+                    text: qsTr("Enter the address of your Uzume server. You find it in the Hub under Settings → General.")
                 }
             }
 
@@ -160,7 +160,7 @@ Rectangle {
                             FbLabel {
                                 Layout.fillWidth: true
                                 text: localCard.local.present ? qsTr("Connect to the Hub on this PC and sign in as its admin.")
-                                                              : qsTr("Install the FrameBeam Hub on this PC to keep your games and saves here.")
+                                                              : qsTr("Install the Uzume server on this PC to keep your games and saves here.")
                                 color: Theme.textMuted
                                 font.pixelSize: Theme.fontSmall
                                 wrapMode: Text.WordWrap

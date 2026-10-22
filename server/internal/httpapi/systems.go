@@ -7,8 +7,8 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // ListSystems returns the registry with firmware status (no firmware bytes).
@@ -32,7 +32,7 @@ func (s *Server) ListSystems(ctx context.Context, _ api.ListSystemsRequestObject
 			}
 			cores = append(cores, sc)
 		}
-		// preferred_core_id, expected_core_version and core_package_version describe the default core (old Players).
+		// preferred_core_id, expected_core_version and core_package_version describe the default core (old apps).
 		si := api.SystemInfo{Id: e.ID, DisplayName: e.Name, PreferredCoreId: e.CoreID, FirmwareMode: api.FirmwareMode(e.FirmwareMode),
 			Firmware: make([]api.FirmwareFile, 0, len(e.Firmware)), Cores: &cores}
 		if e.CoreID != "" {
@@ -46,7 +46,7 @@ func (s *Server) ListSystems(ctx context.Context, _ api.ListSystemsRequestObject
 		}
 		for _, f := range e.Firmware {
 			af := api.FirmwareFile{Id: f.ID, DisplayName: f.DisplayName, Required: f.Required}
-			// A file with a hash mismatch (pinned hash differs) counts as not present for Players.
+			// A file with a hash mismatch (pinned hash differs) counts as not present for apps.
 			if f.Present && f.State != hub.FirmwareMismatch {
 				af.Present = true
 				sz, sha := f.Size, f.SHA256
@@ -59,7 +59,7 @@ func (s *Server) ListSystems(ctx context.Context, _ api.ListSystemsRequestObject
 	return out, nil
 }
 
-// GetCorePackage returns the manifest of a core package known to the Hub.
+// GetCorePackage returns the manifest of a core package known to the server.
 func (s *Server) GetCorePackage(ctx context.Context, req api.GetCorePackageRequestObject) (api.GetCorePackageResponseObject, error) {
 	p, err := s.svc.GetCorePackage(ctx, req.CoreId, req.Version, string(req.Platform))
 	if err != nil {
@@ -101,7 +101,7 @@ func etagMatches(header, etag string) bool {
 	return false
 }
 
-// coreOrigin maps a stored origin to the API enum: anything but the buildbot is a legacy FrameBeam package.
+// coreOrigin maps a stored origin to the API enum: anything but the buildbot is a legacy Uzume package.
 func coreOrigin(o string) api.CoreOrigin {
 	if o == hub.OriginBuildbot {
 		return api.LibretroBuildbot

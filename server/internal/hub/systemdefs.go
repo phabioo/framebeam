@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// Systems are data-driven (ADR 0020 D4): one embedded JSON file per system in systems/. At start the Hub
+// Systems are data-driven (ADR 0020 D4): one embedded JSON file per system in systems/. At start the server
 // reconciles the files with the database (reconcileSystems); admin state is never touched.
 
 //go:embed systems/*.json
@@ -41,7 +41,7 @@ type systemDef struct {
 }
 
 // firmwareDef is a firmware/BIOS file of a system. File (the file name the core expects) is not stored in the
-// database; it is checked against the Player system manifest. Order in the list is the display order. Whether a file is required is decided by the firmware mode of the system.
+// database; it is checked against the app system manifest. Order in the list is the display order. Whether a file is required is decided by the firmware mode of the system.
 type firmwareDef struct {
 	ID          string  `json:"id"`
 	DisplayName string  `json:"display_name"`

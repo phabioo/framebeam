@@ -56,7 +56,7 @@ QString FakeHub::address() const {
   return QStringLiteral("%1://127.0.0.1:%2").arg(certName_.isEmpty() ? QStringLiteral("http") : QStringLiteral("https")).arg(serverPort());
 }
 
-QString FakeHub::fingerprint() const { return framebeam::HubHttp::fingerprint(cert_); }
+QString FakeHub::fingerprint() const { return uzume::HubHttp::fingerprint(cert_); }
 
 int FakeHub::count(const QString& pathPrefix, const QByteArray& method) const {
   int n = 0;

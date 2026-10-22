@@ -6,7 +6,7 @@
 #include "videodecoder.h"
 #include "videoencoder.h"
 
-namespace framebeam {
+namespace uzume {
 
 MediaCapabilities detectMediaCapabilities() {
   static std::once_flag once;
@@ -41,4 +41,4 @@ void applyMediaCapabilities(HandshakeInfo* info) {
   info->opus = c.opus;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

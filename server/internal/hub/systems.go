@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// Handshake features announced by the Hub (additive; protocol_version unchanged). Core features: cores.go.
+// Handshake features announced by the server (additive; protocol_version unchanged). Core features: cores.go.
 const (
 	FeatureUsersV1    = "users_v1"
 	FeatureUploadsV1  = "uploads_v1"
@@ -83,7 +83,7 @@ type SystemEntry struct {
 	DisplayProfile string
 	FirmwareMode   FirmwareMode
 	Firmware       []FirmwareFile
-	// AutoUpdate is the per-system override of the Hub default for automatic core updates: SystemAutoDefault ("" ),
+	// AutoUpdate is the per-system override of the server default for automatic core updates: SystemAutoDefault ("" ),
 	// SystemAutoOn or SystemAutoOff.
 	AutoUpdate string
 }
@@ -389,7 +389,7 @@ func (s *Service) OpenFirmware(ctx context.Context, systemID, fileID string) (*o
 	if err != nil {
 		return nil, FirmwareFile{}, err
 	}
-	// A file that does not match the admin-pinned hash is not offered to Players.
+	// A file that does not match the admin-pinned hash is not offered to apps.
 	if !def.Present || def.State == FirmwareMismatch {
 		return nil, FirmwareFile{}, ErrNotFound
 	}
@@ -405,7 +405,7 @@ func (s *Service) OpenFirmware(ctx context.Context, systemID, fileID string) (*o
 
 // ---- Core reports and the handshake core check ----
 
-// CoreReport is a core reported by a Player (id and version string).
+// CoreReport is a core reported by an app (id and version string).
 type CoreReport struct {
 	ID      string `json:"id"`
 	Version string `json:"version"`
@@ -420,8 +420,8 @@ func canonCoreID(id string) string {
 }
 
 // matchReportedCore finds the reported core that serves the system: the default core first, else any other installed
-// core of the system (the Player picks among the served cores). Ids are compared canonically on both sides. It returns
-// the report and the version the Hub serves for that core.
+// core of the system (the app picks among the served cores). Ids are compared canonically on both sides. It returns
+// the report and the version the server serves for that core.
 func matchReportedCore(e SystemEntry, cores []CoreReport) (got *CoreReport, served string) {
 	find := func(id string) *CoreReport {
 		for i := range cores {
@@ -443,7 +443,7 @@ func matchReportedCore(e SystemEntry, cores []CoreReport) (got *CoreReport, serv
 }
 
 // checkCores compares the reported cores with the registry; both problems are warnings. A system is fine when the
-// Player reports any core the Hub serves for it (default or not).
+// App reports any core the server serves for it (default or not).
 func checkCores(reg []SystemEntry, cores []CoreReport) []Problem {
 	var out []Problem
 	for _, e := range reg {

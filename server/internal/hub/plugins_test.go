@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/pluginpkg"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/pluginpkg"
 )
 
 func pluginHub(t *testing.T, mod func(*hub.Options)) *hub.Service {

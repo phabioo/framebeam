@@ -1,7 +1,7 @@
 #pragma once
 // GamepadService: SDL3 gamepads (SDL_INIT_GAMEPAD only, no SDL video) pumped from the Qt event loop.
 //
-// Hotplug (SDL_EVENT_GAMEPAD_ADDED/REMOVED), button/axis state, mapping to FrameBeam inputs via the binding
+// Hotplug (SDL_EVENT_GAMEPAD_ADDED/REMOVED), button/axis state, mapping to Uzume inputs via the binding
 // tokens of the controller profile of each device, and a "press a button" capture for remapping.
 // The first connected gamepad is player 1 (P1); the DS has one player, further pads are listed without a slot.
 // If SDL cannot be initialised the service stays unavailable (available() == false) and the Player runs
@@ -20,7 +20,7 @@
 #include "padhotkeys.h"
 #include "padtype.h"
 
-namespace framebeam::input {
+namespace uzume::input {
 
 struct PadDevice {
   int id = 0;       // SDL_JoystickID (instance id, changes on every connect)
@@ -49,12 +49,12 @@ class GamepadService : public QObject {
   void setBindingsProvider(BindingsProvider provider);
   void invalidateBindings();  // profile or assignment changed
 
-  quint32 inputMask() const { return p1InputMask_; }        // FrameBeam inputs of P1
-  // Manifest input profile ("nds", "3ds", "gb", ...) that maps the FrameBeam inputs to the libretro mask; applied at the next poll.
+  quint32 inputMask() const { return p1InputMask_; }        // Uzume inputs of P1
+  // Manifest input profile ("nds", "3ds", "gb", ...) that maps the Uzume inputs to the libretro mask; applied at the next poll.
   void setInputProfile(const QString& profile) { inputProfile_ = profile; }
   QString inputProfile() const { return inputProfile_; }
   quint32 libretroMask() const { return p1Libretro_; }      // input profile applied
-  quint32 inputMaskFor(int deviceId) const;                 // FrameBeam inputs of one device (input test)
+  quint32 inputMaskFor(int deviceId) const;                 // Uzume inputs of one device (input test)
   QSet<QString> pressedTokens(int deviceId) const;          // raw tokens currently active on one device
 
   // Gamepad hotkeys of P1 (see padhotkeys.h): a fired combo/solo button is not part of libretroMask()/inputMask()
@@ -102,4 +102,4 @@ class GamepadService : public QObject {
   bool sdlInited_ = false;
 };
 
-}  // namespace framebeam::input
+}  // namespace uzume::input

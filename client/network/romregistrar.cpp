@@ -3,10 +3,10 @@
 #include <QJsonDocument>
 #include <QNetworkReply>
 
-namespace framebeam {
+namespace uzume {
 
 RomRegistrar::RomRegistrar(HubConnection* connection, QObject* parent) : QObject(parent), conn_(connection) {
-  qRegisterMetaType<framebeam::RegisterOutcome>("framebeam::RegisterOutcome");
+  qRegisterMetaType<uzume::RegisterOutcome>("uzume::RegisterOutcome");
   if (connection) {
     connect(connection, &HubConnection::stateChanged, this, [this](HubConnection::State s) {
       if (s != HubConnection::State::Connected) {
@@ -121,4 +121,4 @@ void RomRegistrar::unregisterGame(const QString& gameId) {
   });
 }
 
-}  // namespace framebeam
+}  // namespace uzume

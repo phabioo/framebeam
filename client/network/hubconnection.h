@@ -18,7 +18,7 @@
 #include "hubprotocol.h"
 #include "profilestore.h"
 
-namespace framebeam {
+namespace uzume {
 
 // Connection state machine for exactly one hub (identification, TOFU/pinning, approval pairing,
 // token, handshake). The UI binds to stateChanged()/errorOccurred(); actions are slots.
@@ -125,7 +125,7 @@ class HubConnection : public QObject {
   QString pinnedFingerprint() const { return pin_; }
 
  signals:
-  void stateChanged(framebeam::HubConnection::State state);
+  void stateChanged(uzume::HubConnection::State state);
   void errorOccurred(const QString& code, const QString& message);
   void handshakeProblemsChanged();
 
@@ -185,4 +185,4 @@ class HubConnection : public QObject {
   bool refreshInFlight_ = false;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

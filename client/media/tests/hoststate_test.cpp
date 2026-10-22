@@ -5,7 +5,7 @@
 #include "hoststate.h"
 #include "processguard.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 class HostStateTest : public QObject {
   Q_OBJECT

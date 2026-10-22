@@ -1,0 +1,4072 @@
+openapi: 3.0.3
+info:
+  title: Uzume server API
+  version: 1.26.1
+  description: |
+    HTTPS/JSON API of the Uzume server (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the server under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for app-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for an app on the same PC as the server (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected apps receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on app devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games); 0.17 adds problem reports (`reports_v1`: `POST /reports` from any paired device, the admin list, files, zip archive, seen mark and delete under `/admin/reports`). `protocol_version` is an integer (starting at 1),
+    separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
+    only the info endpoint lives under `/.well-known/framebeam`.
+    Compatibility: the app's protocol_version < the server's min_protocol_version -> player_too_old;
+    the server's protocol_version < the app's min_protocol_version -> hub_too_old.
+    All values in examples are placeholders, not real secrets.
+servers:
+  - url: /
+security: []
+tags:
+  - name: info
+  - name: pairing
+  - name: local
+  - name: auth
+  - name: handshake
+  - name: users
+  - name: library
+  - name: systems
+  - name: cores
+  - name: plugins
+  - name: saves
+  - name: sessions
+  - name: runs
+  - name: reports
+  - name: admin
+  - name: ws
+paths:
+  /.well-known/framebeam:
+    get:
+      operationId: getHubInfo
+      tags: [info]
+      summary: Server info (no auth, grants no rights)
+      security: []
+      responses:
+        '200':
+          description: Server information
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HubInfo' }
+              examples:
+                default:
+                  value:
+                    hub_id: 3f2b8c1e-5d4a-4b7e-9a10-0c1d2e3f4a5b
+                    name: Wohnzimmer-Hub
+                    hub_version: 0.1.0
+                    protocol_version: 1
+                    min_protocol_version: 1
+                    api_base: /api/v1
+  /api/v1/pairing/requests:
+    post:
+      operationId: createPairingRequest
+      tags: [pairing]
+      summary: Submit pairing request (admin decides allow/deny)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PairingRequestCreate' }
+            examples:
+              default:
+                value:
+                  device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  device_name: Wohnzimmer-PC
+                  platform: linux
+                  arch: x86_64
+                  player_version: 0.1.0
+                  protocol_version: 1
+      responses:
+        '202':
+          description: Request accepted, waiting for admin
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingRequestAccepted' }
+              examples:
+                default:
+                  value:
+                    request_id: 0b6f1f0e-8a1c-4a43-8e7e-2a8f6d0c9b11
+                    poll_token: fbp_PLACEHOLDER_POLL_TOKEN
+                    status: pending
+                    expires_in: 600
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/pairing/requests/{request_id}:
+    get:
+      operationId: getPairingRequest
+      tags: [pairing]
+      summary: Poll pairing request status (bearer = poll_token)
+      security:
+        - pollTokenAuth: []
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: |
+            Status. When `approved`, hub_id, user_id and device_credential are delivered exactly once;
+            afterwards the request is consumed (404 not_found).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingStatus' }
+              examples:
+                pending:
+                  value: { status: pending }
+                approved:
+                  value:
+                    status: approved
+                    hub_id: 3f2b8c1e-5d4a-4b7e-9a10-0c1d2e3f4a5b
+                    user_id: u_placeholder_1
+                    device_credential: fbd_PLACEHOLDER_DEVICE_CREDENTIAL
+                denied:
+                  value: { status: denied }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/local/status:
+    get:
+      operationId: getLocalStatus
+      tags: [local]
+      summary: State of the local setup (`local_setup_v1`, loopback callers only)
+      description: |
+        For the app on the same PC as the server. Every `/api/v1/local/*` endpoint answers 403 `forbidden` when the
+        TCP peer address is not a loopback address (`X-Forwarded-For` and similar headers are never trusted) and is
+        rate limited like pairing (429).
+      security: []
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LocalStatus' }
+              examples:
+                default:
+                  value: { admin_exists: false, network_sharing: false, import_dir: 'C:\ProgramData\FrameBeam\Hub\library-import', hub_version: 0.9.0 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/local/setup:
+    post:
+      operationId: localSetup
+      tags: [local]
+      summary: Create the first admin and pair the calling app as that admin (`local_setup_v1`, loopback only)
+      description: |
+        No admin approval: the first admin is created with the username rules and minimum password length of the
+        web setup page, and the calling device is registered for that admin. The response is the payload of an
+        approved pairing poll (the credential is delivered once). 409 `conflict` when an admin already exists.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocalPairRequest' }
+            examples:
+              default:
+                value:
+                  username: admin
+                  password: PLACEHOLDER-PASSWORD
+                  device_name: Wohnzimmer-PC
+                  device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  platform: windows
+                  arch: x86_64
+                  player_version: 0.9.0
+                  protocol_version: 1
+      responses:
+        '200':
+          description: Admin created, device paired
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingStatus' }
+              examples:
+                default:
+                  value:
+                    status: approved
+                    hub_id: 3f2b8c1e-5d4a-4b7e-9a10-0c1d2e3f4a5b
+                    user_id: u_placeholder_1
+                    device_credential: fbd_PLACEHOLDER_DEVICE_CREDENTIAL
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: An admin already exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: conflict, message: An admin already exists } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/local/pair:
+    post:
+      operationId: localPair
+      tags: [local]
+      summary: Pair the calling app as an existing admin (`local_setup_v1`, loopback only)
+      description: |
+        No admin approval: the device is registered for the user when username and password belong to an enabled
+        admin, otherwise 401 `invalid_credentials`. Same body as `localSetup`, same response.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocalPairRequest' }
+      responses:
+        '200':
+          description: Device paired
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingStatus' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/local/settings:
+    put:
+      operationId: updateLocalSettings
+      tags: [local]
+      summary: Change network sharing and the import folder (`local_setup_v1`, loopback only, admin device)
+      description: |
+        Needs the access token of a device of an admin user. Both values are persisted server settings. A change
+        restarts the server in-process shortly after the response (binding and the import folder are read at
+        startup). `import_dir` must be an absolute path of an existing directory the server can read, otherwise 400
+        `import_dir_unreadable`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocalSettingsUpdate' }
+            examples:
+              default:
+                value: { network_sharing: true, import_dir: 'D:\Roms' }
+      responses:
+        '200':
+          description: The settings now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LocalStatus' }
+        '400':
+          description: Invalid value; `import_dir_unreadable` when the folder is not usable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: import_dir_unreadable, message: 'import_dir_unreadable: The import folder does not exist or is not a directory' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/invites/redeem:
+    post:
+      operationId: redeemInvite
+      tags: [users]
+      summary: Redeem an onboarding invite code (no auth)
+      description: |
+        Creates a server-local user (role `user`) and a device. If the invite authorizes the first device
+        directly, the response is 200 with the device credential; otherwise 202 with a pending pairing
+        request (poll via `getPairingRequest`; the request is pre-assigned to the new user).
+        Invalid, expired, used and revoked codes all return 404 `invite_invalid` (no enumeration).
+        Display names are unique per server (case-insensitive). Rate limited like pairing requests.
+        These are onboarding invites, not Session invites.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteRedeemRequest' }
+            examples:
+              default:
+                value:
+                  code: UZ-PLACEHOLDER-CODE
+                  display_name: Anna
+                  device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  device_name: Anna-Laptop
+                  platform: linux
+                  arch: x86_64
+                  player_version: 0.1.0
+                  protocol_version: 1
+      responses:
+        '200':
+          description: Redeemed, first device authorized directly (credential delivered once)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InviteRedeemApproved' }
+              examples:
+                default:
+                  value:
+                    status: approved
+                    hub_id: 3f2b8c1e-5d4a-4b7e-9a10-0c1d2e3f4a5b
+                    user_id: u_placeholder_2
+                    device_credential: fbd_PLACEHOLDER_DEVICE_CREDENTIAL
+        '202':
+          description: Redeemed, device waits for admin approval
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingRequestAccepted' }
+              examples:
+                default:
+                  value:
+                    request_id: 0b6f1f0e-8a1c-4a43-8e7e-2a8f6d0c9b11
+                    poll_token: fbp_PLACEHOLDER_POLL_TOKEN
+                    status: pending
+                    expires_in: 600
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404':
+          description: Invite code invalid, expired, already used or revoked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: invite_invalid, message: Invite code is not valid } } }
+        '409':
+          description: Display name already taken (case-insensitive)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: display_name_taken, message: Display name is already taken } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/auth/token:
+    post:
+      operationId: createAccessToken
+      tags: [auth]
+      summary: Exchange device credential for access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenRequest' }
+            examples:
+              default:
+                value:
+                  device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  device_credential: fbd_PLACEHOLDER_DEVICE_CREDENTIAL
+      responses:
+        '200':
+          description: Access Token (15 min)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+              examples:
+                default:
+                  value:
+                    access_token: fba_PLACEHOLDER_ACCESS_TOKEN
+                    token_type: Bearer
+                    expires_in: 900
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: invalid_credentials, device_revoked or user_disabled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                invalid:
+                  value: { error: { code: invalid_credentials, message: Invalid credentials } }
+                revoked:
+                  value: { error: { code: device_revoked, message: Device has been revoked } }
+                user_disabled:
+                  value: { error: { code: user_disabled, message: User has been disabled } }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/auth/revoke:
+    post:
+      operationId: revokeSelf
+      tags: [auth]
+      summary: Device revokes itself
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Revoked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/handshake:
+    post:
+      operationId: postHandshake
+      tags: [handshake]
+      summary: Handshake with capability negotiation
+      description: |
+        The server compares the reported `cores` with its systems registry. `core_missing` and
+        `core_version_mismatch` are warnings: they are listed in `problems` but `compatible` stays true.
+        `player_too_old`, `hub_too_old` and `capability_missing` set `compatible` to false.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HandshakeRequest' }
+            examples:
+              default:
+                value:
+                  platform: linux
+                  arch: x86_64
+                  player_version: 0.1.0
+                  protocol_version: 1
+                  min_protocol_version: 1
+                  cores:
+                    - { id: melonds, version: 1.1.0 }
+                  video:
+                    h264_encode: true
+                    h264_decode: true
+                    encoders: [vaapi, x264]
+                  audio: { opus: true }
+                  input: { gamepad: true, keyboard: true }
+      responses:
+        '200':
+          description: Result of the compatibility check
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandshakeResponse' }
+              examples:
+                compatible:
+                  value:
+                    hub_version: 0.1.0
+                    protocol_version: 1
+                    min_protocol_version: 1
+                    compatible: true
+                    problems: []
+                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, saves_v6, cores_v2, local_setup_v1, ice_update_v1, plugins_v1, runs_v1, local_roms_v1]
+                core_missing:
+                  description: Warning only, `compatible` stays true (launch allowed; the app shows the problem)
+                  value:
+                    hub_version: 0.1.0
+                    protocol_version: 1
+                    min_protocol_version: 1
+                    compatible: true
+                    problems:
+                      - { code: core_missing, detail: Core melonds missing, core_id: melonds }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/games:
+    get:
+      operationId: listGames
+      tags: [library]
+      summary: Game library
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of games
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [games]
+                properties:
+                  games:
+                    type: array
+                    items: { $ref: '#/components/schemas/Game' }
+              examples:
+                default:
+                  value:
+                    games:
+                      - id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+                        title: Homebrew Demo
+                        system: nds
+                        rom:
+                          sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+                          size: 4096
+                          filename: demo.nds
+                        uploaded_by: u_placeholder_1
+                        added_at: '2026-01-01T12:00:00Z'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: uploadGame
+      tags: [library]
+      summary: Upload a ROM (admin, or users when the server allows user uploads)
+      description: |
+        Raw body upload (`application/octet-stream`, at most 4 GiB, the same limit as the web upload).
+        Same validation and de-duplication (by SHA-256) as the web upload. `uploaded_by` is the caller.
+        Admins may always upload; users only when the server setting `allow_user_uploads` is on
+        (otherwise 403 `uploads_disabled`; the handshake feature `uploads_v1` is advertised only when allowed).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: filename
+          in: query
+          required: true
+          description: Original file name (used for type detection and stored as `rom.filename`)
+          schema: { type: string, minLength: 1, maxLength: 255 }
+          example: demo.nds
+        - name: title
+          in: query
+          required: false
+          description: Display title; defaults to the file name without extension
+          schema: { type: string, minLength: 1, maxLength: 200 }
+          example: Homebrew Demo
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: Game created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Game' }
+              examples:
+                default: { $ref: '#/components/examples/GameExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Uploads are not allowed for this user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: uploads_disabled, message: Uploads are disabled for users } } }
+        '409':
+          description: This ROM is already in the library; `existing_game_id` names the existing game
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DuplicateGameError' }
+              examples:
+                default:
+                  value:
+                    error: { code: conflict, message: This ROM is already in the library }
+                    existing_game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        '413':
+          description: Body exceeds the upload limit (4 GiB)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: payload_too_large, message: The file is too large } } }
+  /api/v1/games/{game_id}:
+    get:
+      operationId: getGame
+      tags: [library]
+      summary: Single game
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Game
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Game' }
+              examples:
+                default:
+                  $ref: '#/components/examples/GameExample'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/register:
+    post:
+      operationId: registerGame
+      tags: [library]
+      summary: Register a ROM file that exists only on the caller's device (`local_roms_v1`)
+      description: |
+        The server never receives the file. Match by `sha256` (a known file), else by identity (same system, `game_code`
+        and `game_version`: an extra file of that game), else a local-only game is created. The caller becomes owner
+        of the file. A local-only game is visible to its owners; once a file of it is stored on the server (an upload),
+        it is visible to everyone. Any authenticated user may register.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterGameRequest' }
+            examples:
+              default:
+                value:
+                  sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+                  size: 4096
+                  filename: demo.nds
+                  game_code: ABCD
+                  game_version: 0
+      responses:
+        '200':
+          description: The file belongs to an existing game
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Game' }
+        '201':
+          description: A new local-only game was created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Game' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/games/{game_id}/registration:
+    delete:
+      operationId: deleteGameRegistration
+      tags: [library]
+      summary: Remove the caller's local registrations for a game (`local_roms_v1`)
+      description: The game, its other files and its saves stay.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Registrations removed (also when there were none) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/uploads:
+    post:
+      operationId: createUpload
+      tags: [library]
+      summary: Start or resume a resumable ROM upload (`local_roms_v1`)
+      description: |
+        Same permission as `uploadGame` (admin, or users when the server allows user uploads; otherwise 403
+        `uploads_disabled`), same 4 GiB limit. An open session of the same user with the same `sha256` (or the same
+        `filename` and `size`) is returned for resume. A `sha256` that is already stored on the server is a 409 with
+        `existing_game_id`. Sessions untouched for 7 days are removed.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUploadRequest' }
+      responses:
+        '201':
+          description: Upload session (new or resumed)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadSession' }
+              examples:
+                default: { value: { upload_id: 3f1c2b4a-5d6e-4f70-8a91-b2c3d4e5f607, offset: 0, chunk_size: 67108864 } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Uploads are not allowed for this user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: This ROM is already stored on the server; `existing_game_id` names the game
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DuplicateGameError' }
+        '413':
+          description: Size exceeds the upload limit (4 GiB)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/uploads/{upload_id}:
+    parameters:
+      - name: upload_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getUpload
+      tags: [library]
+      summary: State of an upload session (`local_roms_v1`)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Session state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/UploadsDisabled' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: putUploadChunk
+      tags: [library]
+      summary: Upload one chunk (`local_roms_v1`)
+      description: |
+        Raw body with `Content-Range: bytes a-b/total`. `a` must equal the session's `offset` (else 409; read the
+        offset with `GET`), the chunk is at most 64 MiB and `total` is the announced size. The server keeps the SHA-256
+        state, so the chunk that completes the file finishes without re-reading it: the hash is checked (when
+        announced; mismatch is a 400 and the session is dropped), then the file becomes a stored file of the game with
+        that SHA-256 (the `game_id` of a local-only game is unchanged), else an extra file of the game with the same
+        identity, else a new game. The finishing response carries `game`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Content-Range
+          in: header
+          required: true
+          schema: { type: string, pattern: '^bytes [0-9]+-[0-9]+/[0-9]+$' }
+          example: 'bytes 0-67108863/134217728'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Chunk stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadProgress' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/UploadsDisabled' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The chunk does not start at the current offset, another chunk is in flight, or the ROM was stored meanwhile (`existing_game_id`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '413':
+          description: Chunk exceeds 64 MiB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      operationId: deleteUpload
+      tags: [library]
+      summary: Abort an upload session (`local_roms_v1`)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Session and data removed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/UploadsDisabled' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/roms/{sha256}:
+    get:
+      operationId: downloadRom
+      tags: [library]
+      summary: ROM download (range support). Only files stored on the server (`stored`); a file that is only registered as local is 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sha256
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+          example: '0000000000000000000000000000000000000000000000000000000000000000'
+        - name: Range
+          in: header
+          required: false
+          schema: { type: string }
+          example: bytes=0-1023
+      responses:
+        '200':
+          description: Full content
+          headers:
+            ETag: { schema: { type: string }, description: Strong ETag, example: '"0000000000000000000000000000000000000000000000000000000000000000"' }
+            Accept-Ranges: { schema: { type: string }, example: bytes }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '206':
+          description: Partial content (range)
+          headers:
+            ETag: { schema: { type: string } }
+            Content-Range: { schema: { type: string }, example: 'bytes 0-1023/4096' }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '416':
+          description: Range not satisfiable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: bad_request, message: Range not satisfiable } } }
+  /api/v1/systems:
+    get:
+      operationId: listSystems
+      tags: [systems]
+      summary: Systems registry with firmware status
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Registered systems
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [systems]
+                properties:
+                  systems:
+                    type: array
+                    items: { $ref: '#/components/schemas/SystemInfo' }
+              examples:
+                default:
+                  value:
+                    systems:
+                      - id: nds
+                        display_name: Nintendo DS
+                        preferred_core_id: melondsds
+                        expected_core_version: null
+                        core_package_version: 2026.10.09
+                        default_core_id: melondsds
+                        cores:
+                          - { core_id: melondsds, display_name: 'Nintendo DS (melonDS DS)', version: 2026.10.09, license: GPLv3, experimental: false, required_hw_api: 'OpenGL Core >= 3.2', origin: libretro-buildbot, build_date: '2026-10-09' }
+                          - { core_id: desmume, display_name: 'Nintendo DS (DeSmuME)', version: 2026.10.09, license: GPLv2, experimental: true, required_hw_api: null, origin: libretro-buildbot, build_date: '2026-10-09' }
+                        firmware_mode: builtin
+                        firmware:
+                          - { id: bios7, display_name: ARM7 BIOS, required: false, present: true, size: 16384, sha256: '0000000000000000000000000000000000000000000000000000000000000000' }
+                          - { id: bios9, display_name: ARM9 BIOS, required: false, present: false, size: null, sha256: null }
+                          - { id: firmware, display_name: DS Firmware, required: false, present: false, size: null, sha256: null }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/systems/{system_id}/firmware/{file_id}:
+    parameters:
+      - name: system_id
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' }
+        example: nds
+      - name: file_id
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' }
+        example: bios7
+    get:
+      operationId: getFirmwareFile
+      tags: [systems]
+      summary: Download a firmware file (any trusted device; never logged)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Firmware bytes
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/cores/{core_id}/packages/{version}/{platform}:
+    parameters:
+      - $ref: '#/components/parameters/CoreId'
+      - $ref: '#/components/parameters/CoreVersion'
+      - $ref: '#/components/parameters/CorePlatform'
+    get:
+      operationId: getCorePackage
+      tags: [cores]
+      summary: Manifest of a signed core package (any trusted device)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Package metadata and file list (`available` = file is in the server cache)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CorePackage' }
+              examples:
+                default:
+                  value:
+                    core_id: melondsds
+                    version: 2026.10.09
+                    platform: linux-x64
+                    license: GPLv3
+                    origin: libretro-buildbot
+                    source_url: https://buildbot.libretro.com/nightly/linux/x86_64/latest/melondsds_libretro.so.zip
+                    source_ref: 2026-10-09 0a1b2c3d
+                    files:
+                      - { name: melondsds_libretro.so, role: library, size: 4194304, sha256: '2222222222222222222222222222222222222222222222222222222222222222', available: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/CorePackageNotFound' }
+  /api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}:
+    parameters:
+      - $ref: '#/components/parameters/CoreId'
+      - $ref: '#/components/parameters/CoreVersion'
+      - $ref: '#/components/parameters/CorePlatform'
+      - name: name
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$' }
+        example: melonds_ds_libretro.so
+    get:
+      operationId: getCorePackageFile
+      tags: [cores]
+      summary: Download a file of a core package (any trusted device)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          schema: { type: string }
+          example: '"2222222222222222222222222222222222222222222222222222222222222222"'
+      responses:
+        '200':
+          description: File bytes
+          headers:
+            ETag: { schema: { type: string }, description: 'Strong ETag = content SHA-256', example: '"2222222222222222222222222222222222222222222222222222222222222222"' }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '304':
+          description: Not modified (`If-None-Match` matches the ETag)
+          headers:
+            ETag: { schema: { type: string } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/CoreFileNotAvailable' }
+  /api/v1/plugins:
+    get:
+      operationId: listPlugins
+      tags: [plugins]
+      summary: Plugin versions this server offers to apps (`plugins_v1`, any trusted device)
+      description: |
+        Every offered version of every plugin, ordered by `plugin_id` and SemVer (oldest first). `origin` is `official`
+        (valid Uzume signature) or `unverified` (unsigned, offered by the admin). `requires`, `provides` and
+        `games` are copied from the manifest and empty when absent. `sha256` is the digest of the file served by
+        `getPluginFile`; the app pins it.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Offered plugin versions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PluginList' }
+              examples:
+                default:
+                  value:
+                    plugins:
+                      - plugin_id: net.example.tracker
+                        version: 1.2.0
+                        name: Tracker
+                        description: Tracks things
+                        api: 1
+                        origin: official
+                        sha256: '3333333333333333333333333333333333333333333333333333333333333333'
+                        size: 12345
+                        permissions: [memory.read, ui]
+                        requires: { net.example.base: ^1.0 }
+                        provides: [tracker.state]
+                        games: [{ system: nds, codes: ['IPK*'] }]
+                        created_at: '2026-10-12T08:00:00Z'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/plugins/{plugin_id}/{version}/file:
+    parameters:
+      - $ref: '#/components/parameters/PluginId'
+      - $ref: '#/components/parameters/PluginVersion'
+    get:
+      operationId: getPluginFile
+      tags: [plugins]
+      summary: Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          schema: { type: string }
+          example: '"3333333333333333333333333333333333333333333333333333333333333333"'
+      responses:
+        '200':
+          description: The zip file (`ETag` = `"<sha256>"` as listed)
+          headers:
+            ETag: { schema: { type: string }, description: 'Strong ETag = content SHA-256', example: '"3333333333333333333333333333333333333333333333333333333333333333"' }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '304':
+          description: Not modified (`If-None-Match` matches the ETag)
+          headers:
+            ETag: { schema: { type: string } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/saves:
+    get:
+      operationId: listSaves
+      tags: [saves]
+      summary: Save slots of the authenticated device's user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Slots of the caller (only the owner's own slots)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [saves]
+                properties:
+                  saves:
+                    type: array
+                    items: { $ref: '#/components/schemas/SaveSlotSummary' }
+              examples:
+                default:
+                  value:
+                    saves:
+                      - game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+                        slot: default
+                        current:
+                          revision: 3
+                          sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+                          size: 524288
+                          device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                          device_name: Wohnzimmer-PC
+                          created_at: '2026-01-01T12:00:00Z'
+                          reason: checkpoint
+                        open_conflict_count: 0
+                empty:
+                  value: { saves: [] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/games/{game_id}/saves/{slot}:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    get:
+      operationId: getSaveSlot
+      tags: [saves]
+      summary: Current checkpoint metadata and open conflicts of a slot
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Slot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                default: { $ref: '#/components/examples/SaveSlotExample' }
+                with_conflict: { $ref: '#/components/examples/SaveSlotConflictExample' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: putSave
+      tags: [saves]
+      summary: Upload the save file (raw body) against a base revision
+      description: |
+        Raw `application/octet-stream` body (max 64 MiB, opaque, never interpreted by the server).
+        Rules, evaluated in order inside one transaction per slot:
+        1. SHA-256 equals the current checkpoint -> 200 with the current slot, no new revision (idempotent retry).
+        2. `X-FrameBeam-Base-Revision` equals the current revision (0 and no slot yet) -> new revision, 200.
+        3. Otherwise -> 409 `save_conflict`: the upload is secured as history version (`conflict_upload`),
+           an open conflict is created or updated (at most one open conflict per slot and device) and
+           returned in `conflict`. The current checkpoint stays unchanged.
+        A hash mismatch returns 400 `bad_request`; oversize bodies 413 `payload_too_large`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-FrameBeam-Base-Revision
+          in: header
+          required: true
+          description: Checkpoint revision the upload is based on; 0 = the app had no server save.
+          schema: { type: integer, minimum: 0 }
+          example: 3
+        - name: X-FrameBeam-Content-SHA256
+          in: header
+          required: true
+          description: Lowercase hex SHA-256 of the body; verified by the server.
+          schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+          example: '2222222222222222222222222222222222222222222222222222222222222222'
+        - name: X-FrameBeam-Sync-Reason
+          in: header
+          required: true
+          schema: { $ref: '#/components/schemas/SaveSyncReason' }
+          example: checkpoint
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Accepted (new revision) or identical to the current checkpoint (unchanged)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                accepted: { $ref: '#/components/examples/SaveSlotExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Stale base revision; the upload was secured and a conflict recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveConflictError' }
+              examples:
+                default:
+                  value:
+                    error: { code: save_conflict, message: Base revision is stale; upload secured as conflict }
+                    conflict:
+                      id: c_placeholder_1
+                      game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+                      slot: default
+                      status: open
+                      hub:
+                        revision: 3
+                        sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+                        device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                        device_name: Wohnzimmer-PC
+                        created_at: '2026-01-01T12:00:00Z'
+                      secured:
+                        version: 4
+                        sha256: '2222222222222222222222222222222222222222222222222222222222222222'
+                        base_revision: 2
+                        device_id: 5d0f4e2a-1b3c-4d5e-8f60-718293a4b5c6
+                        device_name: Laptop
+                        created_at: '2026-01-01T13:00:00Z'
+                      created_at: '2026-01-01T13:00:00Z'
+                      resolved_at: null
+                      resolved_by: null
+        '413':
+          description: Body exceeds 64 MiB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: payload_too_large, message: Save exceeds 64 MiB } } }
+    delete:
+      operationId: deleteSaveSlot
+      tags: [saves]
+      summary: Delete a slot with its whole history (`saves_v5`, main slot since `saves_v6`)
+      description: |
+        Hard delete: checkpoint, history, conflict records and content files of the slot are removed for good; there
+        is no undo. The request must confirm the checkpoint revision the caller saw in the required query parameter
+        `confirm_revision`; any other value returns 409 `save_conflict_stale` and nothing is deleted, so a stale
+        client cannot delete newer progress. A missing or non-numeric `confirm_revision` returns 400 `bad_request`.
+        The main slot `default` can be deleted since `saves_v6` (before, 409 `save_slot_protected`). Other errors: 404 for an unknown slot; 409 `session_running`
+        while an active Session of the calling user runs the game; 409 `conflict` while the slot has an open
+        conflict (resolve it first). Other devices of the user get `save_updated` with reason `deleted` (slot,
+        revision and sha256 are those of the deleted checkpoint). The deletion is logged by the server.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: confirm_revision
+          in: query
+          required: true
+          description: Current checkpoint revision the caller saw.
+          schema: { type: integer, minimum: 1 }
+          example: 3
+      responses:
+        '204': { description: Slot deleted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Stale `confirm_revision`, running Session or open conflict (before `saves_v6` also the default slot); nothing deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                stale: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
+                session_running: { value: { error: { code: session_running, message: A Session of this game is running; end it first } } }
+  /api/v1/games/{game_id}/saves/{slot}/rename:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    post:
+      operationId: renameSaveSlot
+      tags: [saves]
+      summary: Rename a slot (`saves_v5`)
+      description: |
+        The slot keeps its checkpoint, full history and conflicts; only the name changes. The new name must match the
+        slot name pattern and must not be a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `com1`-`com9`,
+        `lpt1`-`lpt9`) or the current name: 400 `bad_request`. 404 for an unknown slot; 409 `save_slot_exists` if the
+        new name is taken; 409 `save_slot_protected` for the `default` slot (it cannot be renamed; deleting it is allowed since `saves_v6`);
+        409 `session_running` while an active Session of the calling user runs the game. Other devices of the user
+        get `save_updated` with reason `renamed`, `slot` = the new name and `previous_slot` = the old name.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveSlotRenameRequest' }
+            examples:
+              default: { value: { name: speedrun } }
+      responses:
+        '200':
+          description: Renamed; the slot under its new name
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                default: { $ref: '#/components/examples/SaveSlotExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Name taken, default slot or running Session; nothing changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                exists: { value: { error: { code: save_slot_exists, message: A slot with this name already exists } } }
+                protected: { value: { error: { code: save_slot_protected, message: The default slot cannot be renamed } } }
+                session_running: { value: { error: { code: session_running, message: A Session of this game is running; end it first } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/games/{game_id}/saves/{slot}/content:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    get:
+      operationId: downloadSaveContent
+      tags: [saves]
+      summary: Bytes of the current checkpoint
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current checkpoint content
+          headers:
+            ETag: { schema: { type: string }, description: Strong ETag = content SHA-256, example: '"1111111111111111111111111111111111111111111111111111111111111111"' }
+            X-FrameBeam-Save-Revision: { schema: { type: integer, minimum: 1 }, description: Checkpoint revision of the content, example: 3 }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/{game_id}/saves/{slot}/history:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    get:
+      operationId: listSaveHistory
+      tags: [saves]
+      summary: Permanent history versions of a slot (newest first)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: History versions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versions]
+                properties:
+                  versions:
+                    type: array
+                    items: { $ref: '#/components/schemas/SaveHistoryVersion' }
+              examples:
+                default:
+                  value:
+                    versions:
+                      - version: 2
+                        revision: 3
+                        sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+                        size: 524288
+                        device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                        device_name: Wohnzimmer-PC
+                        created_at: '2026-01-01T12:00:00Z'
+                        reason: session_end
+                      - version: 1
+                        revision: 1
+                        sha256: '3333333333333333333333333333333333333333333333333333333333333333'
+                        size: 524288
+                        device_id: 5d0f4e2a-1b3c-4d5e-8f60-718293a4b5c6
+                        device_name: Laptop
+                        created_at: '2025-12-31T20:00:00Z'
+                        reason: device_change
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/{game_id}/saves/{slot}/history/{version}/content:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: version
+        in: path
+        required: true
+        description: History version number (vN)
+        schema: { type: integer, minimum: 1 }
+        example: 1
+    get:
+      operationId: downloadSaveHistoryContent
+      tags: [saves]
+      summary: Bytes of a history version
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: History version content
+          headers:
+            ETag: { schema: { type: string }, description: Strong ETag = content SHA-256 }
+            X-FrameBeam-Save-Revision: { schema: { type: integer, minimum: 1 }, description: Checkpoint revision captured by this version, example: 1 }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/{game_id}/saves/{slot}/history/{version}:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: version
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+        example: 2
+    delete:
+      operationId: deleteSaveVersion
+      tags: [saves]
+      summary: Delete a version from the history (`saves_v3`, any version since `saves_v6`)
+      description: |
+        Any history version can be deleted (`saves_v6`); before `saves_v6` only versions with reason
+        `manual_snapshot` could be deleted and others returned 409 `save_not_snapshot` (no longer returned). The
+        secured version of an open conflict of the slot cannot be deleted: 409 `conflict` (resolve the conflict
+        first). The version number is never reused. The current checkpoint and all other versions are not touched,
+        and no `save_updated` is sent. The content file is removed only when no checkpoint, version or conflict
+        still uses it. The deletion is logged by the server.
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Version deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The version is the secured version of an open conflict
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: conflict, message: Resolve the open conflict first } } }
+  /api/v1/games/{game_id}/saves/{slot}/history/{version}/restore:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: version
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+        example: 2
+    post:
+      operationId: restoreSaveHistoryVersion
+      tags: [saves]
+      summary: Restore a history version as the new checkpoint (`saves_v2`)
+      description: |
+        `expected_revision` must equal the current checkpoint revision, otherwise 409 `save_conflict_stale`
+        (nothing changed, the caller re-reads the slot). The current checkpoint is first secured into history
+        (`before_restore`, unless already captured); then the version's content becomes the new checkpoint
+        (revision + 1, reason `restore`, device = caller). Other devices get `save_updated`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveRestoreRequest' }
+            examples:
+              default: { value: { expected_revision: 3 } }
+      responses:
+        '200':
+          description: Restored; the slot after the restore
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                default: { $ref: '#/components/examples/SaveSlotExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: expected_revision is stale; nothing changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/games/{game_id}/saves/{slot}/upload:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    post:
+      operationId: uploadSaveFile
+      tags: [saves]
+      summary: Upload a save file (e.g. from another emulator) into a slot (`saves_v4`)
+      description: |
+        Raw `application/octet-stream` body (max 64 MiB, opaque, never interpreted by the server). Unlike `putSave`
+        this is a deliberate replacement and never creates a conflict: `X-FrameBeam-Expected-Revision` must equal the
+        current checkpoint revision (0 = the slot must not exist yet), otherwise 409 `save_conflict_stale` and nothing
+        changes. An existing checkpoint is first secured into history (`before_upload`, unless already captured);
+        then the body becomes the new checkpoint (revision + 1, reason `upload`, device = caller). A missing slot is
+        created at revision 1. A body identical to the current checkpoint changes nothing (200, idempotent).
+        Other devices get `save_updated` with reason `upload`.
+        An invalid slot name, an empty body, a hash mismatch or a bad header returns 400 `bad_request`; an unknown
+        game 404; oversize bodies 413 `payload_too_large`. While an active Session of the calling user runs the
+        game (`saves_v5`) the upload is refused with 409 `session_running` and nothing changes.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-FrameBeam-Expected-Revision
+          in: header
+          required: true
+          description: Current checkpoint revision the caller saw; 0 = the slot must not exist yet.
+          schema: { type: integer, minimum: 0 }
+          example: 3
+        - name: X-FrameBeam-Content-SHA256
+          in: header
+          required: true
+          description: Lowercase hex SHA-256 of the body; verified by the server.
+          schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+          example: '2222222222222222222222222222222222222222222222222222222222222222'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Uploaded (new revision) or identical to the current checkpoint (unchanged)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                default: { $ref: '#/components/examples/SaveSlotExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Expected revision does not match (`save_conflict_stale`) or a Session of the game runs (`session_running`); nothing changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
+                session_running: { value: { error: { code: session_running, message: A Session of this game is running; end it first } } }
+        '413':
+          description: Body exceeds 64 MiB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: payload_too_large, message: Save exceeds 64 MiB } } }
+  /api/v1/games/{game_id}/saves/{slot}/snapshots:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    post:
+      operationId: createSaveSnapshot
+      tags: [saves]
+      summary: Create a manual snapshot of the current checkpoint (`saves_v2`)
+      description: |
+        Creates a history version with reason `manual_snapshot` from the current checkpoint, with an optional
+        label. 404 when the slot has no checkpoint. Snapshots are never thinned by retention.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveSnapshotRequest' }
+            examples:
+              default: { value: { label: Before final boss } }
+      responses:
+        '201':
+          description: Snapshot created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveHistoryVersion' }
+              examples:
+                default:
+                  value:
+                    version: 3
+                    revision: 3
+                    sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+                    size: 524288
+                    device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    device_name: Wohnzimmer-PC
+                    created_at: '2026-01-01T12:30:00Z'
+                    reason: manual_snapshot
+                    label: Before final boss
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: conflict_id
+        in: path
+        required: true
+        schema: { type: string }
+        example: c_placeholder_1
+    post:
+      operationId: resolveSaveConflict
+      tags: [saves]
+      summary: Resolve an open save conflict
+      description: |
+        `expected_revision` must equal the current checkpoint revision, otherwise 409 `save_conflict_stale`
+        (nothing changed, the caller re-reads the slot). Before applying, the current checkpoint is copied
+        to history (`before_conflict_resolution`). `use_hub`: conflict -> `resolved_hub`, the secured upload
+        stays in history. `use_local`: the secured upload becomes a new checkpoint (revision + 1),
+        conflict -> `resolved_local`. Resolving an already resolved conflict returns 409 `save_conflict_stale`.
+        "Keep both, decide later" is no call; the conflict simply stays `open`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveResolveRequest' }
+            examples:
+              use_hub: { value: { resolution: use_hub, expected_revision: 3 } }
+              use_local: { value: { resolution: use_local, expected_revision: 3 } }
+      responses:
+        '200':
+          description: Resolved; the slot after the resolution
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+              examples:
+                default: { $ref: '#/components/examples/SaveSlotExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: expected_revision is stale or the conflict is already resolved; nothing changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: save_conflict_stale, message: Slot changed since expected_revision; re-read the slot } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/users:
+    get:
+      operationId: listUsers
+      tags: [sessions]
+      summary: Users of this server (for the invite field)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Users with online state (at least one device connected via WSS)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserList' }
+              examples:
+                default:
+                  value:
+                    users:
+                      - { id: u_placeholder_1, display_name: Fabio, online: true }
+                      - { id: u_placeholder_2, display_name: Anna, online: false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/sessions:
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: Active Sessions the caller may join or owns, plus Sessions inviting the caller
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sessions, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionList' }
+              examples:
+                default:
+                  value:
+                    sessions:
+                      - session_id: 4e8d2a60-7b1c-4f3e-8a5d-6c7b8a9d0e1f
+                        game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+                        game_title: Demo Homebrew
+                        owner: { user_id: u_placeholder_1, display_name: Fabio, device_name: Wohnzimmer-PC }
+                        visibility: hub_users
+                        created_at: '2026-01-01T12:00:00Z'
+                        viewer_count: 0
+                        is_owner: false
+                        invited: false
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: publishSession
+      tags: [sessions]
+      summary: Publish a Session (ends the device's previous Session)
+      description: |
+        A device has at most one active Session; publishing a new one ends the previous one (`session_ended`
+        reason `replaced`). A device whose handshake reported `video.h264_encode=false` gets 409 `capability_missing`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SessionPublishRequest' }
+            examples:
+              default: { value: { game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d, visibility: hub_users } }
+      responses:
+        '201':
+          description: Session published
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+              examples:
+                default: { $ref: '#/components/examples/SessionExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/CapabilityMissing' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/sessions/{session_id}:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    get:
+      operationId: getSession
+      tags: [sessions]
+      summary: One Session (caller must be allowed to see it)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The Session; `viewers` and `invites` only for the owner device
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+              examples:
+                default: { $ref: '#/components/examples/SessionExample' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+    patch:
+      operationId: updateSession
+      tags: [sessions]
+      summary: Change the visibility (owner device); revokes viewers that are no longer allowed
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SessionUpdateRequest' }
+            examples:
+              default: { value: { visibility: invite_only } }
+      responses:
+        '200':
+          description: The updated Session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+              examples:
+                default: { $ref: '#/components/examples/SessionExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+    delete:
+      operationId: endSession
+      tags: [sessions]
+      summary: End the Session (owner device)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Session ended }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+  /api/v1/sessions/{session_id}/invites/{user_id}:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/UserId'
+    put:
+      operationId: inviteSessionUser
+      tags: [sessions]
+      summary: Invite a user of this server (owner device); a declined invite becomes open again
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The Session with the invite
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+              examples:
+                default: { $ref: '#/components/examples/SessionExample' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+    delete:
+      operationId: withdrawSessionInvite
+      tags: [sessions]
+      summary: Withdraw an invite (owner device); removes that user's viewers
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Invite withdrawn }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+  /api/v1/sessions/{session_id}/decline:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    post:
+      operationId: declineSession
+      tags: [sessions]
+      summary: Decline the invite (invited user); the owner is notified via session_update
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Invite declined }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+  /api/v1/sessions/{session_id}/join:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    post:
+      operationId: joinSession
+      tags: [sessions]
+      summary: Join as viewer (ACL checked here)
+      description: |
+        Max 4 viewers (409 `session_full`). A device whose handshake reported `video.h264_decode=false` gets
+        409 `capability_missing`. Joining again with the same device returns the existing viewer.
+        Signaling continues over WSS (`signal`).
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Viewer created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionJoinResponse' }
+              examples:
+                default:
+                  value:
+                    viewer_id: 5d1f7c2e-3b4a-4c6d-9e8f-1a2b3c4d5e6f
+                    permissions: { view_video: true, hear_audio: true, send_input: false }
+                    ice_servers: ['stun:stun.example.org:3478']
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '409': { $ref: '#/components/responses/SessionFullOrCapability' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+  /api/v1/sessions/{session_id}/viewers/{viewer_id}:
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+      - name: viewer_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        example: 5d1f7c2e-3b4a-4c6d-9e8f-1a2b3c4d5e6f
+    delete:
+      operationId: removeSessionViewer
+      tags: [sessions]
+      summary: Remove a viewer (owner device) or leave (the viewer's own device)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Viewer removed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/SessionForbidden' }
+        '404': { $ref: '#/components/responses/SessionNotFound' }
+        '410': { $ref: '#/components/responses/SessionEnded' }
+  /api/v1/runs:
+    get:
+      operationId: listRuns
+      tags: [runs]
+      summary: Runs the caller participates in (any participant status, not archived), most recently changed first
+      description: |
+        Feature `runs_v1`. Every run includes the per-plugin states of every participant (the same object as `GET /runs/{run_id}`)
+        when the caller has joined; for invited, declined and left callers `states` of every participant is empty.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Runs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: createRun
+      tags: [runs]
+      summary: Create a run (the caller joins with `game_id`, status `starting`)
+      description: |
+        Every plugin version must be offered by this server (400 otherwise). `invite_user_ids` are users of this server;
+        the creator plus the invited users are at most 8. `settings` is an opaque JSON object of at most 16 KiB
+        (413 `too_large`). Invited users receive `run_updated`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunCreateRequest' }
+      responses:
+        '201':
+          description: Run created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/runs/{run_id}:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    get:
+      operationId: getRun
+      tags: [runs]
+      summary: One run with every participant's per-plugin states (participants of any status only; others get 404)
+      description: |
+        Callers who are participants but have not joined (invited, declined, left) see the title, the game and the
+        participant list only: `states` of every participant is `{}`. Events and states are for joined participants.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/runs/{run_id}/join:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: joinRun
+      tags: [runs]
+      summary: Join with a library game (from invited, declined or left); the same game again is a no-op
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunJoinRequest' }
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/runs/{run_id}/invite:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: inviteRun
+      tags: [runs]
+      summary: Invite more users (any joined participant, while the run is starting, active or paused)
+      description: |
+        Users who are already invited or joined are skipped; users who declined or left are invited again. Unknown
+        or disabled users are a 400. More than 8 participants in total are a 409. Appends the server event `run.invited`
+        and sends `run_updated`. If nobody is newly invited the run is returned unchanged and nothing is appended.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunInviteRequest' }
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/runs/{run_id}/decline:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: declineRun
+      tags: [runs]
+      summary: Decline the invite (only from invited; declining again is a no-op)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+  /api/v1/runs/{run_id}/leave:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: leaveRun
+      tags: [runs]
+      summary: Leave a run the caller joined (leaving again is a no-op); colour and state stay
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+  /api/v1/runs/{run_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: setRunStatus
+      tags: [runs]
+      summary: Change the run status
+      description: |
+        `active`: from `starting` by the creator, from `paused` by any joined participant. `paused`: from `active`,
+        any joined participant. `finished` or `abandoned`: the creator, from any run that is not over. Other
+        transitions are 409 `conflict`; the right transition by the wrong user is 403. The server appends a `run.status` event.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunStatusRequest' }
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/runs/{run_id}/state/{plugin_id}:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+      - name: plugin_id
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      operationId: putRunState
+      tags: [runs]
+      summary: Replace the caller's own state of one plugin (JSON object, at most 64 KiB) against a base revision
+      description: |
+        Each participant has one state object per plugin of the run, each with its own revision. `plugin_id` must be a
+        plugin of the run (404 `not_found`). `base_rev` must equal the current `state_rev` of that plugin (0 when none
+        was written yet), otherwise 409 `state_conflict` with the current `state_rev` and `state`. Joined participants
+        only (403 otherwise). Starting and active runs only (409 `run_not_active`). Rate limit 4/s, burst 20 per
+        participant (all plugins together; 429 `rate_limited`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunStateRequest' }
+      responses:
+        '200':
+          description: State stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunStateResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`state_conflict` (carries the current state) or `run_not_active`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunStateConflictError' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/runs/{run_id}/events:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: appendRunEvent
+      tags: [runs]
+      summary: Append an event to the log (joined participants)
+      description: |
+        `client_id` makes the call idempotent: the same `client_id` again returns 200 with the original `seq`.
+        `plugin_id` must be a plugin of the run. Starting and active runs only (409 `run_not_active`); at most
+        50 000 events per run (409 `conflict`). Rate limit 2/s, burst 30 per participant (429 `rate_limited`).
+        Payload at most 4 KiB (413 `too_large`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunEventRequest' }
+      responses:
+        '200':
+          description: The event already existed (same `client_id`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunEventResult' }
+        '201':
+          description: Event appended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunEventResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    get:
+      operationId: listRunEvents
+      tags: [runs]
+      summary: Events with seq greater than `after`, in order (joined participants)
+      description: |
+        Only joined participants read the event log. Invited, declined and left participants get 403 `forbidden`;
+        everybody else 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: after
+          in: query
+          required: false
+          schema: { type: integer, format: int64, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        '200':
+          description: Events and the run's current `last_seq`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunEventList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/runs/{run_id}/boards/{plugin_id}:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+      - $ref: '#/components/parameters/RunPluginId'
+    put:
+      operationId: putRunBoard
+      tags: [runs]
+      summary: Publish the plugin's board (building-block tree, at most 64 KiB) for the server web run page
+      description: |
+        Joined participants only (403 otherwise); the plugin must be a plugin of the run (404). Starting and active runs
+        only (409 `run_not_active`). Rate limit 1/s, burst 5 per participant (429 `rate_limited`). The server checks the
+        shape (a JSON object) and the size, not the building blocks.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunBoardRequest' }
+      responses:
+        '200':
+          description: Board stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunBoardResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/RunConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/status:
+    get:
+      operationId: getAdminStatus
+      tags: [admin]
+      summary: Server health (admin only)
+      description: |
+        The same data as the Status page of the web interface: identity, uptime, open problems (most urgent first),
+        CPU, memory, the disk of the data directory, running Sessions, the built-in TURN relay, connected apps and
+        the warnings and errors of the last 24 hours (secrets removed). Needs the access token of a device of an
+        admin user, otherwise 403.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/status/log:
+    get:
+      operationId: getAdminStatusLog
+      tags: [admin]
+      summary: Download the recent server log (admin only)
+      description: The last log lines the server keeps in memory as plain text, redacted like the diagnostics bundle.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Log text
+          headers:
+            Content-Disposition: { schema: { type: string }, example: 'attachment; filename="uzume-server-log-20261022-081500.txt"' }
+          content:
+            text/plain:
+              schema: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/metrics:
+    get:
+      operationId: getAdminMetrics
+      tags: [admin]
+      summary: State of the Prometheus metrics endpoint (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current setting
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMetrics' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    put:
+      operationId: setAdminMetrics
+      tags: [admin]
+      summary: Switch the Prometheus metrics endpoint on or off (admin only)
+      description: |
+        Off by default; while off `GET /metrics` answers 404. Switching it on for the first time creates a token and
+        returns it once in `token`; later calls never return it.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminMetricsUpdate' }
+            examples:
+              default: { value: { enabled: true } }
+      responses:
+        '200':
+          description: The setting now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMetrics' }
+        '400':
+          description: Invalid body
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/metrics/token:
+    post:
+      operationId: createAdminMetricsToken
+      tags: [admin]
+      summary: Create a new metrics token (admin only)
+      description: Replaces the token; the previous one stops working at once. The new token is returned once, the server keeps only a hash.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The new token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMetricsToken' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/reports:
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Send a problem report to the server (`reports_v1`)
+      description: |
+        Any paired device of any user. `multipart/form-data` with a `meta` part (JSON, `ReportMeta`) and up to 12 file
+        parts named `files` (the file name of each part is the attachment name; `[A-Za-z0-9._-]`, at most 80 characters).
+        The whole report is limited to 25 MiB (413 `payload_too_large`); a device may send 5 reports per hour (429
+        `rate_limited`). The server removes secrets from the description and from text attachments again. Admins see the
+        report under Reports; it is kept until an admin deletes it.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [meta]
+              properties:
+                meta: { $ref: '#/components/schemas/ReportMeta' }
+                files: { type: array, items: { type: string, format: binary } }
+            encoding:
+              meta: { contentType: application/json }
+              files: { contentType: application/octet-stream }
+      responses:
+        '201':
+          description: Stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportCreated' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/reports:
+    get:
+      operationId: listAdminReports
+      tags: [admin]
+      summary: List problem reports, newest first (admin only, `reports_v1`)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Only reports with this status; the counts always cover all reports
+          schema: { type: string, enum: [new, seen] }
+      responses:
+        '200':
+          description: Reports
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReportList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/reports/{id}:
+    get:
+      operationId: getAdminReport
+      tags: [admin]
+      summary: One problem report with its description and file list (admin only)
+      description: Opening a report does not mark it seen.
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '200':
+          description: The report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      operationId: deleteAdminReport
+      tags: [admin]
+      summary: Delete a problem report and its files (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/reports/{id}/seen:
+    post:
+      operationId: markAdminReportSeen
+      tags: [admin]
+      summary: Mark a problem report as seen (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '200':
+          description: The report, now `seen`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/reports/{id}/files/{name}:
+    get:
+      operationId: getAdminReportFile
+      tags: [admin]
+      summary: Download one attachment (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: name, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: File bytes
+          headers:
+            Content-Length: { schema: { type: integer, format: int64 } }
+            Content-Disposition: { schema: { type: string } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/reports/{id}/archive:
+    get:
+      operationId: getAdminReportArchive
+      tags: [admin]
+      summary: Download all attachments and the description as one zip (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '200':
+          description: Zip archive
+          headers:
+            Content-Disposition: { schema: { type: string }, example: 'attachment; filename="uzume-report-12.zip"' }
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/ws:
+    get:
+      operationId: connectWebSocket
+      tags: [ws]
+      summary: WSS upgrade (presence, Session events, signaling; documentation only, the upgrade is not a JSON call)
+      description: |
+        Upgrade to WebSocket with the access token as Bearer header. Messages are JSON text frames in the envelope
+        `{type, id?, payload}`; every message type has a schema (`ws-<type>.schema.json`) and an example in
+        `protocol/schemas/`. The first client message must be `hello`; the server answers `hello_ack` (a short `features` list for the WSS connection; the authoritative list is the one of the handshake response,
+        `ice_servers`, `turn_servers`). With `ice_update_v1` the server pushes `ice_update` (`ice_servers`, `turn_servers?`, the ICE part of
+        `hello_ack`) to every connected app whenever its effective ICE configuration changes; the app uses the new lists for
+        PeerConnections created afterwards. Message types: `hello`, `hello_ack`, `presence_update`, `session_update`, `save_updated`,
+        `session_ended`, `session_invite`, `viewer_joined`, `viewer_left`, `signal`, `ice_update`, `run_updated`, `run_state`, `run_event`, `error`. With `runs_v1` the optional `hello` field `runs` (`[{run_id, last_seq}]`, the last event the app saw per run) triggers the run catch-up after `hello_ack`: `run_updated` for every non-archived run the user participates in, then, for the listed runs the user joined, the `run_event`s with `seq` > `last_seq`, at most 500 per run (none when more are missing; page with `GET /runs/{run_id}/events`). The server sends a WebSocket ping every 20 s. The connection stays valid until the device is revoked.
+      security:
+        - bearerAuth: []
+      responses:
+        '101': { description: Switching Protocols }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/admin/backups:
+    get:
+      operationId: listAdminBackups
+      tags: [admin]
+      summary: List the backup files of the backup folder (admin)
+      description: Newest first. Safety backups (made before a restore) are listed too and are never removed by the retention.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The backups
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBackupList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: startAdminBackup
+      tags: [admin]
+      summary: Start a backup now (admin)
+      description: |
+        Starts one backup in the background and returns at once; follow it with `getAdminBackupStatus`. Apps keep
+        playing. 400 when no backup folder is set or it cannot be written, 409 `conflict` when a backup or restore is
+        already running.
+      security:
+        - bearerAuth: []
+      responses:
+        '202': { description: Started }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/AdminBackupConflict' }
+  /api/v1/admin/backups/status:
+    get:
+      operationId: getAdminBackupStatus
+      tags: [admin]
+      summary: Backup status with progress of a running job (admin)
+      description: Settings, folder state and free space, the running job (bytes done and total, phase), the last attempt, the last good backup, the next scheduled run and the result of the last restore.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBackupStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/backups/cancel:
+    post:
+      operationId: cancelAdminBackup
+      tags: [admin]
+      summary: Cancel the running backup (admin)
+      description: The partial file is removed. A restore can be canceled until its safety backup is done; 409 `conflict` when nothing can be canceled.
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Canceling }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/AdminBackupConflict' }
+  /api/v1/admin/backups/settings:
+    get:
+      operationId: getAdminBackupSettings
+      tags: [admin]
+      summary: Backup settings (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBackupSettings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      operationId: updateAdminBackupSettings
+      tags: [admin]
+      summary: Change backup settings (admin)
+      description: Only the given fields change. `folder` is an absolute path (an empty string unsets it, which turns backups off); it cannot be inside the saves, plugins, firmware, tls or roms directories of the data folder.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminBackupSettingsUpdate' }
+            examples:
+              default: { value: { mode: daily, time: '03:00', keep: 7, include_roms: false, folder: /mnt/backup/uzume } }
+      responses:
+        '200':
+          description: The settings now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBackupSettings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/backups/restore-result:
+    delete:
+      operationId: dismissAdminRestoreResult
+      tags: [admin]
+      summary: Dismiss the result of the last restore (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Dismissed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/backups/{name}:
+    delete:
+      operationId: deleteAdminBackup
+      tags: [admin]
+      summary: Delete one backup file (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminBackupName'
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminBackupConflict' }
+  /api/v1/admin/backups/{name}/download:
+    get:
+      operationId: downloadAdminBackup
+      tags: [admin]
+      summary: Download one backup file (admin, streamed, range support)
+      description: The file contains secrets (TLS key, password hashes). Keep it as private as the data folder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminBackupName'
+      responses:
+        '200':
+          description: The archive
+          content:
+            application/x-tar:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/backups/{name}/restore:
+    post:
+      operationId: restoreAdminBackup
+      tags: [admin]
+      summary: Restore a backup (admin)
+      description: |
+        Makes a safety backup first, verifies every checksum, then restarts the server, which swaps the database and data
+        in before it opens the database. Returns 202 at once; running Sessions end and apps reconnect. Follow it with
+        `getAdminBackupStatus` (`running.step` 1 to 3, then the server restarts and `restore` holds the result). 400 when
+        the backup was made by a newer server or this server cannot restart itself; a damaged file is reported in `restore`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminBackupName'
+      responses:
+        '202': { description: Started }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminBackupConflict' }
+  /api/v1/admin/updates/versions:
+    get:
+      operationId: getAdminUpdateVersions
+      tags: [admin]
+      summary: Earlier versions the server can go back to (admin)
+      description: |
+        The last five earlier releases of the signed update index (the channel of the install plus versions this server
+        ran before) that speak the running protocol version, newest first, and what going back does to the data
+        (`data`: `keep` the data as it is, `restore` the automatic backup made before the update replaces the
+        database and changes since `lost_since` are only in the safety backup, `refuse` with a `reason`). Also the
+        pause after going back. Fetches the signed index, so it can take a moment and fails when the index cannot be
+        reached.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The versions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUpdateVersions' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/updates/rollback:
+    post:
+      operationId: rollbackAdminUpdate
+      tags: [admin]
+      summary: Go back to an earlier version (admin)
+      description: |
+        Writes a safety backup without ROMs (into the backup folder, else `backups/` of the data folder), stages the
+        older package, pauses automatic updates and asks the root helper to install it; the server restarts a moment
+        later. When the older version needs an older database schema, the database is replaced by the automatic
+        backup made before the update; that needs `confirm_data_loss` (409 `conflict` without it, with the time
+        after which changes are lost). 409 `conflict` also when going back is refused (see `versions`). 400 when the
+        version is not in the list, the server runs in a container (pull the older image tag instead) or was not
+        installed from the package. Returns 202 at once.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminRollbackRequest' }
+            examples:
+              default: { value: { version: 0.16.3 } }
+      responses:
+        '202':
+          description: Started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRollbackResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/AdminUpdateConflict' }
+  /api/v1/admin/updates/resume:
+    post:
+      operationId: resumeAdminUpdates
+      tags: [admin]
+      summary: Resume automatic updates after going back (admin)
+      description: Puts the automatic-install setting back as it was before going back. The skipped version is still not installed automatically. 409 `conflict` when updates are not paused.
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Resumed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/AdminUpdateConflict' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Access token (opaque, prefix fba_, 15 min).
+    pollTokenAuth:
+      type: http
+      scheme: bearer
+      description: Poll token of a pairing request (opaque, prefix fbp_).
+  parameters:
+    AdminBackupName:
+      name: name
+      in: path
+      required: true
+      schema: { type: string, pattern: '^uzume-server-[a-z0-9-]+-[0-9]{8}T[0-9]{6}Z(-safety)?\.tar$' }
+      example: uzume-server-home-hub-20261014T010000Z.tar
+    CoreId:
+      name: core_id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9][a-z0-9_-]{0,63}$' }
+      example: melondsds
+    CoreVersion:
+      name: version
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$' }
+      example: 1.4.0
+    PluginId:
+      name: plugin_id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$', maxLength: 128 }
+      example: net.example.tracker
+    PluginVersion:
+      name: version
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+      example: 1.2.0
+    CorePlatform:
+      name: platform
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/CorePlatform' }
+      example: linux-x64
+    GameId:
+      name: game_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: 4e8d2a60-7b1c-4f3e-8a5d-6c7b8a9d0e1f
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 64 }
+      example: u_placeholder_2
+    SaveSlotName:
+      name: slot
+      in: path
+      required: true
+      description: Slot name; always `default` in the PoC.
+      schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' }
+      example: default
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      example: 6f1d2c3b-4a5e-4b6c-8d7e-9f0a1b2c3d4e
+    RunPluginId:
+      name: plugin_id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$', maxLength: 128 }
+      example: net.example.runnotes
+  examples:
+    SaveConflictValue:
+      value:
+        id: c_placeholder_1
+        game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        slot: default
+        status: open
+        hub:
+          revision: 3
+          sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+          device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+          device_name: Wohnzimmer-PC
+          created_at: '2026-01-01T12:00:00Z'
+        secured:
+          version: 4
+          sha256: '2222222222222222222222222222222222222222222222222222222222222222'
+          base_revision: 2
+          device_id: 5d0f4e2a-1b3c-4d5e-8f60-718293a4b5c6
+          device_name: Laptop
+          created_at: '2026-01-01T13:00:00Z'
+        created_at: '2026-01-01T13:00:00Z'
+        resolved_at: null
+        resolved_by: null
+    SaveSlotExample:
+      value:
+        game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        slot: default
+        current:
+          revision: 3
+          sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+          size: 524288
+          device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+          device_name: Wohnzimmer-PC
+          created_at: '2026-01-01T12:00:00Z'
+          reason: checkpoint
+        open_conflicts: []
+    SaveSlotConflictExample:
+      value:
+        game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        slot: default
+        current:
+          revision: 3
+          sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+          size: 524288
+          device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+          device_name: Wohnzimmer-PC
+          created_at: '2026-01-01T12:00:00Z'
+          reason: checkpoint
+        open_conflicts:
+          - id: c_placeholder_1
+            game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+            slot: default
+            status: open
+            hub:
+              revision: 3
+              sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+              device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+              device_name: Wohnzimmer-PC
+              created_at: '2026-01-01T12:00:00Z'
+            secured:
+              version: 4
+              sha256: '2222222222222222222222222222222222222222222222222222222222222222'
+              base_revision: 2
+              device_id: 5d0f4e2a-1b3c-4d5e-8f60-718293a4b5c6
+              device_name: Laptop
+              created_at: '2026-01-01T13:00:00Z'
+            created_at: '2026-01-01T13:00:00Z'
+    SessionExample:
+      value:
+        session_id: 4e8d2a60-7b1c-4f3e-8a5d-6c7b8a9d0e1f
+        game_id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        game_title: Demo Homebrew
+        owner: { user_id: u_placeholder_1, display_name: Fabio, device_name: Wohnzimmer-PC }
+        visibility: invite_only
+        created_at: '2026-01-01T12:00:00Z'
+        viewer_count: 1
+        viewers:
+          - { viewer_id: 5d1f7c2e-3b4a-4c6d-9e8f-1a2b3c4d5e6f, display_name: Anna, device_name: Anna-Laptop }
+        invites:
+          - { user_id: u_placeholder_2, display_name: Anna, state: joined, online: true }
+        is_owner: true
+        invited: false
+    GameExample:
+      value:
+        id: 9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d
+        title: Homebrew Demo
+        system: nds
+        rom:
+          sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+          size: 4096
+          filename: demo.nds
+        uploaded_by: u_placeholder_1
+        added_at: '2026-01-01T12:00:00Z'
+  responses:
+    AdminBackupConflict:
+      description: A backup or restore is already running (`conflict`), or there is nothing to cancel
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: conflict, message: A backup or restore is already running } } }
+    AdminUpdateConflict:
+      description: Going back needs a confirmation or is refused, or updates are not paused (`conflict`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: conflict, message: Going back replaces the database with the backup made before the update; confirm to go on } } }
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: bad_request, message: Invalid request } } }
+    Unauthorized:
+      description: Not authenticated (`unauthorized`), or the owning user was disabled by an admin (`user_disabled`, any authenticated call)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: unauthorized, message: Token missing or invalid } } }
+            user_disabled: { value: { error: { code: user_disabled, message: User has been disabled } } }
+    Forbidden:
+      description: Not allowed (slot belongs to another user)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: forbidden, message: Not allowed } } }
+    UploadsDisabled:
+      description: Uploads are disabled (admin setting) or the user no longer has the upload right (code `uploads_disabled`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: uploads_disabled, message: Uploads are disabled for users } } }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: not_found, message: Not found } } }
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: rate_limited, message: Too many open requests } } }
+    CorePackageNotFound:
+      description: The server knows no such core package
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: core_package_not_found, message: Core package not found } } }
+    CoreFileNotAvailable:
+      description: The file is not in the server cache (or unknown)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: core_file_not_available, message: Core file not available } } }
+    SessionNotFound:
+      description: Session does not exist
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: session_not_found, message: Session not found } } }
+    SessionForbidden:
+      description: Not allowed (ACL, or the call is reserved for the owner device or the invited user)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: session_forbidden, message: Not allowed for this Session } } }
+    SessionEnded:
+      description: Session has ended
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: session_ended, message: Session has ended } } }
+    CapabilityMissing:
+      description: Device lacks a required capability (H.264 encode)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: capability_missing, message: Device cannot encode H.264 } } }
+    RunConflict:
+      description: 'Conflict: `run_not_active` (paused, finished or abandoned runs refuse writes), `conflict` (transition not allowed, event limit, already joined with another game)'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            run_not_active: { value: { error: { code: run_not_active, message: The run is not active (paused, finished or abandoned) } } }
+    TooLarge:
+      description: |
+        A JSON object is larger than its limit (settings 16 KiB, state 64 KiB, event payload 4 KiB, board 64 KiB), or
+        any JSON request body exceeds the 1 MiB cap of the server (code `payload_too_large`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: too_large, message: state is larger than 64 KiB } } }
+            body_cap: { value: { error: { code: payload_too_large, message: Request too large } } }
+    SessionFullOrCapability:
+      description: Session full, or the device lacks H.264 decode
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            session_full: { value: { error: { code: session_full, message: Session already has 4 viewers } } }
+            capability_missing: { value: { error: { code: capability_missing, message: Device cannot decode H.264 } } }
+  schemas:
+    ErrorCode:
+      type: string
+      description: "`save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted)."
+      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, save_slot_exists, save_slot_protected, session_running, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available, import_dir_unreadable, run_not_active, state_conflict, too_large]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message: { type: string }
+    HubInfo:
+      type: object
+      required: [hub_id, name, hub_version, protocol_version, min_protocol_version, api_base]
+      properties:
+        hub_id: { type: string, format: uuid }
+        name: { type: string }
+        hub_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+        min_protocol_version: { type: integer, minimum: 1 }
+        api_base: { type: string, example: /api/v1 }
+    PairingRequestCreate:
+      type: object
+      required: [device_id, device_name, platform, arch, player_version, protocol_version]
+      properties:
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        platform: { type: string }
+        arch: { type: string }
+        player_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+    PairingRequestAccepted:
+      type: object
+      required: [request_id, poll_token, status, expires_in]
+      properties:
+        request_id: { type: string, format: uuid }
+        poll_token: { type: string, description: 'Prefix fbp_' }
+        status: { type: string, enum: [pending] }
+        expires_in: { type: integer, description: Seconds, example: 600 }
+    PairingStatus:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [pending, approved, denied, expired] }
+        hub_id: { type: string, format: uuid, description: Only when approved (once) }
+        user_id: { type: string, description: Server-local user ID; only when approved }
+        device_credential: { type: string, description: 'Prefix fbd_; only when approved, once' }
+    AdminMetrics:
+      type: object
+      required: [enabled, token_set]
+      properties:
+        enabled: { type: boolean }
+        token_set: { type: boolean, description: A token exists (only its hash is stored) }
+        token: { type: string, description: 'Prefix fbm_; present once, when switching on created the token' }
+    AdminMetricsUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    AdminMetricsToken:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, description: 'Prefix fbm_; shown once' }
+    ReportMeta:
+      type: object
+      required: [description]
+      properties:
+        description: { type: string, minLength: 1, maxLength: 8000, description: 'What happened, in the user''s words' }
+        linked_event:
+          type: object
+          description: The event the report is about (for example the error banner the user came from)
+          required: [title]
+          properties:
+            title: { type: string, maxLength: 200 }
+            time: { type: string, format: date-time }
+        player_version: { type: string, maxLength: 64 }
+        os: { type: string, maxLength: 120, description: 'For example `Windows 11`' }
+    ReportCreated:
+      type: object
+      required: [id]
+      properties:
+        id: { type: integer, format: int64, description: 'Report number shown as `#12`' }
+    AdminReportFile:
+      type: object
+      required: [name, size]
+      properties:
+        name: { type: string }
+        size: { type: integer, format: int64 }
+    AdminReportSummary:
+      type: object
+      required: [id, status, title, user, device, created_at, size, file_count]
+      properties:
+        id: { type: integer, format: int64 }
+        status: { type: string, enum: [new, seen] }
+        title: { type: string, description: 'First line of the description' }
+        user: { type: string }
+        device: { type: string }
+        player_version: { type: string }
+        os: { type: string }
+        linked_event_title: { type: string }
+        has_connection_check: { type: boolean }
+        created_at: { type: string, format: date-time }
+        size: { type: integer, format: int64, description: Bytes of all attachments }
+        file_count: { type: integer }
+    AdminReport:
+      allOf:
+        - $ref: '#/components/schemas/AdminReportSummary'
+        - type: object
+          required: [description, files]
+          properties:
+            description: { type: string }
+            linked_event_time: { type: string, format: date-time }
+            seen_at: { type: string, format: date-time }
+            files:
+              type: array
+              items: { $ref: '#/components/schemas/AdminReportFile' }
+    AdminReportList:
+      type: object
+      required: [reports, count_all, count_new, count_seen]
+      properties:
+        reports:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReportSummary' }
+        count_all: { type: integer }
+        count_new: { type: integer }
+        count_seen: { type: integer }
+    AdminProblem:
+      type: object
+      required: [id, title, detail, severity]
+      properties:
+        id: { type: string, description: 'Stable id such as `disk`, `turn`, `update`' }
+        title: { type: string, description: 'Short text, for example `Disk 92 %`' }
+        detail: { type: string }
+        severity: { type: string, enum: [warn, error] }
+        action_label: { type: string, description: 'Label of the suggested action, empty when none' }
+        action_href: { type: string, description: 'Web interface path of the action; informational for apps' }
+    AdminStatusSession:
+      type: object
+      required: [game_title, owner, device_name, visibility, started_at, viewers]
+      properties:
+        game_title: { type: string }
+        owner: { type: string, description: Display name of the owner user }
+        device_name: { type: string }
+        visibility: { type: string, enum: [private, hub_users, invite_only] }
+        started_at: { type: string, format: date-time }
+        viewers: { type: integer }
+    AdminStatusPlayer:
+      type: object
+      required: [device_name, user, version, state, outdated]
+      properties:
+        device_name: { type: string }
+        user: { type: string }
+        version: { type: string, description: App version }
+        state: { type: string, enum: [in_session, watching, playing, idle] }
+        outdated: { type: boolean, description: The app version is below the server version }
+    AdminStatusError:
+      type: object
+      required: [time, level, message]
+      properties:
+        time: { type: string, format: date-time }
+        level: { type: string, enum: [warn, error] }
+        message: { type: string, description: Redacted }
+    AdminStatusBackupDisk:
+      type: object
+      description: The volume holding the backup folder; absent when no backup folder is set. Sizes are absent where the platform has no reader.
+      required: [folder]
+      properties:
+        folder: { type: string }
+        total_bytes: { type: integer, format: int64 }
+        free_bytes: { type: integer, format: int64 }
+    AdminStatus:
+      type: object
+      required: [hub_name, hub_version, uptime_seconds, public_address, time, problems, memory, sessions, viewers, players, errors, metrics_enabled]
+      properties:
+        hub_name: { type: string }
+        hub_version: { type: string }
+        uptime_seconds: { type: integer, format: int64 }
+        public_address: { type: string, description: 'host:port apps use; the host of the request when no public host is set' }
+        time: { type: string, format: date-time, description: When the data was read }
+        problems:
+          type: array
+          description: Open problems, the most urgent first (empty when all is well)
+          items: { $ref: '#/components/schemas/AdminProblem' }
+        cpu_percent: { type: number, description: 'Machine-wide CPU load 0 to 100; absent where the platform has no reader' }
+        memory:
+          type: object
+          required: [process_bytes]
+          properties:
+            process_bytes: { type: integer, format: int64, description: Memory the server process holds }
+            system_total_bytes: { type: integer, format: int64, description: Absent where the platform has no reader }
+            system_used_bytes: { type: integer, format: int64 }
+        disk:
+          type: object
+          description: The volume holding the data directory; absent where the platform has no reader
+          required: [total_bytes, free_bytes]
+          properties:
+            total_bytes: { type: integer, format: int64 }
+            free_bytes: { type: integer, format: int64 }
+        backup_disk:
+          $ref: '#/components/schemas/AdminStatusBackupDisk'
+        sessions:
+          type: array
+          items: { $ref: '#/components/schemas/AdminStatusSession' }
+        viewers: { type: integer, description: Viewers over all Sessions }
+        turn:
+          type: object
+          description: The built-in TURN relay; absent when it is off
+          required: [allocations, relay_ports]
+          properties:
+            allocations: { type: integer }
+            relay_ports: { type: integer, description: Size of the relay port range }
+        players:
+          type: array
+          items: { $ref: '#/components/schemas/AdminStatusPlayer' }
+        errors:
+          type: array
+          description: Warnings and errors of the last 24 hours, newest first
+          items: { $ref: '#/components/schemas/AdminStatusError' }
+        metrics_enabled: { type: boolean }
+    LocalStatus:
+      type: object
+      required: [admin_exists, network_sharing, import_dir, hub_version]
+      properties:
+        admin_exists: { type: boolean }
+        network_sharing: { type: boolean, description: 'false = the server listens on loopback only and the built-in TURN relay is off' }
+        import_dir: { type: string, description: Library import folder }
+        hub_version: { type: string }
+    LocalPairRequest:
+      type: object
+      required: [username, password, device_name, device_id, platform, arch, player_version, protocol_version]
+      properties:
+        username: { type: string }
+        password: { type: string }
+        device_name: { type: string }
+        device_id: { type: string, format: uuid }
+        platform: { type: string }
+        arch: { type: string }
+        player_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+    LocalSettingsUpdate:
+      type: object
+      properties:
+        network_sharing: { type: boolean }
+        import_dir: { type: string, description: Absolute path of an existing directory the server can read }
+    TokenRequest:
+      type: object
+      required: [device_id, device_credential]
+      properties:
+        device_id: { type: string, format: uuid }
+        device_credential: { type: string }
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token: { type: string, description: 'Prefix fba_' }
+        token_type: { type: string, enum: [Bearer] }
+        expires_in: { type: integer, description: Seconds, example: 900 }
+    InviteRedeemRequest:
+      type: object
+      required: [code, display_name, device_id, device_name, platform, arch, player_version, protocol_version]
+      properties:
+        code: { type: string, description: 'Invite code, format UZ-XXXX-XXXX (codes issued before the rename start with FB-)', example: UZ-PLACEHOLDER-CODE }
+        display_name: { type: string, minLength: 1, maxLength: 32, description: Trimmed; unique per server (case-insensitive) }
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        platform: { type: string }
+        arch: { type: string }
+        player_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+    InviteRedeemApproved:
+      type: object
+      required: [status, hub_id, user_id, device_credential]
+      properties:
+        status: { type: string, enum: [approved] }
+        hub_id: { type: string, format: uuid }
+        user_id: { type: string, description: Server-local user ID of the new user }
+        device_credential: { type: string, description: 'Prefix fbd_; delivered once' }
+    DuplicateGameError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          required: [existing_game_id]
+          properties:
+            existing_game_id: { type: string, format: uuid }
+    FirmwareMode:
+      type: string
+      enum: [builtin, native]
+      description: '`builtin` = the core uses its built-in firmware (files optional); `native` = files required.'
+    FirmwareFile:
+      type: object
+      required: [id, display_name, required, present, size, sha256]
+      properties:
+        id: { type: string, example: bios7 }
+        display_name: { type: string, example: ARM7 BIOS }
+        required: { type: boolean, description: True only in mode `native` }
+        present: { type: boolean }
+        size: { type: integer, format: int64, nullable: true, description: Null when not present }
+        sha256: { type: string, nullable: true, pattern: '^[0-9a-f]{64}$', description: Null when not present }
+    SystemInfo:
+      type: object
+      required: [id, display_name, preferred_core_id, expected_core_version, firmware_mode, firmware]
+      properties:
+        id: { type: string, example: nds }
+        display_name: { type: string, example: Nintendo DS }
+        preferred_core_id: { type: string, example: melondsds, description: 'The default core. Together with `expected_core_version` and `core_package_version` it keeps describing the default core for apps without `cores_v2`.' }
+        expected_core_version: { type: string, nullable: true, description: Null = any version }
+        default_core_id:
+          x-omitempty: false
+          type: string
+          nullable: true
+          description: Id of the system's default core (`cores_v2`); null when no core is installed. Optional (absent on servers without `cores_v2`).
+          example: melondsds
+        cores:
+          type: array
+          description: One entry per installed core of the system (`cores_v2`). Optional (absent on servers without `cores_v2`).
+          items: { $ref: '#/components/schemas/SystemCore' }
+        core_package_version:
+          x-omitempty: false
+          type: string
+          nullable: true
+          description: Version of the preferred core the server serves (`cores_v1`) = `expected_core_version` if set, else the highest version with a cached package; null when none. The app provisions exactly this version. Optional (absent on servers without `cores_v1`).
+          example: 1.4.0
+        firmware_mode: { $ref: '#/components/schemas/FirmwareMode' }
+        firmware:
+          type: array
+          items: { $ref: '#/components/schemas/FirmwareFile' }
+    CoreOrigin:
+      type: string
+      enum: [libretro-buildbot, framebeam]
+      description: '`libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed Uzume source.'
+    SystemCore:
+      type: object
+      required: [core_id, display_name, version, license, experimental, origin]
+      properties:
+        core_id: { type: string, pattern: '^[a-z0-9][a-z0-9_-]{0,63}$', example: melondsds }
+        display_name: { type: string, example: 'Nintendo DS (melonDS DS)' }
+        version: { type: string, description: 'Package version: the server build id (UTC date of the upstream build, `2026.10.09`, `.N` appended for a second build the same day) or a legacy semver such as `1.4.0`. The app provisions exactly this version.', example: 2026.10.09 }
+        license: { type: string, example: GPLv3 }
+        experimental: { type: boolean, description: 'True when the app has no core profile for this core. Set by the server from its list of profiled cores.' }
+        required_hw_api: { type: string, nullable: true, x-omitempty: false, description: 'Graphics API requirement from the core info, e.g. `OpenGL Core >= 3.2`; null when none.', example: 'OpenGL Core >= 3.2' }
+        origin: { $ref: '#/components/schemas/CoreOrigin' }
+        build_date: { type: string, format: date, description: Date of the upstream build, example: '2026-10-09' }
+    CorePackageFile:
+      type: object
+      required: [name, role, size, sha256, available]
+      properties:
+        name: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$', example: melonds_ds_libretro.so }
+        role: { type: string, enum: [library, license], description: Exactly one `library` per package }
+        size: { type: integer, format: int64 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        available: { type: boolean, description: True when the file is in the server cache }
+    CorePackage:
+      type: object
+      required: [core_id, version, platform, license, source_url, source_ref, files]
+      properties:
+        core_id: { type: string, pattern: '^[a-z0-9][a-z0-9_-]{0,63}$', example: melondsds }
+        version: { type: string, pattern: '^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$', example: 1.4.0 }
+        platform: { $ref: '#/components/schemas/CorePlatform' }
+        license: { type: string, description: 'License name. Packages from the libretro buildbot carry no license file; the name comes from the core info (`files` then has no `license` role entry).' }
+        source_url: { type: string }
+        source_ref: { type: string }
+        origin: { $ref: '#/components/schemas/CoreOrigin' }
+        files:
+          type: array
+          items: { $ref: '#/components/schemas/CorePackageFile' }
+    PluginOrigin:
+      type: string
+      enum: [official, unverified]
+      description: '`official` = valid signature of a trusted Uzume key; `unverified` = unsigned (or not verifiable), offered by the server admin.'
+    PluginGame:
+      type: object
+      required: [system, codes]
+      properties:
+        system: { type: string }
+        codes: { type: array, items: { type: string } }
+    PluginRunSettingOption:
+      type: object
+      required: [value, label]
+      properties:
+        value: { type: string, pattern: '^[a-z][a-z0-9_]{0,31}$' }
+        label: { type: string, description: 'i18n key, see `run_settings_strings`' }
+    PluginRunSetting:
+      type: object
+      description: |
+        One rule of the manifest field `run_settings`, shown in the app's "Start a run" dialog. The app sends
+        the chosen values as `settings[<plugin_id>]` when it creates a run, nested by the key segments: keys `mode`
+        and `rules.dupes_clause` become `{"mode": "soullink", "rules": {"dupes_clause": true}}`.
+      required: [key, type, label, default]
+      properties:
+        key: { type: string, description: 'One or two dot-separated segments, each `^[a-z][a-z0-9_]{0,31}$`; unique within the plugin, never a segment prefix of another key.', example: rules.dupes_clause }
+        type: { type: string, enum: [boolean, enum] }
+        label: { type: string, pattern: '^[A-Za-z0-9_.-]{1,64}$', description: 'i18n key, see `run_settings_strings`' }
+        hint: { type: string, pattern: '^[A-Za-z0-9_.-]{1,64}$', description: Optional i18n key }
+        default:
+          description: A boolean for type `boolean`, one of the option values (string) for type `enum`.
+          oneOf: [{ type: boolean }, { type: string }]
+        options:
+          type: array
+          minItems: 2
+          maxItems: 8
+          description: Only for type `enum`.
+          items: { $ref: '#/components/schemas/PluginRunSettingOption' }
+    PluginInfo:
+      type: object
+      required: [plugin_id, version, name, description, api, origin, sha256, size, permissions, requires, provides, games, created_at]
+      properties:
+        plugin_id: { type: string }
+        version: { type: string }
+        name: { type: string }
+        description: { type: string }
+        api: { type: integer, example: 1 }
+        origin: { $ref: '#/components/schemas/PluginOrigin' }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64 }
+        permissions: { type: array, items: { type: string } }
+        requires:
+          type: object
+          description: Plugin id to version range, from the manifest
+          additionalProperties: { type: string }
+        provides: { type: array, items: { type: string } }
+        games: { type: array, items: { $ref: '#/components/schemas/PluginGame' } }
+        run_settings:
+          type: array
+          minItems: 1
+          maxItems: 32
+          description: Validated manifest field `run_settings`; absent when the manifest has none. Absent on servers before 1.17.0.
+          items: { $ref: '#/components/schemas/PluginRunSetting' }
+        run_settings_strings:
+          type: object
+          description: |
+            Language (file name of `i18n/<lang>.json`, e.g. `en`, `de`, `pt-BR`) to i18n key to text, holding only the
+            keys `run_settings` references (labels, hints, option labels). A key missing in a language is absent.
+            Absent together with `run_settings`.
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
+        created_at: { type: string, format: date-time }
+    PluginList:
+      type: object
+      required: [plugins]
+      properties:
+        plugins:
+          type: array
+          items: { $ref: '#/components/schemas/PluginInfo' }
+    CorePlatform:
+      type: string
+      enum: [windows-x64, linux-x64, linux-arm64, macos-x64, macos-arm64]
+    CoreInfo:
+      type: object
+      required: [id, version]
+      properties:
+        id: { type: string }
+        version: { type: string }
+    HandshakeRequest:
+      type: object
+      additionalProperties: true
+      required: [platform, arch, player_version, protocol_version, min_protocol_version, cores, video, audio, input]
+      properties:
+        platform: { type: string }
+        arch: { type: string }
+        player_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+        min_protocol_version: { type: integer, minimum: 1 }
+        cores:
+          type: array
+          items: { $ref: '#/components/schemas/CoreInfo' }
+        video:
+          type: object
+          additionalProperties: true
+          required: [h264_encode, h264_decode, encoders]
+          properties:
+            h264_encode: { type: boolean }
+            h264_decode: { type: boolean }
+            encoders: { type: array, items: { type: string } }
+        audio:
+          type: object
+          additionalProperties: true
+          required: [opus]
+          properties:
+            opus: { type: boolean }
+        input:
+          type: object
+          additionalProperties: true
+          required: [gamepad, keyboard]
+          properties:
+            gamepad: { type: boolean }
+            keyboard: { type: boolean }
+    HandshakeProblem:
+      type: object
+      required: [code, detail]
+      properties:
+        code:
+          type: string
+          enum: [player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing]
+        detail: { type: string }
+        core_id: { type: string }
+    HandshakeResponse:
+      type: object
+      required: [hub_version, protocol_version, min_protocol_version, compatible, problems]
+      properties:
+        hub_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+        min_protocol_version: { type: integer, minimum: 1 }
+        compatible: { type: boolean }
+        problems:
+          type: array
+          items: { $ref: '#/components/schemas/HandshakeProblem' }
+        features:
+          type: array
+          description: Optional server feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the server (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the server pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only), `reports_v1` = problem reports (`POST /reports`; the admin endpoints under `/admin/reports`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+          items: { type: string }
+          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, saves_v6, cores_v2, local_setup_v1, ice_update_v1, plugins_v1, runs_v1, local_roms_v1, reports_v1]
+        user:
+          $ref: '#/components/schemas/HandshakeUser'
+    HandshakeUser:
+      type: object
+      description: The server user the authenticated device belongs to (additive, protocol_version unchanged). Lets the app show who is signed in.
+      required: [id, display_name, role]
+      properties:
+        id: { type: string, description: Server-local user ID }
+        display_name: { type: string }
+        role: { type: string, enum: [admin, user] }
+    RomInfo:
+      type: object
+      required: [sha256, size, filename]
+      properties:
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64 }
+        filename: { type: string }
+        stored: { type: boolean, description: 'The file is stored on the server and downloadable via `GET /roms/{sha256}`; false = only registered by an app (`local_roms_v1`; absent on older servers, then true).' }
+    RegisterGameRequest:
+      type: object
+      required: [sha256, size, filename]
+      properties:
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64, minimum: 1 }
+        filename: { type: string, minLength: 1, maxLength: 255 }
+        system: { type: string, description: 'System ID; derived from the file extension when omitted.' }
+        title: { type: string, maxLength: 200, description: Default is the file name without extension }
+        game_code: { type: string, description: 'Identity read from the ROM header by the app (same format as `Game.game_code`). Ignored when it does not fit the system.' }
+        game_version: { type: integer, minimum: 0, description: 'ROM version read by the app; only used together with `game_code`.' }
+    CreateUploadRequest:
+      type: object
+      required: [filename, size]
+      properties:
+        filename: { type: string, minLength: 1, maxLength: 255 }
+        size: { type: integer, format: int64, minimum: 1, maximum: 4294967296 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$', description: 'Optional. When given, it is checked after the last chunk and a stored file with this hash is refused up front (409).' }
+        title: { type: string, maxLength: 200 }
+        system: { type: string }
+    UploadSession:
+      type: object
+      required: [upload_id, offset, chunk_size]
+      properties:
+        upload_id: { type: string, format: uuid }
+        offset: { type: integer, format: int64, minimum: 0, description: Bytes received so far; the next chunk starts here }
+        chunk_size: { type: integer, format: int64, description: 'Largest chunk the server accepts (64 MiB)' }
+    UploadStatus:
+      type: object
+      required: [upload_id, offset, size]
+      properties:
+        upload_id: { type: string, format: uuid }
+        offset: { type: integer, format: int64, minimum: 0 }
+        size: { type: integer, format: int64 }
+    UploadProgress:
+      type: object
+      required: [offset]
+      properties:
+        offset: { type: integer, format: int64, minimum: 0 }
+        game: { allOf: [ { $ref: '#/components/schemas/Game' } ], description: 'Set by the chunk that completes the upload.' }
+    Game:
+      type: object
+      required: [id, title, system, rom, uploaded_by, added_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        system: { type: string, example: nds }
+        rom: { allOf: [ { $ref: '#/components/schemas/RomInfo' } ], description: 'A file stored on the server if the game has one, else the primary file.' }
+        on_hub: { type: boolean, description: 'At least one file of the game is stored on the server (`local_roms_v1`; absent on older servers, then true). A game that is not on the server is only visible to the users who registered a file of it.' }
+        roms: { type: array, items: { $ref: '#/components/schemas/RomInfo' }, description: 'All known files of the game, the primary file first (`local_roms_v1`). Different dumps of the same identity are files of one game.' }
+        game_version: { type: integer, minimum: 0, description: 'ROM version of the identity: NDS header byte 0x1E, 3DS NCCH version, GBA byte 0xBC, Game Boy byte 0x14C. Absent when unknown (`local_roms_v1`).' }
+        uploaded_by: { type: string, description: Server-local user ID }
+        added_at: { type: string, format: date-time }
+        game_code: { type: string, description: 'Identity read from the ROM header on upload/import: 4-character NDS or GBA game code, 16 uppercase hex digits (3DS program ID) or the Game Boy header title (1 to 16 printable ASCII characters); the kind is `game_code_kind`; empty when unknown or unreadable. Absent on servers before 1.16.0.' }
+        game_code_kind: { type: string, enum: ['', nds-gamecode, 3ds-titleid, gba-gamecode, gb-title], description: 'Kind of `game_code`; empty when unknown. `gba-gamecode`: 4-character GBA game code; `gb-title`: Game Boy / Game Boy Color header title (only with a valid header checksum).' }
+    SaveSyncReason:
+      type: string
+      enum: [checkpoint, final, final_session_end, restore, upload]
+    SaveHistoryReason:
+      type: string
+      enum: [session_end, device_change, before_conflict_resolution, conflict_upload, manual_snapshot, before_restore, before_upload]
+    SaveCheckpoint:
+      type: object
+      description: Current checkpoint of a slot (one opaque blob).
+      required: [revision, sha256, size, device_id, device_name, created_at, reason]
+      properties:
+        revision: { type: integer, minimum: 1, description: Per-slot checkpoint counter ("Rev N") }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64, maximum: 67108864 }
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        created_at: { type: string, format: date-time }
+        reason: { $ref: '#/components/schemas/SaveSyncReason' }
+    SaveHistoryVersion:
+      type: object
+      description: Permanent history version with its own per-slot counter ("vN").
+      required: [version, revision, sha256, size, device_id, device_name, created_at, reason]
+      properties:
+        version: { type: integer, minimum: 1 }
+        revision: { type: integer, minimum: 1, description: Checkpoint revision captured }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, format: int64 }
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        created_at: { type: string, format: date-time }
+        reason: { $ref: '#/components/schemas/SaveHistoryReason' }
+        label:
+          x-omitempty: false
+          type: string
+          nullable: true
+          maxLength: 64
+          description: Optional label (manual snapshots, `saves_v2`); null or absent when none
+    SaveConflictHubSide:
+      type: object
+      required: [revision, sha256, device_id, device_name, created_at]
+      properties:
+        revision: { type: integer, minimum: 1 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        created_at: { type: string, format: date-time }
+    SaveConflictSecuredUpload:
+      type: object
+      required: [version, sha256, base_revision, device_id, device_name, created_at]
+      properties:
+        version: { type: integer, minimum: 1, description: History version holding the secured upload }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        base_revision: { type: integer, minimum: 0 }
+        device_id: { type: string, format: uuid }
+        device_name: { type: string }
+        created_at: { type: string, format: date-time }
+    SaveConflict:
+      type: object
+      required: [id, game_id, slot, status, hub, secured, created_at]
+      properties:
+        id: { type: string }
+        game_id: { type: string, format: uuid }
+        slot: { type: string }
+        status: { type: string, enum: [open, resolved_hub, resolved_local] }
+        hub: { $ref: '#/components/schemas/SaveConflictHubSide' }
+        secured: { $ref: '#/components/schemas/SaveConflictSecuredUpload' }
+        created_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true, x-omitempty: false }
+        resolved_by: { type: string, nullable: true, x-omitempty: false, description: Server-local user ID or device ID of the resolver }
+    SaveConflictError:
+      type: object
+      description: Error body of the upload 409 (`save_conflict`) carrying the conflict.
+      required: [error, conflict]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message: { type: string }
+        conflict: { $ref: '#/components/schemas/SaveConflict' }
+    SaveSlot:
+      type: object
+      required: [game_id, slot, current, open_conflicts]
+      properties:
+        game_id: { type: string, format: uuid }
+        slot: { type: string, example: default }
+        current: { $ref: '#/components/schemas/SaveCheckpoint' }
+        open_conflicts:
+          type: array
+          items: { $ref: '#/components/schemas/SaveConflict' }
+    SaveSlotSummary:
+      type: object
+      required: [game_id, slot, current, open_conflict_count]
+      properties:
+        game_id: { type: string, format: uuid }
+        slot: { type: string, example: default }
+        current: { $ref: '#/components/schemas/SaveCheckpoint' }
+        open_conflict_count: { type: integer, minimum: 0 }
+    SaveResolveRequest:
+      type: object
+      required: [resolution, expected_revision]
+      properties:
+        resolution: { type: string, enum: [use_hub, use_local] }
+        expected_revision: { type: integer, minimum: 1, description: Current checkpoint revision the caller saw }
+    SaveRestoreRequest:
+      type: object
+      required: [expected_revision]
+      properties:
+        expected_revision: { type: integer, minimum: 0, description: Current checkpoint revision the caller saw }
+    SaveSlotRenameRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, pattern: '^[a-z0-9_-]{1,32}$', example: speedrun }
+    SaveSnapshotRequest:
+      type: object
+      properties:
+        label: { type: string, maxLength: 64 }
+    TurnServer:
+      type: object
+      description: |
+        Relay credentials from a relay provider of the server (`turn_v1`): the embedded TURN server (TURN REST API scheme),
+        Cloudflare TURN or an external TURN server configured by the admin. Credentials are short-lived (`expires_at`)
+        except the static username and password of an external TURN server, which have no `expires_at`. The server may
+        send several entries; an app offers all of them to ICE.
+      required: [urls, username, credential]
+      properties:
+        urls:
+          type: array
+          description: '`turn:` URLs (UDP and TCP transport)'
+          items: { type: string, pattern: '^turns?:' }
+          example: ['turn:hub.example.org:3478?transport=udp', 'turn:hub.example.org:3478?transport=tcp']
+        username: { type: string }
+        credential: { type: string }
+        expires_at:
+          type: string
+          format: date-time
+          description: End of validity; absent for static credentials that do not expire.
+    SessionVisibility:
+      type: string
+      enum: [private, hub_users, invite_only]
+      description: |
+        `private`: only devices of the owner user. `hub_users`: every authenticated device of this server.
+        `invite_only`: devices of the owner user plus invited users who have not declined.
+    SessionOwner:
+      type: object
+      required: [user_id, display_name, device_name]
+      properties:
+        user_id: { type: string }
+        display_name: { type: string }
+        device_name: { type: string }
+    SessionViewerInfo:
+      type: object
+      required: [viewer_id, display_name, device_name]
+      properties:
+        viewer_id: { type: string, format: uuid }
+        display_name: { type: string, description: Display name of the viewer's user }
+        device_name: { type: string }
+    SessionInviteInfo:
+      type: object
+      required: [user_id, display_name, state, online]
+      properties:
+        user_id: { type: string }
+        display_name: { type: string }
+        state: { type: string, enum: [invited, declined, joined] }
+        online: { type: boolean }
+    Session:
+      type: object
+      required: [session_id, game_id, game_title, owner, visibility, created_at, viewer_count, is_owner, invited]
+      properties:
+        session_id: { type: string, format: uuid }
+        game_id: { type: string, format: uuid }
+        game_title: { type: string }
+        owner: { $ref: '#/components/schemas/SessionOwner' }
+        visibility: { $ref: '#/components/schemas/SessionVisibility' }
+        created_at: { type: string, format: date-time }
+        viewer_count: { type: integer, minimum: 0, maximum: 4 }
+        viewers:
+          type: array
+          description: Only for the owner device
+          items: { $ref: '#/components/schemas/SessionViewerInfo' }
+        invites:
+          type: array
+          description: Only for the owner device
+          items: { $ref: '#/components/schemas/SessionInviteInfo' }
+        is_owner: { type: boolean, description: The caller is the owner device }
+        invited: { type: boolean, description: The caller's user has an open invite }
+    SessionList:
+      type: object
+      required: [sessions]
+      properties:
+        sessions:
+          type: array
+          items: { $ref: '#/components/schemas/Session' }
+    SessionPublishRequest:
+      type: object
+      required: [game_id, visibility]
+      properties:
+        game_id: { type: string, format: uuid }
+        visibility: { $ref: '#/components/schemas/SessionVisibility' }
+    SessionUpdateRequest:
+      type: object
+      required: [visibility]
+      properties:
+        visibility: { $ref: '#/components/schemas/SessionVisibility' }
+    SessionPermissions:
+      type: object
+      required: [view_video, hear_audio, send_input]
+      properties:
+        view_video: { type: boolean }
+        hear_audio: { type: boolean }
+        send_input: { type: boolean }
+    SessionJoinResponse:
+      type: object
+      required: [viewer_id, permissions, ice_servers]
+      properties:
+        viewer_id: { type: string, format: uuid }
+        permissions: { $ref: '#/components/schemas/SessionPermissions' }
+        ice_servers:
+          type: array
+          description: '`stun:` URLs from the server config (default `stun:stun.cloudflare.com:3478`, empty with `-ice-servers none`), plus the server''s own STUN when the embedded TURN server is on'
+          items: { type: string }
+        turn_servers:
+          type: array
+          description: Optional relay credentials from every active relay provider (embedded TURN and/or Cloudflare TURN); present only while a provider is on (`turn_v1`)
+          items: { $ref: '#/components/schemas/TurnServer' }
+    UserInfo:
+      type: object
+      required: [id, display_name, online]
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        online: { type: boolean }
+    UserList:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items: { $ref: '#/components/schemas/UserInfo' }
+    RunJsonObject:
+      type: object
+      description: An opaque JSON object the server stores byte-exact and never interprets.
+      additionalProperties: true
+      x-go-type: json.RawMessage
+    RunStatus:
+      type: string
+      enum: [starting, active, paused, finished, abandoned]
+    RunPluginRef:
+      type: object
+      required: [plugin_id, version]
+      properties:
+        plugin_id: { type: string, pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$', maxLength: 128 }
+        version: { type: string, minLength: 1, maxLength: 64 }
+    RunPlugin:
+      type: object
+      required: [plugin_id, version, sha256]
+      properties:
+        plugin_id: { type: string }
+        version: { type: string }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$', description: SHA-256 of the .fbplugin the server offered when the run was created }
+    RunParticipant:
+      type: object
+      required: [user_id, user_name, status, game_id, color, states]
+      properties:
+        user_id: { type: string }
+        user_name: { type: string }
+        status: { type: string, enum: [invited, joined, declined, left] }
+        game_id: { type: string, format: uuid, nullable: true, description: Server library game; set on join }
+        color: { type: integer, minimum: 0, maximum: 7, nullable: true, description: App colour in join order; null until the first join }
+        states:
+          type: object
+          description: State per plugin id; only plugins that have a row (a missing plugin means state `{}` with revision 0)
+          additionalProperties: { $ref: '#/components/schemas/RunPluginState' }
+    RunPluginState:
+      type: object
+      required: [state, state_rev, updated_at]
+      properties:
+        state: { $ref: '#/components/schemas/RunJsonObject' }
+        state_rev: { type: integer, format: int64, minimum: 1 }
+        updated_at: { type: string, format: date-time }
+    Run:
+      type: object
+      required: [run_id, name, status, created_by, created_at, updated_at, status_by, settings, plugins, participants, last_seq]
+      properties:
+        run_id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 64 }
+        status: { $ref: '#/components/schemas/RunStatus' }
+        created_by: { type: string, description: User id of the creator }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        status_by: { type: string, description: User id (a participant or the server admin) who set the last status }
+        settings: { $ref: '#/components/schemas/RunJsonObject' }
+        plugins:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { $ref: '#/components/schemas/RunPlugin' }
+        participants:
+          type: array
+          maxItems: 8
+          items: { $ref: '#/components/schemas/RunParticipant' }
+        last_seq: { type: integer, format: int64, minimum: 0 }
+    RunList:
+      type: object
+      required: [runs]
+      properties:
+        runs:
+          type: array
+          items: { $ref: '#/components/schemas/Run' }
+    RunCreateRequest:
+      type: object
+      required: [name, plugins, game_id]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        plugins:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { $ref: '#/components/schemas/RunPluginRef' }
+        game_id: { type: string, format: uuid }
+        invite_user_ids:
+          type: array
+          maxItems: 7
+          items: { type: string, minLength: 1, maxLength: 64 }
+        settings: { $ref: '#/components/schemas/RunJsonObject' }
+    RunJoinRequest:
+      type: object
+      required: [game_id]
+      properties:
+        game_id: { type: string, format: uuid }
+    RunInviteRequest:
+      type: object
+      required: [user_ids]
+      properties:
+        user_ids:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { type: string, minLength: 1, maxLength: 64 }
+    RunStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [active, paused, finished, abandoned] }
+    RunStateRequest:
+      type: object
+      required: [base_rev, state]
+      properties:
+        base_rev: { type: integer, format: int64, minimum: 0 }
+        state: { $ref: '#/components/schemas/RunJsonObject' }
+    RunStateResponse:
+      type: object
+      required: [state_rev]
+      properties:
+        state_rev: { type: integer, format: int64, minimum: 1 }
+    RunStateConflictError:
+      type: object
+      description: Error body of the state 409. `state_rev` and `state` are present with `state_conflict` and carry the current values.
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message: { type: string }
+        state_rev: { type: integer, format: int64, minimum: 0 }
+        state: { $ref: '#/components/schemas/RunJsonObject' }
+    RunEvent:
+      type: object
+      required: [seq, created_at, user_id, user_name, device_id, plugin_id, source, type, text, payload, client_id]
+      properties:
+        seq: { type: integer, format: int64, minimum: 1, description: 'Per run, from 1, gapless' }
+        created_at: { type: string, format: date-time }
+        user_id: { type: string, nullable: true, description: null for server events (who it is about is in the payload) }
+        user_name: { type: string }
+        device_id: { type: string, nullable: true }
+        plugin_id: { type: string, nullable: true }
+        source: { type: string, enum: [automatic, manual, hub] }
+        type: { type: string, pattern: '^[a-z0-9_.-]{1,64}$', description: 'server events: `run.created`, `run.joined`, `run.declined`, `run.invited`, `run.left`, `run.status`' }
+        text: { type: string, maxLength: 280 }
+        payload: { $ref: '#/components/schemas/RunJsonObject' }
+        client_id: { type: string, format: uuid }
+    RunEventRequest:
+      type: object
+      required: [client_id, plugin_id, source, type]
+      properties:
+        client_id: { type: string, format: uuid }
+        plugin_id: { type: string, pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$', maxLength: 128 }
+        source: { type: string, enum: [automatic, manual] }
+        type: { type: string, pattern: '^[a-z0-9_.-]{1,64}$' }
+        text: { type: string, maxLength: 280, default: '' }
+        payload: { $ref: '#/components/schemas/RunJsonObject' }
+    RunEventResult:
+      type: object
+      required: [seq]
+      properties:
+        seq: { type: integer, format: int64, minimum: 1 }
+    RunEventList:
+      type: object
+      required: [events, last_seq]
+      properties:
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/RunEvent' }
+        last_seq: { type: integer, format: int64, minimum: 0 }
+    RunBoardRequest:
+      type: object
+      required: [tree]
+      properties:
+        tree: { $ref: '#/components/schemas/RunJsonObject' }
+    RunBoardResult:
+      type: object
+      required: [rev]
+      properties:
+        rev: { type: integer, format: int64, minimum: 1 }
+    AdminBackupSettings:
+      type: object
+      required: [mode, weekday, time, keep, include_roms, folder]
+      properties:
+        mode: { type: string, enum: [off, daily, weekly] }
+        weekday: { type: integer, minimum: 0, maximum: 6, description: '0 = Sunday; used by weekly' }
+        time: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$', description: "Time of day in the server's local time zone", example: '03:00' }
+        keep: { type: integer, minimum: 1, maximum: 365, description: Regular backups kept; older ones are deleted after a new one succeeded }
+        include_roms: { type: boolean }
+        folder: { type: string, description: Backup folder; empty = not set (backups are off) }
+    AdminBackupSettingsUpdate:
+      type: object
+      properties:
+        mode: { type: string, enum: [off, daily, weekly] }
+        weekday: { type: integer, minimum: 0, maximum: 6 }
+        time: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+        keep: { type: integer, minimum: 1, maximum: 365 }
+        include_roms: { type: boolean }
+        folder: { type: string }
+    AdminBackup:
+      type: object
+      required: [name, created, size, safety, includes_roms, restored]
+      properties:
+        name: { type: string, example: uzume-server-home-hub-20261014T010000Z.tar }
+        created: { type: string, format: date-time }
+        size: { type: integer, format: int64 }
+        safety: { type: boolean, description: Made automatically before a restore; kept until deleted }
+        contents: { type: string, description: 'For example "Database · saves · plugins · ROMs"' }
+        includes_roms: { type: boolean }
+        hub_version: { type: string }
+        schema_version: { type: integer }
+        error: { type: string, description: Set when the file is damaged or unreadable }
+        restored: { type: boolean, description: The last restore used this file }
+    AdminUpdateVersions:
+      type: object
+      required: [current, current_schema, can_rollback, in_container, backup_folder, connected_players, versions]
+      properties:
+        current: { type: string, description: The running server version, example: '0.16.4' }
+        current_schema: { type: integer, description: Database schema version in use }
+        can_rollback: { type: boolean, description: 'This server can go back by itself: package install, not a container, updates on' }
+        unavailable: { type: string, description: Why `can_rollback` is false }
+        in_container: { type: boolean, description: The server runs in the official image; go back by pulling the older image tag }
+        paused: { $ref: '#/components/schemas/AdminUpdatePause' }
+        skipped: { type: string, description: The version going back skipped; it is not installed automatically }
+        skipped_available: { type: boolean, description: The skipped version is still the newest available one }
+        backup_folder: { type: string, description: Where the safety backup is written }
+        connected_players: { type: integer }
+        versions:
+          type: array
+          items: { $ref: '#/components/schemas/AdminUpdateVersion' }
+    AdminUpdateVersion:
+      type: object
+      required: [version, channel, published_at, schema_version, data]
+      properties:
+        version: { type: string, example: 0.16.3 }
+        channel: { type: string, enum: [stable, beta] }
+        published_at: { type: string, format: date-time }
+        notes_url: { type: string }
+        first_used: { type: string, format: date-time, description: First time this version ran on this server (local history) }
+        last_used: { type: string, format: date-time }
+        schema_version: { type: integer, description: 'Database schema of the version, 0 when the index does not say' }
+        data:
+          type: string
+          enum: [keep, restore, refuse]
+          description: '`keep` the data stays as it is; `restore` the automatic pre-update database backup replaces it; `refuse` going back is not safe'
+        reason: { type: string, description: Why going back is refused }
+        db_backup: { type: string, description: 'The automatic database backup used by `restore`' }
+        lost_since: { type: string, format: date-time, description: 'With `restore`: changes after this time are only in the safety backup' }
+        manual_command: { type: string, description: What to do by hand when the server cannot go back itself }
+    AdminUpdatePause:
+      type: object
+      required: [from, to, at]
+      properties:
+        from: { type: string, description: The version that was left }
+        to: { type: string, description: The version rolled back to }
+        at: { type: string, format: date-time }
+        by: { type: string }
+        backup: { type: string, description: Safety backup file made before going back }
+        restored_db: { type: string, description: Pre-update database backup that replaced the database }
+        lost_since: { type: string, format: date-time }
+    AdminRollbackRequest:
+      type: object
+      required: [version]
+      properties:
+        version: { type: string, example: 0.16.3 }
+        confirm_data_loss: { type: boolean, description: 'Required when `data` is `restore`: accept that changes since `lost_since` leave the running server' }
+    AdminRollbackResult:
+      type: object
+      required: [version, data, safety_backup, safety_folder]
+      properties:
+        version: { type: string }
+        data: { type: string, enum: [keep, restore] }
+        safety_backup: { type: string }
+        safety_folder: { type: string }
+    AdminBackupList:
+      type: object
+      required: [backups]
+      properties:
+        backups:
+          type: array
+          items: { $ref: '#/components/schemas/AdminBackup' }
+    AdminBackupRun:
+      type: object
+      required: [ok, started, finished]
+      properties:
+        ok: { type: boolean }
+        started: { type: string, format: date-time }
+        finished: { type: string, format: date-time }
+        name: { type: string }
+        size: { type: integer, format: int64 }
+        error: { type: string }
+        no_space: { type: boolean, description: The backup folder had too little free space. The server never deletes backups to make room. }
+        by: { type: string, description: '"schedule" or the admin who started it' }
+        skipped: { type: integer, description: Files that vanished while the backup ran }
+        prune_note: { type: string }
+    AdminBackupProgress:
+      type: object
+      required: [kind, phase, done_bytes, total_bytes, started]
+      properties:
+        kind: { type: string, enum: [backup, restore] }
+        phase: { type: string, example: saves and snapshots }
+        step: { type: integer, description: 'restore only: 1 safety backup, 2 verify and prepare, 3 restarting' }
+        done_bytes: { type: integer, format: int64 }
+        total_bytes: { type: integer, format: int64 }
+        started: { type: string, format: date-time }
+        by: { type: string }
+        eta_seconds: { type: integer }
+    AdminRestoreResult:
+      type: object
+      required: [ok, at, backup]
+      properties:
+        ok: { type: boolean }
+        at: { type: string, format: date-time }
+        backup: { type: string }
+        backup_created: { type: string, format: date-time }
+        includes_roms: { type: boolean }
+        safety: { type: string, description: File name of the safety backup made before the restore }
+        error: { type: string }
+    AdminBackupStatus:
+      type: object
+      required: [settings, folder_set, can_restore]
+      properties:
+        settings: { $ref: '#/components/schemas/AdminBackupSettings' }
+        folder_set: { type: boolean }
+        write_error: { type: string, description: Set when the folder cannot be written }
+        disk_total: { type: integer, format: int64 }
+        disk_free: { type: integer, format: int64 }
+        running: { $ref: '#/components/schemas/AdminBackupProgress' }
+        last: { $ref: '#/components/schemas/AdminBackupRun' }
+        last_ok: { $ref: '#/components/schemas/AdminBackupRun' }
+        next: { type: string, format: date-time }
+        restore: { $ref: '#/components/schemas/AdminRestoreResult' }
+        can_restore: { type: boolean, description: 'This server can restart itself, so a restore from the API is possible' }

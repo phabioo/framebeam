@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
 func newComfortEnv(t *testing.T, mod func(*hub.Options)) (*savesEnv, *hubtest.Clock) {
@@ -290,7 +290,7 @@ func TestRestoreFromWebRecordsWebDevice(t *testing.T) {
 	e.put(e.devA, 0, []byte("one"), hub.SyncFinalSessionEnd)
 	sl, err := e.svc.RestoreSaveVersion(ctx, hub.RestoreInput{UserID: e.user.ID, DeviceID: hub.WebDeviceID(e.user.ID), GameID: e.game.ID,
 		Slot: "default", Version: 1, ExpectedRevision: 1})
-	if err != nil || sl.Current.DeviceName != "Hub web interface" {
+	if err != nil || sl.Current.DeviceName != "Server web interface" {
 		t.Fatalf("%+v %v", sl.Current, err)
 	}
 }

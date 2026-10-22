@@ -11,7 +11,7 @@
 #include "hubconnection.h"
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 struct CoreResult {
   QString coreId;
@@ -49,7 +49,7 @@ class CoreProvisioner : public QObject {
   void prepare(const QString& coreId, const QString& version);
 
  signals:
-  void finished(const framebeam::CoreResult& result);
+  void finished(const uzume::CoreResult& result);
 
  private:
   void fail(const QString& reason, const QString& detail);
@@ -71,6 +71,6 @@ class CoreProvisioner : public QObject {
   QList<CorePackageFile> queue_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::CoreResult)
+Q_DECLARE_METATYPE(uzume::CoreResult)

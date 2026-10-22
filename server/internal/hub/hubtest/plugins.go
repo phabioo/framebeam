@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
-	"github.com/phabioo/framebeam/server/internal/pluginpkg"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/pluginpkg"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 // PluginSeed is the test signing seed (public test data, never a real key).

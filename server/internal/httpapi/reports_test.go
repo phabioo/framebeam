@@ -16,7 +16,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 type reportFile struct{ name, body string }
@@ -44,7 +44,7 @@ func multipartReport(t *testing.T, meta string, files ...reportFile) (data []byt
 	return buf.Bytes(), mw.FormDataContentType()
 }
 
-// reportEnv is a Hub with an admin and a member, each with a device token.
+// reportEnv is a server with an admin and a member, each with a device token.
 func reportEnv(t *testing.T) (e *env, adminTok, memberTok string) {
 	t.Helper()
 	e = newEnv(t, nil)

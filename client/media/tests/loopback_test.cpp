@@ -20,7 +20,7 @@ extern "C" {
 #include "sessionhost.h"
 #include "sessionviewer.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 constexpr int kW = 256;
@@ -392,8 +392,8 @@ class LoopbackTest : public QObject {
   // ADR 0019: a CUDA frame that h264_nvenc cannot take (here: a frames context that is no CUDA context) sends the Session
   // back to readback frames without an error, without stopping the encoder and without a second keyframe storm.
   void gpuFrameThatCannotOpenFallsBackToReadback() {
-    EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
-    EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+    EnvScope noKill("UZUME_DISABLE_GPU_ENCODE", nullptr);
+    EnvScope noForce("UZUME_H264_ENCODER", nullptr);
     Rig rig;
     SessionViewer* viewer = rig.addViewer();
     int frames = 0;
@@ -432,8 +432,8 @@ class LoopbackTest : public QObject {
 
   // GPU frames never start the encoder: only a readback frame of a connected viewer does.
   void gpuFrameNeverStartsEncoder() {
-    EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
-    EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+    EnvScope noKill("UZUME_DISABLE_GPU_ENCODE", nullptr);
+    EnvScope noForce("UZUME_H264_ENCODER", nullptr);
     Rig rig;
     SessionViewer* viewer = rig.addViewer();
     QVERIFY(QTest::qWaitFor([&]() { return viewer->isConnected(); }, 15000));
@@ -455,8 +455,8 @@ class LoopbackTest : public QObject {
   // The watchdog: GPU input is "active" but only readback frames arrive. After 60 of them and a second without a GPU
   // frame it is turned off and the 60th is encoded.
   void watchdogTurnsGpuOff() {
-    EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
-    EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+    EnvScope noKill("UZUME_DISABLE_GPU_ENCODE", nullptr);
+    EnvScope noForce("UZUME_H264_ENCODER", nullptr);
     Rig rig;
     SessionViewer* viewer = rig.addViewer();
     int frames = 0;
@@ -492,8 +492,8 @@ class LoopbackTest : public QObject {
   // A UI stall queues a burst of frame events that the mailbox answers with one GPU frame and many empty takes: 120
   // readback frames right after a GPU frame are no failure. Only 60 frames AND a second without a GPU frame are.
   void watchdogIgnoresABurstRightAfterAGpuFrame() {
-    EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
-    EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+    EnvScope noKill("UZUME_DISABLE_GPU_ENCODE", nullptr);
+    EnvScope noForce("UZUME_H264_ENCODER", nullptr);
     Rig rig;
     SessionViewer* viewer = rig.addViewer();
     int frames = 0;
@@ -522,8 +522,8 @@ class LoopbackTest : public QObject {
   // GPU input is configured at open(): the kill switch and a forced encoder (also h264_nvenc) keep the readback path.
   void gpuConfigSwitches() {
     {
-      EnvScope kill("FRAMEBEAM_DISABLE_GPU_ENCODE", "1");
-      EnvScope noForce("FRAMEBEAM_H264_ENCODER", nullptr);
+      EnvScope kill("UZUME_DISABLE_GPU_ENCODE", "1");
+      EnvScope noForce("UZUME_H264_ENCODER", nullptr);
       Rig rig;
       QVERIFY(!rig.host.gpuInputAllowed());
       SessionViewer* viewer = rig.addViewer();
@@ -541,8 +541,8 @@ class LoopbackTest : public QObject {
       QVERIFY(!rig.host.gpuInputAllowed());
     }
     {
-      EnvScope noKill("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
-      EnvScope force("FRAMEBEAM_H264_ENCODER", "libx264");
+      EnvScope noKill("UZUME_DISABLE_GPU_ENCODE", nullptr);
+      EnvScope force("UZUME_H264_ENCODER", "libx264");
       Rig rig;  // no frames are encoded here: the forced encoder may not exist in this FFmpeg
       QVERIFY(!rig.host.gpuInputAllowed());
       SessionViewer* viewer = rig.addViewer();

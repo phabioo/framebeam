@@ -1,4 +1,4 @@
-// FrameBeam Hub Settings: "Copy" buttons and reconnecting after a restart. No inline handlers (CSP script-src 'self').
+// Uzume server Settings: "Copy" buttons and reconnecting after a restart. No inline handlers (CSP script-src 'self').
 (function () {
   "use strict";
   if (window.__fbSettings) return; // loaded twice (page swap): handlers are delegated once
@@ -32,7 +32,7 @@
     window.setTimeout(function () { btn.textContent = label; }, 1500);
   });
 
-  // After "Restart hub now" with an unchanged port: wait until the hub went away, then reload as soon as it answers.
+  // After "Restart server now" with an unchanged port: wait until the server went away, then reload as soon as it answers.
   var polling = false;
   function pollRestart(url) {
     if (polling) return;

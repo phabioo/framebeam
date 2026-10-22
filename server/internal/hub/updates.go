@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 // Update settings and state keys in the settings table.
@@ -31,7 +31,7 @@ const (
 const (
 	updateIntervalTest   = time.Hour
 	updateIntervalStable = 24 * time.Hour
-	// playersSeenWindow is how long a Player counts as in use for the "breaking for Players" warning (S4).
+	// playersSeenWindow is how long an app counts as in use for the "breaking for apps" warning (S4).
 	playersSeenWindow = 30 * 24 * time.Hour
 )
 
@@ -46,12 +46,12 @@ const (
 var (
 	// ErrUpdatesOff: the updater is off (dev build without a selected channel, or a non-release version).
 	ErrUpdatesOff = errors.New("updates are off")
-	// ErrNotPackaged: the Hub does not run from the .deb package, so it cannot install updates itself.
-	ErrNotPackaged = errors.New("this Hub was not installed from the .deb package; updates cannot be installed from here")
+	// ErrNotPackaged: the server does not run from the .deb package, so it cannot install updates itself.
+	ErrNotPackaged = errors.New("this server was not installed from the .deb package; updates cannot be installed from here")
 	// ErrNoUpdate: there is nothing newer to install.
 	ErrNoUpdate = errors.New("no update is available")
-	// ErrUpdateBreaking: the candidate needs a newer Player than some Player in use; confirmation required.
-	ErrUpdateBreaking = errors.New("this update breaks Players that were seen recently; confirm to install it anyway")
+	// ErrUpdateBreaking: the candidate needs a newer app than some app in use; confirmation required.
+	ErrUpdateBreaking = errors.New("this update breaks apps that were seen recently; confirm to install it anyway")
 )
 
 type updateState struct {
@@ -164,7 +164,7 @@ type UpdateAvailable struct {
 	Artifact    string    `json:"artifact"`
 	URL         string    `json:"url"`
 	Size        int64     `json:"size"`
-	// Breaking: min_protocol_version is above the protocol version of a Player seen in the last 30 days (S4).
+	// Breaking: min_protocol_version is above the protocol version of an app seen in the last 30 days (S4).
 	Breaking      bool `json:"breaking"`
 	BreakingCount int  `json:"breaking_count"`
 	// Skipped: going back skipped this version; it is listed as "skipped · available" and never installed
@@ -177,7 +177,7 @@ func (a UpdateAvailable) Warning() string {
 	if !a.Breaking {
 		return ""
 	}
-	return fmt.Sprintf("%d Player device(s) seen in the last 30 days are too old for this Hub version and would lose access until they are updated. Automatic install skips this update.", a.BreakingCount)
+	return fmt.Sprintf("%d app device(s) seen in the last 30 days are too old for this server version and would lose access until they are updated. Automatic install skips this update.", a.BreakingCount)
 }
 
 // UpdateStatus is the state shown on the Settings page.
@@ -189,7 +189,7 @@ type UpdateStatus struct {
 	LastCheck *time.Time
 	LastError string
 	Available *UpdateAvailable
-	// Packaged: the Hub can install updates itself (.deb install with a writable request directory).
+	// Packaged: the server can install updates itself (.deb install with a writable request directory).
 	Packaged       bool
 	Staged         *updates.Staged
 	RequestPending bool
@@ -201,7 +201,7 @@ type UpdateStatus struct {
 	// that was left.
 	Paused  *updates.Pause
 	Skipped string
-	// InContainer: the Hub runs in the official image and is rolled back by pulling the older image tag.
+	// InContainer: the server runs in the official image and is rolled back by pulling the older image tag.
 	InContainer bool
 }
 
@@ -215,7 +215,7 @@ func (s *Service) UpdateStatus(ctx context.Context) (UpdateStatus, error) {
 	st.CurrentVersion = s.hubVer
 	switch {
 	case !updates.ValidSemVer(s.hubVer):
-		st.Disabled = "This Hub runs a development build (" + s.hubVer + "), which has no release version to compare."
+		st.Disabled = "This server runs a development build (" + s.hubVer + "), which has no release version to compare."
 	case st.Settings.Channel == UpdateChannelOff:
 		st.Disabled = "Automatic update checks are off for development builds. Select a channel to enable them."
 	}
@@ -279,7 +279,7 @@ func (s *Service) countActiveSessions(ctx context.Context) int {
 	return n
 }
 
-// playersBelow counts Players seen in the last 30 days whose protocol version is below min.
+// playersBelow counts apps seen in the last 30 days whose protocol version is below min.
 func (s *Service) playersBelow(ctx context.Context, min int) int {
 	var n int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM device_reports r JOIN devices d ON d.id = r.device_id
@@ -322,7 +322,7 @@ func (s *Service) selectUpdate(ctx context.Context) (*updates.Fetched, updates.S
 }
 
 // resolveChannelDefault stores the default channel of a beta build once: with no channel selected and none
-// resolved yet, "stable" if the verified index lists the running version as a stable Hub release (it was promoted
+// resolved yet, "stable" if the verified index lists the running version as a stable server release (it was promoted
 // without a rebuild), else "beta". It never changes afterwards. It reports whether it stored a value.
 func (s *Service) resolveChannelDefault(ctx context.Context, set UpdateSettings, idx updates.Index) bool {
 	if set.ChannelIsSet || set.CompiledChannel != updates.ChannelBeta {
@@ -349,7 +349,7 @@ type UpdateCheckReport struct {
 }
 
 // CheckUpdates fetches the signed updates index, selects the newest release and, with automatic install on, stages
-// it and creates the request file (not during an active Session, not when it breaks recent Players, not when a
+// it and creates the request file (not during an active Session, not when it breaks recent apps, not when a
 // previous attempt for the same version failed). The result is recorded for the Settings page.
 func (s *Service) CheckUpdates(ctx context.Context) (_ UpdateCheckReport, err error) {
 	defer s.publishOK(&err, TopicUpdates)
@@ -432,7 +432,7 @@ func (s *Service) stageAndRequest(ctx context.Context, f *updates.Fetched, sel u
 }
 
 // InstallUpdate stages the newest update and requests the root helper (the Settings page "Install update").
-// It needs a packaged install. An update that breaks recent Players needs confirmBreaking.
+// It needs a packaged install. An update that breaks recent apps needs confirmBreaking.
 func (s *Service) InstallUpdate(ctx context.Context, confirmBreaking bool) (_ updates.Staged, err error) {
 	defer s.publishOK(&err, TopicUpdates)
 	s.upd.mu.Lock()
@@ -509,10 +509,10 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// manualCommand is what an admin does by hand when the Hub cannot install the update itself.
+// manualCommand is what an admin does by hand when the server cannot install the update itself.
 func manualCommand(platform string, a *UpdateAvailable) string {
 	if updates.InContainer() {
-		return "This Hub runs in a container. Update by pulling the new image and recreating the container (docker compose pull && docker compose up -d); see docs/guides/hub-docker.md."
+		return "This server runs in a container. Update by pulling the new image and recreating the container (docker compose pull && docker compose up -d); see docs/guides/hub-docker.md."
 	}
 	if updates.KindFor(platform) == updates.KindMSI {
 		return "Download " + a.URL + " and run " + a.Artifact + " as Administrator."

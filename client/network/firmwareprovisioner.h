@@ -10,7 +10,7 @@
 #include "hubconnection.h"
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 struct FirmwareProblem {
   QString fileId;
@@ -43,7 +43,7 @@ class FirmwareProvisioner : public QObject {
   static QList<FirmwareProblem> missingOnHub(const SystemInfo& system, const QStringList& wantedIds);
 
  signals:
-  void finished(const framebeam::FirmwareResult& result);
+  void finished(const uzume::FirmwareResult& result);
 
  private:
   void next();
@@ -58,6 +58,6 @@ class FirmwareProvisioner : public QObject {
   FirmwareResult result_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::FirmwareResult)
+Q_DECLARE_METATYPE(uzume::FirmwareResult)

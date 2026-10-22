@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // Plugin icon chip (docs/design/plugins.md 4e): the plugin's icon.png, else its monogram in mono, on a surface chip.
 // Used by the panel tabs, the rail, HUD widgets, the tile strip and the sidebar. `dot` adds the 6 px tab dot

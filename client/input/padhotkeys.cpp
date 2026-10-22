@@ -1,6 +1,6 @@
 #include "padhotkeys.h"
 
-namespace framebeam::input {
+namespace uzume::input {
 
 void PadHotkeyDetector::setBindings(const QString& modifierToken, const QList<PadHotkeyBinding>& bindings) {
   modifier_ = modifierToken;
@@ -33,4 +33,4 @@ QStringList PadHotkeyDetector::update(const QSet<QString>& pressed) {
   return fired;
 }
 
-}  // namespace framebeam::input
+}  // namespace uzume::input

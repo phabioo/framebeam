@@ -3,7 +3,7 @@
 #include <QRegularExpression>
 #include <QStringList>
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 QList<PluginLanguageChoice> pluginLanguageChoices() {
   return {{QStringLiteral("en"), QStringLiteral("English")}, {QStringLiteral("de"), QStringLiteral("Deutsch")}};
@@ -65,4 +65,4 @@ QString resolvePluginLanguage(const QString& setting, const QString& systemId, c
   return os.isEmpty() ? QStringLiteral("en") : os;
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

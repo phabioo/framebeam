@@ -23,11 +23,11 @@ All features: [docs/features.md](docs/features.md).
 
 Plugin runtime (0.11): the plugin runtime in the app is implemented (sandboxed Lua, local folder install, developer mode only); UI slots, server plugins and runs (with the app's Runs screen) and signed distribution are implemented. Sandboxed Lua plugins add game-specific features such as SoulLink/Nuzlocke runs without changing the generic app. See [docs/guides/plugin-api.md](docs/guides/plugin-api.md), [docs/architecture/12-plugins.md](docs/architecture/12-plugins.md) and [ADR 0023](docs/adr/0023-plugins.md).
 
-The official plugins live in their own repositories under github.com/phabioo: [`framebeam-plugin-pokemon-core`](https://github.com/phabioo/framebeam-plugin-pokemon-core), [`-soullink`](https://github.com/phabioo/framebeam-plugin-soullink), [`-pokemon-editor`](https://github.com/phabioo/framebeam-plugin-pokemon-editor), [`-cheats`](https://github.com/phabioo/framebeam-plugin-cheats) and [`-template`](https://github.com/phabioo/framebeam-plugin-template). Each carries its own docs and roadmap; no official plugin code exists yet.
+The official plugins live in their own repositories under github.com/phabioo: [`uzume-plugin-pokemon-core`](https://github.com/phabioo/uzume-plugin-pokemon-core), [`-soullink`](https://github.com/phabioo/uzume-plugin-soullink), [`-pokemon-editor`](https://github.com/phabioo/uzume-plugin-pokemon-editor), [`-cheats`](https://github.com/phabioo/uzume-plugin-cheats) and [`-template`](https://github.com/phabioo/uzume-plugin-template). Each carries its own docs and roadmap; no official plugin code exists yet.
 
 ## Quick start
 
-**1. Install the server** (Debian / Raspberry Pi OS, amd64 or arm64). Download the `.deb` from the [releases](https://github.com/phabioo/framebeam/releases):
+**1. Install the server** (Debian / Raspberry Pi OS, amd64 or arm64). Download the `.deb` from the [releases](https://github.com/phabioo/uzume/releases):
 
 ```sh
 sudo apt install ./framebeam-hub_<version>_arm64.deb

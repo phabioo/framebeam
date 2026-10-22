@@ -4,7 +4,7 @@
 
 #include "connectiontest.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 class ConnectionTestTest : public QObject {
   Q_OBJECT

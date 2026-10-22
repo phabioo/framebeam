@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // 6e Connection check: five steps (Hub reachable, STUN, TURN relay, NAT type, Test connection), a summary card and the
 // actions Copy result / Add to problem report / Run again. Modal over the whole window; Esc closes (and cancels a running

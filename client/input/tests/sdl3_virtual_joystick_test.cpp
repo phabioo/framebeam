@@ -20,7 +20,7 @@ int main()
     desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
     desc.naxes = 6;
     desc.nbuttons = 15;
-    desc.name = "FrameBeam test pad";
+    desc.name = "Uzume test pad";
     const SDL_JoystickID id = SDL_AttachVirtualJoystick(&desc);
     if (id == 0)
         return fail("SDL_AttachVirtualJoystick");

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // "Set up a Hub on this PC": step of the pairing screen. needsSetup = "Create the Hub admin" (user name, password
 // twice), needsSignIn = "Sign in as a Hub admin". The Hub on this PC pairs the Player directly, no approval needed.

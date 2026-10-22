@@ -8,6 +8,6 @@ A short tour for a server with two apps, using only homebrew ROMs or dummy files
 4. Server, Systems & Cores: switch NDS to native firmware mode without files; the app shows "Firmware required" / "Firmware missing".
 5. Upload your own BIOS/firmware dumps (`bios7.bin`, `bios9.bin`, `firmware.bin`; never in the repo) and launch.
 6. Connect a gamepad and remap it on Controllers.
-7. Install the app via the `framebeam-windows-x64-msi` artifact.
+7. Install the app via the `uzume-windows-x64-msi` artifact.
 
 Keyboard defaults: see [player.md](player.md).

@@ -1,4 +1,4 @@
-// Package httpapi implements the HTTP API of the FrameBeam Hub (OpenAPI spec in protocol/openapi)
+// Package httpapi implements the HTTP API of the Uzume server (OpenAPI spec in protocol/openapi)
 // on top of the service layer internal/hub.
 package httpapi
 
@@ -17,9 +17,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/statusinfo"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/statusinfo"
 )
 
 const maxBodyBytes = 1 << 20
@@ -175,9 +175,9 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 	}
 }
 
-// handshakeIdentity are the fields every Player version has always sent; a handshake without them is a 400.
-// The newer members (cores, video, audio, input) are optional on the wire so that older installed Players can
-// still reach the Hub (and its update); when they are missing the Hub treats them as "not reported".
+// handshakeIdentity are the fields every app version has always sent; a handshake without them is a 400.
+// The newer members (cores, video, audio, input) are optional on the wire so that older installed apps can
+// still reach the server (and its update); when they are missing the server treats them as "not reported".
 var handshakeIdentity = []string{"platform", "arch", "player_version", "protocol_version", "min_protocol_version"}
 
 // handshakeSeen records which optional handshake parts the body carried (oapi-codegen decodes a missing object
@@ -212,7 +212,7 @@ func (s *Server) checkHandshakeBody(r *http.Request) (*http.Request, error) {
 	seen := handshakeSeen{cores: string(top["cores"]) != "" && string(top["cores"]) != "null", video: enc && dec}
 	if !seen.cores || !seen.video {
 		handshakeLenientOnce.Do(func() {
-			s.log.Debug("handshake without cores or video capabilities (older Player); treated as not reported")
+			s.log.Debug("handshake without cores or video capabilities (older app); treated as not reported")
 		})
 	}
 	return r.WithContext(context.WithValue(r.Context(), keyHandshakeSeen, seen)), nil
@@ -426,7 +426,7 @@ func toAPIGame(g hub.Game) (api.Game, error) {
 		GameCode: &g.GameCode, GameCodeKind: (*api.GameGameCodeKind)(&g.GameCodeKind)}, nil
 }
 
-// ListGames lists the games visible to the caller: games with a file on the Hub and local-only games the caller
+// ListGames lists the games visible to the caller: games with a file on the server and local-only games the caller
 // registered a file of.
 func (s *Server) ListGames(ctx context.Context, _ api.ListGamesRequestObject) (api.ListGamesResponseObject, error) {
 	gs, err := s.svc.ListGamesFor(ctx, principal(ctx).User.ID)

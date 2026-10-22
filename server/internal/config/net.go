@@ -13,7 +13,7 @@ import (
 )
 
 // Network settings that can be changed on the web interface (Settings > Network). A value saved there wins over
-// hub.env and flags, which only provide the initial value. The Hub stores each value as a raw string under one of
+// hub.env and flags, which only provide the initial value. The server stores each value as a raw string under one of
 // these keys; this file knows how to apply, compare and validate them.
 
 // Keys of the network settings.
@@ -37,7 +37,7 @@ const (
 var NetKeys = []string{NetListenPort, NetPublicHost, NetTURN, NetTURNPort, NetRelayPorts, NetRelayIP, NetICEServers,
 	NetKeepRecent, NetKeepDaily, NetKeepWeekly, NetSharing, NetImportDir}
 
-// NetNeedsRestart reports whether a change of the setting only takes effect after a restart of the Hub.
+// NetNeedsRestart reports whether a change of the setting only takes effect after a restart of the server.
 // Retention and external STUN servers apply live.
 func NetNeedsRestart(key string) bool {
 	switch key {
@@ -143,7 +143,7 @@ func (c *Config) NetValue(key string) string {
 
 // EncodeICEServers is the stored form of the external STUN server list (a JSON array).
 // nil (not configured, the default STUN applies) is "null"; an empty list (explicitly none) is "none".
-// Legacy Hubs stored "[]" for "no URLs"; that now reads as the default, only the marker "none" means none.
+// Legacy servers stored "[]" for "no URLs"; that now reads as the default, only the marker "none" means none.
 func EncodeICEServers(urls []string) string {
 	if urls != nil && len(urls) == 0 {
 		return "none"
@@ -162,7 +162,7 @@ func DecodeICEServers(raw string) ([]string, error) {
 		return nil, fmt.Errorf("external STUN servers: %w", err)
 	}
 	if len(out) == 0 {
-		return nil, nil // "[]" / "null" (also stored by older Hubs): not configured, default applies
+		return nil, nil // "[]" / "null" (also stored by older servers): not configured, default applies
 	}
 	return out, nil
 }
@@ -358,7 +358,7 @@ func (c *Config) checkRelayVsPorts() error {
 
 func webPort(name string, p int) error {
 	if p < MinWebPort {
-		return netErr("%s: ports below %d are not allowed here because they need extra privileges. Use install-hub.sh --port to run the hub on a low port", name, MinWebPort)
+		return netErr("%s: ports below %d are not allowed here because they need extra privileges. Use install-hub.sh --port to run the server on a low port", name, MinWebPort)
 	}
 	if p > MaxWebPort {
 		return netErr("%s must be between %d and %d", name, MinWebPort, MaxWebPort)
@@ -448,7 +448,7 @@ func ValidateSTUNURL(u string) error {
 	return nil
 }
 
-// TestBind opens and closes a TCP listener on addr: it reports whether the Hub could listen there.
+// TestBind opens and closes a TCP listener on addr: it reports whether the server could listen there.
 func TestBind(addr string) error {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -476,11 +476,11 @@ func CheckImportDir(dir string) error {
 	}
 	f, err := os.Open(dir)
 	if err != nil {
-		return netErr("The Hub cannot read the import folder")
+		return netErr("The server cannot read the import folder")
 	}
 	defer f.Close()
 	if _, err := f.Readdirnames(1); err != nil && !errors.Is(err, io.EOF) {
-		return netErr("The Hub cannot read the import folder")
+		return netErr("The server cannot read the import folder")
 	}
 	return nil
 }

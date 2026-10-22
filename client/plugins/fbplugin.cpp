@@ -33,7 +33,7 @@
 
 #include "updatesig.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 namespace {
 
@@ -312,7 +312,7 @@ SignatureState verifyPluginSignature(const QMap<QString, QByteArray>& files, con
   const QByteArray msg = pluginSignatureMessage(hashes);
   for (const QByteArray& k : trustedKeys)
     if (update::ed25519Verify(k, msg, sig)) return SignatureState::Valid;
-  return bad(QStringLiteral("signature does not match any trusted FrameBeam key"));
+  return bad(QStringLiteral("signature does not match any trusted Uzume key"));
 }
 
 FbPluginResult readFbPlugin(const QByteArray& b, const QList<QByteArray>& trustedKeys) {
@@ -445,4 +445,4 @@ bool extractFbPlugin(const FbPluginPackage& pkg, const QString& destDir, QString
   return true;
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

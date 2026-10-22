@@ -6,8 +6,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-KEYS_FILE="${FRAMEBEAM_KEYS_GO:-$ROOT/server/internal/corepkg/keys.go}"
-CLIENT_DIR="${FRAMEBEAM_CLIENT_DIR:-$ROOT/client}"
+KEYS_FILE="${UZUME_KEYS_GO:-$ROOT/server/internal/corepkg/keys.go}"
+CLIENT_DIR="${UZUME_CLIENT_DIR:-$ROOT/client}"
 KEY_RE='"[A-Za-z0-9+/]{43}="'
 
 hub_keys="$(awk '/DefaultTrustedKeys *=/ {on=1} on {print} on && /^}/ {exit}' "$KEYS_FILE" | grep -oE "$KEY_RE" | tr -d '"' | sort -u || true)"

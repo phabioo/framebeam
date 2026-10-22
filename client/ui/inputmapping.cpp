@@ -5,7 +5,7 @@
 
 #include "emulator_backend.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 quint32 joypadMaskForKey(int qtKey) {
   using emu::JoypadButton;
@@ -107,4 +107,4 @@ std::optional<QPointF> touchToFrame(const emu::DisplayProfile& profile, const QR
   return profile.toFrameNormalized(idx, n);
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

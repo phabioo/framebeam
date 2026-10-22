@@ -17,7 +17,7 @@
 
 class QNetworkReply;
 
-namespace framebeam::update {
+namespace uzume::update {
 
 // The MSI artifact of exactly `version` (any channel) for the Player platform; nullopt when the index has none.
 std::optional<Artifact> findOwnMsi(const Index& index, const QString& version, Release* releaseOut = nullptr);
@@ -27,11 +27,11 @@ class HubSetupInstaller : public QObject {
  public:
   enum class State { Idle, Fetching, Downloading, Launching, Failed };
   struct Config {
-    QString indexUrl;  // empty: env FRAMEBEAM_PLAYER_UPDATE_INDEX_URL, else the default URL
+    QString indexUrl;  // empty: env UZUME_APP_UPDATE_INDEX_URL, else the default URL
     QString currentVersion;
     QList<QByteArray> trustedKeys;  // empty: trustedKeysFromEnvironment()
     QString installRoot;            // of this Player (its launcher is copied)
-    QString downloadDir;            // empty: <temp>/framebeam-hub-setup-<uuid>
+    QString downloadDir;            // empty: <temp>/uzume-server-setup-<uuid>
     QString programFilesDir;        // empty: env ProgramFiles
   };
   explicit HubSetupInstaller(const Config& config, QObject* parent = nullptr);
@@ -45,7 +45,7 @@ class HubSetupInstaller : public QObject {
 
   void start();
   void cancel();
-  // Removes <temp>/framebeam-hub-setup-* folders older than a day (a launched setup leaves its folder to the launcher
+  // Removes <temp>/{uzume-server,framebeam-hub}-setup-* folders older than a day (a launched setup leaves its folder to the launcher
   // copy, which removes it after msiexec; this catches what a crash or an old version left behind). Returns the count.
   static int cleanStaleTempDirs(const QString& tempBase = QDir::tempPath(), qint64 maxAgeSecs = 24 * 3600);
 
@@ -61,7 +61,7 @@ class HubSetupInstaller : public QObject {
   void launch(const QString& msiPath, const Artifact& art);
 
   Config config_;
-  QString tempDir_;  // <temp>/framebeam-hub-setup-<uuid> while we own it
+  QString tempDir_;  // <temp>/uzume-server-setup-<uuid> while we own it
   QNetworkAccessManager nam_;
   State state_ = State::Idle;
   QString error_;
@@ -71,4 +71,4 @@ class HubSetupInstaller : public QObject {
   std::function<bool(const QString&, const QStringList&)> launcher_;
 };
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Save conflict on start (design 3d). Modal; "Keep both, decide later" is the default and focused action,
 // Esc = decide later, Tab/Shift+Tab cycle through the actions, Enter/Space trigger the focused one.

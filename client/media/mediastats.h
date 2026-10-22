@@ -6,7 +6,7 @@
 
 #include "connectionpath.h"
 
-namespace framebeam {
+namespace uzume {
 
 // Diagnostics of one side of a Session (ADR 0006 D6). Plain struct; "unavailable" values are std::nullopt / empty.
 // Link state of one viewer connection (host side per viewer, viewer side its single link).
@@ -51,4 +51,4 @@ struct SessionStats {
   bool gpuInputFailed = false;   // host: GPU-direct was tried in this Session and failed; readback frames again
 };
 
-}  // namespace framebeam
+}  // namespace uzume

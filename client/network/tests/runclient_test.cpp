@@ -15,7 +15,7 @@
 #include "profilestore.h"
 #include "runclient.h"
 
-using namespace framebeam;
+using namespace uzume;
 using State = HubConnection::State;
 
 namespace {

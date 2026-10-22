@@ -10,7 +10,7 @@
 #include "hubconnection.h"
 #include "profilestore.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 // Address without the http(s):// prefix.
 QString trimmedScheme(const QString& address);
@@ -42,4 +42,4 @@ class HubPresenter : public QObject {
   const bool& inviteBusy_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

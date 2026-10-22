@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/auth"
 )
 
 // PairingStatus is the status of a pairing request.

@@ -11,8 +11,8 @@
 #include "savesync.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 using S = HubConnection::State;
 
@@ -39,7 +39,7 @@ class LibraryScaleUiTest : public QObject {
   }
 
  private slots:
-  void initTestCase() { qunsetenv("FRAMEBEAM_MELONDS_DS_CORE"); }
+  void initTestCase() { qunsetenv("UZUME_MELONDS_DS_CORE"); }
 
   void loadAndReloadStayFast_data() {
     QTest::addColumn<int>("games");

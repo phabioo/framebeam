@@ -13,7 +13,7 @@
 #include <QMutex>
 #include <QtGlobal>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 class FrameTimingStats {
  public:
@@ -59,4 +59,4 @@ class FrameTimingStats {
   QList<Sample> samples_;  // newest last, trimmed to kHistoryMs on every record
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

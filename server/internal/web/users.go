@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 type userView struct {
@@ -307,7 +307,7 @@ func (s *Server) renderAdminForm(w http.ResponseWriter, r *http.Request, sess *s
 	d.Error = errMsg
 	d.Body = confirmBody{
 		Heading: "Make " + u.DisplayName + " an admin?",
-		Intro: "Admins sign in to this web interface with the username “" + u.Username + "” and a password, and can change everything on this Hub. " +
+		Intro: "Admins sign in to this web interface with the username “" + u.Username + "” and a password, and can change everything on this server. " +
 			"Choose a password of at least " + fmt.Sprint(hub.MinPasswordLen) + " characters and hand it over personally.",
 		Action: "/users/" + u.ID + "/admin", Button: "Make admin", Cancel: "/users", Password: true, Safe: true, PasswordMin: hub.MinPasswordLen,
 	}
@@ -380,7 +380,7 @@ func (s *Server) inviteRevokeConfirm(w http.ResponseWriter, r *http.Request, ses
 	d := s.base(r, sess, "users", "Revoke invite")
 	d.Body = confirmBody{
 		Heading: "Revoke this invite?",
-		Intro:   "The code stops working at once. Nobody who has not entered it yet can use it to join this Hub.",
+		Intro:   "The code stops working at once. Nobody who has not entered it yet can use it to join this server.",
 		Action:  "/users/invites/" + r.PathValue("id") + "/revoke", Button: "Revoke invite", Cancel: "/users",
 	}
 	s.render(w, http.StatusOK, "confirm", "layout", d)
@@ -423,7 +423,7 @@ type inviteLandingBody struct {
 // inviteLanding is the public page behind an invite link. The code lives only in the URL fragment, which
 // browsers never send to the server; a static script shows it. The page carries no admin data.
 func (s *Server) inviteLanding(w http.ResponseWriter, r *http.Request) {
-	d := s.base(r, nil, "", "Join this Hub")
+	d := s.base(r, nil, "", "Join this server")
 	fp, _ := s.certInfo()
 	d.Body = inviteLandingBody{Address: s.hubAddress(r), Fingerprint: fp}
 	s.render(w, http.StatusOK, "invite", "bare", d)

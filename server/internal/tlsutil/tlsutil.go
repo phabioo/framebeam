@@ -248,11 +248,11 @@ func generate(now time.Time) (keyPEM, certPEM []byte, err error) {
 	dns, ips := sans(host)
 	cn := host
 	if cn == "" {
-		cn = "framebeam-hub"
+		cn = "uzume-server"
 	}
 	tpl := &x509.Certificate{
 		SerialNumber:          serial,
-		Subject:               pkix.Name{CommonName: cn, Organization: []string{"FrameBeam Hub"}},
+		Subject:               pkix.Name{CommonName: cn, Organization: []string{"Uzume server"}},
 		NotBefore:             now.Add(-time.Hour),
 		NotAfter:              now.AddDate(selfSignedYears, 0, 0),
 		KeyUsage:              x509.KeyUsageDigitalSignature,

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-session-update.schema.json",
-  "title": "ws-session-update (Hub to Player: created or changed, personalised per recipient)",
+  "$id": "https://uzume.invalid/schemas/ws-session-update.schema.json",
+  "title": "ws-session-update (server to app: created or changed, personalised per recipient)",
   "type": "object",
   "required": [
     "type",

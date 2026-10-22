@@ -13,7 +13,7 @@
 
 #include "system_manifest.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 inline constexpr char kLayoutStacked[] = "stacked";
 inline constexpr char kLayoutSide[] = "side";
@@ -46,4 +46,4 @@ std::optional<QPointF> touchToFrameFor(const emu::DisplayProfile& profile, const
 // wide) are split into two equal halves, anything else counts as a single screen.
 emu::DisplayProfile profileForRemoteFrame(const QSizeF& frame);
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

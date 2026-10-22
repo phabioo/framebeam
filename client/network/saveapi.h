@@ -11,9 +11,9 @@
 
 #include "hubconnection.h"
 
-namespace framebeam {
+namespace uzume {
 
-// Hub save API (protocol/openapi/framebeam.yaml, tag `saves`, handshake feature `saves_v1`).
+// Hub save API (protocol/openapi/uzume.yaml, tag `saves`, handshake feature `saves_v1`).
 inline constexpr const char* kSavesFeature = "saves_v1";
 inline constexpr const char* kSavesV2Feature = "saves_v2";  // restore, snapshots, history labels, save_updated (0.4)
 inline constexpr const char* kSavesV3Feature = "saves_v3";  // deleting manual snapshots
@@ -157,6 +157,6 @@ class SaveApi : public QObject {
   QPointer<HubConnection> conn_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::SaveUpdate)
+Q_DECLARE_METATYPE(uzume::SaveUpdate)

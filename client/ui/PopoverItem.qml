@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Row of an anchored menu (speed, screen layout, "⋯"): 32 high, hover #2c2d32. glyph/icon left, text, trailing text or check.
 Rectangle {

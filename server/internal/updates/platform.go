@@ -5,29 +5,31 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/phabioo/uzume/server/internal/envcompat"
 )
 
-// MSIMarkerName is a file next to the Hub executable that the MSI installer creates. Its presence marks an install
-// by the MSI (the Windows counterpart of /usr/bin/framebeam-hub for the .deb).
+// MSIMarkerName is a file next to the server executable that the MSI installer creates. Its presence marks an install
+// by the MSI (the Windows counterpart of /usr/bin/uzume-server for the .deb).
 const MSIMarkerName = "framebeam-hub.msi-installed"
 
 // MSILogName is the msiexec log, copied to <data>/updates after the installation.
 const MSILogName = "msiexec.log"
 
-// ContainerEnv is set to "1" in the official Docker image (packaging/docker/Dockerfile). A Hub in a container never
+// ContainerEnv is set to "1" in the official Docker image (packaging/docker/Dockerfile). A server in a container never
 // installs updates itself: it shows that one is available and the admin pulls a newer image.
-const ContainerEnv = "FRAMEBEAM_HUB_CONTAINER"
+const ContainerEnv = "UZUME_SERVER_CONTAINER"
 
-// InContainer reports whether the Hub runs in the official container image.
-func InContainer() bool { return os.Getenv(ContainerEnv) == "1" }
+// InContainer reports whether the server runs in the official container image.
+func InContainer() bool { return envcompat.Wrap(os.Getenv)(ContainerEnv) == "1" }
 
-// Platform is the platform string of this binary, e.g. linux-amd64 or windows-amd64 (Hub naming; the Player's
+// Platform is the platform string of this binary, e.g. linux-amd64 or windows-amd64 (server naming; the app's
 // Windows platform in the index is windows-x64).
 func Platform() string { return runtime.GOOS + "-" + runtime.GOARCH }
 
 func isWindowsPlatform(platform string) bool { return strings.HasPrefix(platform, "windows-") }
 
-// KindFor is the artifact kind the Hub queries and applies on a platform: msi on Windows, deb elsewhere.
+// KindFor is the artifact kind the server queries and applies on a platform: msi on Windows, deb elsewhere.
 func KindFor(platform string) string {
 	if isWindowsPlatform(platform) {
 		return KindMSI
@@ -37,7 +39,7 @@ func KindFor(platform string) string {
 
 // IsPackaged reports whether executable belongs to a package install that the update helper can replace: on
 // Linux the .deb path, on Windows the MSI marker file next to the executable; in both cases requestDir must be
-// writable. A Hub in the container image (InContainer) is never packaged.
+// writable. A server in the container image (InContainer) is never packaged.
 func IsPackaged(platform, executable, requestDir string) bool {
 	if InContainer() {
 		return false
@@ -52,7 +54,7 @@ func IsPackaged(platform, executable, requestDir string) bool {
 		}
 		return RequestDirWritable(requestDir)
 	}
-	return executable == PackagedExecutable && RequestDirWritable(requestDir)
+	return (executable == PackagedExecutable || executable == LegacyPackagedExecutable) && RequestDirWritable(requestDir)
 }
 
 // InstallCommand is the privileged install command for the (private, verified) package copy.

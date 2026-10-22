@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // 3r-3 / 3i-3: Multiview with up to four surfaces (ADR 0012 D8, ADR 0026 D2): the local game and/or remote Sessions. Layouts:
 // a single surface fills the area; Row (two or three Sessions side by side, equal columns); Grid 2 x 2 (from four Sessions,

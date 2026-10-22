@@ -8,7 +8,7 @@ struct lua_State;
 
 // Plain-data copy of a Lua value, used to move values between Lua states (events, fb.call, fb.provide results).
 // Allowed: nil, boolean, number, string, tables of these. Functions, userdata and threads are rejected.
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 inline constexpr int kMaxValueDepth = 32;
 inline constexpr size_t kMaxValueBytes = 1024 * 1024;
@@ -33,4 +33,4 @@ size_t valueBytes(const Value& v);
 // Short single-line rendering for the console ("{a=1, b=\"x\"}"), at most `maxLen` characters.
 std::string shortText(const Value& v, size_t maxLen = 120);
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

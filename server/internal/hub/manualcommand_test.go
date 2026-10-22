@@ -15,7 +15,7 @@ func TestManualCommandQuotesTheURL(t *testing.T) {
 }
 
 func TestManualCommandInContainer(t *testing.T) {
-	t.Setenv("FRAMEBEAM_HUB_CONTAINER", "1")
+	t.Setenv("UZUME_SERVER_CONTAINER", "1")
 	got := manualCommand("linux-amd64", &UpdateAvailable{URL: "https://example.org/a.deb", Artifact: "a.deb"})
 	if !strings.Contains(got, "pulling the new image") || strings.Contains(got, "apt") {
 		t.Fatal(got)

@@ -5,8 +5,8 @@
 #include "inputmap.h"
 #include "system_manifest.h"
 
-using namespace framebeam;
-using namespace framebeam::input;
+using namespace uzume;
+using namespace uzume::input;
 
 namespace {
 constexpr quint32 kB = 1u << 0, kY = 1u << 1, kSelect = 1u << 2, kStart = 1u << 3, kUp = 1u << 4, kDown = 1u << 5, kLeft = 1u << 6,
@@ -41,7 +41,7 @@ QHash<QString, quint32> legacy3ds() {
 }
 quint32 legacyMask(const QHash<QString, quint32>& t, quint32 in) {
   quint32 out = 0;
-  const auto& inputs = frameBeamInputs();
+  const auto& inputs = uzumeInputs();
   for (int i = 0; i < inputs.size(); ++i)
     if (in & (1u << i)) out |= t.value(inputs.at(i).id, 0u);
   return out;
@@ -61,7 +61,7 @@ class InputProfileTest : public QObject {
   void ndsAndThreeDsMasksAreUnchanged() {
     const auto nds = legacyNds();
     const auto t3 = legacy3ds();
-    const int n = frameBeamInputs().size();
+    const int n = uzumeInputs().size();
     QVERIFY(n <= 24);
     for (quint32 mask = 0; mask < (1u << n); mask += 37) {  // spread over the whole input space
       QCOMPARE(libretroMaskFor(QStringLiteral("nds"), mask), legacyMask(nds, mask));

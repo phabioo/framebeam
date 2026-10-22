@@ -1,9 +1,9 @@
 [Unit]
-Description=FrameBeam Hub update request
-Documentation=https://github.com/phabioo/framebeam
+Description=Uzume server update request
+Documentation=https://github.com/phabioo/uzume
 
 [Path]
-# The Hub (user framebeam) creates this file after it has staged a verified update.
+# The server (user framebeam) creates this file after it has staged a verified update.
 PathExists=/run/framebeam/update-request
 Unit=framebeam-hub-update.service
 

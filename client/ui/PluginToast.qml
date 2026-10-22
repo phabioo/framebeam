@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // One notice (docs/design/plugins.md 4g-2): grid 28 | flex | auto, padding 12, radius 10; tone info / important (cyan) or
 // warning (amber); source line 11/500, message 13/1.45, actions 28 high, "⋯" (mute menu) and "×" 22 x 22.

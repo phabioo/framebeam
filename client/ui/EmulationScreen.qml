@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // 3e: Emulation. Second column (Defaults, systems with "N changed") | main (category chips, options).
 // Settings are local to this device; only explicitly changed values are stored. Options of a system are exactly
@@ -506,8 +506,8 @@ Rectangle {
                     visible: !root.emu.defaultsSelected && root.emu.lockedCount > 0
                     objectName: "lockedHint"
                     Layout.fillWidth: true
-                    text: (root.emu.lockedCount === 1 ? qsTr("1 option of the core is controlled by FrameBeam (render mode, screen layout, on-screen display, firmware) and is not shown.")
-                                                : qsTr("%1 options of the core are controlled by FrameBeam (render mode, screen layout, on-screen display, firmware) and are not shown.").arg(root.emu.lockedCount))
+                    text: (root.emu.lockedCount === 1 ? qsTr("1 option of the core is controlled by Uzume (render mode, screen layout, on-screen display, firmware) and is not shown.")
+                                                : qsTr("%1 options of the core are controlled by Uzume (render mode, screen layout, on-screen display, firmware) and are not shown.").arg(root.emu.lockedCount))
                     color: Theme.textFaint
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap

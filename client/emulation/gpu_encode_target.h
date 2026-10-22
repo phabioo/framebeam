@@ -1,10 +1,10 @@
 #pragma once
-// GpuEncodeTarget: consumer of the Session encode texture (ADR 0019). framebeam_emulation only defines the interface;
+// GpuEncodeTarget: consumer of the Session encode texture (ADR 0019). uzume_emulation only defines the interface;
 // the implementation (CUDA-GL interop for h264_nvenc) lives outside and is injected by the UI.
 #include <QSize>
 #include <QString>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 class GpuEncodeTarget {
  public:
@@ -31,4 +31,4 @@ class GpuEncodeTarget {
   virtual void fail(const QString& reason) = 0;
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

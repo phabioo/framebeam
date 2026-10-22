@@ -1,6 +1,6 @@
 #pragma once
 // Zero-copy display (ADR 0027): the adapter between the emulation thread (emu::GpuDisplayTarget), the platform's display
-// ring (framebeam::DisplayProducer / DisplayTextureSource) and GameSession. framebeam_emulation only knows the emu
+// ring (uzume::DisplayProducer / DisplayTextureSource) and GameSession. uzume_emulation only knows the emu
 // interface; the platform implementation (Windows: D3D11 ring) comes out of makePlatformDisplay().
 
 #include <QSize>
@@ -14,15 +14,15 @@
 #include "gpu_display_target.h"
 #include "gpudisplay.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 struct PlatformDisplay {
-  std::unique_ptr<framebeam::DisplayProducer> producer;  // emulation thread
+  std::unique_ptr<uzume::DisplayProducer> producer;  // emulation thread
   std::unique_ptr<DisplayTextureSource> source;          // render thread
   std::shared_ptr<void> shared;                          // keeps the platform objects (the GL-D3D11 bridge) alive
 };
 // GUI thread, cheap (no GPU work). Empty producer = not available; *reason says why (e.g. "not Windows",
-// "FRAMEBEAM_DISABLE_ZERO_COPY=1").
+// "UZUME_DISABLE_ZERO_COPY=1").
 PlatformDisplay makePlatformDisplay(QString* reason);
 
 // What the game view's pixels need (D5). Pure; unit-tested as a truth table.
@@ -45,7 +45,7 @@ ReadbackPlan planReadback(bool displayActive, const QSize& viewLimit, const QSiz
 //   Active      a GameView has drawn a GPU frame (confirmShown): the readback may stop
 //   Unavailable not applicable here (the producer says why); quiet
 //   Failed      the producer or the source gave up; not retried within the game
-// Log lines (category framebeam.gpudisplay) once each, see the .cpp.
+// Log lines (category uzume.gpudisplay) once each, see the .cpp.
 class GpuDisplayBridge final : public emu::GpuDisplayTarget {
  public:
   enum class State { Pending, Active, Unavailable, Failed };
@@ -79,7 +79,7 @@ class GpuDisplayBridge final : public emu::GpuDisplayTarget {
   void notify() const;
 
   std::shared_ptr<void> shared_;  // destroyed last: the producer and the source may use the objects behind it
-  std::unique_ptr<framebeam::DisplayProducer> producer_;
+  std::unique_ptr<uzume::DisplayProducer> producer_;
   std::unique_ptr<DisplayTextureSource> source_;
   mutable std::atomic<State> state_{State::Pending};
   mutable std::mutex mutex_;  // guards reason_ and callback_
@@ -87,4 +87,4 @@ class GpuDisplayBridge final : public emu::GpuDisplayTarget {
   mutable std::function<void()> callback_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

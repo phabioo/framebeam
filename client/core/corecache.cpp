@@ -11,7 +11,7 @@
 
 #include "romcache.h"
 
-namespace framebeam {
+namespace uzume {
 
 CoreCache::CoreCache(const QString& root) : root_(root) {}
 
@@ -209,4 +209,4 @@ QStringList CoreCache::versions(const QString& coreId, const QString& platform) 
   return out;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -13,7 +13,7 @@
 #include "pluginhub.h"
 #include "profilestore.h"
 
-using namespace framebeam;
+using namespace uzume;
 using State = HubConnection::State;
 
 namespace {

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Settings > Plugins (round 3, 4a-3 / 4a-4): installed plugins first (58 px rows: monogram, name, version, origin pill,
 // one subtitle line, Update, toggle, "›" for the detail sheet), then "Available on <Hub>" with Install. Installing a plugin
@@ -725,7 +725,7 @@ ColumnLayout {
                 objectName: "pluginUnverifiedWarning"
                 visible: root.confirmEnablePlugin !== null && root.confirmEnablePlugin.needsConfirm
                 Layout.fillWidth: true
-                text: qsTr("FrameBeam has not checked this plugin. Turn it on only if you trust the admin of your Hub and where the file came from.")
+                text: qsTr("Uzume has not checked this plugin. Turn it on only if you trust the admin of your Hub and where the file came from.")
                 color: Theme.pluginWarnText
                 font.pixelSize: Theme.fontSmall
                 wrapMode: Text.WordWrap

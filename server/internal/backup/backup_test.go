@@ -65,7 +65,7 @@ func TestRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Name != "framebeam-hub-home-hub-20261014T010000Z.tar" {
+	if res.Name != "uzume-server-home-hub-20261014T010000Z.tar" {
 		t.Fatalf("name %q", res.Name)
 	}
 	m := res.Manifest
@@ -307,14 +307,17 @@ func TestNames(t *testing.T) {
 		t.Fatal("slug")
 	}
 	n := FileName("Home Hub", time.Date(2026, 10, 14, 18, 52, 3, 0, time.UTC), true)
-	if n != "framebeam-hub-home-hub-20261014T185203Z-safety.tar" {
+	if n != "uzume-server-home-hub-20261014T185203Z-safety.tar" {
 		t.Fatal(n)
 	}
 	ts, safety, ok := ParseName(n)
 	if !ok || !safety || ts.Hour() != 18 {
 		t.Fatal("parse")
 	}
-	for _, bad := range []string{"x.tar", "../framebeam-hub-a-20261014T185203Z.tar", "framebeam-hub-a-20261014T185203Z.tar.gz"} {
+	if _, safety, ok := ParseName("framebeam-hub-home-hub-20261014T185203Z-safety.tar"); !ok || !safety {
+		t.Fatal("archives of versions before the rename must still parse")
+	}
+	for _, bad := range []string{"x.tar", "../uzume-server-a-20261014T185203Z.tar", "uzume-server-a-20261014T185203Z.tar.gz"} {
 		if _, _, ok := ParseName(bad); ok {
 			t.Fatal(bad)
 		}

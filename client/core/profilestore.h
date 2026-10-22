@@ -6,7 +6,7 @@
 #include <QStringList>
 #include <optional>
 
-namespace framebeam {
+namespace uzume {
 
 // Hub profile per docs/architecture/10-identity-pairing-tls.md. Never contains a secret:
 // credentialRef is only the key in the CredentialStore.
@@ -29,7 +29,7 @@ class ProfileStore {
   // baseDir empty: defaultBaseDir() (see below).
   explicit ProfileStore(const QString& baseDir = QString());
 
-  // Order: env FRAMEBEAM_DATA_DIR, portable <program directory>/data (only if writable;
+  // Order: env UZUME_DATA_DIR, portable <program directory>/data (only if writable;
   // one-time copy from AppData), otherwise AppDataLocation.
   static QString defaultBaseDir();
   struct BaseDirChoice {
@@ -42,13 +42,20 @@ class ProfileStore {
   // profiles.json yet. Returns the number of copied files.
   static int migrateLegacyData(const QString& legacyDir, const QString& newDir);
   // 0.9 "One installer": a per-machine Player cannot write next to its program, so its data lives in newDir (AppData).
-  // Candidate folders of the old portable data: <localAppData>\\Programs\\FrameBeam Player\\data (per-user MSI
-  // install) and <programFiles>\\FrameBeam Player\\data (old all-users install). Empty arguments are skipped.
+  // Candidate folders of the old portable data: <localAppData>\\Programs\\Uzume\\data (per-user MSI
+  // install) and <programFiles>\\Uzume\\data (old all-users install). Empty arguments are skipped.
   static QStringList portableMigrationSources(const QString& localAppData, const QString& programFiles);
   // Copies the first source that holds Player data (profiles.json, device.json or hubs/) into newDir once: never
   // overwrites an existing file, skips cache/, never touches the source. Completion marker `.migrated-from-portable`
   // in newDir (written only after every copy succeeded; an incomplete run is retried). Returns the copied files.
   static int migratePortableData(const QStringList& sourceDirs, const QString& newDir);
+  // Rename FrameBeam Player -> Uzume changed QStandardPaths::AppDataLocation. The AppData folders of the old names
+  // (application name "FrameBeam Player" without and with the organization "FrameBeam"), computed with the old names.
+  static QStringList legacyAppDataDirs();
+  // When newDir holds no app data yet (no profiles.json, device.json or hubs/), copies the first old folder with app data
+  // into it once (same rules as migratePortableData: never overwrites, skips cache/, the old folder stays). Marker
+  // `.migrated-from-old-appdata`. Returns the number of copied files.
+  static int migrateOldAppData(const QStringList& oldDirs, const QString& newDir);
   static bool isValidHubId(const QString& hubId);
 
   const QString& baseDir() const { return baseDir_; }
@@ -96,4 +103,4 @@ class ProfileStore {
   QString lastHubId_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

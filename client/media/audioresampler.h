@@ -4,7 +4,7 @@
 
 #include <QByteArray>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class LinearResampler {
  public:
@@ -27,4 +27,4 @@ class LinearResampler {
   qint16 prevR_ = 0;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // "Start a run" (mode "start": name, plugins the Hub offers with run.state, players to invite, your game) and "Invite
 // players" into an open run (mode "invite").

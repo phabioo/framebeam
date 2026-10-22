@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // One row of the save timeline (docs/design/source/save-row.dc.html, dark; light follows Theme): rail 20 | text | actions.
 // kind: "current" (filled node, "✓ Current"), "snap" (diamond, "◆ Snapshot") or "plain" (hollow node).

@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/store"
 )
 
 func TestOpenRemovesLegacyCores(t *testing.T) {
@@ -98,7 +98,7 @@ func TestCheckCoresAliasAndServedCores(t *testing.T) {
 	if p := check(e, hub.CoreReport{ID: "desmume", Version: "old"}); len(p) != 1 || p[0].Code != hub.ProblemCoreVersionMismatch {
 		t.Fatalf("%+v", p)
 	}
-	// A core the Hub does not serve for the system does not count.
+	// A core the server does not serve for the system does not count.
 	if p := check(e, hub.CoreReport{ID: "noods", Version: "1"}); len(p) != 1 || p[0].Code != hub.ProblemCoreMissing {
 		t.Fatalf("%+v", p)
 	}

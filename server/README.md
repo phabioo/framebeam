@@ -6,13 +6,13 @@ Go service with SQLite: ROM library, versioned saves, users and devices, Session
 
 ```sh
 make check-hub                                   # gofmt, vet, staticcheck, tests, codegen freshness, packaging checks
-make build-hub                                   # server/dist/framebeam-hub-linux-{amd64,arm64}
+make build-hub                                   # server/dist/uzume-server-linux-{amd64,arm64}
 make generate                                    # Go code from protocol/openapi (oapi-codegen)
-framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTTP instead of HTTPS
-framebeam-hub setup-admin -username <name>       # first admin (password as one line from stdin)
+uzume-server -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTTP instead of HTTPS
+uzume-server setup-admin -username <name>       # first admin (password as one line from stdin)
 ```
 
-Requires Go >= 1.25 (`go.mod`). `cmd/framebeam-hub` is the server, `cmd/framebeam-sign` signs core and update indexes.
+Requires Go >= 1.25 (`go.mod`). `cmd/uzume-server` is the server, `cmd/uzume-sign` signs core and update indexes.
 
 ## Documentation
 

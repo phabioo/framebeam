@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/corepkg"
 )
 
 func rr(channel, version string, mod func(*Release)) Release {
@@ -281,7 +281,7 @@ func TestStageRollbackRejectsBadBackupName(t *testing.T) {
 }
 
 func TestApplyStagedRollbackKeepsData(t *testing.T) {
-	f := newFixture(t, "0.3.0") // the signed index holds 0.3.0; the running Hub is newer
+	f := newFixture(t, "0.3.0") // the signed index holds 0.3.0; the running server is newer
 	st := f.stageRollback(t, "", nil)
 	if !st.Rollback {
 		t.Fatal("staged.json must say rollback")
@@ -480,7 +480,7 @@ func TestApplyStagedRollbackStopFailureChangesNothing(t *testing.T) {
 		return nil, nil
 	}
 	_, err := f.apply(t, run, "0.4.0", func(o *ApplyOptions) { o.PrepareDB = func(string, map[string]string) error { return nil } })
-	if err == nil || !strings.Contains(err.Error(), "stop the Hub") {
+	if err == nil || !strings.Contains(err.Error(), "stop the server") {
 		t.Fatal(err)
 	}
 	if got := read(t, filepath.Join(f.dir, "framebeam.db")); !strings.HasSuffix(got, "LIVE") {

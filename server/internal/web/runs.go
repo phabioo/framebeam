@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // Runs page (docs/design/plugins.md 4jh-2): list, detail with status actions, participants, the board of each plugin
@@ -53,7 +53,7 @@ type boardView struct {
 type eventView struct {
 	Time   When
 	Text   string
-	Source string // empty for the Hub's own events
+	Source string // empty for the server's own events
 	Seq    string
 	Hub    bool
 }
@@ -83,7 +83,7 @@ type runDetail struct {
 
 type runsBody struct {
 	Self          string
-	HasRuns       bool // the Hub has any run at all (else the page shows one empty state)
+	HasRuns       bool // the server has any run at all (else the page shows one empty state)
 	ArchivedCount int
 	ArchivedOn    bool
 	ArchivedURL   string
@@ -353,7 +353,7 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 			}
 			bv.Meta = "Updated " + when(b.UpdatedAt, now).Text
 			if b.UpdatedBy != "" {
-				bv.Meta += " by " + b.UpdatedBy + "'s Player"
+				bv.Meta += " by " + b.UpdatedBy + "'s app"
 			}
 		}
 		det.Boards = append(det.Boards, bv)
@@ -376,7 +376,7 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 
 func eventRow(e hub.RunEvent, now time.Time) eventView {
 	v := eventView{Time: when(e.CreatedAt, now), Seq: fmt.Sprint(e.Seq), Hub: e.Source == hub.EventHub}
-	if v.Hub { // the text names the actor; the Hub needs no author and no source column
+	if v.Hub { // the text names the actor; the server needs no author and no source column
 		v.Text = hubEventText(e)
 		return v
 	}
@@ -385,7 +385,7 @@ func eventRow(e hub.RunEvent, now time.Time) eventView {
 		v.Text = e.Type
 	}
 	if e.Source == hub.EventAutomatic {
-		v.Source = "automatic · " + e.UserName + "'s Player"
+		v.Source = "automatic · " + e.UserName + "'s app"
 	} else {
 		v.Source = "manual · " + e.UserName
 	}
@@ -401,7 +401,7 @@ func boardTitle(tree json.RawMessage) string {
 	return strings.TrimSpace(root.Title)
 }
 
-// hubEventText words the events the Hub itself appends (the payload says who it is about).
+// hubEventText words the events the server itself appends (the payload says who it is about).
 func hubEventText(e hub.RunEvent) string {
 	var p struct {
 		UserName   string `json:"user_name"`
@@ -505,7 +505,7 @@ func (s *Server) runDeleteConfirm(w http.ResponseWriter, r *http.Request, sess *
 			fmt.Sprintf("The event log (%d events)", run.LastSeq),
 			"The boards the plugins published",
 		},
-		Note:   "Saves are not touched. Players that still show the run will not find it on the Hub any more.",
+		Note:   "Saves are not touched. Apps that still show the run will not find it on the server any more.",
 		Action: "/runs/" + run.ID + "/delete", Button: "Delete run", Cancel: "/runs/" + run.ID,
 	}
 	s.render(w, http.StatusOK, "confirm", "layout", d)
@@ -587,7 +587,7 @@ func (s *Server) runExport(w http.ResponseWriter, r *http.Request, sess *session
 }
 
 // pluginLabel is "Display name version" from the plugin store; the plugin id replaces the name when the store
-// does not hold the version (removed or never offered by this Hub).
+// does not hold the version (removed or never offered by this server).
 func (s *Server) pluginLabel(ctx context.Context, id, version string) string {
 	return s.pluginName(ctx, id, version) + " " + version
 }

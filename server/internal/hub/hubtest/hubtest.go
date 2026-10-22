@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/store"
 )
 
 // Clock is a controllable clock.
@@ -35,7 +35,7 @@ func New(t *testing.T, mod func(*hub.Options)) (*hub.Service, *Clock) {
 }
 
 // OpenIn opens (or reopens) a service on the data directory dir, like New, and also returns the database so a test
-// can prepare rows and open the same directory again (Hub restart). The database is closed when the test ends.
+// can prepare rows and open the same directory again (server restart). The database is closed when the test ends.
 func OpenIn(t *testing.T, dir string, mod func(*hub.Options)) (*hub.Service, *Clock, *sql.DB) {
 	t.Helper()
 	db, err := store.Open(filepath.Join(dir, "framebeam.db"))

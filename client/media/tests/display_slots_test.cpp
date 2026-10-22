@@ -5,8 +5,8 @@
 #include "displayslots.h"
 #include "processguard.h"
 
-using framebeam::DisplaySlots;
-using State = framebeam::DisplaySlots::State;
+using uzume::DisplaySlots;
+using State = uzume::DisplaySlots::State;
 
 class DisplaySlotsTest : public QObject {
   Q_OBJECT
@@ -150,22 +150,22 @@ class DisplaySlotsTest : public QObject {
   void sizesGrowOnlyInSteps64() {
     int w = 0;
     int h = 0;
-    framebeam::growSize(0, 0, 160, 144, &w, &h);
+    uzume::growSize(0, 0, 160, 144, &w, &h);
     QCOMPARE(w, 192);
     QCOMPARE(h, 192);
-    framebeam::growSize(w, h, 100, 100, &w, &h);  // smaller request: unchanged
+    uzume::growSize(w, h, 100, 100, &w, &h);  // smaller request: unchanged
     QCOMPARE(w, 192);
     QCOMPARE(h, 192);
-    framebeam::growSize(w, h, 256, 192, &w, &h);  // exact multiple stays
+    uzume::growSize(w, h, 256, 192, &w, &h);  // exact multiple stays
     QCOMPARE(w, 256);
     QCOMPARE(h, 192);
-    framebeam::growSize(w, h, 257, 10, &w, &h);  // one dimension grows, the other keeps its size
+    uzume::growSize(w, h, 257, 10, &w, &h);  // one dimension grows, the other keeps its size
     QCOMPARE(w, 320);
     QCOMPARE(h, 192);
-    QCOMPARE(framebeam::roundUpTo64(1), 64);
-    QCOMPARE(framebeam::roundUpTo64(64), 64);
-    QCOMPARE(framebeam::roundUpTo64(65), 128);
-    QCOMPARE(framebeam::roundUpTo64(0), 0);
+    QCOMPARE(uzume::roundUpTo64(1), 64);
+    QCOMPARE(uzume::roundUpTo64(64), 64);
+    QCOMPARE(uzume::roundUpTo64(65), 128);
+    QCOMPARE(uzume::roundUpTo64(0), 0);
   }
 
   void generationSwitchStartsAFreshMachine() {

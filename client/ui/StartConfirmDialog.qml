@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Confirmation before a different game starts while one is paused in the background (0.7.x). Modal; "Cancel" is the
 // default and focused action, Esc = cancel. Confirm quits the running game (saved and synced first) and starts the other.

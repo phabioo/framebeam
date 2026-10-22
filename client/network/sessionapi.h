@@ -10,7 +10,7 @@
 #include "hubconnection.h"
 #include "sessiontypes.h"
 
-namespace framebeam {
+namespace uzume {
 
 struct SessionApiResult {
   enum class Kind {
@@ -65,4 +65,4 @@ class SessionApi : public QObject {
   QPointer<HubConnection> conn_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

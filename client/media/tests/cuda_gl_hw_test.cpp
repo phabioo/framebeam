@@ -36,7 +36,7 @@ extern "C" {
 #include <libavutil/pixfmt.h>
 }
 
-using namespace framebeam;
+using namespace uzume;
 using Status = CudaGlCapture::Status;
 
 namespace {

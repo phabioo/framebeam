@@ -210,8 +210,8 @@ func TestMigration0009AdoptsLegacyCoreAsDefault(t *testing.T) {
 			cachedAt = "5"
 		}
 		for _, q := range []string{
-			`INSERT INTO core_packages VALUES ('melonds_ds','1.3.0','linux-x64','GPL-3.0','u','r','FrameBeam CI',1)`,
-			`INSERT INTO core_packages VALUES ('melonds_ds','1.4.0','linux-x64','GPL-3.0','u','r','FrameBeam CI',2)`,
+			`INSERT INTO core_packages VALUES ('melonds_ds','1.3.0','linux-x64','GPL-3.0','u','r','Uzume CI',1)`,
+			`INSERT INTO core_packages VALUES ('melonds_ds','1.4.0','linux-x64','GPL-3.0','u','r','Uzume CI',2)`,
 			`INSERT INTO core_package_files VALUES ('melonds_ds','1.3.0','linux-x64','a.so','library',1,'aa','u',5)`,
 			`INSERT INTO core_package_files VALUES ('melonds_ds','1.4.0','linux-x64','a.so','library',1,'bb','u',` + cachedAt + `)`,
 		} {
@@ -347,7 +347,7 @@ func TestMigration0017ExistingRowsGetDefaults(t *testing.T) {
 	var sys, core string
 	var forUser sql.NullString
 	if err := db.QueryRow(`SELECT COALESCE((SELECT MIN(core_auto_update) FROM systems), 'none')`).Scan(&sys); err != nil || sys != "" {
-		t.Fatalf("systems.core_auto_update %q (%v): existing systems follow the Hub default", sys, err)
+		t.Fatalf("systems.core_auto_update %q (%v): existing systems follow the server default", sys, err)
 	}
 	if err := db.QueryRow(`SELECT auto_update FROM system_cores WHERE core_id = 'testcore'`).Scan(&core); err != nil || core != "" {
 		t.Fatalf("system_cores.auto_update %q (%v): existing cores follow the system", core, err)

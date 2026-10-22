@@ -10,9 +10,9 @@
 
 #include "semver.h"
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcPluginHub, "framebeam.plugins.hub")
+Q_LOGGING_CATEGORY(lcPluginHub, "uzume.plugins.hub")
 
 namespace {
 
@@ -158,7 +158,7 @@ std::optional<HubPluginInfo> parseHubPluginInfo(const QJsonObject& o) {
 }
 
 PluginHubClient::PluginHubClient(HubConnection* connection, QObject* parent) : QObject(parent), conn_(connection) {
-  qRegisterMetaType<framebeam::PluginDownloadResult>("framebeam::PluginDownloadResult");
+  qRegisterMetaType<uzume::PluginDownloadResult>("uzume::PluginDownloadResult");
   connect(connection, &HubConnection::stateChanged, this, [this](HubConnection::State s) {
     if (s != HubConnection::State::Connected) {
       ++generation_;
@@ -263,4 +263,4 @@ void PluginHubClient::download(const QString& pluginId, const QString& version, 
   });
 }
 
-}  // namespace framebeam
+}  // namespace uzume

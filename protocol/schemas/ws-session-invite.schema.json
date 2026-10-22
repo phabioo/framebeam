@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-session-invite.schema.json",
-  "title": "ws-session-invite (Hub to Player: the user has been invited)",
+  "$id": "https://uzume.invalid/schemas/ws-session-invite.schema.json",
+  "title": "ws-session-invite (server to app: the user has been invited)",
   "type": "object",
   "required": [
     "type",

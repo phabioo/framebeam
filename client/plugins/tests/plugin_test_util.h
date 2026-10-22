@@ -12,7 +12,7 @@
 #include "manifest.h"
 #include "plugin_memory.h"
 
-namespace framebeam::plugins::testutil {
+namespace uzume::plugins::testutil {
 
 struct PluginSpec {
   QString id = QStringLiteral("net.test.plugin");
@@ -132,4 +132,4 @@ class FakeMemoryProvider : public MemoryProvider {
   uint64_t gen_ = 0;
 };
 
-}  // namespace framebeam::plugins::testutil
+}  // namespace uzume::plugins::testutil

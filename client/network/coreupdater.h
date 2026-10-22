@@ -13,7 +13,7 @@
 #include "hubconnection.h"
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 // Keeps the cores the user already has locally up to date without a game start (roadmap 0.10.x). check() takes the
 // Hub's systems list: for every core with a complete cached package whose Hub version is newer than the newest cached
@@ -55,7 +55,7 @@ class CoreUpdater : public QObject {
  signals:
   void statusChanged();
   // A newer build is complete in the cache (staged; used from the next game start).
-  void updated(const framebeam::CoreUpdater::Candidate& c, const framebeam::CoreResult& r);
+  void updated(const uzume::CoreUpdater::Candidate& c, const uzume::CoreResult& r);
 
  private:
   void startNext();
@@ -78,6 +78,6 @@ class CoreUpdater : public QObject {
   QTimer retryTimer_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::CoreUpdater::Candidate)
+Q_DECLARE_METATYPE(uzume::CoreUpdater::Candidate)

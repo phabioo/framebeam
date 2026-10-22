@@ -15,7 +15,7 @@
 #include "savesync.h"
 #include "sdtree.h"
 
-using namespace framebeam;
+using namespace uzume;
 using State = HubConnection::State;
 
 namespace {
@@ -258,7 +258,7 @@ class SaveSyncTest : public QObject {
     noV4_ = false;
     noV5_ = false;
     v6_ = false;
-    qRegisterMetaType<framebeam::SaveSync::Kind>();
+    qRegisterMetaType<uzume::SaveSync::Kind>();
     connectAll();
   }
   void cleanup() {

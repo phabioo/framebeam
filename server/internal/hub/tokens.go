@@ -3,7 +3,7 @@ package hub
 import (
 	"crypto/subtle"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/auth"
 )
 
 // TokenEqual compares two tokens (e.g. CSRF) in constant time.

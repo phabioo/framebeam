@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // One "Current" marker: a snapshot of the current checkpoint has the same revision and must not get a second one.

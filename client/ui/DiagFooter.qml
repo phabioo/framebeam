@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Footer of the diagnostics overlay (3t-2): "Hide diagnostics" + key badge (the configured diagnostics key), right-aligned.
 // The same label and key as the header button.

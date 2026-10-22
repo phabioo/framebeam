@@ -16,7 +16,7 @@
 #include "hubhttp.h"
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 // ------------------------------------------------------------------------------------------------------------- codec
 
@@ -613,4 +613,4 @@ std::unique_ptr<ConnectionProbes> makeQtConnectionProbes(ConnectionTestFn test, 
   return std::make_unique<QtProbes>(std::move(test), std::move(cancelTest), timings);
 }
 
-}  // namespace framebeam
+}  // namespace uzume

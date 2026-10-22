@@ -3,7 +3,7 @@
 #include <cmath>
 #include <map>
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 Value valueFromJson(const QJsonValue& j, int depth) {
   Value v;
@@ -148,4 +148,4 @@ bool jsonObjectFromValue(const Value& v, QJsonObject& out, QString& err) {
   return true;
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

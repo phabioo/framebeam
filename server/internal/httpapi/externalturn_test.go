@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 type turnEntry struct {
@@ -51,7 +51,7 @@ func TestExternalTURNInHelloAckJoinAndICEUpdate(t *testing.T) {
 		}
 	}
 
-	// ice_update to the connected Player (also periodic: shared-secret credentials are renewed).
+	// ice_update to the connected app (also periodic: shared-secret credentials are renewed).
 	for i := 0; i < 2; i++ {
 		var p struct {
 			TurnServers []turnEntry `json:"turn_servers"`
@@ -87,7 +87,7 @@ func TestExternalTURNInHelloAckJoinAndICEUpdate(t *testing.T) {
 	}
 }
 
-// A list saved in the web interface replaces the flag list for connected Players (ice_update) and new connections
+// A list saved in the web interface replaces the flag list for connected apps (ice_update) and new connections
 // (hello_ack) without a restart.
 func TestSavedExternalTURNListAppliesWithoutRestart(t *testing.T) {
 	s := newSessEnv(t, func(o *hub.Options) { o.ICEServers = []string{"stun:stun.example.org:3478"} })

@@ -13,7 +13,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace framebeam::input {
+namespace uzume::input {
 
 struct PadHotkeyBinding {
   QString action;
@@ -38,4 +38,4 @@ class PadHotkeyDetector {
   QSet<QString> suppressed_;
 };
 
-}  // namespace framebeam::input
+}  // namespace uzume::input

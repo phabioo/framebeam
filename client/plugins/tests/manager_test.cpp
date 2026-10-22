@@ -6,8 +6,8 @@
 #include "plugin_manager.h"
 #include "plugin_test_util.h"
 
-using namespace framebeam::plugins;
-using namespace framebeam::plugins::testutil;
+using namespace uzume::plugins;
+using namespace uzume::plugins::testutil;
 
 class ManagerTest : public QObject {
   Q_OBJECT

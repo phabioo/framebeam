@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // One collapsible section of the diagnostics overlay: caret, title (mono eyebrow), and, while collapsed, the summary line.
 // The body is the default content; a click on the header toggles.

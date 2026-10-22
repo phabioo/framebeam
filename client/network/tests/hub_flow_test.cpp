@@ -11,7 +11,7 @@
 #include "hubhttp.h"
 #include "profilestore.h"
 
-using namespace framebeam;
+using namespace uzume;
 using State = HubConnection::State;
 
 #define WAIT_STATE(conn, st) QTRY_VERIFY_WITH_TIMEOUT((conn).state() == (st), 8000)

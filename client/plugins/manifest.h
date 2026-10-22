@@ -11,7 +11,7 @@
 #include "semver.h"
 
 // Plugin manifest (manifest.json, docs/architecture/12-plugins.md 16.6). Pure parsing/validation, no Lua.
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 inline constexpr int kPluginApiVersion = 1;
 
@@ -77,7 +77,7 @@ struct Manifest {
   int api = kPluginApiVersion;
   QString type = QStringLiteral("script");
   QList<Dependency> dependencies;  // manifest field "requires"
-  std::optional<update::SemVer> minPlayer;  // optional field "min_player": the oldest FrameBeam Player that runs the plugin
+  std::optional<update::SemVer> minPlayer;  // optional field "min_player": the oldest Uzume that runs the plugin
   QStringList provides;
   QList<GamePattern> games;        // empty = all games
   QStringList permissions;
@@ -106,7 +106,7 @@ ManifestResult loadManifest(const QString& dir);
 // A plugin as known to the manager and handed to the host.
 struct PluginInfo {
   Manifest manifest;
-  QString origin = QStringLiteral("local");  // "official" (valid FrameBeam signature) | "unverified" (unsigned Hub copy) | "local"
+  QString origin = QStringLiteral("local");  // "official" (valid Uzume signature) | "unverified" (unsigned Hub copy) | "local"
   bool hubCopy = false;                      // installed under hub/<id>/<version> (delivered by the Hub)
   QString sha256;                            // hub copy: SHA-256 of the .fbplugin file it was installed from
   QString path;                              // directory the plugin runs from
@@ -116,4 +116,4 @@ struct PluginInfo {
   QStringList problems;                      // why it cannot start (manifest or dependency problems)
 };
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

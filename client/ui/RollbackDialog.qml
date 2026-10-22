@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // "Go back to <version>?" (design 6c-2): what happens, what stays, what is turned off. Modal; "Cancel" has the focus, Esc
 // cancels. While a game or Session runs the primary is muted and the dialog says why. The Player closes, installs the

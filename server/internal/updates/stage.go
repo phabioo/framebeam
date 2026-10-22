@@ -20,10 +20,13 @@ const (
 	SettingsFileName = "settings.json"
 	LastResultName   = "last-result.json"
 	RequestFileName  = "update-request"
-	// DefaultRequestDir is where the request file lives (systemd RuntimeDirectory of the Hub service).
+	// DefaultRequestDir is where the request file lives (systemd RuntimeDirectory of the server service).
 	DefaultRequestDir = "/run/framebeam"
-	// PackagedExecutable is the path of the Hub binary of a .deb install.
-	PackagedExecutable = "/usr/bin/framebeam-hub"
+	// PackagedExecutable is the path of the server binary of a .deb install.
+	PackagedExecutable = "/usr/bin/uzume-server"
+	// LegacyPackagedExecutable is the binary name of installs made by versions before the rename (the new .deb keeps
+	// it as a compatibility symlink); it still counts as a packaged install.
+	LegacyPackagedExecutable = "/usr/bin/framebeam-hub"
 )
 
 // Staged is the content of staged.json.
@@ -34,7 +37,7 @@ type Staged struct {
 	// signed index and a release that speaks its protocol version instead of "strictly newer".
 	Rollback bool `json:"rollback,omitempty"`
 	// RestoreDB names a file of <data>/backups (hub-<from>-to-<to>-<ts>.db) that replaces the database while the
-	// Hub is stopped, because the target needs an older schema.
+	// Server is stopped, because the target needs an older schema.
 	RestoreDB string `json:"restore_db,omitempty"`
 }
 
@@ -70,7 +73,7 @@ func Stage(ctx context.Context, f *Fetched, rel Release, art Artifact, dataDir s
 
 // StageRollback is Stage for going back to an older release. restoreDB (optional) names the pre-update database
 // backup to put in place; settings (optional) are written into that restored database (update_auto = 0 and the
-// pause, so that the older Hub, which may not know the rollback, does not update itself again).
+// pause, so that the older server, which may not know the rollback, does not update itself again).
 func StageRollback(ctx context.Context, f *Fetched, rel Release, art Artifact, dataDir, restoreDB string, settings map[string]string) (Staged, error) {
 	if restoreDB != "" {
 		if _, ok := ParseDBBackupName(restoreDB); !ok {

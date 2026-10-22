@@ -1,4 +1,4 @@
-// Package clientip decides who a request really comes from when the Hub runs behind a reverse proxy.
+// Package clientip decides who a request really comes from when the server runs behind a reverse proxy.
 //
 // Forwarding headers are honoured only when the TCP peer is inside the configured trusted-proxy list
 // (-trusted-proxy). Requests from a trusted proxy are never "local" (setup and the local API stay closed to them).
@@ -128,7 +128,7 @@ func hasProxyHeader(r *http.Request) bool {
 	return false
 }
 
-// Local reports whether r comes from the machine the Hub runs on: never when it came through a trusted proxy;
+// Local reports whether r comes from the machine the server runs on: never when it came through a trusted proxy;
 // otherwise the TCP peer is loopback, no proxy header is present and the Host header names a loopback address.
 // A proxy on the same host that sends none of the headers and rewrites Host to a loopback name cannot be told
 // apart from a local client: such deployments must set -trusted-proxy.

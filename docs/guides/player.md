@@ -4,7 +4,7 @@ Uzume (`client/`, the app) connects to a server, keeps your library and saves in
 
 ## Install
 
-- **Windows:** run the installer from the [GitHub releases](https://github.com/phabioo/framebeam/releases): the MSI `framebeam.msi` (CI artifact `framebeam-windows-x64-msi`); the portable zip works too. The default is a per-user app install, no admin rights. The installer is unsigned (SmartScreen warning). Neither ships an emulator core: the app downloads the core for a system from the server on first use. Installer details: [packaging.md](packaging.md).
+- **Windows:** run the installer from the [GitHub releases](https://github.com/phabioo/uzume/releases): the MSI `uzume-<version>-windows-x64.msi` (CI artifact `uzume-windows-x64-msi`); the portable zip works too. The default is a per-user app install, no admin rights. The installer is unsigned (SmartScreen warning). Neither ships an emulator core: the app downloads the core for a system from the server on first use. Installer details: [packaging.md](packaging.md).
 - **Linux:** builds and runs for development ([development.md](../development.md)). Credentials are kept in memory only, so pair again after a restart.
 
 ## Set up a server on this PC
@@ -20,7 +20,7 @@ On the connection screen, "Set up a Hub on this PC" runs a server on the same co
 1. Start the app and enter the server address (or pick a saved server profile; auto-connect is available).
 2. On first contact the app shows the server's certificate fingerprint. Compare it with the server's log or Settings page and confirm (trust on first use). On a mismatch the connection is blocked and no credential is sent.
 3. Request pairing; an admin allows it on the server's Clients page. Alternatively choose "I have an invite code" and enter the code and your display name: the server creates a user for you without a password.
-4. Credentials are stored in the Windows Credential Manager. Known limitation: Linux and macOS builds have no OS credential store yet (planned after 1.0); the device credential is kept in memory only, so after every restart the app pairs again and the admin approves the device anew (no secret is written to disk).
+4. Credentials are stored in the Windows Credential Manager under the target `Uzume/<server id>/<device id>`. A credential saved by an older version under `FrameBeam/...` is still found, copied to the new target and left in place, so a downgrade keeps working. Known limitation: Linux and macOS builds have no OS credential store yet (planned after 1.0); the device credential is kept in memory only, so after every restart the app pairs again and the admin approves the device anew (no secret is written to disk).
 
 After a server certificate change (renewal) the server card shows the stored and the presented fingerprint. "Trust new certificate", then "Yes, trust this certificate" re-pins it and keeps the credential (CLI: `--accept-fingerprint <sha256>`). Settings → Hubs switches, edits (address, port), removes and sets auto-connect for servers.
 
@@ -37,9 +37,9 @@ After a server certificate change (renewal) the server card shows the stored and
 - Experimental cores: a core without an Uzume profile (badge "experimental") runs without option defaults or locks, shows the framebuffer as one screen, has no touch input and only gets firmware placed in its system directory.
 - Core change and saves: when a game starts with another core or another build than the one that last wrote its save, the app first creates a manual snapshot on the server ("Before core change: ..." in the save history) and shows a notice. If the snapshot cannot be created (server unreachable) the game does not start and the save stays untouched; without server snapshot support a local backup copy is made. Switch back to the previous core to start offline.
 - Save files per core: the server always holds the raw cartridge save. melonDS DS stores it as `<game>.sav`; DeSmuME keeps its own `<game>.dsv` (raw save plus a DeSmuME footer), which the app converts before the start and after play. Only the file of the running core is synced, so switching cores never flips the server save between formats. A `.dsv` that cannot be read is never uploaded and never overwritten; the game reports it and your server save stays unchanged.
-- Emulation page: core options per global / system level (options Uzume controls are hidden). melonDS DS offers an OpenGL renderer and internal resolution (applied on next start; default Software). `FRAMEBEAM_DISABLE_HW_RENDER=1` forces the software path.
+- Emulation page: core options per global / system level (options Uzume controls are hidden). melonDS DS offers an OpenGL renderer and internal resolution (applied on next start; default Software). `UZUME_DISABLE_HW_RENDER=1` forces the software path.
 - Game overrides (0.10): the Emulation page edits core, speed-up and core options at Game level (game > system > global); "Reset" removes the game's overrides.
-- Nintendo 3DS ([ADR 0022](../adr/0022-nintendo-3ds-with-azahar.md)): needs the `azahar` core installed by the server admin and an OpenGL Core >= 3.3 context; without it the game does not start and the app shows an error (no software fallback; `FRAMEBEAM_DISABLE_HW_RENDER=1` therefore also blocks 3DS games). Use decrypted dumps (`.3ds .cci .cxi .3dsx` and the compressed `.zcci .zcxi .z3dsx`); Uzume never decrypts and ships no firmware. Layout: top 400x240, bottom 320x240 with touch by mouse. Keyboard: E/R = ZL/ZR, T/G/F/H = circle pad, I/K/J/L = C-stick. Gamepad: triggers = ZL/ZR, left stick = circle pad (the DS folds them back into L/R and the D-pad). Earlier user profiles keep their bindings; set the new inputs manually in Controllers.
+- Nintendo 3DS ([ADR 0022](../adr/0022-nintendo-3ds-with-azahar.md)): needs the `azahar` core installed by the server admin and an OpenGL Core >= 3.3 context; without it the game does not start and the app shows an error (no software fallback; `UZUME_DISABLE_HW_RENDER=1` therefore also blocks 3DS games). Use decrypted dumps (`.3ds .cci .cxi .3dsx` and the compressed `.zcci .zcxi .z3dsx`); Uzume never decrypts and ships no firmware. Layout: top 400x240, bottom 320x240 with touch by mouse. Keyboard: E/R = ZL/ZR, T/G/F/H = circle pad, I/K/J/L = C-stick. Gamepad: triggers = ZL/ZR, left stick = circle pad (the DS folds them back into L/R and the D-pad). Earlier user profiles keep their bindings; set the new inputs manually in Controllers.
 - Game Boy, Game Boy Color and Game Boy Advance ([ADR 0024](../adr/0024-system-template-and-game-boy.md)): the server admin installs a core (for example mGBA, or Gambatte for GB/GBC). Extensions `.gb`, `.gbc`, `.gba`; one screen. A boot ROM/BIOS is optional and used only in firmware mode `native`. Keyboard and gamepad use the same bindings as other systems; L/R exist only on the GBA.
 - 3DS saves sync with the server like other saves (the game's save data and extdata only, not system data). Restore, upload and conflict resolution in a running 3DS game restart the game with the new save (as for NDS).
 - ROM cache: Settings → "ROM cache limit" (default 20 GB, 0 = unlimited). The least recently used ROMs are removed first; the running or starting game, active downloads and `.part` files are never removed. Trimming runs at startup, when a ROM is ready, when a game ends and when the limit changes. "Clear ROM cache" asks for confirmation and shows the freed size.
@@ -58,7 +58,7 @@ Plugin runtime of 0.11 ([API reference](plugin-api.md), [design](../architecture
 
 ## Collect logs
 
-When something does not work, hand over one file instead of describing it: Settings → Diagnostics → "Collect logs…" opens a save dialog (default name `framebeam-player-diagnostics-<UTC timestamp>.zip` in Desktop or Downloads) and writes the bundle in the background; "Show in folder" then opens its folder. Without the window (for example when the app does not start): `framebeam_player --collect-logs out.zip [--data-dir <path>]` (offline, reads only the data directory, refuses to overwrite an existing file). Same layout as the server bundle ([hub-configuration.md](hub-configuration.md)):
+When something does not work, hand over one file instead of describing it: Settings → Diagnostics → "Collect logs…" opens a save dialog (default name `uzume-diagnostics-<UTC timestamp>.zip` in Desktop or Downloads) and writes the bundle in the background; "Show in folder" then opens its folder. Without the window (for example when the app does not start): `framebeam_player --collect-logs out.zip [--data-dir <path>]` (offline, reads only the data directory, refuses to overwrite an existing file). Same layout as the server bundle ([hub-configuration.md](hub-configuration.md)):
 
 | Entry | Content |
 |---|---|
@@ -86,7 +86,7 @@ What the test connection proves: the app's WebRTC stack works with these servers
 
 Results: "Your network allows direct connections" (green), "Only relayed connections are possible here" (amber: works, adds delay), "Connections to other networks are not possible from here" (amber: no usable relay or STUN, so Sessions work on the same network only), "<Hub> cannot be reached" (the other steps are skipped; "Edit server address…" opens the server's address field in Settings). If the app has no open session with the server, the check ends after step 1 with "Connect to <server> to run the full check", because the server's STUN and relay servers are not known then. A check can be cancelled (Esc or Cancel) and stops after 60 s at the latest.
 
-Actions: "Copy result" (Ctrl+C) copies the result as text, "Add to problem report" keeps it for the next "Collect logs" bundle (`connection-check.json`, taken by that one bundle) and ticks it in the "Report a problem" dialog (until a report with it was sent), "Run again" (R). The text and the JSON contain addresses and server names, never the relay credentials. `FRAMEBEAM_FORCE_RELAY=1` is noted in the result and makes the check report "only relayed".
+Actions: "Copy result" (Ctrl+C) copies the result as text, "Add to problem report" keeps it for the next "Collect logs" bundle (`connection-check.json`, taken by that one bundle) and ticks it in the "Report a problem" dialog (until a report with it was sent), "Run again" (R). The text and the JSON contain addresses and server names, never the relay credentials. `UZUME_FORCE_RELAY=1` is noted in the result and makes the check report "only relayed".
 
 ## Report a problem
 
@@ -105,29 +105,29 @@ While it uploads, the dialog shows progress and "Cancel" (back to editing, the t
 
 ## Data directory
 
-The ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users/<user_id>/saves/<game_id>/`, `system/` and settings are stored portable by default in `<directory of the executable>/data` (plugins in `plugins/`), provided a real write test succeeds there. Otherwise the app falls back to AppData (`QStandardPaths::AppDataLocation`) and logs a note, for example when installed under Program Files. On the first portable start existing AppData data is copied once (nothing is moved, deleted or overwritten; `device_id` is preserved; the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir <path>` or `FRAMEBEAM_DATA_DIR` take precedence ([ADR 0004](../adr/0004-player-portable-data.md)).
+The ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users/<user_id>/saves/<game_id>/`, `system/` and settings are stored portable by default in `<directory of the executable>/data` (plugins in `plugins/`), provided a real write test succeeds there. Otherwise the app falls back to AppData (`QStandardPaths::AppDataLocation`) and logs a note, for example when installed under Program Files. On the first start under the new name (Uzume) the AppData folder of the old application name "FrameBeam Player" is copied once as well (the old folder stays). On the first portable start existing AppData data is copied once (nothing is moved, deleted or overwritten; `device_id` is preserved; the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir <path>` or `UZUME_DATA_DIR` take precedence ([ADR 0004](../adr/0004-player-portable-data.md)).
 
 ## Command line and environment
 
 ```sh
-framebeam_player [--data-dir <path>] [--dev-allow-http] [--collect-logs <out.zip>] [--version | --version-json] [--help]
-framebeam_player_cli <command> ...            # run without arguments for the usage text
+uzume [--data-dir <path>] [--dev-allow-http] [--collect-logs <out.zip>] [--version | --version-json] [--help]
+uzume-cli <command> ...            # run without arguments for the usage text
 ```
 
 `--dev-allow-http` allows HTTP servers outside localhost (development only). The CLI covers `identify`, `pair`, `redeem-invite <address> --code FB-XXXX-XXXX --name <name>`, `games`, `fetch-rom`, `game upload <file> [--title T]`, `systems`, `fetch-core <system-id>`, `saves list`, `save push|pull|resolve`, `session-share --synthetic`, `session-watch` (both accept `--force-relay`) and `update-check`; the CLI has no hardware rendering. `scripts/e2e-player-hub.sh` checks the CLI against a locally built server, including a save round trip.
 
 | Variable | Meaning |
 |---|---|
-| `FRAMEBEAM_DATA_DIR` | Data directory (same as `--data-dir`) |
-| `FRAMEBEAM_FORCE_RELAY=1` | Force the TURN relay for Sessions (testing; the CLI also has `--force-relay`) |
-| `FRAMEBEAM_DISABLE_HW_RENDER=1` | Force the software rendering path of cores |
-| `FRAMEBEAM_DISABLE_GPU_ENCODE=1` | Kill switch for GPU-direct encoding of shared Sessions ([ADR 0019](../adr/0019-gpu-direct-nvenc.md)); the Session encoder gets read-back frames |
-| `FRAMEBEAM_DISABLE_ZERO_COPY=1` | Kill switch for the zero-copy game view on Windows ([ADR 0027](../adr/0027-gpu-paths.md)); the game view uses read-back frames. It does not disable GPU-direct QSV and AMF |
-| `FRAMEBEAM_H264_ENCODER=<name>` | Force one H.264 encoder (for example `h264_nvenc` or `libx264`); keeps the readback path, also for `h264_nvenc`, so it serves as the baseline when comparing against GPU-direct |
-| `FRAMEBEAM_SYNC_READBACK=1` | Force synchronous readback of hardware-rendered frames instead of double-buffered PBOs ([ADR 0013](../adr/0013-opengl-hardware-rendering.md) D3) |
-| `FRAMEBEAM_PLAYER_UPDATE_INDEX_URL`, `FRAMEBEAM_PLAYER_TRUST_KEYS` | Update index URL and extra trusted keys for the update index only (tests); cores are not signed |
-| `FRAMEBEAM_MELONDS_DS_CORE`, `FRAMEBEAM_DESMUME_CORE` | Core path for tests (build time / tests only) |
-| `FRAMEBEAM_SCREENSHOT_DIR` | Output directory of the screenshot tests |
+| `UZUME_DATA_DIR` | Data directory (same as `--data-dir`) |
+| `UZUME_FORCE_RELAY=1` | Force the TURN relay for Sessions (testing; the CLI also has `--force-relay`) |
+| `UZUME_DISABLE_HW_RENDER=1` | Force the software rendering path of cores |
+| `UZUME_DISABLE_GPU_ENCODE=1` | Kill switch for GPU-direct encoding of shared Sessions ([ADR 0019](../adr/0019-gpu-direct-nvenc.md)); the Session encoder gets read-back frames |
+| `UZUME_DISABLE_ZERO_COPY=1` | Kill switch for the zero-copy game view on Windows ([ADR 0027](../adr/0027-gpu-paths.md)); the game view uses read-back frames. It does not disable GPU-direct QSV and AMF |
+| `UZUME_H264_ENCODER=<name>` | Force one H.264 encoder (for example `h264_nvenc` or `libx264`); keeps the readback path, also for `h264_nvenc`, so it serves as the baseline when comparing against GPU-direct |
+| `UZUME_SYNC_READBACK=1` | Force synchronous readback of hardware-rendered frames instead of double-buffered PBOs ([ADR 0013](../adr/0013-opengl-hardware-rendering.md) D3) |
+| `UZUME_APP_UPDATE_INDEX_URL`, `UZUME_APP_TRUST_KEYS` | Update index URL and extra trusted keys for the update index only (tests); cores are not signed |
+| `UZUME_MELONDS_DS_CORE`, `UZUME_DESMUME_CORE` | Core path for tests (build time / tests only) |
+| `UZUME_SCREENSHOT_DIR` | Output directory of the screenshot tests |
 
 Diagnostics (F3), 0.15: the Emulation Frame row shows a `zero-copy` part (`9.4 ms · emu 7.1 · zero-copy 0.2 (60/s)`) while the game view is drawn from the GPU, and a `readback` part only while readback runs. The Resolution row shows ` → shown W×H` for the zero-copy size instead of ` → read back W×H`. The host row ends with `· GPU-direct` for NVENC, AMF and QSV.
 

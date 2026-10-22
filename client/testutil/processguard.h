@@ -53,10 +53,10 @@ inline void prepareProcess() {
   }
 }
 
-// FRAMEBEAM_TEST_LOG_DIR=<dir>: additionally write the QtTest log to <dir>/<test exe name>.txt (survives crashes and
+// UZUME_TEST_LOG_DIR=<dir>: additionally write the QtTest log to <dir>/<test exe name>.txt (survives crashes and
 // intermittent failures; stdout stays as is). Returns the extra arguments to append.
 inline std::vector<std::string> logArgs(const char* argv0) {
-  const QByteArray dir = qgetenv("FRAMEBEAM_TEST_LOG_DIR");
+  const QByteArray dir = qgetenv("UZUME_TEST_LOG_DIR");
   if (dir.isEmpty()) {
     return {};
   }

@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/phabioo/uzume/server/internal/envcompat"
 )
 
 // External TURN servers (-turn-external). One flag value describes one server as semicolon-separated key=value
@@ -15,10 +17,10 @@ import (
 //	mode=secret|static    credential mode (default secret)
 //	urls=<url>,<url>      turn: and turns: URLs, optional ?transport=udp|tcp
 //	username=<user>       static mode only
-//	secret-file=<path>    secret mode: file holding the shared secret (alternative: FRAMEBEAM_TURN_EXTERNAL_<n>_SECRET)
-//	password-file=<path>  static mode: file holding the password (alternative: FRAMEBEAM_TURN_EXTERNAL_<n>_PASSWORD)
+//	secret-file=<path>    secret mode: file holding the shared secret (alternative: UZUME_TURN_EXTERNAL_<n>_SECRET)
+//	password-file=<path>  static mode: file holding the password (alternative: UZUME_TURN_EXTERNAL_<n>_PASSWORD)
 //
-// <n> is the 1-based position of the server. The flag can be repeated; in FRAMEBEAM_TURN_EXTERNAL the servers are
+// <n> is the 1-based position of the server. The flag can be repeated; in UZUME_TURN_EXTERNAL the servers are
 // separated by newlines. Secrets and passwords are never part of the flag value, the Config or any log.
 
 // External TURN credential modes.
@@ -181,14 +183,15 @@ func checkTURNURL(u string) error {
 }
 
 // ExternalTURNSecret returns the shared secret (mode secret) or password (mode static) of server n (1-based): the
-// environment variable FRAMEBEAM_TURN_EXTERNAL_<n>_SECRET or _PASSWORD wins over the file. Errors never contain
+// environment variable UZUME_TURN_EXTERNAL_<n>_SECRET or _PASSWORD wins over the file. Errors never contain
 // the value.
 func (c *Config) ExternalTURNSecret(sp ExternalTURNSpec, n int, getenv func(string) string) (string, error) {
+	getenv = envcompat.Wrap(getenv)
 	kind, file := "SECRET", sp.SecretFile
 	if sp.Mode == ExternalModeStatic {
 		kind, file = "PASSWORD", sp.PasswordFile
 	}
-	envName := "FRAMEBEAM_TURN_EXTERNAL_" + strconv.Itoa(n) + "_" + kind
+	envName := "UZUME_TURN_EXTERNAL_" + strconv.Itoa(n) + "_" + kind
 	if v := strings.TrimSpace(getenv(envName)); v != "" {
 		return v, nil
 	}

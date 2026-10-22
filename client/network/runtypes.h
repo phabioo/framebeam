@@ -7,7 +7,7 @@
 #include <QString>
 #include <optional>
 
-namespace framebeam {
+namespace uzume {
 
 // Runs (Hub feature runs_v1, 0.11 package 3 contract section 5; schemas protocol/schemas/ws-run*.schema.json).
 
@@ -86,4 +86,4 @@ inline constexpr int kRunMaxBoardBytes = 64 * 1024;
 // Slot of the Player's saves for a run: "run-" + the first 8 hex characters of the run id.
 QString runSaveSlot(const QString& runId);
 
-}  // namespace framebeam
+}  // namespace uzume

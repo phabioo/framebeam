@@ -20,7 +20,7 @@
 #include <memory>
 #include <mutex>
 
-namespace framebeam {
+namespace uzume {
 
 // `GameSession` and the platform factory share the bridge as std::shared_ptr<void>; it IS a
 // std::shared_ptr<GlD3d11Bridge> (std::static_pointer_cast<GlD3d11Bridge>(shared)) when the factory made it.
@@ -105,4 +105,4 @@ class GlD3d11Bridge {
   std::atomic<int> users_{0};
 };
 
-}  // namespace framebeam
+}  // namespace uzume

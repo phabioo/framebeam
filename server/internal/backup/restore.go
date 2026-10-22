@@ -93,7 +93,7 @@ func WriteResult(dataDir string, r RestoreResult) error {
 // DismissResult removes the stored restore result.
 func DismissResult(dataDir string) { os.Remove(filepath.Join(dataDir, resultFile)) }
 
-// ApplyPending swaps a prepared restore in. The Hub must not have the database open. It returns nil, nil when
+// ApplyPending swaps a prepared restore in. The server must not have the database open. It returns nil, nil when
 // nothing is pending. On failure every item is moved back (the data directory is as before), the failure is
 // stored as the restore result and returned together with the error. A crash in the middle is repaired at the
 // next call: a swap without the COMMITTED tag is rolled back and run again, a committed one is only cleaned up.

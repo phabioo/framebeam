@@ -11,10 +11,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/config"
 )
 
-// Realtime layer (ADR 0006 D3): the Hub-side protocol of the WSS endpoint, independent of the WebSocket
+// Realtime layer (ADR 0006 D3): the server-side protocol of the WSS endpoint, independent of the WebSocket
 // library. The transport (internal/httpapi) feeds incoming text frames to Client.Handle and writes
 // Client.Out(); it closes the connection when Client.Done() fires.
 
@@ -150,7 +150,7 @@ func (s *Service) armOwnerGrace(sessionID, deviceID string) {
 }
 
 // Close stops the Session grace timers and waits for a callback that is already running. Call it before the
-// database closes (Hub shutdown, in-process restart). The service is not usable for Sessions afterwards.
+// database closes (server shutdown, in-process restart). The service is not usable for Sessions afterwards.
 func (s *Service) Close() {
 	s.stopBackup()
 	s.sess.mu.Lock() // waits for a running grace callback (they hold it while they work)
@@ -201,7 +201,7 @@ func (s *Service) ownerGraceExpired(sessionID, deviceID string, gen uint64) {
 	}
 }
 
-// armViewerGrace covers a viewer that joined by REST but never opened (or lost, over a Hub restart) its WSS
+// armViewerGrace covers a viewer that joined by REST but never opened (or lost, over a server restart) its WSS
 // connection: without a connection after the grace period the viewer is removed like after a drop.
 func (s *Service) armViewerGrace(viewerID, deviceID string) {
 	rt := &s.sess.rt
@@ -319,7 +319,7 @@ func (c *Client) SetRemoteAddr(remoteAddr string) {
 	}
 }
 
-// ConnectedPlayerIP reports whether ip is the remote IP of a currently connected (hello-processed) Player.
+// ConnectedPlayerIP reports whether ip is the remote IP of a currently connected (hello-processed) app.
 func (s *Service) ConnectedPlayerIP(ip netip.Addr) bool {
 	ip = ip.Unmap()
 	for _, c := range s.clients() {
@@ -462,7 +462,7 @@ func (c *Client) hello(env envelope) error {
 	}
 	info := c.svc.Info()
 	if h.ProtocolVersion < info.MinProtocolVersion {
-		c.sendError(env.ID, "player_too_old", "Player protocol version below the hub's minimum")
+		c.sendError(env.ID, "player_too_old", "App protocol version below the server's minimum")
 		return errFatal
 	}
 	ice, turn := c.svc.iceFor(c.reqHost, c.deviceID)

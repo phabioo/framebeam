@@ -2,17 +2,17 @@
 
 #include "hubprotocol.h"
 
-#ifndef FRAMEBEAM_VERSION_STR
-#define FRAMEBEAM_VERSION_STR "0.0.0-dev"
+#ifndef UZUME_VERSION_STR
+#define UZUME_VERSION_STR "0.0.0-dev"
 #endif
-#ifndef FRAMEBEAM_CHANNEL_STR
-#define FRAMEBEAM_CHANNEL_STR "dev"
+#ifndef UZUME_CHANNEL_STR
+#define UZUME_CHANNEL_STR "dev"
 #endif
-#ifndef FRAMEBEAM_COMMIT_STR
-#define FRAMEBEAM_COMMIT_STR ""
+#ifndef UZUME_COMMIT_STR
+#define UZUME_COMMIT_STR ""
 #endif
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 std::string jsonEscape(std::string_view in) {
@@ -31,9 +31,9 @@ std::string jsonEscape(std::string_view in) {
 }
 }  // namespace
 
-std::string_view playerVersion() noexcept { return FRAMEBEAM_VERSION_STR; }
-std::string_view playerChannel() noexcept { return FRAMEBEAM_CHANNEL_STR; }
-std::string_view playerCommit() noexcept { return FRAMEBEAM_COMMIT_STR; }
+std::string_view playerVersion() noexcept { return UZUME_VERSION_STR; }
+std::string_view playerChannel() noexcept { return UZUME_CHANNEL_STR; }
+std::string_view playerCommit() noexcept { return UZUME_COMMIT_STR; }
 
 std::string playerVersionJson() {
   return "{\"product\":\"player\",\"version\":\"" + jsonEscape(playerVersion()) + "\",\"channel\":\"" +
@@ -42,4 +42,4 @@ std::string playerVersionJson() {
          ",\"min_protocol_version\":" + std::to_string(kMinProtocolVersion) + ",\"msi_downgrade\":true}";
 }
 
-}  // namespace framebeam
+}  // namespace uzume

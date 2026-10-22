@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-viewer-joined.schema.json",
-  "title": "ws-viewer-joined (Hub to owner device)",
+  "$id": "https://uzume.invalid/schemas/ws-viewer-joined.schema.json",
+  "title": "ws-viewer-joined (server to owner device)",
   "type": "object",
   "required": [
     "type",
@@ -39,7 +39,7 @@
         },
         "turn_servers": {
           "type": "array",
-          "description": "Optional fresh relay credentials for the owner device; present only while the Hub's TURN server is on (feature turn_v1)",
+          "description": "Optional fresh relay credentials for the owner device; present only while the server's TURN server is on (feature turn_v1)",
           "items": {
             "type": "object",
             "required": [

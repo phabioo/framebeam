@@ -32,7 +32,7 @@
 #include "savesync.h"
 #include "system_manifest.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class CoreCatalog : public QObject {
   Q_OBJECT
@@ -134,4 +134,4 @@ class CoreCatalog : public QObject {
   mutable std::map<QString, emu::SystemManifest> effective_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

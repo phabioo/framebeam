@@ -7,7 +7,7 @@
 #include "romcache.h"
 #include "version.h"
 
-namespace framebeam {
+namespace uzume {
 
 std::optional<HubInfo> parseHubInfo(const QJsonObject& obj) {
   HubInfo i;
@@ -35,7 +35,7 @@ HandshakeInfo HandshakeInfo::detect() {
   h.platform = QSysInfo::productType();
 #endif
   h.arch = QSysInfo::currentCpuArchitecture();
-  const std::string_view ver = framebeam::playerVersion();
+  const std::string_view ver = uzume::playerVersion();
   h.playerVersion = QString::fromUtf8(ver.data(), static_cast<qsizetype>(ver.size()));
   return h;
 }
@@ -312,4 +312,4 @@ bool GameEntry::hasRom(const QString& sha256) const {
   return false;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

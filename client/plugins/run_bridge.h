@@ -10,7 +10,7 @@
 
 #include "plugin_value.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 // Something the plugins subscribed to with fb.run.on: kind "event" (data = event), "state" (data = {user_id, plugin_id, state}),
 // "status" (data = {status, previous}) or "participants" (data = {participants}).
@@ -71,4 +71,4 @@ Value valueFromJson(const QJsonValue& v, int depth = 0);
 bool jsonFromValue(const Value& v, QJsonValue& out, QString& err, int depth = 0);
 bool jsonObjectFromValue(const Value& v, QJsonObject& out, QString& err);  // the value must be a table; empty = {}
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

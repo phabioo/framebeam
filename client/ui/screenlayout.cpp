@@ -5,7 +5,7 @@
 
 #include "inputmapping.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 QStringList screenLayoutsFor(int screenCount) {
   if (screenCount == 2) {
@@ -117,4 +117,4 @@ emu::DisplayProfile profileForRemoteFrame(const QSizeF& frame) {
   return p;
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

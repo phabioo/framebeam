@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install / upgrade / uninstall the FrameBeam Hub as a systemd service.
+# Install / upgrade / uninstall the Uzume server as a systemd service.
 # Installs a local binary; nothing is downloaded. See docs/guides/hub-install.md.
 set -euo pipefail
 
@@ -8,10 +8,12 @@ SVC_USER=framebeam
 DEFAULT_DATA_DIR=/var/lib/framebeam
 DEFAULT_LISTEN=:8443
 
-# FRAMEBEAM_INSTALL_ROOT prefixes all paths; when set, user/chown/systemctl/runuser
+# UZUME_INSTALL_ROOT prefixes all paths; when set, user/chown/systemctl/runuser
 # calls are only printed (used by scripts/check.sh to test without root).
-P="${FRAMEBEAM_INSTALL_ROOT:-}"
-BIN_DEST="$P/usr/local/bin/framebeam-hub"
+P="${UZUME_INSTALL_ROOT:-}"
+BIN_DEST="$P/usr/local/bin/uzume-server"
+# Compat symlink for the name before the Uzume rename (old units, drop-ins and habits keep working).
+BIN_COMPAT="$P/usr/local/bin/framebeam-hub"
 ENV_DIR="$P/etc/framebeam"
 ENV_FILE="$ENV_DIR/hub.env"
 UNIT_DEST="$P/etc/systemd/system/$SVC.service"
@@ -26,7 +28,7 @@ usage() {
   cat <<USAGE
 Usage: install-hub.sh [install|upgrade|uninstall|renew-cert|import-cores DIR|status] [options]
 
-  install (default)  Install the Hub binary, config and systemd service.
+  install (default)  Install the server binary, config and systemd service.
   upgrade            Replace the binary and restart the service (data/config untouched).
   uninstall          Remove service and binary; keep config and data unless --purge.
   renew-cert         Renew the self-generated TLS certificate as the service user in the
@@ -38,19 +40,19 @@ Usage: install-hub.sh [install|upgrade|uninstall|renew-cert|import-cores DIR|sta
   status             Show service status and URL.
 
 Options:
-  --binary PATH      Hub binary (default: framebeam-hub-linux-<arch> next to this
+  --binary PATH      Server binary (default: uzume-server-linux-<arch> next to this
                      script, then in the current directory)
   --port N           Listen port (default 8443). Port in use? Use e.g. --port 8444
   --listen ADDR      Full listen address, e.g. 127.0.0.1:8444 (instead of --port)
   --data-dir DIR     Data directory (default $DEFAULT_DATA_DIR)
-  --name NAME        Hub name (used on the first start only)
+  --name NAME        Server name (used on the first start only)
   --admin USER       Create the admin account (password from prompt or one stdin line)
   --no-start         Do not enable/start the service
   --purge            uninstall: also delete /etc/framebeam and the data dir
   --yes              uninstall --purge: skip the confirmation
   -h, --help         This help
 
-Environment: FRAMEBEAM_INSTALL_ROOT=DIR prefixes all paths and skips root-only
+Environment: UZUME_INSTALL_ROOT=DIR prefixes all paths and skips root-only
 actions (for tests).
 USAGE
 }
@@ -115,16 +117,24 @@ fi
 
 # --- hub.env helpers -------------------------------------------------------
 
+# Keys are UZUME_<X>. A hub.env written before the Uzume rename uses FRAMEBEAM_<X>, which the server still reads; the
+# helpers find and update such a line instead of adding a second one (the file itself is never renamed or rewritten).
+legacy_key() { printf 'FRAMEBEAM_%s' "${1#UZUME_}"; }
+
 env_get() { # KEY: value from hub.env (surrounding quotes stripped), empty if absent
   [ -f "$ENV_FILE" ] || return 0
   local v
   v="$(grep -m1 "^$1=" "$ENV_FILE" | cut -d= -f2- || true)"
+  [ -n "$v" ] || v="$(grep -m1 "^$(legacy_key "$1")=" "$ENV_FILE" | cut -d= -f2- || true)"
   v="${v#\"}"; v="${v%\"}"
   printf '%s' "$v"
 }
 
 env_set() { # KEY VALUE: replace the line or append it; keeps file mode/owner
   local key="$1" val="$2" tmp
+  if ! grep -q "^$key=" "$ENV_FILE" && grep -q "^$(legacy_key "$key")=" "$ENV_FILE"; then
+    key="$(legacy_key "$key")"
+  fi
   tmp="$(mktemp)"
   if grep -q "^$key=" "$ENV_FILE"; then
     V="$val" awk -v k="$key" 'index($0, k "=") == 1 { print k "=" ENVIRON["V"]; next } { print }' \
@@ -158,8 +168,8 @@ validate_data_dir() {
   esac
 }
 
-effective_listen()   { local v; v="$(env_get FRAMEBEAM_LISTEN)";   echo "${v:-$DEFAULT_LISTEN}"; }
-effective_data_dir() { local v; v="$(env_get FRAMEBEAM_DATA_DIR)"; echo "${v:-$DEFAULT_DATA_DIR}"; }
+effective_listen()   { local v; v="$(env_get UZUME_LISTEN)";   echo "${v:-$DEFAULT_LISTEN}"; }
+effective_data_dir() { local v; v="$(env_get UZUME_DATA_DIR)"; echo "${v:-$DEFAULT_DATA_DIR}"; }
 
 # --- shared helpers --------------------------------------------------------
 
@@ -176,7 +186,7 @@ find_binary() {
     [ -f "$BINARY" ] || die "binary not found: $BINARY"
     return
   fi
-  local name; name="framebeam-hub-linux-$(detect_arch)"
+  local name; name="uzume-server-linux-$(detect_arch)"
   if [ -f "$SCRIPT_DIR/$name" ]; then BINARY="$SCRIPT_DIR/$name"
   elif [ -f "./$name" ]; then BINARY="./$name"
   else die "no binary given and $name not found next to the script or in the current directory (use --binary PATH)"
@@ -191,6 +201,7 @@ install_binary() { # SRC: atomic copy to temp + mv
   tmp="$(mktemp "$BIN_DEST.XXXXXX")"
   if ! install -m 0755 "$1" "$tmp"; then rm -f "$tmp"; die "could not copy binary"; fi
   mv -f "$tmp" "$BIN_DEST"
+  ln -sfn uzume-server "$BIN_COMPAT"
 }
 
 # License and third-party notices: best effort, from next to the script (flat copy) or from a repository checkout.
@@ -286,10 +297,10 @@ read_admin_password() {
 create_admin() { # DATA_DIR; sets ADMIN_FAILED=1 on a real failure
   local dir="$1" out
   if testmode; then
-    info "[dry-run] runuser -u $SVC_USER -- framebeam-hub setup-admin -username $ADMIN (data dir $dir)"
+    info "[dry-run] runuser -u $SVC_USER -- uzume-server setup-admin -username $ADMIN (data dir $dir)"
     return 0
   fi
-  if out="$(printf '%s\n' "$ADMIN_PW" | runuser -u "$SVC_USER" -- env "FRAMEBEAM_DATA_DIR=$dir" \
+  if out="$(printf '%s\n' "$ADMIN_PW" | runuser -u "$SVC_USER" -- env "UZUME_DATA_DIR=$dir" \
         "$BIN_DEST" setup-admin -username "$ADMIN" 2>&1)"; then
     info "Admin '$ADMIN' created."
   elif grep -qiE 'already|exists' <<<"$out"; then
@@ -315,8 +326,8 @@ cmd_install() {
   listen="${LISTEN:-$(effective_listen)}"
   data_dir="${DATA_DIR:-$(effective_data_dir)}"
   validate_data_dir "$data_dir"
-  [ -z "$NAME" ] || ! [ -f "$ENV_FILE" ] || [ -z "$(env_get FRAMEBEAM_NAME)" ] || \
-    warn "FRAMEBEAM_NAME is only used on the first start; an existing Hub keeps its name"
+  [ -z "$NAME" ] || ! [ -f "$ENV_FILE" ] || [ -z "$(env_get UZUME_NAME)" ] || \
+    warn "UZUME_NAME is only used on the first start; an existing server keeps its name"
 
   # System user and group.
   if ! getent group "$SVC_USER" >/dev/null 2>&1; then
@@ -328,7 +339,7 @@ cmd_install() {
   fi
 
   install_binary "$BINARY"
-  info "Installed:   /usr/local/bin/framebeam-hub ($(binary_version "$BIN_DEST"))"
+  info "Installed:   /usr/local/bin/uzume-server ($(binary_version "$BIN_DEST"))"
 
   # Config: keep an existing file, only touch explicitly given keys.
   install -d -m 0750 "$ENV_DIR"
@@ -336,20 +347,20 @@ cmd_install() {
   if [ ! -f "$ENV_FILE" ]; then
     ( umask 027
       {
-        echo "# FrameBeam Hub configuration (read by systemd, see framebeam-hub.service)."
-        echo "# FRAMEBEAM_NAME is only used on the first start."
-        echo "FRAMEBEAM_LISTEN=$listen"
-        echo "FRAMEBEAM_DATA_DIR=$data_dir"
+        echo "# Uzume server configuration (read by systemd, see framebeam-hub.service)."
+        echo "# UZUME_NAME is only used on the first start."
+        echo "UZUME_LISTEN=$listen"
+        echo "UZUME_DATA_DIR=$data_dir"
         echo "# Sessions over the internet (relay server, see the README): uncomment and set your DNS name."
-        echo "#FRAMEBEAM_TURN=1"
-        echo "#FRAMEBEAM_PUBLIC_HOST=hub.example.org"
-        [ -z "$NAME" ] || echo "FRAMEBEAM_NAME=$(quote_name "$NAME")"
+        echo "#UZUME_TURN=1"
+        echo "#UZUME_PUBLIC_HOST=hub.example.org"
+        [ -z "$NAME" ] || echo "UZUME_NAME=$(quote_name "$NAME")"
       } >"$ENV_FILE" )
     info "Config:      created /etc/framebeam/hub.env"
   else
-    [ -z "$LISTEN" ]   || env_set FRAMEBEAM_LISTEN "$LISTEN"
-    [ -z "$DATA_DIR" ] || env_set FRAMEBEAM_DATA_DIR "$DATA_DIR"
-    [ -z "$NAME" ]     || env_set FRAMEBEAM_NAME "$(quote_name "$NAME")"
+    [ -z "$LISTEN" ]   || env_set UZUME_LISTEN "$LISTEN"
+    [ -z "$DATA_DIR" ] || env_set UZUME_DATA_DIR "$DATA_DIR"
+    [ -z "$NAME" ]     || env_set UZUME_NAME "$(quote_name "$NAME")"
     info "Config:      kept /etc/framebeam/hub.env (only explicitly given options updated)"
   fi
   chmod 0640 "$ENV_FILE"
@@ -421,11 +432,11 @@ cmd_uninstall() {
   else
     systemctl disable --now "$SVC" >/dev/null 2>&1 || true
   fi
-  rm -f "$UNIT_DEST" "$DROPIN_FILE" "$BIN_DEST"
+  rm -f "$UNIT_DEST" "$DROPIN_FILE" "$BIN_DEST" "$BIN_COMPAT"
   rm -rf "$P/usr/local/share/doc/framebeam-hub"
   rmdir "$DROPIN_DIR" 2>/dev/null || true
   sys systemctl daemon-reload
-  info "Removed:     service unit and /usr/local/bin/framebeam-hub"
+  info "Removed:     service unit and /usr/local/bin/uzume-server"
   if [ "$PURGE" -eq 1 ]; then
     if [ "$YES" -ne 1 ]; then
       echo "This permanently deletes /etc/framebeam and the data dir $data_dir (database, saves, TLS keys)."
@@ -444,18 +455,18 @@ cmd_uninstall() {
 
 cmd_renew_cert() {
   local dir
-  [ -f "$ENV_FILE" ] || testmode || die "$ENV_FILE not found; is the Hub installed?"
-  if [ -n "$(env_get FRAMEBEAM_TLS_CERT)" ] || [ -n "$(env_get FRAMEBEAM_TLS_KEY)" ]; then
-    die "an own TLS certificate/key is configured in $ENV_FILE; the Hub never renews it, renew it where it comes from"
+  [ -f "$ENV_FILE" ] || testmode || die "$ENV_FILE not found; is the server installed?"
+  if [ -n "$(env_get UZUME_TLS_CERT)" ] || [ -n "$(env_get UZUME_TLS_KEY)" ]; then
+    die "an own TLS certificate/key is configured in $ENV_FILE; the server never renews it, renew it where it comes from"
   fi
   dir="$(effective_data_dir)"
   if testmode; then
-    info "[dry-run] runuser -u $SVC_USER -- env FRAMEBEAM_DATA_DIR=$dir $BIN_DEST renew-cert"
+    info "[dry-run] runuser -u $SVC_USER -- env UZUME_DATA_DIR=$dir $BIN_DEST renew-cert"
     info "[dry-run] systemctl restart $SVC"
     return 0
   fi
-  [ -x "$BIN_DEST" ] || die "$BIN_DEST not found; is the Hub installed?"
-  runuser -u "$SVC_USER" -- env "FRAMEBEAM_DATA_DIR=$dir" "$BIN_DEST" renew-cert \
+  [ -x "$BIN_DEST" ] || die "$BIN_DEST not found; is the server installed?"
+  runuser -u "$SVC_USER" -- env "UZUME_DATA_DIR=$dir" "$BIN_DEST" renew-cert \
     || die "renew-cert failed; the service was not restarted"
   systemctl restart "$SVC"
   info "Service restarted. Players must confirm the new fingerprint."
@@ -465,21 +476,21 @@ cmd_import_cores() {
   local dir tmp
   [ -n "$IMPORT_DIR" ] || die "import-cores needs a directory: install-hub.sh import-cores DIR"
   [ -d "$IMPORT_DIR" ] || die "not a directory: $IMPORT_DIR"
-  [ -f "$ENV_FILE" ] || testmode || die "$ENV_FILE not found; is the Hub installed?"
+  [ -f "$ENV_FILE" ] || testmode || die "$ENV_FILE not found; is the server installed?"
   dir="$(effective_data_dir)"
   if testmode; then
     info "[dry-run] cp -a $IMPORT_DIR/. <tmp> (readable by $SVC_USER)"
-    info "[dry-run] runuser -u $SVC_USER -- env FRAMEBEAM_DATA_DIR=$dir $BIN_DEST import-cores <tmp>"
+    info "[dry-run] runuser -u $SVC_USER -- env UZUME_DATA_DIR=$dir $BIN_DEST import-cores <tmp>"
     return 0
   fi
-  [ -x "$BIN_DEST" ] || die "$BIN_DEST not found; is the Hub installed?"
+  [ -x "$BIN_DEST" ] || die "$BIN_DEST not found; is the server installed?"
   # The service user may not be able to read DIR (e.g. under /root): work on a world-readable copy.
   tmp="$(mktemp -d)" || die "cannot create a temporary directory"
   chmod 755 "$tmp"
   cp -a "$IMPORT_DIR"/. "$tmp"/ || { rm -rf "$tmp"; die "cannot copy $IMPORT_DIR"; }
   chmod -R a+rX "$tmp"
   local rc=0
-  runuser -u "$SVC_USER" -- env "FRAMEBEAM_DATA_DIR=$dir" "$BIN_DEST" import-cores "$tmp" || rc=$?
+  runuser -u "$SVC_USER" -- env "UZUME_DATA_DIR=$dir" "$BIN_DEST" import-cores "$tmp" || rc=$?
   rm -rf "$tmp"
   [ "$rc" = 0 ] || die "import-cores failed"
 }

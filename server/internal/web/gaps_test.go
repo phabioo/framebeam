@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // ---- Settings > Security: Renew now ----
@@ -42,7 +42,7 @@ func TestRenewCertFromSettings(t *testing.T) {
 	c := e.client()
 	tok := c.login()
 	rec := c.get("/settings/security", nil)
-	contains(t, rec, "Renew now", "Every Player has to confirm the new fingerprint", "AA:BB:OLD")
+	contains(t, rec, "Renew now", "Every app has to confirm the new fingerprint", "AA:BB:OLD")
 	notContains(t, rec, "confirm(")
 
 	rec = postTok(c, tok, "/settings/security/renew-cert", nil)
@@ -75,7 +75,7 @@ func TestRenewCertNotOfferedForOwnCert(t *testing.T) {
 	c := e.client()
 	tok := c.login()
 	rec := c.get("/settings/security", nil)
-	contains(t, rec, "never renewed by the hub")
+	contains(t, rec, "never renewed by the server")
 	notContains(t, rec, "Renew now", "renew-cert")
 	rec = postTok(c, tok, "/settings/security/renew-cert", nil)
 	if loc := location(rec); loc != "/settings/security?err=renewunsupported" || fc.calls != 0 {
@@ -135,7 +135,7 @@ func TestInviteLandingPublic(t *testing.T) {
 	anon := e.client()
 	rec := anon.get("/invite", nil) // no login
 	status(t, rec, 200)
-	contains(t, rec, "I have an invite code", "Install or open the FrameBeam Player", "AA:BB:CC:DD", "example.com",
+	contains(t, rec, "I have an invite code", "Install or open the Uzume", "AA:BB:CC:DD", "example.com",
 		`/static/invite.js`, "data-invite-code")
 	notContains(t, rec, "FB-", "secret-12345", "csrf", "Sign out", `name="_csrf"`)
 	if got := rec.Header().Get("Content-Security-Policy"); !strings.Contains(got, "script-src 'self'") {
@@ -150,7 +150,7 @@ func TestInviteLandingPublic(t *testing.T) {
 	notContains(t, rec, "FB-AAAA-BBBB")
 }
 
-// ---- Clients: Player too old ----
+// ---- Clients: App too old ----
 
 func TestClientsPlayerTooOld(t *testing.T) {
 	e := newEnvOpts(t, true, nil, func(o *hub.Options) { o.ProtocolVersion, o.MinProtocolVersion = 3, 2 })
@@ -169,14 +169,14 @@ func TestClientsPlayerTooOld(t *testing.T) {
 		ProtocolVersion: 3, MinProtocolVersion: 1, Cores: &cores}); err != nil {
 		t.Fatal(err)
 	}
-	// A pending request from an old Player.
+	// A pending request from an old app.
 	if _, err := e.svc.CreatePairingRequest(bg, hub.PairingInput{DeviceID: uuid.NewString(), DeviceName: "Pending Old", Platform: "linux",
 		Arch: "x86_64", PlayerVersion: "0.1", ProtocolVersion: 1, RemoteAddr: "192.0.2.9"}); err != nil {
 		t.Fatal(err)
 	}
 	rec := c.get("/clients", nil)
 	body := rec.Body.String()
-	if n := strings.Count(body, "Player too old · protocol v2 required"); n != 2 {
+	if n := strings.Count(body, "App too old · protocol v2 required"); n != 2 {
 		t.Fatalf("pill count %d (device + pending expected): %.800s", n, body)
 	}
 	// Only the old device's row carries the pill.
@@ -272,9 +272,9 @@ func TestLibraryScanProgressCard(t *testing.T) {
 
 func TestMiddleEllipsis(t *testing.T) {
 	for in, want := range map[string]string{
-		"/srv/library": "/srv/library",
-		"/srv/framebeam/data/imports/library-import": "/srv/framebeam/…/library-import",
-		"/a/b/c": "/a/b/c",
+		"/srv/library":                           "/srv/library",
+		"/srv/uzume/data/imports/library-import": "/srv/uzume/…/library-import",
+		"/a/b/c":                                 "/a/b/c",
 	} {
 		if got := middleEllipsis(in); got != want {
 			t.Errorf("%q: %q want %q", in, got, want)

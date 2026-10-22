@@ -17,9 +17,9 @@
 #include <dlfcn.h>
 #endif
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcGpu, "framebeam.gpuencode")
+Q_LOGGING_CATEGORY(lcGpu, "uzume.gpuencode")
 
 namespace cuda {
 
@@ -263,4 +263,4 @@ bool Driver::resolve(const char* library, Api* api, QString* why) {
 }
 
 }  // namespace cuda
-}  // namespace framebeam
+}  // namespace uzume

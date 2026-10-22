@@ -3,8 +3,8 @@ package httpapi
 import (
 	"context"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 func toAPISession(s hub.Session) api.Session {

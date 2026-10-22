@@ -4,10 +4,10 @@
 
 #include <utility>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
-Q_LOGGING_CATEGORY(lcDisplay, "framebeam.gpudisplay")
+Q_LOGGING_CATEGORY(lcDisplay, "uzume.gpudisplay")
 }
 
 ReadbackPlan planReadback(bool displayActive, const QSize& viewLimit, const QSize& shareSize) {
@@ -130,4 +130,4 @@ void GpuDisplayBridge::notify() const {
   if (cb) cb();
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

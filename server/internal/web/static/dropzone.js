@@ -1,4 +1,4 @@
-// FrameBeam Hub file inputs: dashed drop zones (form[data-drop]) show the chosen file name and accept dropped files;
+// Uzume server file inputs: dashed drop zones (form[data-drop]) show the chosen file name and accept dropped files;
 // inputs with data-autosubmit send their form as soon as a file is chosen. No inline handlers (CSP script-src 'self').
 (function () {
   "use strict";

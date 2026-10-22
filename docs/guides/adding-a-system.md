@@ -63,7 +63,7 @@ Pick an id (lowercase, for example `snes`). Use it everywhere below. The server 
 
 ### Input map
 
-`input.map` maps Uzume input ids (keys) to libretro targets (values). The Uzume input ids (`frameBeamInputs()` in `client/core/controllerprofiles.cpp`) are: `a b x y l r start select up down left right zl zr cup cdown cleft cright lup ldown lleft lright`. Targets:
+`input.map` maps Uzume input ids (keys) to libretro targets (values). The Uzume input ids (`uzumeInputs()` in `client/core/controllerprofiles.cpp`) are: `a b x y l r start select up down left right zl zr cup cdown cleft cright lup ldown lleft lright`. Targets:
 
 | Targets | Meaning |
 |---|---|

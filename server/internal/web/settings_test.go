@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/config"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/turnsrv"
+	"github.com/phabioo/uzume/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/turnsrv"
 )
 
 // Settings sections, the Network form (saved values win over hub.env), live and restart-bound settings.
@@ -96,7 +96,7 @@ func TestNetworkSettingsPrecedenceResetAndPending(t *testing.T) {
 		t.Fatalf("%v", ov)
 	}
 	rec = c.get("/settings/network?ok=netsaved", nil)
-	contains(t, rec, `value="3500"`, "Set on the web interface", "Reset to hub.env value (3478)", "Restart required to apply: TURN port", "Restart hub now",
+	contains(t, rec, `value="3500"`, "Set on the web interface", "Reset to hub.env value (3478)", "Restart required to apply: TURN port", "Restart server now",
 		"Network setting saved.", "Restart required")
 
 	// Reset deletes the override; hub.env applies again and nothing is pending.
@@ -130,7 +130,7 @@ func TestNetworkSettingsPublicHostWithPort(t *testing.T) {
 	}
 	status(t, postTok(c, tok, "/settings/network/public_host", url.Values{"value": {"[2001:db8::1]:18443"}}), 303)
 	contains(t, c.get("/settings/network", nil), `value="[2001:db8::1]:18443"`)
-	// "Address for Players" on the General page uses the external port, not the listen port.
+	// "Address for apps" on the General page uses the external port, not the listen port.
 	contains(t, c.get("/settings/general", nil), `data-copy="[2001:db8::1]:18443"`)
 }
 
@@ -296,7 +296,7 @@ func TestNetworkRestartEndpoint(t *testing.T) {
 		t.Fatalf("restarts: %d", *restarts)
 	}
 	// The pending card carries the confirmation text.
-	contains(t, c.get("/settings/network", nil), `hx-confirm="The hub restarts and running Sessions end."`)
+	contains(t, c.get("/settings/network", nil), `hx-confirm="The server restarts and running Sessions end."`)
 }
 
 func TestNetworkRestartUnavailable(t *testing.T) {
@@ -311,7 +311,7 @@ func TestNetworkRestartUnavailable(t *testing.T) {
 func TestNetworkStartupIssuesAndReachability(t *testing.T) {
 	e, _ := netEnv(t, func(n *NetConfig) {
 		n.Issues = []NetIssue{
-			{Key: config.NetListenPort, Value: "9999", Message: "Saved port 9999 could not be used: address already in use. The hub uses :8443 until you change it."},
+			{Key: config.NetListenPort, Value: "9999", Message: "Saved port 9999 could not be used: address already in use. The server uses :8443 until you change it."},
 			{Key: config.NetTURNPort, Value: "1111", Message: "stale issue"},
 		}
 	})
@@ -432,7 +432,7 @@ func TestNetworkPageListsExternalTURNWithoutSecrets(t *testing.T) {
 		{Name: "provider", Mode: hub.ExternalTURNStatic, Username: "web-user-0123", Password: "web-pw-0123456789", URLs: []string{"turn:turn2.example.org:3478"}},
 	}, hub.ExternalTURNOptions{})
 	rec := c.get("/settings/network", nil)
-	contains(t, rec, "turn:turn.example.org:3478?transport=udp", "turns:turn.example.org:5349?transport=tcp", "turn2.example.org", "shared secret", "static username and password", "secret set", "password set", "hub flags")
+	contains(t, rec, "turn:turn.example.org:3478?transport=udp", "turns:turn.example.org:5349?transport=tcp", "turn2.example.org", "shared secret", "static username and password", "secret set", "password set", "server flags")
 	notContains(t, rec, "web-secret-0123456789", "web-pw-0123456789")
 }
 

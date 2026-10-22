@@ -7,7 +7,7 @@ Start with the [root README](../README.md) for what Uzume is and a quick start.
 - [Using the app](guides/player.md): install, pairing, playing, data directory, CLI and environment
 - [Server installation](guides/hub-install.md): Debian package and systemd script on Linux / Raspberry Pi
 - [Server in Docker](guides/hub-docker.md): official image (amd64, arm64), volumes, compose, upgrade by pulling
-- [Server backup and restore](guides/hub-backup.md): one archive, schedule, retention, `framebeam-hub backup` / `restore`, admin API, restore on a new machine
+- [Server backup and restore](guides/hub-backup.md): one archive, schedule, retention, `uzume-server backup` / `restore`, admin API, restore on a new machine
 - [Server configuration](guides/hub-configuration.md): commands, all flags and environment variables, certificates
 - [Sessions: LAN and internet](guides/sessions-over-the-internet.md): testing on a LAN, port forwards, TURN relay
 - [coturn on a VPS](guides/coturn-on-a-vps.md): own external TURN relay for the server

@@ -1,4 +1,4 @@
-// Package sysmetrics reads the few host numbers the Hub status page and the metrics endpoint show: CPU load,
+// Package sysmetrics reads the few host numbers the server status page and the metrics endpoint show: CPU load,
 // memory and the free space of a directory. Everything is best effort: a platform without a reader reports
 // ok == false and the pages show "n/a".
 package sysmetrics
@@ -32,7 +32,7 @@ func Memory() Mem {
 	return m
 }
 
-// Disk returns the size and the free space available to the Hub of the volume holding dir.
+// Disk returns the size and the free space available to the server of the volume holding dir.
 func Disk(dir string) (total, free uint64, ok bool) { return disk(dir) }
 
 // UsedPercent is the used share of a volume in percent (0 for an unknown total).

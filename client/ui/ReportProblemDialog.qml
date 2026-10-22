@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // "Report a problem" (design 6d, 6d-2): description, linked event, the attachments with check boxes, and the footer states
 // sending / sent / Hub offline / failed. Dialog 580. Ctrl+Enter sends, Esc cancels (and aborts a running upload).

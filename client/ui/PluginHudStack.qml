@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // The widgets of one HUD corner: grows away from the corner (bottom corners stack upwards), gap 6, at most 4.
 Column {

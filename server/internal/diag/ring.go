@@ -15,7 +15,7 @@ type Ring struct {
 	maxBytes int
 }
 
-// Recent receives the lines of the Hub's logger (see newLogger in cmd/framebeam-hub).
+// Recent receives the lines of the server's logger (see newLogger in cmd/uzume-server).
 var Recent = NewRing(5000, 4<<20)
 
 // NewRing creates a ring holding at most maxLines lines and maxBytes bytes.

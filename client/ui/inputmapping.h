@@ -12,7 +12,7 @@
 
 #include "system_manifest.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 // Qt::Key -> RETRO_DEVICE_ID_JOYPAD-Maske; 0 = not mapped.
 // Arrows = D-pad, X=A, Z=B, S=X, A=Y, Q=L, W=R, Enter/Return=Start, Backspace=Select.
@@ -55,4 +55,4 @@ QRectF fitFrame(const QSizeF& frame, const QSizeF& area, bool integerScale);
 std::optional<QPointF> touchToFrame(const emu::DisplayProfile& profile, const QRectF& frameRect, const QPointF& itemPos,
                                     bool clampToScreen);
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

@@ -1,4 +1,4 @@
-// Package web is the web interface of the FrameBeam Hub (html/template + htmx via embed, no Node build).
+// Package web is the web interface of the Uzume server (html/template + htmx via embed, no Node build).
 // It uses only the service layer internal/hub.
 package web
 
@@ -15,12 +15,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/config"
-	"github.com/phabioo/framebeam/server/internal/diag"
-	"github.com/phabioo/framebeam/server/internal/health"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/statusinfo"
-	"github.com/phabioo/framebeam/server/internal/turnsrv"
+	"github.com/phabioo/uzume/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/diag"
+	"github.com/phabioo/uzume/server/internal/health"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/statusinfo"
+	"github.com/phabioo/uzume/server/internal/turnsrv"
 )
 
 //go:embed templates/*.html
@@ -293,7 +293,7 @@ func secure(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		if hub.RequestHTTPS(r) {
-			// Only when a trusted proxy terminates TLS (normally with a real certificate). Not sent for the Hub's own
+			// Only when a trusted proxy terminates TLS (normally with a real certificate). Not sent for the server's own
 			// self-signed certificate: HSTS would make the browser's certificate warning impossible to click through.
 			h.Set("Strict-Transport-Security", "max-age=31536000")
 		}
@@ -323,7 +323,7 @@ func (s *Server) catchAll(w http.ResponseWriter, r *http.Request) {
 }
 
 // notFound answers 404. Signed-in admins get a styled page inside the app shell with a way back; everyone else
-// (and API callers) gets the plain Go 404 so nothing about the Hub is revealed.
+// (and API callers) gets the plain Go 404 so nothing about the server is revealed.
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
 	if strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/.well-known/") {
@@ -357,12 +357,12 @@ type pageData struct {
 	Firmware            int    // required firmware files missing or mismatching (nav badge, mode native)
 	ActiveRuns          int    // runs in status active (nav badge)
 	ShowRuns            bool   // the "Runs" nav item is shown (a plugin asks for run.state, or runs exist)
-	UpdateAvailable     bool   // a newer Hub version is known (nav dot on Settings)
+	UpdateAvailable     bool   // a newer server version is known (nav dot on Settings)
 	IsAdmin             bool   // the signed-in user is an admin (members see only Play and Settings)
-	StatusProblem       string // title of the most urgent Hub problem (badge on Status), admins only
+	StatusProblem       string // title of the most urgent server problem (badge on Status), admins only
 	NewReports          int    // reports not yet marked seen (badge on Reports), admins only
 	NavGroups           []navGroup
-	Theme               string // light, dark or system (Hub setting)
+	Theme               string // light, dark or system (server setting)
 	Flash, Error        string
 	Fragment            bool
 	InlineFlash         bool // the page renders the flash itself inside its own column (Users)
@@ -379,10 +379,10 @@ var flashTexts = map[string]string{
 	"userrole":        "Role changed.",
 	"devrevoked":      "Access revoked.",
 	"devrenamed":      "Device renamed.",
-	"certrenewed":     "Certificate renewed. Every Player must confirm the new fingerprint on its next connection.",
+	"certrenewed":     "Certificate renewed. Every app must confirm the new fingerprint on its next connection.",
 	"deleted":         "ROM deleted.",
 	"renamed":         "Title changed.",
-	"name":            "Hub name saved.",
+	"name":            "Server name saved.",
 	"password":        "Password changed.",
 	"resolved":        "Conflict resolved.",
 	"restored":        "Version restored as the new current checkpoint. The previous checkpoint is in the history.",
@@ -411,22 +411,22 @@ var flashTexts = map[string]string{
 	"coresync":        "Checking the libretro buildbot in the background. Reload the page in a moment.",
 	"updates":         "Update settings saved. Checking for updates in the background.",
 	"updatecheck":     "Checking for updates in the background. Reload the page in a moment.",
-	"pluginoffered":   "Plugin offered to Players.",
-	"pluginremoved":   "Plugin removed from the Hub. Players keep their copy until they uninstall it.",
+	"pluginoffered":   "Plugin offered to apps.",
+	"pluginremoved":   "Plugin removed from the server. Apps keep their copy until they uninstall it.",
 	"pluginindex":     "Plugin catalog checked.",
-	"plugininstalled": "Plugin installed. Players on this Hub can now install it.",
+	"plugininstalled": "Plugin installed. Apps on this server can now install it.",
 	"runpaused":       "Run paused. No new events are recorded until it is resumed.",
 	"runresumed":      "Run resumed.",
 	"runstarted":      "Run started.",
 	"runfinished":     "Run finished.",
 	"invitesent":      "Invite sent again.",
 	"inviteremoved":   "Invite removed.",
-	"runarchived":     "Run archived. Players no longer list it.",
+	"runarchived":     "Run archived. Apps no longer list it.",
 	"rununarchived":   "Run unarchived.",
 	"rundeleted":      "Run deleted.",
 	"updateresume":    "Automatic updates are on again.",
-	"updateback":      "Going back. A safety backup was written first; the Hub installs the older version and restarts in a moment. Reload this page afterwards.",
-	"updateinstall":   "Update downloaded and verified. The Hub installs it and restarts in a moment; reload this page afterwards.",
+	"updateback":      "Going back. A safety backup was written first; the server installs the older version and restarts in a moment. Reload this page afterwards.",
+	"updateinstall":   "Update downloaded and verified. The server installs it and restarts in a moment; reload this page afterwards.",
 }
 
 var errTexts = map[string]string{
@@ -446,24 +446,24 @@ var errTexts = map[string]string{
 	"nouser":            "User not found.",
 	"rolekept":          "The role cannot be changed: the last admin and your own account stay admins, and a disabled user cannot become one.",
 	"noinvite":          "The invite is no longer active.",
-	"renewfailed":       "The certificate could not be renewed. The previous certificate stays active; see the Hub log.",
-	"renewunsupported":  "This Hub cannot renew its certificate here (own certificate or plain HTTP).",
+	"renewfailed":       "The certificate could not be renewed. The previous certificate stays active; see the server log.",
+	"renewunsupported":  "This server cannot renew its certificate here (own certificate or plain HTTP).",
 	"nosystem":          "System or file not found.",
 	"nofile":            "Firmware file not found.",
 	"nocore":            "System or core not found.",
-	"updatepackage":     "This Hub was not installed from the .deb package, so it cannot install updates itself. Use the manual command shown below.",
+	"updatepackage":     "This server was not installed from the .deb package, so it cannot install updates itself. Use the manual command shown below.",
 	"updatenone":        "There is no update to install.",
 	"rollbackversion":   "That version is not one of the earlier versions that can be installed.",
 	"rollbackconfirm":   "Going back replaces the database with the backup made before the update. Tick the box to confirm.",
 	"rollbackrefused":   "Going back to that version is not safe; see the reason in the list.",
-	"rollbackcontainer": "This Hub runs in a container. Pull the older image tag and recreate the container.",
-	"rollbackfailed":    "Going back failed; nothing was changed. The Hub log has the reason.",
+	"rollbackcontainer": "This server runs in a container. Pull the older image tag and recreate the container.",
+	"rollbackfailed":    "Going back failed; nothing was changed. The server log has the reason.",
 	"resumefailed":      "Automatic updates are not paused.",
-	"updatebreaking":    "This update breaks Players seen in the last 30 days. Use \"Install anyway\" to confirm.",
+	"updatebreaking":    "This update breaks apps seen in the last 30 days. Use \"Install anyway\" to confirm.",
 	"norun":             "Run not found.",
 	"runstate":          "The run changed in the meantime. Please review its status and try again.",
 	"noplugin":          "Plugin not found.",
-	"noindex":           "No plugin index is configured on this Hub.",
+	"noindex":           "No plugin index is configured on this server.",
 	"indexfailed":       "The plugin index could not be checked. The reason is shown in the catalog section.",
 	"updatefailed":      "The update could not be downloaded or verified. See the update status below.",
 }
@@ -669,7 +669,7 @@ func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
 
 // ---- Cookies, CSRF before sign-in, login rate limiting ----
 
-// secureReq reports whether the client side of r is https: the Hub itself serves TLS, or a trusted proxy says so.
+// secureReq reports whether the client side of r is https: the server itself serves TLS, or a trusted proxy says so.
 func (s *Server) secureReq(r *http.Request) bool { return s.cfg.UseTLS || hub.RequestHTTPS(r) }
 
 // cookieName returns the cookie name for base: with the __Host- prefix when the client side is https.
@@ -723,5 +723,5 @@ func (s *Server) checkPreCSRF(r *http.Request) bool {
 // address from its forwarding headers), or a non-IP key for the proxy itself when it gave none.
 func remoteIP(r *http.Request) string { return hub.ClientKey(r) }
 
-// isLoopback reports whether r comes from the machine the Hub runs on (see hub.IsLocalRequest).
+// isLoopback reports whether r comes from the machine the server runs on (see hub.IsLocalRequest).
 func isLoopback(r *http.Request) bool { return hub.IsLocalRequest(r) }

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Settings > Library folders (0.12, round 3 3p-3): folders scanned for game files on this device, one row each with its game
 // count and last scan, "Rescan" (or "Stop scan" while it runs) and "Remove". Files are hashed once, read for their game code

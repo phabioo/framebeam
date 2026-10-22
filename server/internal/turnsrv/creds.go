@@ -1,4 +1,4 @@
-// Package turnsrv embeds the Hub's STUN/TURN server (ADR 0012 D2/D3): pion/turn with short-lived
+// Package turnsrv embeds the server's STUN/TURN server (ADR 0012 D2/D3): pion/turn with short-lived
 // REST-scheme credentials bound to paired devices.
 package turnsrv
 
@@ -116,7 +116,7 @@ func isInternal(ip netip.Addr) bool {
 
 // PeerAllowed is the relay peer filter (ADR 0012 D2): loopback, unspecified, multicast and link-local peers are
 // refused unless the relay address itself is loopback (tests). Internal ranges (RFC1918, CGNAT, ULA, reserved,
-// IPv4-mapped forms) are refused unless lanOK reports the address as the remote IP of a connected Player; nil
+// IPv4-mapped forms) are refused unless lanOK reports the address as the remote IP of a connected app; nil
 // lanOK allows no internal peers. Loopback/link-local/multicast/unspecified stay refused even then.
 func PeerAllowed(relay, peer net.IP, lanOK func(netip.Addr) bool) bool {
 	if relay != nil && relay.IsLoopback() {

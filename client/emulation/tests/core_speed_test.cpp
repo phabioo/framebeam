@@ -12,7 +12,7 @@
 #include "libretro_backend.h"
 #include "system_manifest.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 class CoreSpeedTest : public QObject {
   Q_OBJECT
@@ -46,7 +46,7 @@ class CoreSpeedTest : public QObject {
     const CoreLocation loc = CoreLocator().locate(m_nds);
     QVERIFY2(loc.found(), "Core not found");
     m_corePath = loc.path;
-    if (!qEnvironmentVariableIsSet("FRAMEBEAM_DISABLE_HW_RENDER")) qputenv("FRAMEBEAM_DISABLE_HW_RENDER", "1");  // software path unless overridden
+    if (!qEnvironmentVariableIsSet("UZUME_DISABLE_HW_RENDER")) qputenv("UZUME_DISABLE_HW_RENDER", "1");  // software path unless overridden
   }
 
   void ratioTwoIsFaster() { runScenario(0); }
@@ -94,8 +94,8 @@ class CoreSpeedTest : public QObject {
 };
 
 int main(int argc, char** argv) {
-  if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
-    std::puts("FRAMEBEAM_MELONDS_DS_CORE not set - test skipped");
+  if (qEnvironmentVariableIsEmpty("UZUME_MELONDS_DS_CORE")) {
+    std::puts("UZUME_MELONDS_DS_CORE not set - test skipped");
     return 77;
   }
   QCoreApplication app(argc, argv);

@@ -1,4 +1,4 @@
-// GamepadService headless with SDL virtual joysticks: hotplug, slots, press -> FrameBeam input -> libretro mask
+// GamepadService headless with SDL virtual joysticks: hotplug, slots, press -> Uzume input -> libretro mask
 // (default and remapped profile), analog stick/trigger, capture. No hardware, no video driver.
 #include <SDL3/SDL.h>
 
@@ -10,8 +10,8 @@
 #include "inputmap.h"
 #include "system_manifest.h"
 
-using namespace framebeam;
-using namespace framebeam::input;
+using namespace uzume;
+using namespace uzume::input;
 
 namespace {
 constexpr quint32 kB = 1u << 0, kY = 1u << 1, kSelect = 1u << 2, kStart = 1u << 3, kUp = 1u << 4, kDown = 1u << 5,
@@ -52,7 +52,7 @@ class GamepadServiceTest : public QObject {
  private slots:
   void initTestCase() {
     // Loading the system manifests registers the input tables.
-    framebeam::emu::ManifestRegistry reg;
+    uzume::emu::ManifestRegistry reg;
     QVERIFY(reg.loadBuiltin());
   }
 
@@ -65,12 +65,12 @@ class GamepadServiceTest : public QObject {
 
     QSignalSpy devSpy(&svc, &GamepadService::devicesChanged);
     QSignalSpy maskSpy(&svc, &GamepadService::libretroMaskChanged);
-    VirtualPad p1("FrameBeam test pad 1");
+    VirtualPad p1("Uzume test pad 1");
     QVERIFY(p1.js != nullptr);
     svc.poll();
     QCOMPARE(svc.devices().size(), 1);
     QCOMPARE(svc.devices().first().slot, 1);
-    QCOMPARE(svc.devices().first().name, QStringLiteral("FrameBeam test pad 1"));
+    QCOMPARE(svc.devices().first().name, QStringLiteral("Uzume test pad 1"));
     QVERIFY(!svc.devices().first().key.isEmpty());
     QVERIFY(devSpy.count() >= 1);
 
@@ -119,7 +119,7 @@ class GamepadServiceTest : public QObject {
     QCOMPARE(svc.libretroMask(), 0u);
 
     // Second pad: no slot; its input does not reach the game. When P1 leaves, the second pad becomes P1.
-    VirtualPad p2("FrameBeam test pad 2");
+    VirtualPad p2("Uzume test pad 2");
     svc.poll();
     QCOMPARE(svc.devices().size(), 2);
     QCOMPARE(svc.devices().at(1).slot, 0);
@@ -137,7 +137,7 @@ class GamepadServiceTest : public QObject {
     p1.id = 0;
     svc.poll();
     QCOMPARE(svc.devices().size(), 1);
-    QCOMPARE(svc.devices().first().name, QStringLiteral("FrameBeam test pad 2"));
+    QCOMPARE(svc.devices().first().name, QStringLiteral("Uzume test pad 2"));
     QCOMPARE(svc.devices().first().slot, 1);
     QCOMPARE(svc.libretroMask(), kA);  // pad 2 still holds east
   }
@@ -155,7 +155,7 @@ class GamepadServiceTest : public QObject {
       askedKey = key;
       return custom;
     });
-    VirtualPad pad("FrameBeam test pad");
+    VirtualPad pad("Uzume test pad");
     svc.poll();
     QCOMPARE(svc.devices().size(), 1);
     QCOMPARE(askedKey, svc.devices().first().key);
@@ -191,7 +191,7 @@ class GamepadServiceTest : public QObject {
   void capture() {
     GamepadService svc;
     QVERIFY2(svc.start(0), qPrintable(svc.error()));
-    VirtualPad pad("FrameBeam test pad");
+    VirtualPad pad("Uzume test pad");
     svc.poll();
     QSignalSpy spy(&svc, &GamepadService::captured);
     pad.button(North, true);  // already held when the capture starts: ignored

@@ -3,7 +3,7 @@ name: Publish plugin
 # Publishes the official signed plugin index (release "plugin-index" of this repo): optionally takes the *.fbplugin
 # file(s) of a release of an official plugin repo, signs them with the release key, adds them to plugin-index.json,
 # signs the index and uploads everything. Without inputs it only re-signs and publishes the existing (or an empty)
-# index. Hubs read https://github.com/phabioo/framebeam/releases/download/plugin-index/plugin-index.json by default.
+# index. Servers read https://github.com/phabioo/uzume/releases/download/plugin-index/plugin-index.json by default.
 # The signing seed is the secret FRAMEBEAM_SIGNING_KEY of the environment `release` (dispatch from main); it is only in
 # the environment of the signing steps. Private plugin repos: set the secret PLUGIN_REPOS_TOKEN (PAT, read access).
 
@@ -57,17 +57,17 @@ jobs:
               echo "::error::repo and tag must be given together"
               exit 1
             fi
-            [[ "$INPUT_REPO" =~ ^phabioo/framebeam-plugin-[a-z0-9-]+$ ]] || { echo "::error::repo must match phabioo/framebeam-plugin-<name>"; exit 1; }
+            [[ "$INPUT_REPO" =~ ^phabioo/(framebeam|uzume)-plugin-[a-z0-9-]+$ ]] || { echo "::error::repo must match phabioo/(framebeam|uzume)-plugin-<name>"; exit 1; }
             [[ "$INPUT_TAG" =~ ^v?[0-9][0-9A-Za-z._-]*$ ]] || { echo "::error::invalid tag"; exit 1; }
           fi
-      - name: Build framebeam-sign
+      - name: Build uzume-sign
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
-          (cd server && CGO_ENABLED=0 go build -o "$RUNNER_TEMP/bin/framebeam-sign" ./cmd/framebeam-sign)
+          (cd server && CGO_ENABLED=0 go build -o "$RUNNER_TEMP/bin/uzume-sign" ./cmd/uzume-sign)
       - name: Signing key is trusted by the Hub (before anything is published)
         env:
-          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
-        run: scripts/check-signing-key.sh "$RUNNER_TEMP/bin/framebeam-sign"
+          UZUME_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: scripts/check-signing-key.sh "$RUNNER_TEMP/bin/uzume-sign"
       - name: Fetch the current index
         env:
           GH_TOKEN: ${{ github.token }}
@@ -96,8 +96,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create plugin-index --title "FrameBeam plugin index" \
-            --notes 'Signed index of official FrameBeam plugins (plugin-index.json + .sig) and the signed .fbplugin files. Read by FrameBeam Hubs; updated by the workflow "Publish plugin".' \
+          gh release create plugin-index --title "Uzume plugin index" \
+            --notes 'Signed index of official Uzume plugins (plugin-index.json + .sig) and the signed .fbplugin files. Read by Uzume servers; updated by the workflow "Publish plugin".' \
             --prerelease --latest=false
       # No signing key in this step: it handles the untrusted downloaded zip (unzip, jq) and only writes the validated
       # list of plugin files for the signing step.
@@ -128,11 +128,11 @@ jobs:
         if: inputs.repo != '' && inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+          UZUME_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/plugin-index"
-          sign="$RUNNER_TEMP/bin/framebeam-sign"
+          sign="$RUNNER_TEMP/bin/uzume-sign"
           while IFS=$'\t' read -r id version f; do
             out="$work/$id-$version.fbplugin"
             # A published version is immutable: never replace its file (Hubs keep the old one and run pins name its sha256).
@@ -148,11 +148,11 @@ jobs:
       - name: Sign and publish the index
         env:
           GH_TOKEN: ${{ github.token }}
-          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+          UZUME_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/plugin-index"
-          sign="$RUNNER_TEMP/bin/framebeam-sign"
+          sign="$RUNNER_TEMP/bin/uzume-sign"
           # Every publish (and the weekly run) re-stamps generated_at/expires_at; the plugin list is unchanged by this.
           "$sign" index-refresh -index "$work/plugin-index.json"
           "$sign" sign -index "$work/plugin-index.json" -out "$work/plugin-index.json.sig" -bundle "$work/plugin-index.json.signed"

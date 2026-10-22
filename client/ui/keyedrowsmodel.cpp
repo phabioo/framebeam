@@ -1,6 +1,6 @@
 #include "keyedrowsmodel.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 KeyedRowsModel::KeyedRowsModel(const QStringList& roles, const QString& keyRole, QObject* parent)
     : QAbstractListModel(parent), roles_(roles), keyRole_(keyRole) {
@@ -32,4 +32,4 @@ void KeyedRowsModel::setRows(const QList<QVariantMap>& rows) {
   if (before != count()) emit countChanged();
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

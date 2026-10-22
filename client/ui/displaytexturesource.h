@@ -4,7 +4,7 @@
 class QQuickWindow;
 class QSGTexture;
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class DisplayTextureSource {
  public:
@@ -19,4 +19,4 @@ class DisplayTextureSource {
   // previous frame (the GameSession is on the GUI thread); release GPU objects on the render thread (e.g. deferred).
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

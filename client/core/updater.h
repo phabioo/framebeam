@@ -20,7 +20,7 @@
 
 class QNetworkReply;
 
-namespace framebeam::update {
+namespace uzume::update {
 
 // Index fetch result (also used by the CLI): raw bytes verified against the trusted keys and parsed.
 struct FetchedIndex {
@@ -76,7 +76,7 @@ class UpdateManager : public QObject {
 
   struct Config {
     QString baseDir;          // data directory
-    QString indexUrl;         // empty: env FRAMEBEAM_PLAYER_UPDATE_INDEX_URL, else the default URL
+    QString indexUrl;         // empty: env UZUME_APP_UPDATE_INDEX_URL, else the default URL
     QString currentVersion;
     QString compiledChannel;  // stable | beta | dev
     QList<QByteArray> trustedKeys;
@@ -194,4 +194,4 @@ class UpdateManager : public QObject {
   std::function<bool(const QString&, const QStringList&)> launcher_;
 };
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

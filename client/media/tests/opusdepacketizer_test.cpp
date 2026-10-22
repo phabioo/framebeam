@@ -5,7 +5,7 @@
 
 #include "opusdepacketizer.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 std::vector<std::byte> packet(uint8_t first, uint16_t seq, uint32_t ts, const std::vector<uint8_t> &afterFixed) {

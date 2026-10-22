@@ -1,5 +1,5 @@
 // Headless test with the real melonDS DS core and a self-generated homebrew test ROM.
-// Without FRAMEBEAM_MELONDS_DS_CORE: return code 77 (ctest: SKIP).
+// Without UZUME_MELONDS_DS_CORE: return code 77 (ctest: SKIP).
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QSignalSpy>
@@ -11,7 +11,7 @@
 #include "libretro_backend.h"
 #include "system_manifest.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 namespace {
 struct RunResult {
@@ -219,8 +219,8 @@ class CoreTest : public QObject {
 };
 
 int main(int argc, char** argv) {
-  if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
-    std::puts("FRAMEBEAM_MELONDS_DS_CORE not set - test skipped");
+  if (qEnvironmentVariableIsEmpty("UZUME_MELONDS_DS_CORE")) {
+    std::puts("UZUME_MELONDS_DS_CORE not set - test skipped");
     return 77;
   }
   QCoreApplication app(argc, argv);

@@ -6,7 +6,7 @@
 #include <QMap>
 #include <QString>
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 struct PluginLanguageChoice {
   QString tag;    // stored in the setting and handed to plugins ("en", "de")
@@ -32,4 +32,4 @@ QString languageFromAzaharOption(const QString& value);
 QString resolvePluginLanguage(const QString& setting, const QString& systemId, const QMap<QString, QString>& coreOptions,
                               const QLocale& system = QLocale::system());
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

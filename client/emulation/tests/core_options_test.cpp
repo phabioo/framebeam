@@ -1,5 +1,5 @@
 // Core option capture with the real melonDS DS core (no game), cache round trip and launch option resolution.
-// Without FRAMEBEAM_MELONDS_DS_CORE: return code 77 (ctest: SKIP).
+// Without UZUME_MELONDS_DS_CORE: return code 77 (ctest: SKIP).
 #include <QCoreApplication>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -8,7 +8,7 @@
 #include "core_options.h"
 #include "system_manifest.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 class CoreOptionsTest : public QObject {
   Q_OBJECT
@@ -45,9 +45,9 @@ class CoreOptionsTest : public QObject {
     QVERIFY(mode != nullptr);
     QVERIFY(render != nullptr);
     QCOMPARE(mode->values.size(), 2);
-    QCOMPARE(mode->defaultValue, QStringLiteral("native"));  // core default; FrameBeam sets the mode from the Hub
+    QCOMPARE(mode->defaultValue, QStringLiteral("native"));  // core default; Uzume sets the mode from the Hub
     QVERIFY(!render->categoryKey.isEmpty());
-    // The manifest keys that FrameBeam controls exist in the core; the locked ones are recognised.
+    // The manifest keys that Uzume controls exist in the core; the locked ones are recognised.
     for (const QString& k : m_nds.lockedCoreOptions) {
       bool found = false;
       for (const CoreOption& o : p.options) found = found || o.key == k;
@@ -75,8 +75,8 @@ class CoreOptionsTest : public QObject {
 };
 
 int main(int argc, char** argv) {
-  if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
-    std::puts("FRAMEBEAM_MELONDS_DS_CORE not set - test skipped");
+  if (qEnvironmentVariableIsEmpty("UZUME_MELONDS_DS_CORE")) {
+    std::puts("UZUME_MELONDS_DS_CORE not set - test skipped");
     return 77;
   }
   QCoreApplication app(argc, argv);

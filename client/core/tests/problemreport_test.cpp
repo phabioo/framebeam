@@ -9,7 +9,7 @@
 #include "diagbundle.h"
 #include "problemreport.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 void writeFile(const QString& path, const QByteArray& data) {
@@ -34,7 +34,7 @@ ProblemReport::Sources sources(const QString& dir) {
   s.os = "Windows 11";
   s.systemInfo = QJsonObject{
       {"player", QJsonObject{{"version", "0.17.0"}, {"channel", "beta"}}},
-      {"system", QJsonObject{{"os", "Windows 11 Pro"}, {"gpu", "Test GPU"}, {"data_dir", "C:/Users/max/FrameBeam"}, {"arch", "x86_64"}}},
+      {"system", QJsonObject{{"os", "Windows 11 Pro"}, {"gpu", "Test GPU"}, {"data_dir", "C:/Users/max/Uzume"}, {"arch", "x86_64"}}},
       {"emulation", QJsonObject{{"gl_renderer", "Test GL"}, {"gl_version", "4.6 Test 551.23"}, {"cores", QJsonArray{"melondsds"}}}},
       {"media", QJsonObject{{"encoders_available", QJsonArray{"libopenh264"}}}},
       {"hubs", QJsonArray{QJsonObject{{"name", "Home Hub"}, {"address", "hub.lan"}}}},

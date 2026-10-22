@@ -53,7 +53,7 @@ func validGameCode(kind, code string) bool {
 		}
 		return true
 	case GameTitleGB:
-		// Header title: 1..16 printable ASCII characters, trimmed (the Player shows other bytes as '?').
+		// Header title: 1..16 printable ASCII characters, trimmed (the app shows other bytes as '?').
 		return code != "" && len(code) <= 16 && printableASCII([]byte(code)) && code == strings.TrimSpace(code)
 	case Game3DS:
 		if len(code) != 16 {
@@ -220,7 +220,7 @@ func (s *Service) commitTx(ctx context.Context, m romMeta, stored bool, owner st
 	return gameID, nil
 }
 
-// RegisterInput is a local file a Player reports.
+// RegisterInput is a local file an app reports.
 type RegisterInput struct {
 	SHA256, Filename, System, Title, GameCode string
 	Size                                      int64
@@ -228,8 +228,8 @@ type RegisterInput struct {
 }
 
 // RegisterROM registers a file that exists only on the caller's device. Match by SHA-256, else by identity, else a
-// new local-only game is created. The user becomes owner of the file. created is true for a new game. The Hub never
-// sees the file, so the identity is taken from the Player; a code that does not fit the system's format is ignored
+// new local-only game is created. The user becomes owner of the file. created is true for a new game. The server never
+// sees the file, so the identity is taken from the app; a code that does not fit the system's format is ignored
 // (the game then matches by hash only).
 func (s *Service) RegisterROM(ctx context.Context, userID string, in RegisterInput) (_ Game, created bool, err error) {
 	defer s.publishOK(&err, TopicLibrary)

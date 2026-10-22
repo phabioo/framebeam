@@ -18,9 +18,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/store"
 )
 
 func newAdmin(t *testing.T) (*hub.Service, *hubtest.Clock, hub.User) {
@@ -38,7 +38,7 @@ func redeemIn(code, name string) hub.RedeemInput {
 		Arch: "x86_64", PlayerVersion: "0.1.0", ProtocolVersion: 1, RemoteAddr: "192.0.2.1"}
 }
 
-var codeRe = regexp.MustCompile(`^FB-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}$`)
+var codeRe = regexp.MustCompile(`^UZ-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}$`)
 
 func TestInviteCodeFormatAndOnlyHashStored(t *testing.T) {
 	svc, _, admin := newAdmin(t)
@@ -532,7 +532,7 @@ func TestHandshakeCoreChecksAndReports(t *testing.T) {
 	if reps, _ = svc.ListClientReports(ctx, mustEntry(t, svc)); reps[0].Status != hub.ClientCompatible {
 		t.Fatalf("%+v", reps)
 	}
-	// A protocol problem still makes the Player incompatible next to core warnings.
+	// A protocol problem still makes the app incompatible next to core warnings.
 	r2, err := svc.Handshake(ctx, dev, hub.HandshakeInput{Platform: "windows", Arch: "x86_64", PlayerVersion: "0.2.0",
 		ProtocolVersion: 5, MinProtocolVersion: 5, Cores: &[]hub.CoreReport{}})
 	if err != nil || r2.Compatible || len(r2.Problems) != 2 {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 // Admin update rollback API (ADR 0029 D4): /api/v1/admin/updates. Every call needs the token of an admin's device.
@@ -38,7 +38,7 @@ func (s *Server) GetAdminUpdateVersions(ctx context.Context, _ api.GetAdminUpdat
 	info, err := s.svc.RollbackVersions(ctx)
 	if err != nil {
 		if errors.Is(err, hub.ErrUpdatesOff) {
-			return nil, &hub.Error{Code: hub.CodeBadRequest, Message: "Updates are off for this Hub"}
+			return nil, &hub.Error{Code: hub.CodeBadRequest, Message: "Updates are off for this server"}
 		}
 		return nil, err
 	}

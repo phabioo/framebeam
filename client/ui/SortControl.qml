@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Sort select of the Library toolbar (3c-2): 32 high, "Sort: <value> ▾". The menu is 252 wide with grouped items,
 // a "✓" on the selected one and a footer note. picked(key) on user choice; the owner stores it.

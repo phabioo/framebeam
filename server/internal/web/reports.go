@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
-// Reports page (docs/design/hub.md 6d-hub): problem reports sent from Players. Plain on purpose: the REST API
-// (/api/v1/admin/reports) is the primary interface, admin moves into the Player. Opening a report does not mark it
+// Reports page (docs/design/hub.md 6d-hub): problem reports sent from apps. Plain on purpose: the REST API
+// (/api/v1/admin/reports) is the primary interface, admin moves into the app. Opening a report does not mark it
 // seen; "Mark as seen" and Delete are explicit actions.
 
 type reportFilter struct {
@@ -217,7 +217,7 @@ func (s *Server) reportDeleteConfirm(w http.ResponseWriter, r *http.Request, ses
 	d := s.base(r, sess, "reports", "Delete report")
 	d.Body = confirmBody{
 		Heading: fmt.Sprintf("Delete report #%d?", x.ID),
-		Intro:   "“" + x.Title + "” from " + x.User + " and its attachments are removed from this Hub. This cannot be undone.",
+		Intro:   "“" + x.Title + "” from " + x.User + " and its attachments are removed from this server. This cannot be undone.",
 		Action:  fmt.Sprintf("/reports/%d/delete", x.ID), Button: "Delete report", Cancel: reportURL(x.ID, ""),
 	}
 	s.render(w, http.StatusOK, "confirm", "layout", d)
@@ -277,7 +277,7 @@ func (s *Server) reportArchive(w http.ResponseWriter, r *http.Request, _ *sessio
 	}
 	h := w.Header()
 	h.Set("Content-Type", "application/zip")
-	h.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="framebeam-report-%d.zip"`, id))
+	h.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="uzume-report-%d.zip"`, id))
 	if err := s.svc.WriteReportArchive(r.Context(), id, w); err != nil {
 		s.log.Warn("report archive", "id", id, "err", err)
 	}

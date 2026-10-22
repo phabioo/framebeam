@@ -15,7 +15,7 @@
 
 #include "manifest.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 inline constexpr qint64 kFbPluginMaxFileBytes = 32ll * 1024 * 1024;
 inline constexpr qint64 kFbPluginMaxUnpackedBytes = 64ll * 1024 * 1024;
@@ -58,4 +58,4 @@ QByteArray pluginSignatureMessage(const QMap<QString, QString>& sha256ByPath);
 // Writes every file of `pkg` below `destDir` (created; must not contain anything yet). false + *error on failure.
 bool extractFbPlugin(const FbPluginPackage& pkg, const QString& destDir, QString* error);
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-hello-ack.schema.json",
-  "title": "ws-hello-ack (Hub to Player)",
+  "$id": "https://uzume.invalid/schemas/ws-hello-ack.schema.json",
+  "title": "ws-hello-ack (server to app)",
   "type": "object",
   "required": [
     "type",
@@ -32,14 +32,14 @@
         },
         "features": {
           "type": "array",
-          "description": "Short list of the flags relevant to the WSS connection (saves_v1, saves_v2, sessions_v1, ice_update_v1, runs_v1, local_roms_v1, plus turn_v1 exactly when turn_servers is present). Not the full feature set: the authoritative list is `features` of the POST /handshake response, a Player must not treat a flag missing here as unsupported",
+          "description": "Short list of the flags relevant to the WSS connection (saves_v1, saves_v2, sessions_v1, ice_update_v1, runs_v1, local_roms_v1, plus turn_v1 exactly when turn_servers is present). Not the full feature set: the authoritative list is `features` of the POST /handshake response, an app must not treat a flag missing here as unsupported",
           "items": {
             "type": "string"
           }
         },
         "ice_servers": {
           "type": "array",
-          "description": "stun: URLs: the Hub's configured list (default stun:stun.cloudflare.com:3478, empty with -ice-servers none) plus the Hub's own STUN when the embedded TURN server is on",
+          "description": "stun: URLs: the server's configured list (default stun:stun.cloudflare.com:3478, empty with -ice-servers none) plus the server's own STUN when the embedded TURN server is on",
           "items": {
             "type": "string",
             "pattern": "^stuns?:"

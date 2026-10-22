@@ -39,7 +39,7 @@ func TestClientsRenameRevokeConfirmAndDenied(t *testing.T) {
 	// Revoke goes through a confirmation that says what happens; the POST from it redirects.
 	rec = c.get("/clients/devices/"+dev+"/revoke", nil)
 	status(t, rec, 200)
-	contains(t, rec, "Revoke access for Den PC?", "loses access at once", "Saves stay on the Hub", `action="/clients/devices/`+dev+`/revoke"`, "Revoke access</button>")
+	contains(t, rec, "Revoke access for Den PC?", "loses access at once", "Saves stay on the server", `action="/clients/devices/`+dev+`/revoke"`, "Revoke access</button>")
 	rec = c.postForm("/clients/devices/"+dev+"/revoke", url.Values{"_csrf": {tok}}, nil)
 	status(t, rec, 303)
 	contains(t, c.get("/clients?ok=devrevoked", nil), "Access revoked.", "Revoked", "Details")

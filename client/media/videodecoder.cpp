@@ -8,7 +8,7 @@ extern "C" {
 #include <climits>
 #include <cstring>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 constexpr int kMaxDimension = 8192;  // as on the encoder side
@@ -117,4 +117,4 @@ bool VideoDecoder::decode(const uint8_t* data, size_t size, std::vector<QImage>&
   return true;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

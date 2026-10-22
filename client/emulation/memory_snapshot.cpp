@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cstring>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 namespace {
 constexpr uint64_t kUnmappedStep = 256;  // granularity when skipping unmapped addresses
@@ -114,4 +114,4 @@ std::shared_ptr<const MemorySnapshot> MemoryWatchSet::latest() const {
 
 uint64_t MemoryWatchSet::generation() const { return m_generation.load(std::memory_order_acquire); }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

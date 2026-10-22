@@ -5,8 +5,8 @@
 #include "screenlayout.h"
 #include "system_manifest.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 
 namespace {
 emu::DisplayProfile ndsProfile() {

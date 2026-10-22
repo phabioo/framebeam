@@ -5,7 +5,7 @@
 #include <QMetaType>
 #include <atomic>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 std::atomic<CoreProber::ProbeFn> g_probeFn{&emu::probeCoreGuarded};
@@ -16,7 +16,7 @@ void CoreProber::setProbeFunctionForTest(ProbeFn fn) { g_probeFn.store(fn != nul
 CoreProber::CoreProber(QObject* parent) : QObject(parent) {
   pool_ = std::make_unique<QThreadPool>();
   pool_->setMaxThreadCount(1);
-  qRegisterMetaType<framebeam::emu::CoreProbe>("framebeam::emu::CoreProbe");
+  qRegisterMetaType<uzume::emu::CoreProbe>("uzume::emu::CoreProbe");
 }
 
 CoreProber::~CoreProber() {
@@ -53,4 +53,4 @@ void CoreProber::deliver(const QString& corePath, const emu::CoreProbe& probe) {
   if (pending_.isEmpty()) emit idle();
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

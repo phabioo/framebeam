@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Plugin content in the run detail (Runs screen, design 4j-2): one block per plugin of the run that declares ui.run, under a
 // header with its title (and the origin marker for non-official plugins). Follows the app theme. Hidden when no plugin of the

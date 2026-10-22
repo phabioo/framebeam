@@ -13,8 +13,8 @@ extern "C" {
 #include <libavutil/frame.h>
 }
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using Attach = emu::GpuEncodeTarget::Attach;
 using St = GpuCapture::Status;
 

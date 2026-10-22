@@ -10,7 +10,7 @@
 #include "videoencoder.h"
 #include "viewerbacklog.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 TurnServer turn(const QStringList& urls) { return TurnServer{urls, QStringLiteral("1700000000:dev"), QStringLiteral("secret"), QStringLiteral("2026-10-08T00:00:00Z")}; }
@@ -72,30 +72,30 @@ class RtcUtilTest : public QObject {
   }
 
   void forceRelayEnvironment() {
-    qunsetenv("FRAMEBEAM_FORCE_RELAY");
+    qunsetenv("UZUME_FORCE_RELAY");
     QVERIFY(!forceRelayFromEnv());
-    qputenv("FRAMEBEAM_FORCE_RELAY", "1");
+    qputenv("UZUME_FORCE_RELAY", "1");
     QVERIFY(forceRelayFromEnv());
-    qputenv("FRAMEBEAM_FORCE_RELAY", "0");
+    qputenv("UZUME_FORCE_RELAY", "0");
     QVERIFY(!forceRelayFromEnv());
-    qunsetenv("FRAMEBEAM_FORCE_RELAY");
+    qunsetenv("UZUME_FORCE_RELAY");
   }
 
   void hostAndViewerTakeForceRelayFromEnvironment() {
-    qunsetenv("FRAMEBEAM_FORCE_RELAY");
+    qunsetenv("UZUME_FORCE_RELAY");
     {
       SessionHost h;
       SessionViewer v;
       QVERIFY(!h.forceRelay() && !v.forceRelay());
     }
-    qputenv("FRAMEBEAM_FORCE_RELAY", "1");
+    qputenv("UZUME_FORCE_RELAY", "1");
     SessionHost h;
     SessionViewer v;
     QVERIFY(h.forceRelay());
     QVERIFY(v.forceRelay());
     h.setForceRelay(false);
     QVERIFY(!h.forceRelay());  // explicit setting still overrides
-    qunsetenv("FRAMEBEAM_FORCE_RELAY");
+    qunsetenv("UZUME_FORCE_RELAY");
   }
 
   void tcpOnlyDetection() {
@@ -232,13 +232,13 @@ class RtcUtilTest : public QObject {
   }
 
   void encoderBitrateAtRuntime() {
-    qputenv("FRAMEBEAM_H264_ENCODER", "libx264");
+    qputenv("UZUME_H264_ENCODER", "libx264");
     VideoEncoder enc;
     if (!enc.open(128, 96, 60, 2'000'000)) {
-      qunsetenv("FRAMEBEAM_H264_ENCODER");
+      qunsetenv("UZUME_H264_ENCODER");
       QSKIP("libx264 is not available in this FFmpeg build");
     }
-    qunsetenv("FRAMEBEAM_H264_ENCODER");
+    qunsetenv("UZUME_H264_ENCODER");
     QVERIFY(enc.supportsRuntimeBitrate());
     QCOMPARE(enc.bitrate(), 2'000'000);
     std::vector<uint8_t> px(128 * 96 * 4, 90);

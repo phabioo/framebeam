@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the FrameBeam Hub .deb with dpkg-deb only (no debhelper): docs/guides/hub-install.md.
+# Builds the Uzume server .deb with dpkg-deb only (no debhelper): docs/guides/hub-install.md.
 # Usage: build-deb.sh --binary PATH --arch amd64|arm64 --version X.Y.Z[-pre] --out DIR
 # Control Version: SemVer with - replaced by ~ (0.3.0-beta.57 -> 0.3.0~beta.57); the file name keeps the SemVer. Prints the .deb path.
 set -euo pipefail
@@ -37,15 +37,18 @@ DOCDIR="$STAGE/usr/share/doc/framebeam-hub"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [ -f "$REPO_ROOT/server/THIRD-PARTY-NOTICES.txt" ] || die "server/THIRD-PARTY-NOTICES.txt missing (make notices)"
 install -d -m 0755 "$STAGE/usr/bin" "$STAGE/lib/systemd/system" "$STAGE/DEBIAN" "$DOCDIR" "$OUT"
-install -m 0755 "$BINARY" "$STAGE/usr/bin/framebeam-hub"
+install -m 0755 "$BINARY" "$STAGE/usr/bin/uzume-server"
+# Compat symlink: servers installed before the rename run "framebeam-hub update apply-staged" (and may verify the new
+# binary under that name) while dpkg installs this package. Units run /usr/bin/uzume-server.
+ln -s uzume-server "$STAGE/usr/bin/framebeam-hub"
 
 # The script-install unit points at /usr/local/bin; the package unit runs /usr/bin and gets a runtime dir for the
-# update request file (kept across Hub restarts so a request made right before a restart is not lost).
+# update request file (kept across server restarts so a request made right before a restart is not lost).
 unit="$STAGE/lib/systemd/system/framebeam-hub.service"
-sed -e 's#^ExecStart=/usr/local/bin/framebeam-hub$#ExecStart=/usr/bin/framebeam-hub#' \
+sed -e 's#^ExecStart=/usr/local/bin/uzume-server$#ExecStart=/usr/bin/uzume-server#' \
     -e 's#^RestartSec=5$#RestartSec=5\nRuntimeDirectory=framebeam\nRuntimeDirectoryPreserve=yes#' \
     "$SCRIPT_DIR/framebeam-hub.service" >"$unit"
-grep -qx 'ExecStart=/usr/bin/framebeam-hub' "$unit" || die "could not rewrite ExecStart in framebeam-hub.service"
+grep -qx 'ExecStart=/usr/bin/uzume-server' "$unit" || die "could not rewrite ExecStart in framebeam-hub.service"
 grep -qx 'RuntimeDirectory=framebeam' "$unit" || die "could not add RuntimeDirectory to framebeam-hub.service"
 chmod 0644 "$unit"
 install -m 0644 "$SCRIPT_DIR/framebeam-hub-update.path" "$SCRIPT_DIR/framebeam-hub-update.service" \
@@ -55,11 +58,11 @@ install -m 0644 "$SCRIPT_DIR/framebeam-hub-update.path" "$SCRIPT_DIR/framebeam-h
 install -m 0644 "$REPO_ROOT/server/THIRD-PARTY-NOTICES.txt" "$DOCDIR/THIRD-PARTY-NOTICES.txt"
 cat >"$DOCDIR/copyright" <<'COPYRIGHT'
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: FrameBeam
-Source: https://github.com/phabioo/framebeam
+Upstream-Name: Uzume
+Source: https://github.com/phabioo/uzume
 
 Files: *
-Copyright: 2026 Fabio and FrameBeam contributors
+Copyright: 2026 Fabio and Uzume contributors
 License: GPL-3+
 
 License: GPL-3+
@@ -90,13 +93,13 @@ Version: $DEBVER
 Section: net
 Priority: optional
 Architecture: $ARCH
-Maintainer: FrameBeam <framebeam@users.noreply.github.com>
+Maintainer: Uzume <framebeam@users.noreply.github.com>
 Installed-Size: $size_kb
 Depends: systemd
-Homepage: https://github.com/phabioo/framebeam
-Description: FrameBeam Hub - self-hosted retro gaming library and session server
- Central ROM library, versioned saves and session coordination for FrameBeam
- Players. Runs as the systemd service framebeam-hub; configuration in
+Homepage: https://github.com/phabioo/uzume
+Description: Uzume server - self-hosted retro gaming library and session server
+ Central ROM library, versioned saves and session coordination for Uzume
+ apps. Runs as the systemd service framebeam-hub; configuration in
  /etc/framebeam/hub.env, data in /var/lib/framebeam (never removed by the
  package).
 CONTROL

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-run-state.schema.json",
-  "title": "ws-run-state (Hub to the other joined participants and the writer's other devices after a state write; feature runs_v1)",
+  "$id": "https://uzume.invalid/schemas/ws-run-state.schema.json",
+  "title": "ws-run-state (server to the other joined participants and the writer's other devices after a state write; feature runs_v1)",
   "type": "object",
   "required": [
     "type",

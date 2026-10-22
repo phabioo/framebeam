@@ -22,9 +22,9 @@
 #include "plugin_language.h"
 #include "plugin_ui.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
-Q_LOGGING_CATEGORY(lcPlugins, "framebeam.plugins")
+Q_LOGGING_CATEGORY(lcPlugins, "uzume.plugins")
 
 namespace {
 
@@ -262,7 +262,7 @@ void PluginsController::reportInstall(const plugins::InstallResult& r, bool from
   if (fromFolder) {
     text = tr("Installed %1. It is off until you turn it on.").arg(name);
   } else if (r.origin == QLatin1String("official")) {
-    text = tr("Installed %1 (Official, signed by FrameBeam). It is off until you turn it on.").arg(name);
+    text = tr("Installed %1 (Official, signed by Uzume). It is off until you turn it on.").arg(name);
   } else {
     text = tr("Installed %1 as a local file. It is off until you turn it on.").arg(name);
   }
@@ -346,7 +346,7 @@ void PluginsController::onDelivered(const plugins::DeliveryResult& r) {
   if (r.ok) {
     const auto info = manager_->info(r.id);
     QString text = tr("Installed %1 %2 from your Hub. It is off until you turn it on.").arg(info ? info->manifest.name : r.id, r.version);
-    if (r.origin == QLatin1String("unverified")) text += QLatin1Char(' ') + tr("FrameBeam has not checked this plugin.");
+    if (r.origin == QLatin1String("unverified")) text += QLatin1Char(' ') + tr("Uzume has not checked this plugin.");
     if (!r.signatureNote.isEmpty()) text += QLatin1Char(' ') + tr("Its signature is not valid, so it is not treated as Official.");
     if (!r.addedPermissions.isEmpty())
       text += QLatin1Char(' ') + tr("It asks for new permissions (%1) and was turned off.").arg(permissionsText(r.addedPermissions));
@@ -1142,7 +1142,7 @@ void PluginsController::rebuildHotkeys() {
     }
   }
 
-  // Groups for Controllers > Hotkeys. FrameBeam keys always win, then the earlier plugin; a key in conflict is not active
+  // Groups for Controllers > Hotkeys. Uzume keys always win, then the earlier plugin; a key in conflict is not active
   // until the user chooses another one.
   QVariantList groups;
   QSet<int> active;
@@ -1187,7 +1187,7 @@ void PluginsController::rebuildHotkeys() {
           {QStringLiteral("changed"), !ov.isEmpty()},
           {QStringLiteral("listening"), hotkeyListening_ == pid + QLatin1Char('/') + id},
           {QStringLiteral("note"), owner.isEmpty() ? QString()
-                                   : reservedKeys_.contains(combo) ? tr("Already used by %1. FrameBeam keys always win.").arg(owner)
+                                   : reservedKeys_.contains(combo) ? tr("Already used by %1. Uzume keys always win.").arg(owner)
                                                                     : tr("Already used by %1. Unassigned until you choose.").arg(owner)}});
     }
     const QString origin = plugin.value(QStringLiteral("origin")).toString();
@@ -1329,7 +1329,7 @@ void PluginsController::collectToasts() {
   if (changed) emit toastsChanged();
 }
 
-// Host notice "FrameBeam · plugin paused" (not mutable: it is about the Player's own plugin handling).
+// Host notice "Uzume · plugin paused" (not mutable: it is about the Player's own plugin handling).
 void PluginsController::addHostNotice(const QString& pluginId) {
   if (previewUi_ || !activeIds().contains(pluginId)) return;
   const auto info = infoFor(pluginId);
@@ -1340,7 +1340,7 @@ void PluginsController::addHostNotice(const QString& pluginId) {
   toasts_.append(QVariantMap{{QStringLiteral("toastId"), --hostToastId_},
                              {QStringLiteral("host"), true},
                              {QStringLiteral("pluginId"), pluginId},
-                             {QStringLiteral("pluginName"), tr("FrameBeam")},
+                             {QStringLiteral("pluginName"), tr("Uzume")},
                              {QStringLiteral("tone"), QStringLiteral("warning")},
                              {QStringLiteral("title"), tr("plugin paused")},
                              {QStringLiteral("text"), tr("%1 was paused after an error. Your game keeps running.").arg(info->manifest.name)},
@@ -1519,4 +1519,4 @@ void PluginsController::applyPreviewHud() {
   emit hudWidgetsChanged();
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

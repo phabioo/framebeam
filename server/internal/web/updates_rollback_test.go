@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
-	"github.com/phabioo/framebeam/server/internal/health"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/statusinfo"
-	"github.com/phabioo/framebeam/server/internal/store"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/health"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/statusinfo"
+	"github.com/phabioo/uzume/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 func rollbackFeed(t *testing.T, seed []byte, schemas map[string]int) string {
@@ -110,7 +110,7 @@ func TestUpdatesEarlierVersionsPage(t *testing.T) {
 
 func TestUpdatesPausedCardAndResume(t *testing.T) {
 	e, _ := rollbackEnv(t, "0.3.0")
-	pause := updates.Pause{From: "0.4.0", To: "0.3.0", At: time.Now().Add(-time.Hour).UTC(), By: "max", Backup: "framebeam-hub-x-20261022T100000Z-safety.tar", PrevAuto: "1"}
+	pause := updates.Pause{From: "0.4.0", To: "0.3.0", At: time.Now().Add(-time.Hour).UTC(), By: "max", Backup: "uzume-server-x-20261022T100000Z-safety.tar", PrevAuto: "1"}
 	for k, v := range map[string]string{updates.SettingPaused: updates.MarshalPause(pause), updates.SettingSkip: "0.4.0", updates.SettingAuto: "0"} {
 		if _, err := e.db.Exec(`INSERT INTO settings(key, value) VALUES (?,?)`, k, v); err != nil {
 			t.Fatal(err)

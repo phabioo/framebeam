@@ -1,7 +1,7 @@
 #pragma once
 // GPU-direct encoding of the own Session (ADR 0019, ADR 0027 D6): the adapter between the emulation thread and the UI
-// thread. framebeam_emulation only knows the interface emu::GpuEncodeTarget; framebeam_media implements the captures
-// (CudaGlCapture for NVIDIA, D3d11EncodeCapture for AMD AMF and Intel QSV); framebeam_ui, which links both, joins them here.
+// thread. uzume_emulation only knows the interface emu::GpuEncodeTarget; uzume_media implements the captures
+// (CudaGlCapture for NVIDIA, D3d11EncodeCapture for AMD AMF and Intel QSV); uzume_ui, which links both, joins them here.
 
 #include <QSize>
 #include <QString>
@@ -15,11 +15,11 @@
 
 struct AVFrame;
 
-namespace framebeam {
+namespace uzume {
 class GlD3d11Bridge;
 }
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 // Largest frame the Session encoder is fed from the local game (the encoder opens at the frame size it gets). While
 // shared, the GPU readback keeps at least this much of a larger hardware frame (the view's own size may need more), and
@@ -118,4 +118,4 @@ class GpuEncodeBridge final : public emu::GpuEncodeTarget {
   QString reason_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

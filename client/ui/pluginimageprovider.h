@@ -13,7 +13,7 @@
 #include <memory>
 #include <mutex>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 inline constexpr qint64 kMaxPluginImageBytes = 8ll * 1024 * 1024;
 inline constexpr int kMaxPluginImageDim = 4096;  // hard limit of the file (width and height)
@@ -68,4 +68,4 @@ class PluginImageProvider : public QQuickImageProvider {
   PluginPixelBudget m_budget;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

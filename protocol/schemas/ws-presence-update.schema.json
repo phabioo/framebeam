@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-presence-update.schema.json",
+  "$id": "https://uzume.invalid/schemas/ws-presence-update.schema.json",
   "title": "ws-presence-update (both directions)",
   "type": "object",
   "required": [
@@ -41,5 +41,5 @@
       }
     }
   },
-  "description": "Player to Hub: {state: online|in_game, game_id?}. Hub to Players: additionally user_id and device_id (always set), state may be offline."
+  "description": "App to server: {state: online|in_game, game_id?}. Server to apps: additionally user_id and device_id (always set), state may be offline."
 }

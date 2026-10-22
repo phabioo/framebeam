@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-session-ended.schema.json",
-  "title": "ws-session-ended (Hub to Player)",
+  "$id": "https://uzume.invalid/schemas/ws-session-ended.schema.json",
+  "title": "ws-session-ended (server to app)",
   "type": "object",
   "required": [
     "type",

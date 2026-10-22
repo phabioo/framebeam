@@ -15,7 +15,7 @@
 #include "hubprotocol.h"
 #include "romdownloader.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class LibraryModel : public QAbstractListModel {
   Q_OBJECT
@@ -187,4 +187,4 @@ class LibraryGroupModel : public QSortFilterProxyModel {
   int group_ = -1;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

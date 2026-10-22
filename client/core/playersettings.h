@@ -7,7 +7,7 @@
 #include <QStringList>
 #include <optional>
 
-namespace framebeam {
+namespace uzume {
 
 // Local Player settings: <data>/settings/player.json (not hub-specific, never contains a secret).
 // Unknown keys are preserved when saving.
@@ -134,4 +134,4 @@ class PlayerSettings {
   qint64 romCacheLimit_ = kDefaultRomCacheLimitBytes;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

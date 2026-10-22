@@ -18,7 +18,7 @@
 #include "saveapi.h"
 #include "savestore.h"
 
-namespace framebeam {
+namespace uzume {
 
 struct SaveRestoreResult {
   enum class Outcome { Ok, Blocked, Stale, NotFound, Offline, Failed };
@@ -248,20 +248,20 @@ class SaveSync : public QObject {
 
  signals:
   void startReady(const QString& gameId, const QString& saveDir, const QString& note);
-  void startConflict(const framebeam::SaveSync::ConflictView& view);
+  void startConflict(const uzume::SaveSync::ConflictView& view);
   void resolveFailed(const QString& message);  // dialog stays open
   void startFailed(const QString& gameId, const QString& message);
-  void kindChanged(const QString& gameId, framebeam::SaveSync::Kind kind);
+  void kindChanged(const QString& gameId, uzume::SaveSync::Kind kind);
   void kindsRefreshed(const QStringList& changedIds);
   void finalSyncFinished(const QString& gameId, bool ok);
   // The core's own save file could not be converted; it stays untouched locally and is not uploaded.
   void coreSaveProblem(const QString& gameId, const QString& message);
   void uploaded(const QString& gameId, int revision);  // after every accepted upload (tests/diagnostics)
   // save_updated from another device; runningHere = this game runs on this Player with that slot (next upload conflicts).
-  void saveChangedElsewhere(const framebeam::SaveUpdate& update, bool runningHere);
+  void saveChangedElsewhere(const uzume::SaveUpdate& update, bool runningHere);
   // save_updated "renamed" / "deleted" from another device, after the local slot was handled (moved, removed, or kept
   // because it is running or has unsynced changes). `message` is a user-facing notice (empty = nothing to say).
-  void slotChangedElsewhere(const framebeam::SaveUpdate& update, const QString& message, bool warning);
+  void slotChangedElsewhere(const uzume::SaveUpdate& update, const QString& message, bool warning);
 
  private:
   enum class UploadOutcome { Clean, Uploaded, Conflict, Offline, Failed };
@@ -376,7 +376,7 @@ class SaveSync : public QObject {
   bool retryRunning_ = false;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::SaveSync::ConflictView)
-Q_DECLARE_METATYPE(framebeam::SaveSync::Kind)
+Q_DECLARE_METATYPE(uzume::SaveSync::ConflictView)
+Q_DECLARE_METATYPE(uzume::SaveSync::Kind)

@@ -3,7 +3,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 constexpr int kMaxNameChars = 64;
@@ -41,4 +41,4 @@ std::optional<HostState> parseHostState(const QByteArray& message) {
   return s;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

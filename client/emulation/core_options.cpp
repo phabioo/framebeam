@@ -13,7 +13,7 @@
 
 #include "libretro_backend.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 CoreProbe probeCore(const QString& corePath, const QString& systemDir, const QString& saveDir) {
   CoreProbe p;
@@ -179,4 +179,4 @@ QMap<QString, QString> launchCoreOptions(const SystemManifest& manifest, const Q
   return out;
 }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

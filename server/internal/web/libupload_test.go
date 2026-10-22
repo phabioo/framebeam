@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 func upJSON(t *testing.T, body string) map[string]any {

@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // Small icons of the in-game header and panel (GameHeader sheet): drawn from primitives so they follow the text color.
 // kind: pause | play | speed | layout | diag | fullscreen | diamond | caret (drawn, so it centres like the other icons).

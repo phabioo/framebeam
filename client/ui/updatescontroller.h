@@ -12,7 +12,7 @@
 #include "playersettings.h"
 #include "updater.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class UpdatesController : public QObject {
   Q_OBJECT
@@ -123,4 +123,4 @@ class UpdatesController : public QObject {
   std::function<QList<QPair<QString, QString>>(const QString&)> pluginNeeds_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

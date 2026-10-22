@@ -13,7 +13,7 @@ How the server and the Windows app update themselves, and how a beta is promoted
 ### Server on Windows
 
 - The unprivileged service `FrameBeamHub` only downloads and stages the `msi` and writes a request file to `<data>\update-request`. It never installs.
-- The service `FrameBeamHubUpdater` (LocalSystem) runs `framebeam-hub update watch` (polls every 5 s), re-verifies the signed index, copies the MSI to a private directory (`%ProgramData%\FrameBeam\HubUpdater`) and runs `msiexec /i <copy> /qn /norestart /l*v <log>`. The log is copied to `<data>\updates\msiexec.log`.
+- The service `FrameBeamHubUpdater` (LocalSystem) runs `uzume-server update watch` (polls every 5 s), re-verifies the signed index, copies the MSI to a private directory (`%ProgramData%\FrameBeam\HubUpdater`) and runs `msiexec /i <copy> /qn /norestart /l*v <log>`. The log is copied to `<data>\updates\msiexec.log`.
 - The updater passes `ALLUSERS=1` (per-machine product). "Packaged" means the marker file `framebeam-hub.msi-installed` next to the executable, which the MSI installs together with the services and ACLs ([packaging.md](packaging.md)); the standalone `.exe` cannot update itself and only shows the available version.
 - The MSI stops `FrameBeamHubUpdater` during an upgrade, so the updater cannot await its own msiexec run or copy the log; check the server version after the restart. Details: [ADR 0021](../adr/0021-one-windows-installer.md).
 
@@ -47,7 +47,7 @@ After going back, automatic updates are paused. The version you left is listed a
 
 ### App (Windows installer)
 
-Settings → Updates → EARLIER VERSIONS lists the releases with "Go back…". The dialog says what happens: the app closes, installs the older version and starts again (about 30 s); settings are kept (newer keys are ignored and come back after the update); saves and states are on the server and are not touched; plugins that need a newer app (manifest field `min_player`) are turned off and listed ("X needs 0.16.4 and is turned off until you update."), they turn on again after the update; updates are paused. Never while a game or Session runs: the button is muted and the dialog says so. The installer is downloaded from the index, verified, and run by the same launcher copy as an update. For that the app MSI is authored with `AllowDowngrades` (`packaging/windows/framebeam.wxs`): an MSI built without it refuses to install over a newer version, so the index marks the releases built with it (`msi_downgrade`) and only those are offered. Releases from before this change cannot be reached from the list; install them by hand from the release page.
+Settings → Updates → EARLIER VERSIONS lists the releases with "Go back…". The dialog says what happens: the app closes, installs the older version and starts again (about 30 s); settings are kept (newer keys are ignored and come back after the update); saves and states are on the server and are not touched; plugins that need a newer app (manifest field `min_player`) are turned off and listed ("X needs 0.16.4 and is turned off until you update."), they turn on again after the update; updates are paused. Never while a game or Session runs: the button is muted and the dialog says so. The installer is downloaded from the index, verified, and run by the same launcher copy as an update. For that the app MSI is authored with `AllowDowngrades` (`packaging/windows/uzume.wxs`): an MSI built without it refuses to install over a newer version, so the index marks the releases built with it (`msi_downgrade`) and only those are offered. Releases from before this change cannot be reached from the list; install them by hand from the release page.
 
 A portable, Linux or development build lists the same releases with a "View release" link only.
 
@@ -56,15 +56,15 @@ A portable, Linux or development build lists the same releases with a "View rele
 Settings → Updates → "Earlier versions" (a plain page, loaded on request), the CLI and the admin API do the same:
 
 ```
-framebeam-hub rollback --list [--json]          the earlier versions and what going back does to the data
-framebeam-hub rollback <version> [--yes] [--confirm-data-loss]
-framebeam-hub rollback --resume                 resume automatic updates
+uzume-server rollback --list [--json]          the earlier versions and what going back does to the data
+uzume-server rollback <version> [--yes] [--confirm-data-loss]
+uzume-server rollback --resume                 resume automatic updates
 GET  /api/v1/admin/updates/versions             the list (OpenAPI 1.26.0)
 POST /api/v1/admin/updates/rollback {"version": "...", "confirm_data_loss": false}
 POST /api/v1/admin/updates/resume
 ```
 
-Migrations are forward-only, so what happens to the data depends on the database schema the target version uses (`schema_version` in the index entry, from `framebeam-hub version --json`; an entry without it is "unknown"):
+Migrations are forward-only, so what happens to the data depends on the database schema the target version uses (`schema_version` in the index entry, from `uzume-server version --json`; an entry without it is "unknown"):
 
 | Target | What happens |
 | --- | --- |
