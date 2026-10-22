@@ -129,6 +129,8 @@ if(BUILD_TESTING)
   framebeam_add_test(emulation_core_speed tests/core_speed_test.cpp LIBS framebeam_emulation NEEDS_CORE)
   target_compile_definitions(test_emulation_core_speed PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
   add_dependencies(test_emulation_core_speed framebeam_test_rom)
+  # Timing test (fps ratios): must not share the CPU with the parallel tests.
+  set_tests_properties(emulation_core_speed PROPERTIES RUN_SERIAL TRUE)
 
   # melonDS DS OpenGL renderer through hardware-frame readback (SKIP/77 without core or GL 3.3 context).
   framebeam_add_test(emulation_core_gl tests/core_gl_test.cpp LIBS framebeam_emulation Qt6::Gui NEEDS_CORE)
@@ -148,6 +150,8 @@ if(BUILD_TESTING)
     add_dependencies(test_emulation_${variant}_testcore framebeam_test_rom)
   endforeach()
   set_tests_properties(emulation_core_gl_testcore PROPERTIES SKIP_RETURN_CODE 77)
+  # Timing test (fps ratios): must not share the CPU with the parallel tests.
+  set_tests_properties(emulation_core_speed_testcore PROPERTIES RUN_SERIAL TRUE)
   framebeam_add_test(emulation_core_desmume_testcore tests/core_desmume_test.cpp LIBS framebeam_emulation TEST_CORE TEST_CORE_FLAVOR desmume)
   target_compile_definitions(test_emulation_core_desmume_testcore PRIVATE FB_TEST_ROM_PATH="${FB_TEST_ROM}")
   add_dependencies(test_emulation_core_desmume_testcore framebeam_test_rom)
