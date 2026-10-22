@@ -163,6 +163,16 @@ func ParseName(name string) (ts time.Time, safety, ok bool) {
 	return t, m[3] != "", true
 }
 
+// SafeName reports whether name is a plain backup file name: it matches the naming scheme and has no
+// path separators or parent references.
+func SafeName(name string) bool {
+	if strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) || !filepath.IsLocal(name) || name != filepath.Base(name) {
+		return false
+	}
+	_, _, ok := ParseName(name)
+	return ok
+}
+
 // ---- errors ----
 
 // NoSpaceError: the target has too little free space. The Hub never deletes backups to make room (decision 26).
@@ -652,10 +662,13 @@ func List(dir string) ([]Info, error) {
 
 // Find returns the path of the archive called name in dir (name must be a plain archive file name).
 func Find(dir, name string) (string, error) {
-	if _, _, ok := ParseName(name); !ok || name != filepath.Base(name) {
+	if !SafeName(name) {
 		return "", os.ErrNotExist
 	}
-	p := filepath.Join(dir, name)
+	if strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) || !filepath.IsLocal(name) {
+		return "", os.ErrNotExist
+	}
+	p := filepath.Join(dir, filepath.Base(name))
 	if st, err := os.Stat(p); err != nil || !st.Mode().IsRegular() {
 		return "", os.ErrNotExist
 	}

@@ -449,6 +449,9 @@ func (s *Service) backupPath(ctx context.Context, name string) (string, error) {
 	if set.Folder == "" {
 		return "", ErrNotFound
 	}
+	if strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) || !filepath.IsLocal(name) {
+		return "", ErrNotFound
+	}
 	p, err := backup.Find(set.Folder, name)
 	if err != nil {
 		return "", ErrNotFound
