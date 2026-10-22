@@ -50,7 +50,7 @@ Each screen entry names the package that builds it. Milestone 0.18 ("Uzume: one 
 | 9 | Runs without a plugin | 4j runs, 4jh run board, run tabs, run slot "Run: <Name>" |
 | 10 | On this PC and sharing | 8i share with others, 8j on this PC, Settings › This PC pages |
 | 11 | Installer | 8l Windows installer, 8m Linux, 8h-3 |
-| 12 | Remove the web admin | the OBS stream view (5g) stays |
+| 12 | Remove the web admin | no web page stays; the OBS stream view (5g) is not built as a web page |
 
 Later waves (build from the boards without their own design round): **0.19** player comfort and library (3c, parts of 3g, 9b, 6g, 6l, 3e, 9a), **0.20** emulation (save states, rewind, run-ahead, diagnostics), **0.21** together (People and Chat tabs, mixer, voice, notifications, Multiview marks), **0.22** plugins (developer console 4d, run recap, SoulLink screens), **0.23** platforms (Linux app, watching in the browser, Vulkan). Screens that only restyle an existing app screen fall to package 3; the "Built in" line names what each board adds beyond that.
 

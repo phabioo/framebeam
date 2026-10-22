@@ -1,6 +1,6 @@
 # ADR 0030: One app, one server, new name Uzume (0.18)
 
-- Status: Accepted. Name, no web admin, server commands instead of an emergency web, accounts for all users, runs without a plugin and the milestone order were decided by Fabio on 2026-10-22. The timing of the web admin removal (D2), the web pages that stay (D2), the plugin IDs (D7) and the waves without their own design round (D8) follow the recommendations of the 0.18 plan, taken on 2026-10-22; Fabio may still change them.
+- Status: Accepted. Name, no web admin, server commands instead of an emergency web, accounts for all users, runs without a plugin and the milestone order were decided by Fabio on 2026-10-22. Fabio decided on 2026-10-22 (later the same day) that browser watching goes too and the code keeps no browser components. The timing of the web admin removal (D2), the plugin IDs (D7) and the waves without their own design round (D8) follow the recommendations of the 0.18 plan, taken on 2026-10-22; Fabio may still change them.
 - Date: 2026-10-22
 - Deciders: Fabio
 
@@ -26,7 +26,7 @@ This ADR supersedes parts of [ADR 0015](0015-hub-ui-pass.md) (Hub web UI), [ADR 
 
 - Every administration task moves into the app: AppNav groups PLAY, SERVER (admins only) and THIS PC; Settings have a This PC / Server switch. Admin actions on the library and on saves appear inline where a member sees the same list.
 - The Hub web admin is removed at the end of the milestone (package 12), after the app covers everything it does. Until then it keeps working, so every beta stays usable. No new web pages for administration are built.
-- Two web pages remain, both without an admin login: the read-only stream view for OBS (design 5g, a revocable link) and, from 0.23, watching a Session in the browser. Invites have no landing page; they are a code or an `uzume://` link the app opens.
+- No web pages remain and the code keeps no browser components (Fabio, 2026-10-22): no admin web, no watching a Session in the browser (dropped from 0.23), and no web stream view for OBS (design 5g is not built as a web page; OBS captures the app window; whether the app gets its own overlay window for that stays open). The server only serves the API, WebSocket signaling and file transfer. Invites have no landing page; they are a code or an `uzume://` link the app opens.
 - Admin from a phone or a browser is not supported. A server on a Raspberry Pi or in Docker is administered from a PC with the app; a Linux-only user waits for the Linux app (0.23) and uses the server commands (D4) until then.
 
 ### D3 Admin API
@@ -76,6 +76,7 @@ This ADR supersedes parts of [ADR 0015](0015-hub-ui-pass.md) (Hub web UI), [ADR 
 
 - **Keep "Hub" as the server name.** It is short and in every ADR, but a second product word next to the app name; "server" says what it is.
 - **A thin emergency web** (first setup and admin login in the browser): more attack surface on an internet-facing server for a rare case that a server command covers.
+- **Keep the OBS stream view or browser watching as the only web pages.** Both would keep a web stack (templates, static assets, browser WebRTC) in the server for one feature each; Fabio wants no browser components in the code.
 - **Remove the web admin only with the Linux app (0.23).** The web would be maintained for five more milestones for Linux-only admins; the server commands cover emergencies until then.
 - **Two milestones** (0.18 name, server and accounts; 0.19 admin in the app and installer): the packages depend on each other closely, and the "every beta stays usable" rule keeps one milestone manageable.
 - **Rename the update index product keys.** Old installations would stop finding updates.
@@ -83,7 +84,7 @@ This ADR supersedes parts of [ADR 0015](0015-hub-ui-pass.md) (Hub web UI), [ADR 
 
 ## Consequences
 
-- The Hub web code (handlers, templates, JavaScript, tests) is deleted in package 12; the OBS stream view and later browser watching stay as the only web pages.
+- The Hub web code (handlers, templates, JavaScript, static assets, tests) is deleted in package 12; nothing browser-facing stays in the server.
 - The admin API grows the OpenAPI contract considerably; the app's admin area is the largest UI work of the milestone.
 - Accounts change the identity model of architecture 10 (passwords for all, sign-in on new devices, user switching). The migration keeps existing users and devices working without a password.
 - Docker users change the image name once (`framebeam-hub` to `uzume-server`); everyone else updates without manual steps through the redirect of the old repository.

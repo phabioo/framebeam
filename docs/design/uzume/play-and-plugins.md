@@ -319,9 +319,9 @@ Five dialogs: "This encounter doesn't count?" (reason `Segmented`: Dupe ...), "U
 
 ### 5g-1 SoulLink · stream view
 
-Boards: [`S5g1`](../source/uzume/S5g1.dc.html) · [`S5g1Kinari`](../source/uzume/S5g1Kinari.dc.html). Built in: 0.18 package 12 (remove web admin; this page stays on the server), 0.22 (plugins).
+Boards: [`S5g1`](../source/uzume/S5g1.dc.html) · [`S5g1Kinari`](../source/uzume/S5g1Kinari.dc.html). Not built as a web page: Uzume keeps no browser components (Fabio, 2026-10-22). Content reference for a possible app overlay window (open).
 
-The OBS overlay: a 1920 x 1080 transparent page shown at 61 % on the stage with a dashed frame (label "READ-ONLY LINK · REVOCABLE IN THE RUN"). Four team rows (avatar, route, creature placeholders, ✕ for dead), DEATHS counter, LAST EVENTS, run name and mode with badges. "GAME CAPTURE SHOWS THROUGH · TRANSPARENT IN OBS". One of the two server web pages that remain after 0.18 (the other is browser watching from 0.23).
+The OBS overlay: a 1920 x 1080 transparent page shown at 61 % on the stage with a dashed frame (label "READ-ONLY LINK · REVOCABLE IN THE RUN"). Four team rows (avatar, route, creature placeholders, ✕ for dead), DEATHS counter, LAST EVENTS, run name and mode with badges. "GAME CAPTURE SHOWS THROUGH · TRANSPARENT IN OBS". Dropped as a server web page on 2026-10-22; OBS captures the app window instead.
 
 ### 5i-1 Settings › This PC › Plugins › SoulLink & Nuzlocke
 

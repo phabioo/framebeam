@@ -16,7 +16,7 @@ Everything below is the complete list of what is still open. The 21 "did not fit
 | 2 | Invites into a run | `S04H` Later 02 | Not drawn. |
 | 3 | "Replace file..." for games | `S04H` Later 03 | Not drawn. |
 | 4 | "New users need: Approval" | `S04H` Later 04 | Joining stays invite only; approval is only for new devices of existing accounts. |
-| 5 | Watching in the browser (7b) | `S04H` Later 05 | From 0.23; the only server web page besides the OBS stream view (5g). |
+| 5 | Watching in the browser (7b) | `S04H` Later 05 | Dropped (Fabio, 2026-10-22): no browser components in Uzume. |
 | 6 | "Keep the previous core version" | `S04H` Later 06 | Not drawn. |
 | 7 | Automatic import-folder scan | `S04H` Later 07 | Rescan by hand only. |
 | 8 | Rule "apps within one minor version keep working" | `S04H` Later 08 | Not drawn; the "too old / too new" states (8b-5f, 8k-2) show the current behaviour. |
@@ -149,4 +149,4 @@ Review fixes for batch 4 (all applied in the final boards): Select + ↑ ↓ is 
 - **Terms.** Hub = "Uzume server" or "the server", Player = "Uzume" or "the app"; "Stream" only in diagnostics. Session = a running or shared game session.
 - **Plugins.** IDs `uzume.soullink-core` and `uzume.soullink`; one run plugin "SoulLink & Nuzlocke" with a mode; plugin screens are run tabs (in game: after Run · Chat · Saves; on this PC: Settings › This PC › Plugins); no plugin entries in the sidebar.
 - **Saves.** Run slot "Run: <Name>"; Main untouched; states are not the save; restore keeps the current version as "Before restore"; removing a user keeps their saves; saves are never overwritten silently and never leave the server.
-- **Web.** No web admin. Server web pages that remain: the OBS stream view (5g) and, from 0.23, watching in the browser.
+- **Web.** No web admin and no other server web page (Fabio, 2026-10-22): watching in the browser is dropped, and the OBS stream view (5g) is not built as a web page (OBS captures the app window; an app overlay window is open).

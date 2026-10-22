@@ -56,7 +56,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.20 | planned | Emulation | Save states, rewind, run-ahead, `memory.write` in the plugin API and automatic snapshots. |
 | 0.21 | planned | Together | Online status, notifications, ready check, chat, viewer role, audio mixer, voice chat, controller hand-over. |
 | 0.22 | planned | Plugins | Developer console, run recap, Discord Rich Presence, tracker plugins. |
-| 0.23 | planned | Platforms | Linux app package, watching a Session in the browser, Vulkan (may be split into 0.23 to 0.25). |
+| 0.23 | planned | Platforms | Linux app package, Vulkan (may be split into 0.23 and 0.24). |
 | 1.0 | planned | Test phase | Test evening(s) with friends (date open), then the SoulLink run in Pokémon Omega Ruby/Alpha Sapphire. |
 | after 1.0 | planned | Metadata and artwork | Central game metadata and boxart. |
 
@@ -420,7 +420,7 @@ Decided by Fabio on 2026-10-22 ([ADR 0030](adr/0030-one-app-one-server-uzume.md)
 - [ ] 9 Runs without a plugin: runs always visible, own save slot "Run: <Name>", run tabs; plugin API: the sidebar slot becomes a run-tab slot; plugin repositories: IDs `uzume.*`, one plugin "SoulLink & Nuzlocke" with a mode, plugin index republished (M plus plugin PRs)
 - [ ] 10 On this PC and sharing: server as a child process without UAC, "Share with others" turns it into a service (one UAC, data kept), "Stop sharing" keeps accounts and saves (M)
 - [ ] 11 Installer: MSI with three options and new bitmaps, upgrade from FrameBeam (old service removed, new one installed, data taken over), Linux package `uzume-server` with Replaces/Conflicts (M)
-- [ ] 12 Remove the web admin and finish: delete the Hub web pages (the OBS stream view stays), final docs, roadmap, test list for Fabio (M)
+- [ ] 12 Remove the web admin and finish: delete all Hub web pages and browser components (no web page stays, also no OBS stream view), final docs, roadmap, test list for Fabio (M)
 
 Tests only Fabio can do at the end: MSI upgrade on Windows (old service gone, data taken over), new image name in the Pi's Compose file, sign-in on a second PC and user switching, the GHCR package `uzume-server` set to public.
 
@@ -449,7 +449,7 @@ Decided by Fabio on 2026-10-21 (as 0.19; renumbered on 2026-10-22). Spike first 
 
 ## 0.21 Together
 
-Decided by Fabio on 2026-10-21 (as 0.20; renumbered on 2026-10-22). The UI is drawn in the Uzume design (speaking mark, mixer popover, People and Chat tabs, notifications); no own design round. Dependency chains: online status -> notifications -> ready check (same presence over WSS); chat -> audio mixer stage 2 -> voice chat; viewer role -> controller hand-over (and browser watching in 0.23). Spike first for voice chat (echo and noise without libwebrtc).
+Decided by Fabio on 2026-10-21 (as 0.20; renumbered on 2026-10-22). The UI is drawn in the Uzume design (speaking mark, mixer popover, People and Chat tabs, notifications); no own design round. Dependency chains: online status -> notifications -> ready check (same presence over WSS); chat -> audio mixer stage 2 -> voice chat; viewer role -> controller hand-over. Spike first for voice chat (echo and noise without libwebrtc).
 
 - [ ] Online status: who is online and what they play, "Watch" and "Invite" from the list (S)
 - [ ] Notifications (app toasts and bell): Session started, invite, run event; switchable per kind (S-M)
@@ -471,11 +471,11 @@ Decided by Fabio on 2026-10-21 (as 0.21; renumbered on 2026-10-22). The UI parts
 
 ## 0.23 Platforms
 
-Decided by Fabio on 2026-10-21 (as 0.22; renumbered on 2026-10-22). May be split into 0.23 to 0.25, one milestone per topic. Spikes first for Vulkan (which cores offer the libretro Vulkan path: melonDS DS, Azahar?) and browser watching (H.264 and Opus over WebRTC in the browser, signaling through the server). Browser watching needs the viewer role from 0.21. The UI follows the Uzume boards ([ADR 0030](adr/0030-one-app-one-server-uzume.md) D8).
+Decided by Fabio on 2026-10-21 (as 0.22; renumbered on 2026-10-22). May be split into 0.23 and 0.24, one milestone per topic. Spike first for Vulkan (which cores offer the libretro Vulkan path: melonDS DS, Azahar?). Browser watching was dropped on 2026-10-22. The UI follows the Uzume boards ([ADR 0030](adr/0030-one-app-one-server-uzume.md) D8).
 
 - Moved to 0.18: the Hub setup assistant is built as the setup assistant in the app (0.18 package 8).
 - [ ] Linux app package (Flatpak or AppImage): Secret Service instead of in-memory credentials, updater and core distribution for Linux (buildbot platform mapping, [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)), check gamepads and audio, check the Steam Deck (L)
-- [ ] Watching a Session in the browser: a server web page receives WebRTC from the host Session, server users only, viewer only, no emulator; one of the two web pages left after 0.18 (L)
+- Dropped on 2026-10-22 (Fabio): watching a Session in the browser; Uzume keeps no browser components ([ADR 0030](adr/0030-one-app-one-server-uzume.md) D2).
 - [ ] Vulkan next to OpenGL: libretro Vulkan hardware interface, display and encode path; spike first, switchable per core option in the Emulation settings (L)
 
 ## 1.0 Test phase
@@ -505,7 +505,7 @@ Decided by Fabio on 2026-10-21 (as 0.22; renumbered on 2026-10-22). May be split
 
 ## Out of scope
 
-Hosted emulation, friends list, public Session links, guest access, email/password recovery, own ACME client, simultaneous multi-Hub use, federation, cross-Hub Sessions, OAuth/central accounts, web client. They stay out until actively wanted. Watching a Session in the browser (0.23, viewer only, no emulation) is not a web client. Since 0.18 there is no web admin either ([ADR 0030](adr/0030-one-app-one-server-uzume.md)).
+Hosted emulation, friends list, public Session links, guest access, email/password recovery, own ACME client, simultaneous multi-Hub use, federation, cross-Hub Sessions, OAuth/central accounts, web client. They stay out until actively wanted. Watching in the browser was dropped on 2026-10-22, and since 0.18 there is no web admin and no other web page either ([ADR 0030](adr/0030-one-app-one-server-uzume.md)).
 
 ## Open decisions
 
