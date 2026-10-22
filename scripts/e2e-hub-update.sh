@@ -92,7 +92,7 @@ wait_api || fail "server does not answer with a legacy FRAMEBEAM_* hub.env"
 # 2. .deb over the script install
 say "2/3 install the .deb over it (migration)"
 $SUDO dpkg -i "$DEB1" >/dev/null
-[ ! -e /usr/local/bin/framebeam-hub ] && [ ! -e /usr/local/bin/uzume-server ] || fail "old /usr/local/bin binary still present"
+if [ -e /usr/local/bin/framebeam-hub ] || [ -e /usr/local/bin/uzume-server ]; then fail "old /usr/local/bin binary still present"; fi
 [ "$(readlink /usr/bin/framebeam-hub)" = uzume-server ] || fail "compat symlink /usr/bin/framebeam-hub missing"
 /usr/bin/framebeam-hub version --json >/dev/null 2>&1 || fail "compat symlink does not run"
 $SUDO test -f /etc/framebeam/framebeam-hub.service.pre-deb || fail "old unit was not kept as framebeam-hub.service.pre-deb"
