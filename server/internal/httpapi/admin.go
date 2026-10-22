@@ -67,6 +67,14 @@ func adminStatusBody(st statusinfo.Status) api.AdminStatus {
 			TotalBytes int64 `json:"total_bytes"`
 		}{FreeBytes: int64(st.DiskFree), TotalBytes: int64(st.DiskTotal)}
 	}
+	if st.Backup.FolderSet {
+		bd := &api.AdminStatusBackupDisk{Folder: st.Backup.Folder}
+		if st.Backup.OK {
+			t, f := int64(st.Backup.Total), int64(st.Backup.Free)
+			bd.TotalBytes, bd.FreeBytes = &t, &f
+		}
+		out.BackupDisk = bd
+	}
 	for _, x := range st.Sessions {
 		out.Sessions = append(out.Sessions, api.AdminStatusSession{GameTitle: x.GameTitle, Owner: x.Owner, DeviceName: x.DeviceName,
 			Visibility: api.AdminStatusSessionVisibility(x.Visibility), StartedAt: x.Since, Viewers: x.Viewers})

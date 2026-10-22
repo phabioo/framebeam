@@ -61,23 +61,28 @@ var settingsSections = []struct{ ID, Title, Subtitle, Group string }{
 	{"security", "Security", "Transport, certificate and the admin account", ""},
 	{"updates", "Updates", "Versions, channel and automatic installs for this hub", ""},
 	{"diagnostics", "Diagnostics", "One file with logs and settings to hand over when something does not work", ""},
-	{"saves", "Saves retention", "How many older versions of each save the hub keeps", "DATA"},
+	{"backups", "Backups", "Database, saves and snapshots, save states, plugins. ROMs only if you include them.", "DATA"},
+	{"saves", "Saves retention", "How many older versions of each save the hub keeps", ""},
 	{"metrics", "Metrics", "An optional read-only endpoint for your own monitoring tools", "INTEGRATIONS"},
 }
 
 // settingsFlash holds the success texts of the settings pages that are not in the shared flash table.
 var settingsFlash = map[string]string{
-	"netsaved":     "Network setting saved.",
-	"extturnsaved": "External TURN servers saved. New joins and connected Players use them now.",
-	"netreset":     "Reset to the hub.env value.",
-	"namesaved":    "Hub name saved.",
-	"restarting":   "The hub is restarting.",
-	"metrics":      "Metrics setting saved.",
-	"metricstoken": "New token created. The previous token no longer works.",
+	"netsaved":       "Network setting saved.",
+	"extturnsaved":   "External TURN servers saved. New joins and connected Players use them now.",
+	"netreset":       "Reset to the hub.env value.",
+	"namesaved":      "Hub name saved.",
+	"restarting":     "The hub is restarting.",
+	"metrics":        "Metrics setting saved.",
+	"backupsaved":    "Backup settings saved.",
+	"backupstarted":  "Backup started.",
+	"backupdeleted":  "Backup deleted.",
+	"restorestarted": "Restore started. The Hub restarts in a moment.",
+	"metricstoken":   "New token created. The previous token no longer works.",
 }
 
 // settingsQuiet lists the success keys of autosaving fields: the saved indicator is enough, no banner.
-var settingsQuiet = map[string]bool{"name": true, "uploads": true, "updates": true, "netsaved": true, "netreset": true}
+var settingsQuiet = map[string]bool{"name": true, "uploads": true, "updates": true, "netsaved": true, "netreset": true, "backupsaved": true}
 
 // ---- view models ----
 
@@ -106,6 +111,7 @@ type settingsBody struct {
 	Updates                 updatesBody
 	Net                     netBody
 	Metrics                 metricsSettings
+	Backups                 backupsBody
 }
 
 type navItem struct {
@@ -297,8 +303,11 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	b.Net = nb
 	b.PlayerAddr = s.playerAddress(r, nb)
 
+	if section == "backups" {
+		b.Backups = s.backupsData(r)
+	}
 	b.Metrics = s.metricsSettings(r, res.Token)
-	b.Nav = s.settingsNav(section, updStatus, updErr, nb, b.Metrics)
+	b.Nav = s.settingsNav(ctx, section, updStatus, updErr, nb, b.Metrics)
 
 	notice := res.NoticeOverride
 	if notice == "" && res.OK != "" && !(hx && settingsQuiet[res.OK]) {
@@ -343,11 +352,21 @@ func (s *Server) playerAddress(r *http.Request, nb netBody) string {
 	return r.Host
 }
 
-func (s *Server) settingsNav(current string, st hub.UpdateStatus, updErr error, nb netBody, mt metricsSettings) []navItem {
+func (s *Server) settingsNav(ctx context.Context, current string, st hub.UpdateStatus, updErr error, nb netBody, mt metricsSettings) []navItem {
 	items := make([]navItem, 0, len(settingsSections))
 	for _, sec := range settingsSections {
 		it := navItem{ID: sec.ID, Title: sec.Title, Selected: sec.ID == current, Level: "muted", Group: sec.Group}
 		switch sec.ID {
+		case "backups":
+			it.Status = "Off"
+			if p := s.svc.BackupProblem(ctx); p != nil {
+				it.Status, it.Level = "Failed", "warn"
+			} else if bs := s.svc.BackupSettings(ctx); bs.Folder != "" {
+				it.Status, it.Level = "Manual", "ok"
+				if bs.Mode != "off" {
+					it.Status = upper1(bs.Mode) + " " + bs.Time
+				}
+			}
 		case "metrics":
 			it.Status = "Off"
 			if mt.On {

@@ -84,6 +84,10 @@ func (s *Source) Problems(ctx context.Context) []health.Problem {
 		ps = append(ps, health.Problem{ID: "update", Title: "Update failed", Detail: detail, Severity: health.Warn,
 			ActionLabel: "Open Updates", ActionHref: "/settings/updates"})
 	}
+	if bp := s.Svc.BackupProblem(ctx); bp != nil {
+		ps = append(ps, health.Problem{ID: "backup", Title: bp.Title, Detail: bp.Detail, Severity: health.Warn,
+			ActionLabel: "Open Backups", ActionHref: "/settings/backups"})
+	}
 	health.Sort(ps)
 	return ps
 }
@@ -146,12 +150,22 @@ type Status struct {
 	DiskTotal        uint64
 	DiskFree         uint64
 	DiskOK           bool
+	Backup           BackupDisk
 	Sessions         []hub.SessionSummary
 	Viewers          int
 	TURN             *TURNStatus
 	Players          []hub.PlayerStatus
 	Errors           []diag.Entry // newest first, redacted
 	MetricsOn        bool
+}
+
+// BackupDisk is the volume of the backup folder.
+type BackupDisk struct {
+	FolderSet bool
+	Folder    string
+	OK        bool // total and free are known
+	Total     uint64
+	Free      uint64
 }
 
 // TURNStatus is the load of the embedded TURN relay.
@@ -168,6 +182,9 @@ func (s *Source) Collect(ctx context.Context, fallbackHost string) (Status, erro
 	st.CPUPercent, st.CPUOK = sysmetrics.CPUPercent()
 	st.Memory = sysmetrics.Memory()
 	st.DiskTotal, st.DiskFree, st.DiskOK = s.disk()
+	if bs := s.Svc.BackupStatus(ctx); bs.FolderSet {
+		st.Backup = BackupDisk{FolderSet: true, Folder: bs.Settings.Folder, OK: bs.DiskOK, Total: bs.DiskTotal, Free: bs.DiskFree}
+	}
 	var err error
 	if st.Sessions, err = s.Svc.ActiveSessionSummaries(ctx); err != nil {
 		return st, err

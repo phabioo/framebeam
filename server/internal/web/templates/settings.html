@@ -38,6 +38,7 @@
 {{else if eq .Body.Section "security"}}{{template "set-security" .}}
 {{else if eq .Body.Section "diagnostics"}}{{template "set-diagnostics" .}}
 {{else if eq .Body.Section "metrics"}}{{template "set-metrics" .}}
+{{else if eq .Body.Section "backups"}}{{template "set-backups" .}}
 {{end}}
 {{end}}
 
@@ -532,4 +533,101 @@
     </form>
   </details>
 </section>
+{{end}}
+
+{{/* ---- Backups ---- */}}
+{{define "set-backups"}}
+{{with .Body.Backups}}
+{{if .Poll}}<div hx-get="/settings/backups" hx-trigger="load delay:2s" hx-target="#settings-area" hx-swap="innerHTML" hidden></div>{{end}}
+{{if .RestartPoll}}<div hidden data-restart-poll="/settings/backups"></div>{{end}}
+
+{{if .Result}}
+<section class="set-card bk-card {{if .Result.OK}}done{{else}}warn{{end}}" role="status">
+  <div class="bk-head"><span class="pill {{if .Result.OK}}ok{{else}}amber{{end}}">{{if .Result.OK}}Restored{{else}}Not restored{{end}}</span><span class="label">{{.Result.Title}}</span></div>
+  {{if .Result.Detail}}<div class="help">{{.Result.Detail}}</div>{{end}}
+  <div class="bk-actions">
+    {{if not .Result.OK}}<a class="btn small" href="/status/log">Show log</a>{{end}}
+    <form method="post" action="/settings/backups/dismiss" hx-post="/settings/backups/dismiss" hx-target="#settings-area" hx-swap="innerHTML"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small" type="submit">Dismiss</button></form>
+  </div>
+</section>
+{{end}}
+
+{{with .Confirm}}
+<section class="set-card bk-confirm" role="group" aria-label="Restore the backup">
+  <div class="label">Restore the backup from {{.Date}}?</div>
+  <div class="help">{{.Contents}} · {{.Size}}. This Hub goes back to the state of that backup. Everything that changed since then is replaced:</div>
+  <ul class="help">{{range .Lines}}<li>{{.}}</li>{{end}}</ul>
+  <div class="help">A safety backup of the current state comes first, into {{.Folder}}. Restore it to undo this.</div>
+  {{if .Players}}<div class="help warn">{{.Players}}</div>{{end}}
+  {{if not .CanRestart}}<div class="help warn">This Hub cannot restart itself. Restore with <span class="mono">framebeam-hub restore &lt;file&gt;</span> while the Hub is stopped.</div>{{end}}
+  <div class="bk-actions">
+    <a class="btn small" href="/settings/backups" hx-get="/settings/backups" hx-target="#settings-area" hx-swap="innerHTML">Cancel</a>
+    {{if .CanRestart}}<form method="post" action="/settings/backups/restore" hx-post="/settings/backups/restore" hx-target="#settings-area" hx-swap="innerHTML">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="file" value="{{.Name}}">
+      <button class="btn small danger" type="submit">Restore and restart</button></form>{{end}}
+  </div>
+</section>
+{{end}}
+
+<section class="set-card bk-card{{if eq .StatusClass "warn"}} warn{{end}}" id="backup-card">
+  {{if .Running}}
+  <div class="bk-head"><span class="pill info">{{if .Running.Restore}}Restoring{{else}}Running{{end}}</span><span class="label">{{.Running.Title}}</span></div>
+  {{if .Running.Show}}<div class="status-bar" role="img" aria-label="{{.Running.Percent}} %"><span style="width:{{.Running.Percent}}%"></span></div>{{end}}
+  <div class="help">{{.Running.Detail}}</div>
+  {{if .Running.CanCancel}}<div class="bk-actions"><form method="post" action="/settings/backups/cancel" hx-post="/settings/backups/cancel" hx-target="#settings-area" hx-swap="innerHTML"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small" type="submit">Cancel</button></form></div>{{end}}
+  {{else}}
+  <div class="bk-head"><span class="pill{{if eq .StatusClass "warn"}} amber{{end}}">{{.Pill}}</span><span class="label">{{.StatusLine}}</span>{{if .Next}}<span class="help">{{.Next}}</span>{{end}}</div>
+  {{if .StatusDetail}}<div class="help">{{.StatusDetail}}</div>{{end}}
+  <div class="bk-actions">
+    {{if .WriteError}}<form method="post" action="/settings/backups/recheck" hx-post="/settings/backups/recheck" hx-target="#settings-area" hx-swap="innerHTML"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small" type="submit">Check again</button></form>{{end}}
+    {{if .TryAgain}}<a class="btn small" href="/status/log">Show log</a>{{end}}
+    {{if .FolderSet}}{{if not .WriteError}}<form method="post" action="/settings/backups/run" hx-post="/settings/backups/run" hx-target="#settings-area" hx-swap="innerHTML"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small primary" type="submit">{{if .TryAgain}}Try again{{else}}Back up now{{end}}</button></form>{{end}}{{end}}
+  </div>
+  {{end}}
+</section>
+
+<section class="set-card">
+  <div class="eyebrow">Schedule</div>
+  <form class="bk-form" method="post" action="/settings/backups/schedule" hx-post="/settings/backups/schedule" hx-trigger="change" hx-target="#settings-area" hx-swap="innerHTML">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <label>Back up automatically <select name="mode" aria-label="Back up automatically">
+      <option value="off"{{if eq .Mode "off"}} selected{{end}}>Off</option><option value="daily"{{if eq .Mode "daily"}} selected{{end}}>Daily</option><option value="weekly"{{if eq .Mode "weekly"}} selected{{end}}>Weekly</option></select></label>
+    <label>Weekday <select name="weekday" aria-label="Weekday">{{range .Weekdays}}<option value="{{.N}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <label>Time <input type="time" name="time" value="{{.Time}}" aria-label="Time"></label>
+    <label>Keep last <input type="number" name="keep" min="1" max="365" value="{{.Keep}}" aria-label="Keep last"> backups</label>
+    <label><input type="checkbox" name="roms" value="1"{{if .ROMs}} checked{{end}}> Include ROMs</label>
+  </form>
+  <div class="help">Runs while Players keep playing, in the Hub's local time zone. Weekly uses the weekday. Older backups are deleted only after a new one succeeded and never to make room; safety backups are kept until you delete them. Including ROMs adds the whole ROM library to every backup.</div>
+  <div class="eyebrow">Backup folder</div>
+  <form class="bk-form" method="post" action="/settings/backups/folder" hx-post="/settings/backups/folder" hx-target="#settings-area" hx-swap="innerHTML">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <input class="wide mono" type="text" name="folder" value="{{.Folder}}" placeholder="/mnt/backup/framebeam" aria-label="Backup folder">
+    <button class="btn small" type="submit">Save</button>
+  </form>
+  <div class="help">A folder the Hub can write to, ideally on another disk.{{if .Free}} {{.Free}}.{{end}} In Docker, mount a second volume for it. Backup files contain secrets (TLS key, password hashes).</div>
+</section>
+
+<section class="set-card">
+  <div class="eyebrow">Backups · {{len .Rows}}</div>
+  {{if .Rows}}
+  <table class="bk-table">
+    {{range .Rows}}
+    <tr>
+      <td>{{template "when" .Created}}</td>
+      <td class="mono">{{.Size}}</td>
+      <td>{{if .Err}}<span class="help warn">Damaged: {{.Err}}</span>{{else}}{{.Contents}}{{end}}
+        {{if .Safety}} <span class="pill sm">Safety backup</span>{{end}}{{if .Restored}} <span class="pill sm ok">Restored</span>{{end}}</td>
+      <td class="act">
+        <a class="btn small" href="/settings/backups/download?file={{.Name}}">Download</a>
+        {{if not .Err}}<a class="btn small" href="/settings/backups?restore={{.Name}}" hx-get="/settings/backups?restore={{.Name}}" hx-target="#settings-area" hx-swap="innerHTML">Restore…</a>{{end}}
+        <button class="btn small" type="button" data-copy="{{.Path}}">Copy file path</button>
+        <form method="post" action="/settings/backups/delete" hx-post="/settings/backups/delete" hx-target="#settings-area" hx-swap="innerHTML" hx-confirm="Delete this backup file? This cannot be undone.">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="file" value="{{.Name}}"><button class="btn small danger-outline" type="submit">Delete…</button></form>
+      </td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}<div class="help">{{if .FolderSet}}No backup yet.{{else}}Choose a backup folder first.{{end}}</div>{{end}}
+</section>
+{{end}}
 {{end}}

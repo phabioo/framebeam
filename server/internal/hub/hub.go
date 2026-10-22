@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/phabioo/framebeam/server/internal/auth"
+	"github.com/phabioo/framebeam/server/internal/backup"
 	"github.com/phabioo/framebeam/server/internal/clientip"
 )
 
@@ -90,6 +91,10 @@ type Options struct {
 	// PluginIndexURL is the signed plugin index (https or file://; empty = no index, the Hub binary passes "none" as empty), fetched with CoreHTTPClient and
 	// verified with CoreTrustKeys.
 	PluginIndexURL string
+	// BackupExtras are files outside the data directory that go into every backup (own TLS certificate and key, hub.env).
+	BackupExtras []backup.Extra
+	// BackupFree reports the free space of a folder (injectable for tests; default: the file system).
+	BackupFree backup.FreeFunc
 }
 
 // Service is the service layer. Times are stored in SQLite as Unix seconds (UTC).
@@ -122,6 +127,7 @@ type Service struct {
 	ext    externalState
 	bus    eventBus
 	runs   runState
+	bk     backupState
 
 	localMu     sync.Mutex // local setup defaults
 	localDef    LocalDefaults
@@ -160,6 +166,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	s.cores.init(o)
 	s.initUpdates(o)
 	s.initPlugins(o)
+	s.initBackup(o)
 	// The plugin store is the run plugin catalog, and a version used by a running run cannot be removed.
 	s.SetPluginCatalog(s)
 	s.SetPluginInUseCheck(s.RunsUsingPluginVersion)

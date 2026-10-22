@@ -1,6 +1,6 @@
 # ADR 0029: Operations and safety
 
-- Status: Accepted for D1; further decisions (backup and restore, update rollback, problem reports, connection assistant, Hub health) follow in later 0.17 PRs
+- Status: Accepted for D1 and D2; further decisions (update rollback, problem reports, connection assistant, Hub health) follow in later 0.17 PRs
 - Date: 2026-10-22
 - Deciders: Fabio
 
@@ -20,15 +20,29 @@ Roadmap 0.17 ([roadmap.md](../roadmap.md)) collects the operations items that ma
 - **No self-update in the container.** The image sets `FRAMEBEAM_HUB_CONTAINER=1`. The updater's package check (`updates.IsPackaged`) then returns false, so the Hub still checks the index and shows "Update available", but never stages or installs a `.deb`; Settings shows how to update (pull the new image and recreate the container). Automatic install is off for the same reason. There is no root helper or systemd path unit in the image to begin with.
 - **No `HEALTHCHECK`** for now: the image has no shell or curl and the Hub has no health command. The Hub health page (later in 0.17) can add one.
 
+### D2 Backup and restore
+
+- **One archive.** A plain `.tar`, `framebeam-hub-<hubname>-<UTC timestamp>[-safety].tar`, written to a folder the admin chooses (default unset, which means backups are off). Members: a `VACUUM INTO` snapshot of the database (the Hub keeps running), the `saves/` (with history and snapshots), `states/` (if present), `plugins/`, `firmware/` and `tls/` trees, files outside the data folder (own TLS certificate and key, `hub.env`) under `config/`, the ROM library only with "Include ROMs", and `manifest.json` as the last member with the Hub version, the database schema version, the contents and the SHA-256 of every file. Cores (re-downloadable, ADR 0020), logs and temporary files are not included. The manifest is last so every file is hashed while it is written (one pass, no second copy of 40 GB of ROMs); listing a folder reads only the tar headers. The archive holds secrets (TLS key, hashes); the guide says so.
+- **Write safely.** The archive is written to a hidden `.partial` file in the target folder and renamed when complete; cancel and every error remove it. Free space is checked first (payload plus overhead); too little space fails with "Not enough space on <folder>: needs X, Y free". Decision 26: the Hub never deletes a backup to make room.
+- **Retention.** "Keep last N" (default 7) removes the oldest regular backups after a new one succeeded. A failed backup removes nothing. Safety backups are never pruned.
+- **Schedule.** Off, daily or weekly (+ weekday) at a local time, kept in the settings table and run by a scheduler in the Hub process (it re-reads the settings every 5 minutes so the CLI can change them). Days are calendar days, so daylight saving time does not move the run. A run missed while the Hub was down is not made up. One backup or restore at a time; a backup can be canceled; progress (phase, bytes done and total) is exposed for the status card and the API. The save lock is held only for the snapshot and the file listing; a file that vanishes later (history sweep) is skipped and counted.
+- **Restore.** Always preceded by a safety backup. The chosen archive is verified file by file against the manifest while it is unpacked into `restore-staging/` inside the data folder (same file system, so the swap is a rename); a damaged archive or one from a newer database schema than the running Hub stops before anything changes. The swap itself runs at the start of the Hub process, before the database is opened: a `restore-pending.json` marker names the staged items, each live item is moved to `restore-old/`, the staged item is renamed into place, and a `COMMITTED` tag ends the swap. Failure rolls everything back; a crash is repaired at the next start (roll back and retry, or only clean up when committed). The result (`restore-result.json`) feeds the "Restored" and "Not restored" cards. `framebeam-hub restore` does the same with the Hub stopped, guarded by an exclusive lock on `hub.lock` that the serving Hub holds (a second Hub on the same data folder is refused too); run as root it gives the files the owner of the data folder.
+- **Restart.** The Hub restarts itself with the existing mechanism (graceful shutdown, then `exec` of the same binary on Unix, an in-process restart on Windows), so no `Restart=` or Docker restart policy is needed; `Restart=on-failure` stays as the safety net.
+- **Interfaces.** The CLI (`backup`, `backup list|config|verify`, `restore`) and the admin REST API `/api/v1/admin/backups` (OpenAPI 1.24.0) are the primary interfaces; Settings → Backups is a plain page on the same service functions. The Status page gets a "Disk · backup" card and the problems "Backup failed" and "Cannot write" (both amber, shown in the banner and the sidebar badge).
+
 ## Rejected
 
 - **Docker Hub as registry:** needs an account, a secret and pull rate limits; GHCR is already where the project lives.
 - **Rebuilding the image in `release.yml` or `promote.yml`:** the stable image must be exactly the tested beta (ADR 0011); `imagetools create` re-tags the manifest.
 - **Alpine or Debian runtime:** a shell and a package manager add attack surface and size; the Hub is one static binary.
+- **Backup by copying the data folder with the Hub running:** the SQLite file and its WAL are not consistent that way; hence `VACUUM INTO`.
+- **Compressing (tar.zst/gz):** saves and ROMs hardly compress, and it would add a dependency or a CPU load on a Raspberry Pi; the format can get a compressed variant later.
+- **Pruning to make room on a full disk:** decision 26; the Hub only warns.
 - **Letting the container update itself** (for example by replacing the binary in the writable layer or in `/data`): the change would be lost on the next recreate and bypasses the image as the unit of upgrade and rollback.
 
 ## Consequences
 
 - Fabio must set the GHCR package `framebeam-hub` to public after the first push (package settings), otherwise `docker pull` needs a login.
 - Docker users update with `docker compose pull && docker compose up -d`; the Hub keeps its database copy in `/data/backups` before a schema migration.
-- The guide is [hub-docker.md](../guides/hub-docker.md).
+- The guides are [hub-docker.md](../guides/hub-docker.md) and [hub-backup.md](../guides/hub-backup.md).
+- The Hub now holds `hub.lock` in the data folder while it runs; a second Hub on the same folder refuses to start.

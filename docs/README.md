@@ -7,6 +7,7 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
 - [Using the Player](guides/player.md): install, pairing, playing, data directory, CLI and environment
 - [Hub installation](guides/hub-install.md): Debian package and systemd script on Linux / Raspberry Pi
 - [Hub in Docker](guides/hub-docker.md): official image (amd64, arm64), volumes, compose, upgrade by pulling
+- [Hub backup and restore](guides/hub-backup.md): one archive, schedule, retention, `framebeam-hub backup` / `restore`, admin API, restore on a new machine
 - [Hub configuration](guides/hub-configuration.md): commands, all flags and environment variables, certificates
 - [Sessions: LAN and internet](guides/sessions-over-the-internet.md): testing on a LAN, port forwards, TURN relay
 - [coturn on a VPS](guides/coturn-on-a-vps.md): own external TURN relay for the Hub

@@ -108,6 +108,7 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 	})
 	mux.HandleFunc("GET /api/v1/roms/{sha256}", s.downloadROM)
 	mux.HandleFunc("GET /api/v1/systems/{system_id}/firmware/{file_id}", s.downloadFirmware)
+	mux.HandleFunc("GET /api/v1/admin/backups/{name}/download", s.downloadAdminBackup)
 	mux.HandleFunc("GET /api/v1/ws", s.serveWS)
 }
 
@@ -116,7 +117,7 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 type skipRomMux struct{ *http.ServeMux }
 
 func (m skipRomMux) HandleFunc(pattern string, h func(http.ResponseWriter, *http.Request)) {
-	if strings.Contains(pattern, "/api/v1/roms/") || strings.Contains(pattern, "/firmware/") || strings.HasSuffix(pattern, " /api/v1/ws") {
+	if strings.Contains(pattern, "/api/v1/roms/") || strings.Contains(pattern, "/firmware/") || strings.HasSuffix(pattern, "/admin/backups/{name}/download") || strings.HasSuffix(pattern, " /api/v1/ws") {
 		return
 	}
 	m.ServeMux.HandleFunc(pattern, h)
@@ -156,6 +157,8 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer", "ListPlugins", "GetPluginFile",
 			"RegisterGame", "DeleteGameRegistration", "CreateUpload", "GetUpload", "PutUploadChunk", "DeleteUpload",
 			"GetAdminStatus", "GetAdminStatusLog", "GetAdminMetrics", "SetAdminMetrics", "CreateAdminMetricsToken",
+			"ListAdminBackups", "StartAdminBackup", "GetAdminBackupStatus", "CancelAdminBackup", "GetAdminBackupSettings", "UpdateAdminBackupSettings",
+			"DismissAdminRestoreResult", "DeleteAdminBackup", "RestoreAdminBackup",
 			"ListRuns", "CreateRun", "GetRun", "JoinRun", "DeclineRun", "LeaveRun", "InviteRun", "SetRunStatus", "PutRunState", "AppendRunEvent", "ListRunEvents", "PutRunBoard":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {
