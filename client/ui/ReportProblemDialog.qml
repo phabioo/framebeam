@@ -20,6 +20,7 @@ Popup {
     dim: true
     focus: true
     width: Math.min(580, parent ? parent.width - 32 : 580)
+    height: Math.min(implicitHeight, parent ? parent.height - 32 : implicitHeight)
     padding: 0
     closePolicy: Popup.CloseOnEscape   // a typed text is never lost to a stray click
 
@@ -74,155 +75,176 @@ Popup {
             }
         }
 
-        ColumnLayout {
+        // The body scrolls when the window is too small for it (long error text, wide fonts); header and footer stay put.
+        Flickable {
+            id: body
+            objectName: "reportBody"
             Layout.fillWidth: true
-            Layout.leftMargin: 28
-            Layout.rightMargin: 28
-            spacing: 6
-            FbLabel { text: qsTr("What happened?"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
-            ScrollView {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 96
-                clip: true
-                background: Rectangle {
-                    radius: Theme.radius8
-                    color: Theme.surface
-                    border.width: description.activeFocus ? 1.5 : 1
-                    border.color: description.activeFocus ? Theme.accent : Theme.borderInput
-                }
-                TextArea {
-                    id: description
-                    objectName: "reportDescription"
-                    text: root.ctl.description
-                    readOnly: root.locked
-                    wrapMode: TextEdit.Wrap
-                    selectByMouse: true
-                    color: Theme.text
-                    font.pixelSize: Theme.fontBody
-                    selectionColor: Theme.accent
-                    selectedTextColor: Theme.textOnAccent
-                    padding: 10
-                    leftPadding: 12
-                    rightPadding: 12
-                    background: null
-                    Accessible.name: qsTr("What happened?")
-                    onTextChanged: {
-                        if (text.length > root.ctl.maxDescription) text = text.substring(0, root.ctl.maxDescription)
-                        if (text !== root.ctl.description) root.ctl.description = text
-                    }
-                }
-            }
-            FbLabel {
-                objectName: "reportLinked"
-                visible: root.ctl.linkedText !== ""
-                text: root.ctl.linkedText
-                color: Theme.textFaint
-                font.pixelSize: Theme.fontMeta
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-            }
-        }
+            Layout.fillHeight: true
+            Layout.minimumHeight: 120
+            Layout.preferredHeight: bodyCol.implicitHeight
+            contentWidth: width
+            contentHeight: bodyCol.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { }
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.leftMargin: 28
-            Layout.rightMargin: 28
-            Layout.topMargin: 16
-            spacing: 2
-            RowLayout {
-                Layout.fillWidth: true
-                Eyebrow { objectName: "reportTotal"; text: qsTr("Attached · %1").arg(root.ctl.totalText) }
-                Item { Layout.fillWidth: true }
-                FbButton {
-                    objectName: "reportSeeIncluded"
-                    kind: "link"
-                    text: root.showFiles ? qsTr("Hide what is included") : qsTr("See what is included")
-                    onClicked: root.showFiles = !root.showFiles
-                }
-            }
-            FbLabel {
-                objectName: "reportPreparing"
-                visible: root.st === "preparing"
-                text: qsTr("Collecting logs…")
-                color: Theme.textMuted
-                font.pixelSize: Theme.fontSmall
-            }
-            Repeater {
-                model: root.ctl.attachments
-                delegate: Rectangle {
-                    id: row
-                    required property var modelData
-                    objectName: "reportAttach_" + row.modelData.id
+            ColumnLayout {
+                id: bodyCol
+                width: body.width
+                spacing: 0
+
+                ColumnLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 34
-                    color: "transparent"
-                    Accessible.role: Accessible.CheckBox
-                    Accessible.name: row.modelData.label
-                    Accessible.checked: row.modelData.checked
-                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.borderRow }
-                    RowLayout {
-                        anchors.fill: parent
-                        spacing: 10
-                        Rectangle {
-                            Layout.preferredWidth: 16
-                            Layout.preferredHeight: 16
-                            radius: 4
-                            color: row.modelData.checked ? Theme.accent : "transparent"
-                            border.width: 1.5
-                            border.color: row.modelData.checked ? Theme.accent : Theme.borderButton
-                            opacity: root.locked ? 0.5 : 1
-                            Text {
-                                anchors.centerIn: parent
-                                visible: row.modelData.checked
-                                text: "✓"
-                                font.pixelSize: 11
-                                font.weight: Font.Bold
-                                color: Theme.textOnAccent
+                    Layout.leftMargin: 28
+                    Layout.rightMargin: 28
+                    spacing: 6
+                    FbLabel { text: qsTr("What happened?"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
+                    ScrollView {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 96
+                        clip: true
+                        background: Rectangle {
+                            radius: Theme.radius8
+                            color: Theme.surface
+                            border.width: description.activeFocus ? 1.5 : 1
+                            border.color: description.activeFocus ? Theme.accent : Theme.borderInput
+                        }
+                        TextArea {
+                            id: description
+                            objectName: "reportDescription"
+                            text: root.ctl.description
+                            readOnly: root.locked
+                            wrapMode: TextEdit.Wrap
+                            selectByMouse: true
+                            color: Theme.text
+                            font.pixelSize: Theme.fontBody
+                            selectionColor: Theme.accent
+                            selectedTextColor: Theme.textOnAccent
+                            padding: 10
+                            leftPadding: 12
+                            rightPadding: 12
+                            background: null
+                            Accessible.name: qsTr("What happened?")
+                            onTextChanged: {
+                                if (text.length > root.ctl.maxDescription) text = text.substring(0, root.ctl.maxDescription)
+                                if (text !== root.ctl.description) root.ctl.description = text
                             }
                         }
-                        FbLabel {
-                            Layout.fillWidth: true
-                            text: row.modelData.label + (row.modelData.detail !== "" ? "  ·  " + row.modelData.detail : "")
-                            elide: Text.ElideRight
-                            font.pixelSize: Theme.fontSmall
-                        }
-                        FbMono { text: row.modelData.sizeText; color: Theme.textFaint; font.pixelSize: Theme.fontMeta }
                     }
-                    TapHandler {
-                        enabled: !root.locked
-                        onTapped: root.ctl.setChecked(row.modelData.id, !row.modelData.checked)
+                    FbLabel {
+                        objectName: "reportLinked"
+                        visible: root.ctl.linkedText !== ""
+                        text: root.ctl.linkedText
+                        color: Theme.textFaint
+                        font.pixelSize: Theme.fontMeta
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
                     }
-                    HoverHandler { cursorShape: root.locked ? Qt.ArrowCursor : Qt.PointingHandCursor }
                 }
-            }
-            FbLabel {
-                objectName: "reportFiles"
-                visible: root.showFiles
-                Layout.fillWidth: true
-                Layout.topMargin: 6
-                text: qsTr("Sent: your text") + (root.ctl.includedFiles.length > 0 ? ", " + root.ctl.includedFiles.join(", ") : "")
-                color: Theme.textMuted
-                font.pixelSize: Theme.fontMeta
-                font.family: Theme.mono
-                wrapMode: Text.WrapAnywhere
-            }
-            FbLabel {
-                objectName: "reportBlocked"
-                visible: root.ctl.blockedText !== ""
-                Layout.fillWidth: true
-                text: root.ctl.blockedText
-                color: Theme.pluginWarn
-                font.pixelSize: Theme.fontMeta
-                wrapMode: Text.WordWrap
-            }
-            FbLabel {
-                objectName: "reportNever"
-                Layout.fillWidth: true
-                Layout.topMargin: 8
-                text: qsTr("Never included: passwords, the Hub pairing token, ROMs, saves.")
-                color: Theme.textFaint
-                font.pixelSize: Theme.fontMeta
-                wrapMode: Text.WordWrap
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 28
+                    Layout.rightMargin: 28
+                    Layout.topMargin: 16
+                    spacing: 2
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Eyebrow { objectName: "reportTotal"; text: qsTr("Attached · %1").arg(root.ctl.totalText) }
+                        Item { Layout.fillWidth: true }
+                        FbButton {
+                            objectName: "reportSeeIncluded"
+                            kind: "link"
+                            text: root.showFiles ? qsTr("Hide what is included") : qsTr("See what is included")
+                            onClicked: root.showFiles = !root.showFiles
+                        }
+                    }
+                    FbLabel {
+                        objectName: "reportPreparing"
+                        visible: root.st === "preparing"
+                        text: qsTr("Collecting logs…")
+                        color: Theme.textMuted
+                        font.pixelSize: Theme.fontSmall
+                    }
+                    Repeater {
+                        model: root.ctl.attachments
+                        delegate: Rectangle {
+                            id: row
+                            required property var modelData
+                            objectName: "reportAttach_" + row.modelData.id
+                            Layout.fillWidth: true
+                            implicitHeight: 34
+                            color: "transparent"
+                            Accessible.role: Accessible.CheckBox
+                            Accessible.name: row.modelData.label
+                            Accessible.checked: row.modelData.checked
+                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.borderRow }
+                            RowLayout {
+                                anchors.fill: parent
+                                spacing: 10
+                                Rectangle {
+                                    Layout.preferredWidth: 16
+                                    Layout.preferredHeight: 16
+                                    radius: 4
+                                    color: row.modelData.checked ? Theme.accent : "transparent"
+                                    border.width: 1.5
+                                    border.color: row.modelData.checked ? Theme.accent : Theme.borderButton
+                                    opacity: root.locked ? 0.5 : 1
+                                    Text {
+                                        anchors.centerIn: parent
+                                        visible: row.modelData.checked
+                                        text: "✓"
+                                        font.pixelSize: 11
+                                        font.weight: Font.Bold
+                                        color: Theme.textOnAccent
+                                    }
+                                }
+                                FbLabel {
+                                    Layout.fillWidth: true
+                                    text: row.modelData.label + (row.modelData.detail !== "" ? "  ·  " + row.modelData.detail : "")
+                                    elide: Text.ElideRight
+                                    font.pixelSize: Theme.fontSmall
+                                }
+                                FbMono { text: row.modelData.sizeText; color: Theme.textFaint; font.pixelSize: Theme.fontMeta }
+                            }
+                            TapHandler {
+                                enabled: !root.locked
+                                onTapped: root.ctl.setChecked(row.modelData.id, !row.modelData.checked)
+                            }
+                            HoverHandler { cursorShape: root.locked ? Qt.ArrowCursor : Qt.PointingHandCursor }
+                        }
+                    }
+                    FbLabel {
+                        objectName: "reportFiles"
+                        visible: root.showFiles
+                        Layout.fillWidth: true
+                        Layout.topMargin: 6
+                        text: qsTr("Sent: your text") + (root.ctl.includedFiles.length > 0 ? ", " + root.ctl.includedFiles.join(", ") : "")
+                        color: Theme.textMuted
+                        font.pixelSize: Theme.fontMeta
+                        font.family: Theme.mono
+                        wrapMode: Text.WrapAnywhere
+                    }
+                    FbLabel {
+                        objectName: "reportBlocked"
+                        visible: root.ctl.blockedText !== ""
+                        Layout.fillWidth: true
+                        text: root.ctl.blockedText
+                        color: Theme.pluginWarn
+                        font.pixelSize: Theme.fontMeta
+                        wrapMode: Text.WordWrap
+                    }
+                    FbLabel {
+                        objectName: "reportNever"
+                        Layout.fillWidth: true
+                        Layout.topMargin: 8
+                        text: qsTr("Never included: passwords, the Hub pairing token, ROMs, saves.")
+                        color: Theme.textFaint
+                        font.pixelSize: Theme.fontMeta
+                        wrapMode: Text.WordWrap
+                    }
+                }
             }
         }
 

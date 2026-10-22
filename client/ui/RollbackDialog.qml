@@ -160,8 +160,10 @@ Item {
                         opacity: root.blocked ? 0.5 : 1   // muted while a game runs
                         Layout.fillWidth: false
                         Layout.minimumWidth: 0
-                        Layout.preferredWidth: Math.max(0, Math.min(implicitWidth, 360, buttonRow.width - cancelButton.width - buttonRow.spacing * 2))
-                        Layout.maximumWidth: Layout.preferredWidth
+                        // Shrinks (and elides) a long version label by itself; no binding on the row's own width, that
+                        // made the layout rearrange recursively.
+                        Layout.preferredWidth: Math.min(implicitWidth, 360)
+                        Layout.maximumWidth: 360
                         text: qsTr("Go back to %1").arg(root.version)
                         KeyNavigation.tab: cancelButton
                         KeyNavigation.backtab: cancelButton
