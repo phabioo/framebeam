@@ -31,7 +31,7 @@ Rectangle {
         Rectangle {
             Layout.preferredWidth: 16
             Layout.preferredHeight: 16
-            radius: root.radio ? 8 : 4
+            radius: 0
             color: root.checked ? Theme.accent : "transparent"
             border.width: 1.5
             border.color: root.checked ? Theme.accent : Theme.borderButton
@@ -51,7 +51,7 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                FbLabel {
+                UzLabel {
                     Layout.fillWidth: true
                     text: root.title
                     elide: Text.ElideRight
@@ -64,7 +64,7 @@ Rectangle {
                     text: root.pillText
                 }
             }
-            FbLabel {
+            UzLabel {
                 Layout.fillWidth: true
                 visible: root.sub !== ""
                 text: root.sub
@@ -72,7 +72,7 @@ Rectangle {
                 color: Theme.textMuted
                 font.pixelSize: Theme.fontMeta
             }
-            FbLabel {
+            UzLabel {
                 Layout.fillWidth: true
                 visible: root.detail !== ""
                 text: root.detail

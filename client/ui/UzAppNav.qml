@@ -1,0 +1,418 @@
+import QtQuick
+import QtQuick.Controls.Basic
+import QtQuick.Layouts
+import Uzume.App
+
+// AppNav (frame.md "0-4 A" to "0-4 C" and "0-4 G"): the 232 px navigation of every screen. Lockup, PLAY (Library, Runs,
+// Emulation, Controllers), the SERVER group for admins or THIS PC when there is no server, ONLINE (people with a Session),
+// Settings, the server line and the person. Compact (window below 900 px high): 28 px items, one-line ONLINE rows, no address line.
+// Package 8 (admin area) adds the SERVER destinations that do not exist yet (Status, Users, Systems & cores, Reports).
+Rectangle {
+    id: root
+    required property PlayerController player
+    readonly property bool compact: height < 900
+    readonly property bool hasServer: root.player.hubAddress !== ""
+    // Destinations that exist today. SERVER lists the admin pages as they arrive; until then admins see no SERVER group.
+    readonly property var serverItems: []
+    readonly property var thisPcItems: [{ label: qsTr("Plugins"), name: "navThisPcPlugins", section: "plugins" }]
+    readonly property var online: root.hasServer ? root.player.sessions.sessions.filter(function (s) { return !s.invited }) : []
+    color: Theme.ground
+    implicitWidth: Theme.sidebarWidth
+
+    Rectangle {
+        anchors.right: parent.right
+        width: 1
+        height: parent.height
+        color: Theme.rule
+    }
+
+    UzMenu {
+        id: serverMenu
+        objectName: "serverMenu"
+        items: [{ label: qsTr("Switch server"), name: "switchServer" },
+                { label: qsTr("Details"), name: "serverDetails" }]
+        onChosen: (item) => {
+            if (item.name === "switchServer") root.player.switchHub()
+            else root.player.showSettingsSection("hubs")
+        }
+    }
+    UzMenu {
+        id: personMenu
+        objectName: "personMenu"
+        items: [{ label: qsTr("Settings"), name: "settings", shortcut: "Ctrl+," },
+                { label: qsTr("Switch server"), name: "switchServer" }]
+        onChosen: (item) => {
+            if (item.name === "settings") root.player.showSettings()
+            else root.player.switchHub()
+        }
+    }
+
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.topMargin: 32
+        anchors.bottomMargin: Theme.space2
+        spacing: 0
+
+        // Lockup: 32 px from the top, 28 px from the left. It never widens the column (the wordmark is short).
+        Item {
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            implicitHeight: lockup.implicitHeight
+            UzLockup { id: lockup; objectName: "sidebarLockup"; x: Theme.navInset }
+        }
+
+        UzNavGroupHead { Layout.fillWidth: true; Layout.topMargin: root.compact ? 20 : 28; text: qsTr("Play") }
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.space1
+            spacing: 0
+            UzNavItem {
+                objectName: "navLibrary"
+                compact: root.compact
+                label: qsTr("Library")
+                active: root.player.screen === "library"
+                onActivated: root.player.showLibrary()
+            }
+            // Runs: always listed; badge = open invites.
+            UzNavItem {
+                objectName: "navRuns"
+                compact: root.compact
+                label: qsTr("Runs")
+                active: root.player.screen === "runs"
+                badge: root.player.runs.pendingInvites
+                badgeName: "navRunsBadge"
+                onActivated: root.player.showRuns()
+            }
+            UzNavItem {
+                objectName: "navEmulation"
+                compact: root.compact
+                label: qsTr("Emulation")
+                active: root.player.screen === "emulation"
+                onActivated: root.player.showEmulation()
+            }
+            UzNavItem {
+                objectName: "navControllers"
+                compact: root.compact
+                label: qsTr("Controllers")
+                active: root.player.screen === "controllers"
+                onActivated: root.player.showControllers()
+            }
+        }
+
+        // SERVER (admins) or THIS PC (no server): only the destinations that exist today.
+        UzNavGroupHead {
+            objectName: "navServerHead"
+            Layout.fillWidth: true
+            Layout.topMargin: root.compact ? 16 : 24
+            visible: groupItems.count > 0
+            text: root.hasServer ? qsTr("Server") : qsTr("This PC")
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.space1
+            spacing: 0
+            visible: groupItems.count > 0
+            Repeater {
+                id: groupItems
+                model: root.hasServer ? (root.player.isAdmin ? root.serverItems : []) : root.thisPcItems
+                delegate: UzNavItem {
+                    required property var modelData
+                    objectName: modelData.name
+                    compact: root.compact
+                    label: modelData.label
+                    onActivated: root.player.showSettingsSection(modelData.section)
+                }
+            }
+        }
+
+        // ONLINE: people with a shared Session and what they play; hidden without data.
+        UzNavGroupHead {
+            objectName: "navOnlineHead"
+            Layout.fillWidth: true
+            Layout.topMargin: root.compact ? 16 : 24
+            visible: root.online.length > 0
+            text: qsTr("Online")
+        }
+        ColumnLayout {
+            objectName: "navOnline"
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.space1
+            spacing: 0
+            visible: root.online.length > 0
+            Repeater {
+                model: root.online.slice(0, 6)
+                delegate: Item {
+                    id: person
+                    required property var modelData
+                    required property int index
+                    objectName: "navOnlineRow"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    implicitHeight: root.compact ? Theme.row28 : 40
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: qsTr("%1 plays %2").arg(modelData.who).arg(modelData.game)
+                    UzAvatar {
+                        x: Theme.navInset
+                        anchors.verticalCenter: parent.verticalCenter
+                        size: 20
+                        name: person.modelData.who
+                        person: person.index + 1
+                    }
+                    Column {
+                        x: Theme.navInset + 20 + Theme.space1
+                        width: parent.width - x - Theme.space2
+                        anchors.verticalCenter: parent.verticalCenter
+                        Text {
+                            width: parent.width
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
+                            text: root.compact ? person.modelData.who + " · " + person.modelData.game : person.modelData.who
+                            font.family: Theme.sans
+                            font.pixelSize: Theme.fontSmall
+                            color: Theme.ink2
+                        }
+                        Text {
+                            visible: !root.compact
+                            width: parent.width
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
+                            text: person.modelData.game
+                            font.family: Theme.sans
+                            font.pixelSize: Theme.fontMeta
+                            color: Theme.muted
+                        }
+                    }
+                }
+            }
+        }
+
+        Item { Layout.fillHeight: true }
+
+        // Now running (3c-5): the game paused in the background, on every page; disappears when the game quits.
+        Rectangle {
+            id: nowRunning
+            objectName: "nowRunningStrip"
+            readonly property var game: root.player.backgroundGame
+            readonly property bool shown: game.id !== undefined
+            readonly property bool quitting: root.player.quitting
+            property real nowMs: Date.now()
+            readonly property int minutes: shown && game.startedMs ? Math.max(0, Math.floor((nowMs - game.startedMs) / 60000)) : 0
+            visible: shown
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.space2
+            Layout.rightMargin: Theme.space2
+            implicitHeight: nrCol.implicitHeight + 24
+            radius: 0
+            color: Theme.selected
+            border.width: 1
+            border.color: Theme.accent
+            Timer { running: nowRunning.shown; interval: 30000; repeat: true; onTriggered: nowRunning.nowMs = Date.now() }
+            onShownChanged: nowMs = Date.now()
+            ColumnLayout {
+                id: nrCol
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 6
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    UzMono {
+                        Layout.minimumWidth: 0
+                        text: qsTr("NOW RUNNING")
+                        font.pixelSize: 10
+                        font.letterSpacing: 0.8
+                        font.weight: Font.Medium
+                        color: Theme.accentText
+                    }
+                    Item { Layout.fillWidth: true }
+                    UzLabel {
+                        objectName: "nowRunningTime"
+                        Layout.minimumWidth: 0
+                        elide: Text.ElideRight
+                        text: qsTr("%1 min").arg(nowRunning.minutes)
+                        font.pixelSize: 11
+                        color: Theme.textMeta
+                    }
+                }
+                UzLabel {
+                    objectName: "nowRunningTitle"
+                    Layout.fillWidth: true
+                    text: nowRunning.game.title || ""
+                    elide: Text.ElideRight
+                    font.pixelSize: Theme.fontBody
+                    font.weight: Font.DemiBold
+                }
+                UzLabel {
+                    objectName: "nowRunningStatus"
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: Theme.fontMeta
+                    color: Theme.infoText
+                    text: nowRunning.quitting ? qsTr("Saving and syncing…")
+                          : root.player.sessions.watching ? qsTr("Paused while you watch %1 · %2").arg(root.player.sessions.watchedWho).arg(root.player.sessions.watchedGame)
+                          : qsTr("Paused")
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 6
+                    visible: !nowRunning.quitting
+                    UzButton {
+                        objectName: "nowRunningResume"
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        kind: "primary"
+                        implicitHeight: 30
+                        implicitWidth: 0
+                        font.pixelSize: Theme.fontSmall
+                        text: qsTr("▶ Resume")
+                        onClicked: root.player.resumeGame()
+                    }
+                    UzButton {
+                        objectName: "nowRunningQuit"
+                        implicitHeight: 30
+                        implicitWidth: 0
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: quitProbe.implicitWidth + 20
+                        font.pixelSize: Theme.fontSmall
+                        text: qsTr("Quit")
+                        background: Rectangle {
+                            radius: Theme.radius6
+                            color: parent.hovered ? Theme.surfaceRaised : "transparent"
+                            border.width: 1
+                            border.color: Theme.accentOutline
+                        }
+                        onClicked: root.player.requestQuit()
+                        Text { id: quitProbe; visible: false; text: qsTr("Quit"); font.pixelSize: Theme.fontSmall }
+                    }
+                }
+            }
+        }
+
+        UzNavItem {
+            objectName: "navSettings"
+            compact: root.compact
+            Layout.topMargin: Theme.space1
+            label: qsTr("Settings")
+            active: root.player.screen === "settings"
+            // A newer app is available: small Yamabuki square on Settings.
+            dot: root.player.updates.updateAvailable
+            dotName: "settingsUpdateDot"
+            onActivated: root.player.showSettings()
+        }
+
+        // Server line: online (ok square + ONLINE, address in Mono) or offline (empty square + OFFLINE); opens Settings > Servers.
+        // The page text for offline ("Games on this PC still run...") lives on the screens (hubLinkBanner).
+        Rectangle { Layout.fillWidth: true; Layout.topMargin: Theme.space1; Layout.preferredHeight: 1; color: Theme.rule2; visible: root.hasServer }
+        Item {
+            id: serverLine
+            visible: root.hasServer
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.topMargin: Theme.space15
+            implicitHeight: Math.max(statusLine.implicitHeight, Theme.row32)
+            UzStatusLine {
+                id: statusLine
+                objectName: "hubStatusDot"
+                x: Theme.navInset
+                anchors.verticalCenter: parent.verticalCenter
+                status: root.player.hubLink === "online" ? "online" : "offline"
+                name: root.player.hubName
+                address: root.player.hubAddress
+                compact: root.compact
+                maxWidth: parent.width - Theme.navInset - Theme.row32 - Theme.space2
+            }
+            TapHandler { onTapped: root.player.showSettingsSection("hubs") }
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
+            UzIconButton {
+                id: serverMore
+                objectName: "serverMenuButton"
+                x: parent.width - width - Theme.space1
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: "more"
+                Accessible.name: qsTr("Server menu")
+                onClicked: serverMenu.openFor(serverMore, "above", true)
+            }
+        }
+        UzMono {
+            objectName: "hubCardLinkNote"
+            visible: root.hasServer && root.player.hubLink === "connecting"
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.navInset
+            Layout.rightMargin: Theme.space2
+            text: qsTr("Connecting…")
+            color: Theme.muted
+            font.pixelSize: Theme.fontMono
+            elide: Text.ElideRight
+        }
+
+        // The person at the foot: user name above the device name (both lines are always present, only their text changes).
+        Item {
+            id: userBlock
+            objectName: "userBlock"
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.topMargin: Theme.space15
+            implicitHeight: 40
+            readonly property bool hasUser: root.player.userName !== ""
+            Rectangle {
+                id: avatarBox
+                x: Theme.navInset
+                anchors.verticalCenter: parent.verticalCenter
+                width: 28
+                height: 28
+                radius: 0
+                color: Theme.hover
+                border.width: 1
+                border.color: Theme.rule
+                Text {
+                    objectName: "userAvatarInitial"
+                    anchors.centerIn: parent
+                    text: (root.player.userName || root.player.deviceName || "?").charAt(0).toUpperCase()
+                    textFormat: Text.PlainText
+                    font.family: Theme.sans
+                    font.pixelSize: Theme.fontMeta
+                    font.weight: Font.DemiBold
+                    color: Theme.ink2
+                }
+            }
+            ColumnLayout {
+                x: avatarBox.x + avatarBox.width + Theme.space15
+                width: parent.width - x - Theme.space2
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 0
+                UzLabel {
+                    objectName: "userName"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    text: userBlock.hasUser ? root.player.userName : root.player.deviceName
+                    font.pixelSize: Theme.fontSmall
+                    font.weight: Font.Medium
+                    elide: Text.ElideRight
+                }
+                UzLabel {
+                    objectName: "userDevice"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    text: userBlock.hasUser ? root.player.deviceName : qsTr("This device")
+                    font.pixelSize: Theme.fontMeta
+                    color: Theme.dim
+                    elide: Text.ElideRight
+                }
+            }
+            activeFocusOnTab: true
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    personMenu.openFor(userBlock, "above", false)
+                    event.accepted = true
+                }
+            }
+            Accessible.role: Accessible.Button
+            Accessible.name: qsTr("%1, menu").arg(userBlock.hasUser ? root.player.userName : root.player.deviceName)
+            Accessible.onPressAction: personMenu.openFor(userBlock, "above", false)
+            UzFocusRing { visible: userBlock.activeFocus; inset: true }
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: personMenu.openFor(userBlock, "above", false) }
+        }
+    }
+}

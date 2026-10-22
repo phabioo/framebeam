@@ -37,7 +37,7 @@ ProblemReport::Sources sources(const QString& dir) {
       {"system", QJsonObject{{"os", "Windows 11 Pro"}, {"gpu", "Test GPU"}, {"data_dir", "C:/Users/max/Uzume"}, {"arch", "x86_64"}}},
       {"emulation", QJsonObject{{"gl_renderer", "Test GL"}, {"gl_version", "4.6 Test 551.23"}, {"cores", QJsonArray{"melondsds"}}}},
       {"media", QJsonObject{{"encoders_available", QJsonArray{"libopenh264"}}}},
-      {"hubs", QJsonArray{QJsonObject{{"name", "Home Hub"}, {"address", "hub.lan"}}}},
+      {"hubs", QJsonArray{QJsonObject{{"name", "Home server"}, {"address", "hub.lan"}}}},
       {"controllers", QJsonObject{{"connected", QJsonArray{"Pad"}}}}};
   return s;
 }
@@ -170,7 +170,7 @@ class ProblemReportTest : public QObject {
     QVERIFY(text.contains("4.6 Test 551.23"));
     QVERIFY(!text.contains("data_dir"));
     QVERIFY(!text.contains("C:/Users/max"));
-    QVERIFY(!text.contains("Home Hub"));
+    QVERIFY(!text.contains("Home server"));
     QVERIFY(!text.contains("Pad"));
   }
 

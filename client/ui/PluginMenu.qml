@@ -42,7 +42,7 @@ Item {
         objectName: "pluginMenu"
         width: root.menuWidth
         height: col.height + 8
-        radius: 8
+        radius: 0
         color: Theme.gamePopover
         border.width: 1
         border.color: Theme.gamePopoverBorder
@@ -70,9 +70,9 @@ Item {
                     Rectangle {
                         anchors.fill: parent
                         anchors.topMargin: row.modelData.divider ? 5 : 0
-                        radius: 6
+                        radius: 0
                         color: !row.hasChoices && itemHover.hovered ? Theme.gameSegmentOn : "transparent"
-                        FbLabel {
+                        UzLabel {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             anchors.left: parent.left
                             anchors.leftMargin: 10
@@ -84,7 +84,7 @@ Item {
                             color: row.modelData.checked ? Theme.gameText : Theme.gameBadgeText
                             font.weight: row.modelData.checked ? Font.Medium : Font.Normal
                         }
-                        FbMono {
+                        UzMono {
                             textFormat: Text.PlainText
                             id: trailingText
                             visible: !row.hasChoices
@@ -108,7 +108,7 @@ Item {
                                     id: choice
                                     required property var modelData
                                     objectName: "pluginMenuChoice_" + modelData.id
-                                    width: 26; height: 24; radius: 5
+                                    width: 26; height: 24; radius: 0
                                     color: choiceHover.hovered ? Theme.gameSegmentOn : "transparent"
                                     Accessible.role: Accessible.Button
                                     Accessible.name: modelData.tip || modelData.glyph

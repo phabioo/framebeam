@@ -135,7 +135,7 @@ FocusScope {
             anchors.rightMargin: 12
             spacing: 4
             Eyebrow { text: side.title }
-            FbLabel {
+            UzLabel {
                 objectName: side.objectName + "Device"
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
@@ -144,7 +144,7 @@ FocusScope {
                 font.pixelSize: Theme.fontSmall
                 font.weight: Font.Medium
             }
-            FbLabel {
+            UzLabel {
                 objectName: side.objectName + "When"
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
@@ -153,7 +153,7 @@ FocusScope {
                 color: Theme.textMeta
                 font.pixelSize: Theme.fontMeta
             }
-            FbMono {
+            UzMono {
                 objectName: side.objectName + "Size"
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
@@ -206,7 +206,7 @@ FocusScope {
                 TapHandler { onTapped: root.back() }
                 Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.back(); event.accepted = true } }
             }
-            FbMono {
+            UzMono {
                 id: updated
                 objectName: "savesUpdated"
                 visible: root.hist.lastUpdated !== ""
@@ -235,7 +235,7 @@ FocusScope {
                 opacity: enabled ? 1 : 0.6
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Refresh from Hub")
+                Accessible.name: qsTr("Refresh from server")
                 Text {
                     id: refreshGlyph
                     anchors.centerIn: parent
@@ -249,7 +249,7 @@ FocusScope {
                 Keys.onPressed: (event) => { if (refresh.enabled && (event.key === Qt.Key_Space || event.key === Qt.Key_Return)) { root.hist.refresh(); event.accepted = true } }
                 ToolTip.visible: refreshHover.hovered
                 ToolTip.delay: 500
-                ToolTip.text: qsTr("Refresh from Hub")
+                ToolTip.text: qsTr("Refresh from server")
             }
         }
 
@@ -269,7 +269,7 @@ FocusScope {
                 width: flick.width
                 spacing: 14
 
-                FbLabel {
+                UzLabel {
                     objectName: "savesTitle"
                     text: qsTr("Saves")
                     font.pixelSize: 20
@@ -447,7 +447,7 @@ FocusScope {
                                         onClicked: { const slotValue = slotItem.modelData.value; switchMenu.close(); root.hist.selectSlot(slotValue) }
                                         contentItem: Row {
                                             spacing: 4
-                                            Text { width: 16; anchors.verticalCenter: parent.verticalCenter; text: slotItem.modelData.value === root.hist.slot ? "✓" : ""; font.pixelSize: Theme.fontSmall; color: Theme.accent }
+                                            Text { width: 16; anchors.verticalCenter: parent.verticalCenter; text: slotItem.modelData.value === root.hist.slot ? "✓" : ""; font.pixelSize: Theme.fontSmall; color: Theme.accentText }
                                             Text {
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 width: slotItem.width - 16 - 4 - 16
@@ -487,7 +487,7 @@ FocusScope {
                             }
                         }
                     }
-                    FbButton {
+                    UzButton {
                         id: newSlotLink
                         objectName: "newSlotButton"
                         visible: !root.tabsCollapsed
@@ -516,7 +516,7 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 8
-                    FbField {
+                    UzField {
                         id: newSlotField
                         objectName: "newSlotField"
                         Layout.fillWidth: true
@@ -528,7 +528,7 @@ FocusScope {
                         onTextChanged: root.newSlotError = ""
                         onAccepted: root.createSlot()
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "newSlotError"
                         visible: root.newSlotError !== ""
                         Layout.fillWidth: true
@@ -537,7 +537,7 @@ FocusScope {
                         color: Theme.error
                         font.pixelSize: Theme.fontMeta
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: qsTr("A new slot starts without a save. “%1” is not changed.").arg(root.hist.slotLabel)
@@ -549,8 +549,8 @@ FocusScope {
                         Layout.minimumWidth: 0
                         spacing: 8
                         layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
-                        FbButton { objectName: "newSlotCreate"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Create slot"); onClicked: root.createSlot() }
-                        FbButton { objectName: "newSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.newSlotOpen = false }
+                        UzButton { objectName: "newSlotCreate"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Create slot"); onClicked: root.createSlot() }
+                        UzButton { objectName: "newSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.newSlotOpen = false }
                     }
                 }
 
@@ -561,7 +561,7 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 8
-                    FbButton {
+                    UzButton {
                         objectName: "slotRenameButton"
                         visible: root.hist.slotManageAvailable
                         kind: "link"
@@ -572,7 +572,7 @@ FocusScope {
                         enabled: root.hist.slotManageBlockReason === ""
                         onClicked: { root.renameError = ""; renameField.text = root.hist.slot; root.renameOpen = true; Qt.callLater(() => { renameField.forceActiveFocus(); renameField.selectAll() }) }
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "slotDeleteButton"
                         kind: "link"
                         implicitHeight: 28
@@ -583,7 +583,7 @@ FocusScope {
                         onClicked: root.hist.requestDeleteSlot()
                     }
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "slotManageHint"
                     visible: root.hist.slotDeleteAvailable && root.hist.slotManageBlockReason !== "" && !root.newSlotOpen && !root.renameOpen && !root.slotDeleteConfirming
                     Layout.fillWidth: true
@@ -600,7 +600,7 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 8
-                    FbField {
+                    UzField {
                         id: renameField
                         objectName: "renameSlotField"
                         Layout.fillWidth: true
@@ -612,7 +612,7 @@ FocusScope {
                         onTextChanged: root.renameError = ""
                         onAccepted: root.renameSlot()
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "renameSlotError"
                         visible: root.renameError !== ""
                         Layout.fillWidth: true
@@ -621,7 +621,7 @@ FocusScope {
                         color: Theme.error
                         font.pixelSize: Theme.fontMeta
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: qsTr("The save and its history keep their content. Your other devices pick up the new name.")
@@ -633,8 +633,8 @@ FocusScope {
                         Layout.minimumWidth: 0
                         spacing: 8
                         layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
-                        FbButton { objectName: "renameSlotConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Rename slot"); onClicked: root.renameSlot() }
-                        FbButton { objectName: "renameSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.renameOpen = false }
+                        UzButton { objectName: "renameSlotConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Rename slot"); onClicked: root.renameSlot() }
+                        UzButton { objectName: "renameSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.renameOpen = false }
                     }
                 }
 
@@ -654,7 +654,7 @@ FocusScope {
                         anchors.fill: parent
                         anchors.margins: 14
                         spacing: 10
-                        FbLabel {
+                        UzLabel {
                             objectName: "slotDeleteTitle"
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -663,7 +663,7 @@ FocusScope {
                             font.pixelSize: Theme.fontBody
                             font.weight: Font.DemiBold
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "slotDeleteLatest"
                             visible: root.hist.slotDeleteRequest.onHub === true
                             Layout.fillWidth: true
@@ -672,14 +672,14 @@ FocusScope {
                             color: Theme.text
                             font.pixelSize: Theme.fontSmall
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "slotDeleteNote"
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: root.hist.slotDeleteRequest.onHub === true
-                                  ? qsTr("The slot is deleted for good on the Hub with its whole history (%1 versions), and the copy on this device is removed. This cannot be undone. If the save changed since this page was shown, nothing is deleted.").arg(root.hist.slotDeleteRequest.versionCount || 0)
+                                  ? qsTr("The slot is deleted for good on the server with its whole history (%1 versions), and the copy on this device is removed. This cannot be undone. If the save changed since this page was shown, nothing is deleted.").arg(root.hist.slotDeleteRequest.versionCount || 0)
                                   : (root.hist.slotDeleteRequest.isMain === true
-                                     ? qsTr("The main slot has no save on the Hub. Its local save is removed. This cannot be undone.")
+                                     ? qsTr("The main slot has no save on the server. Its local save is removed. This cannot be undone.")
                                      : qsTr("This slot exists only on this device. Its local save is removed. This cannot be undone."))
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
@@ -704,7 +704,7 @@ FocusScope {
                                 TapHandler { id: slotDeleteOkTap; onTapped: root.hist.confirmDeleteSlot() }
                                 Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.hist.confirmDeleteSlot(); event.accepted = true } }
                             }
-                            FbButton { objectName: "slotDeleteCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.hist.cancelDeleteSlot() }
+                            UzButton { objectName: "slotDeleteCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.hist.cancelDeleteSlot() }
                         }
                     }
                 }
@@ -724,16 +724,16 @@ FocusScope {
                         anchors.margins: 10
                         anchors.leftMargin: 12
                         spacing: 6
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: root.hist.lastSynced !== ""
-                                  ? qsTr("Hub offline · read-only. Showing the history from the last sync, %1. Restore, snapshots and uploads need the Hub.").arg(root.hist.lastSynced)
-                                  : qsTr("Hub offline · read-only. Restore, snapshots and uploads need the Hub.")
+                                  ? qsTr("Server offline · read-only. Showing the history from the last sync, %1. Restore, snapshots and uploads need the server.").arg(root.hist.lastSynced)
+                                  : qsTr("Server offline · read-only. Restore, snapshots and uploads need the server.")
                             color: Theme.warn
                             font.pixelSize: Theme.fontMeta
                         }
-                        FbButton { objectName: "savesTryAgain"; kind: "link"; implicitHeight: 24; font.pixelSize: Theme.fontMeta; text: qsTr("Try again"); onClicked: root.hist.refresh() }
+                        UzButton { objectName: "savesTryAgain"; kind: "link"; implicitHeight: 24; font.pixelSize: Theme.fontMeta; text: qsTr("Try again"); onClicked: root.hist.refresh() }
                     }
                 }
                 Rectangle {
@@ -744,7 +744,7 @@ FocusScope {
                     implicitHeight: runningText.implicitHeight + 20
                     radius: Theme.radius8
                     color: Theme.accentChipBg
-                    FbLabel {
+                    UzLabel {
                         id: runningText
                         anchors.fill: parent
                         anchors.margins: 10
@@ -753,7 +753,7 @@ FocusScope {
                         text: root.live ? qsTr("%1 keeps running. Snapshots and delete work live. Restore and upload restart it from that save. Rename and delete of slots are possible after the game is closed.").arg(root.game.title || "")
                                         : root.inGame ? qsTr("%1 keeps running. Snapshots still work. Restore, upload and slot changes (rename, delete) are possible after the game is closed.").arg(root.game.title || "")
                                                       : qsTr("%1 is running on this device. Restore and upload are possible after the game is closed. Snapshots still work.").arg(root.game.title || "")
-                        color: Theme.accent
+                        color: Theme.accentText
                         font.pixelSize: Theme.fontMeta
                     }
                 }
@@ -775,14 +775,14 @@ FocusScope {
                         anchors.rightMargin: 14
                         spacing: 8
                         Eyebrow { Layout.fillWidth: true; text: qsTr("▲ Save conflict · %1").arg(root.hist.slotLabel); color: Theme.warn }
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Restore, upload and new slot are paused for “%1” until the conflict is resolved. Other slots work normally.").arg(root.hist.slotLabel)
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "resolveConflictButton"
                             implicitHeight: 32
                             font.pixelSize: Theme.fontSmall
@@ -790,7 +790,7 @@ FocusScope {
                             enabled: !root.hist.confirmationOpen && !root.hist.busy
                             onClicked: root.hist.openConflict()
                         }
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Compare both versions here and choose one. The game does not start.")
@@ -821,8 +821,8 @@ FocusScope {
                             visible: root.hist.conflictLoading
                             Layout.fillWidth: true
                             spacing: 8
-                            FbSpinner { size: 14 }
-                            FbLabel {
+                            UzSpinner { size: 14 }
+                            UzLabel {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 elide: Text.ElideRight
@@ -831,11 +831,11 @@ FocusScope {
                                 font.pixelSize: Theme.fontMeta
                             }
                         }
-                        FbLabel {
+                        UzLabel {
                             visible: !root.hist.conflictLoading
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: qsTr("This device and the Hub both changed “%1”. Choose which save becomes the current one. Nothing is deleted.").arg(root.hist.slotLabel)
+                            text: qsTr("This device and the server both changed “%1”. Choose which save becomes the current one. Nothing is deleted.").arg(root.hist.slotLabel)
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
@@ -848,16 +848,16 @@ FocusScope {
                         ConflictSide {
                             objectName: "conflictHub"
                             visible: !root.hist.conflictLoading
-                            title: qsTr("Hub")
+                            title: qsTr("Server")
                             info: root.hist.conflictInfo.hub || ({})
                         }
-                        FbLabel {
+                        UzLabel {
                             visible: !root.hist.conflictLoading
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: root.inGame
-                                  ? qsTr("“Use the Hub save” saves this device's copy as a local backup first and restarts the game from the Hub save. “Keep this device's save” uploads it as the new current version; the game keeps running.")
-                                  : qsTr("“Use the Hub save” saves this device's copy as a local backup first. “Keep this device's save” uploads it as the new current version. The game does not start.")
+                                  ? qsTr("“Use the server save” saves this device's copy as a local backup first and restarts the game from the server save. “Keep this device's save” uploads it as the new current version; the game keeps running.")
+                                  : qsTr("“Use the server save” saves this device's copy as a local backup first. “Keep this device's save” uploads it as the new current version. The game does not start.")
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
@@ -866,7 +866,7 @@ FocusScope {
                             Layout.minimumWidth: 0
                             spacing: 8
                             layoutDirection: Qt.RightToLeft
-                            FbButton {
+                            UzButton {
                                 objectName: "conflictKeepLocal"
                                 kind: "primary"
                                 implicitHeight: 32
@@ -875,15 +875,15 @@ FocusScope {
                                 enabled: !root.hist.conflictLoading && !root.hist.conflictBusy && (root.hist.conflictInfo.local || ({})).exists === true
                                 onClicked: root.hist.resolveConflict("use_local")
                             }
-                            FbButton {
+                            UzButton {
                                 objectName: "conflictUseHub"
                                 implicitHeight: 32
                                 font.pixelSize: Theme.fontSmall
-                                text: qsTr("Use the Hub save")
+                                text: qsTr("Use the server save")
                                 enabled: !root.hist.conflictLoading && !root.hist.conflictBusy
                                 onClicked: root.hist.resolveConflict("use_hub")
                             }
-                            FbButton {
+                            UzButton {
                                 objectName: "conflictCancel"
                                 implicitHeight: 32
                                 font.pixelSize: Theme.fontSmall
@@ -894,7 +894,7 @@ FocusScope {
                         }
                     }
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "restoreBlockReason"
                     visible: root.hist.online && !root.hist.gameRunning && !root.conflict && root.hist.restoreBlockReason !== ""
                              && (root.hist.history.length > 0 || root.hist.canUploadFile)
@@ -931,7 +931,7 @@ FocusScope {
                             Layout.maximumWidth: currentCol.width
                             spacing: 8
                             Eyebrow { text: qsTr("Current") }
-                            FbMono {
+                            UzMono {
                                 objectName: "currentVersion"
                                 // Takes the free space and elides, so a wide font or a long pill never pushes the row past the column
                                 Layout.fillWidth: true
@@ -942,7 +942,7 @@ FocusScope {
                                 font.pixelSize: Theme.fontSmall
                                 font.weight: Font.Medium
                             }
-                            FbPill {
+                            UzTag {
                                 objectName: "currentPill"
                                 // The pill elides its text when squeezed; it keeps at most 60% of the row
                                 Layout.maximumWidth: Math.max(48, currentHeader.width * 0.6)
@@ -954,7 +954,7 @@ FocusScope {
                                       : root.syncKind === "synced" ? qsTr("✓ Synced") : ""
                             }
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "currentMeta"
                             Layout.fillWidth: true
                             Layout.maximumWidth: currentCol.width
@@ -993,19 +993,19 @@ FocusScope {
                             columns: detailLabelProbe.implicitWidth > parent.width * 0.4 ? 1 : 2
                             columnSpacing: 12
                             rowSpacing: 6
-                            FbLabel { Layout.minimumWidth: 0; text: qsTr("SHA-256"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            FbMono { objectName: "detailSha"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.shaShort || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
-                            FbLabel { Layout.minimumWidth: 0; text: qsTr("Size"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            FbMono { objectName: "detailSize"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.sizeText || ""; color: Theme.text; font.pixelSize: Theme.fontMeta }
-                            FbLabel { Layout.minimumWidth: 0; id: detailLabelProbe; text: qsTr("Local path"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            FbMono { objectName: "detailPath"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.localPath || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
+                            UzLabel { Layout.minimumWidth: 0; text: qsTr("SHA-256"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
+                            UzMono { objectName: "detailSha"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.shaShort || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
+                            UzLabel { Layout.minimumWidth: 0; text: qsTr("Size"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
+                            UzMono { objectName: "detailSize"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.sizeText || ""; color: Theme.text; font.pixelSize: Theme.fontMeta }
+                            UzLabel { Layout.minimumWidth: 0; id: detailLabelProbe; text: qsTr("Local path"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
+                            UzMono { objectName: "detailPath"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.localPath || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
                             Item { visible: parent.columns === 2; Layout.preferredWidth: 1; Layout.preferredHeight: 1 }
                             Flow {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 spacing: 8
-                                FbButton { objectName: "copyHashButton"; implicitHeight: 28; font.pixelSize: Theme.fontMeta; text: qsTr("Copy hash"); onClicked: root.hist.copyText(root.hist.current.sha256 || "") }
-                                FbButton { objectName: "openFolderButton"; implicitHeight: 28; font.pixelSize: Theme.fontMeta; text: qsTr("Open folder"); onClicked: root.hist.openSaveFolder() }
+                                UzButton { objectName: "copyHashButton"; implicitHeight: 28; font.pixelSize: Theme.fontMeta; text: qsTr("Copy hash"); onClicked: root.hist.copyText(root.hist.current.sha256 || "") }
+                                UzButton { objectName: "openFolderButton"; implicitHeight: 28; font.pixelSize: Theme.fontMeta; text: qsTr("Open folder"); onClicked: root.hist.openSaveFolder() }
                             }
                         }
                     }
@@ -1024,7 +1024,7 @@ FocusScope {
                         id: msgRow
                         anchors.fill: parent
                         anchors.margins: 8
-                        FbLabel {
+                        UzLabel {
                             objectName: "historyMessageText"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -1033,7 +1033,7 @@ FocusScope {
                             font.pixelSize: Theme.fontMeta
                             color: root.hist.messageIsError ? Theme.errorText : Theme.ok
                         }
-                        FbButton { kind: "link"; text: qsTr("Dismiss"); onClicked: root.hist.dismissMessage() }
+                        UzButton { kind: "link"; text: qsTr("Dismiss"); onClicked: root.hist.dismissMessage() }
                     }
                 }
 
@@ -1047,7 +1047,7 @@ FocusScope {
                     spacing: 8
                     // Wide fonts: the "◆ " mark is dropped when the full label does not fit the column (never elide the label).
                     TextMetrics { id: snapshotFull; font.pixelSize: Theme.fontSmall; font.weight: Font.Medium; text: qsTr("◆ Create snapshot") }
-                    FbButton {
+                    UzButton {
                         objectName: "snapshotButton"
                         implicitHeight: 32
                         font.pixelSize: Theme.fontSmall
@@ -1055,7 +1055,7 @@ FocusScope {
                         enabled: root.hist.canSnapshot && root.hist.online
                         onClicked: { root.snapshotOpen = true; Qt.callLater(() => snapshotLabel.forceActiveFocus()) }
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "uploadSaveButton"
                         visible: root.hist.canUploadFile || !root.hist.online
                         kind: "link"
@@ -1067,7 +1067,7 @@ FocusScope {
                         onClicked: root.openUpload()
                     }
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "uploadBlockHint"
                     visible: root.hist.online && root.hist.uploadBlockReason !== ""
                     Layout.fillWidth: true
@@ -1076,7 +1076,7 @@ FocusScope {
                     color: Theme.textFaint
                     font.pixelSize: Theme.fontMeta
                 }
-                FbField {
+                UzField {
                     id: uploadPath
                     objectName: "uploadPathField"
                     visible: root.pathPromptOpen && !root.uploadConfirming
@@ -1104,15 +1104,15 @@ FocusScope {
                         anchors.fill: parent
                         anchors.margins: 14
                         spacing: 10
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: root.hist.current.revisionText ? qsTr("◆ Create snapshot of %1").arg(root.hist.current.revisionText) : qsTr("◆ Create snapshot")
-                            color: Theme.accent
+                            color: Theme.accentText
                             font.pixelSize: Theme.fontSmall
                             font.weight: Font.DemiBold
                         }
-                        FbField {
+                        UzField {
                             id: snapshotLabel
                             objectName: "snapshotLabel"
                             Layout.fillWidth: true
@@ -1124,7 +1124,7 @@ FocusScope {
                             maximumLength: 64
                             onAccepted: snapshotCreate.clicked()
                         }
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Label is optional. Snapshots are kept until you delete them.")
@@ -1136,7 +1136,7 @@ FocusScope {
                             Layout.minimumWidth: 0
                             spacing: 8
                             layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when narrow
-                            FbButton {
+                            UzButton {
                                 id: snapshotCreate
                                 objectName: "snapshotCreate"
                                 kind: "primary"
@@ -1150,7 +1150,7 @@ FocusScope {
                                     root.snapshotOpen = false
                                 }
                             }
-                            FbButton { objectName: "snapshotCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { snapshotLabel.text = ""; root.snapshotOpen = false } }
+                            UzButton { objectName: "snapshotCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { snapshotLabel.text = ""; root.snapshotOpen = false } }
                         }
                     }
                 }
@@ -1171,12 +1171,12 @@ FocusScope {
                         anchors.fill: parent
                         anchors.margins: 14
                         spacing: 12
-                        FbLabel {
+                        UzLabel {
                             objectName: "uploadConfirmTitle"
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Upload as the new current version?")
-                            color: Theme.accent
+                            color: Theme.accentText
                             font.pixelSize: Theme.fontBody
                             font.weight: Font.DemiBold
                         }
@@ -1195,12 +1195,12 @@ FocusScope {
                                 columns: 2
                                 columnSpacing: 14
                                 rowSpacing: 6
-                                FbLabel { text: qsTr("File"); color: Theme.textMeta; font.pixelSize: Theme.fontSmall }
-                                FbMono { objectName: "uploadFileName"; Layout.fillWidth: true; text: root.hist.uploadRequest.fileName || ""; color: Theme.text; font.pixelSize: Theme.fontSmall; elide: Text.ElideRight }
-                                FbLabel { text: qsTr("Size"); color: Theme.textMeta; font.pixelSize: Theme.fontSmall }
-                                FbMono { objectName: "uploadSize"; Layout.fillWidth: true; text: root.hist.uploadRequest.sizeText || ""; color: Theme.text; font.pixelSize: Theme.fontSmall; elide: Text.ElideRight }
-                                FbLabel { text: qsTr("Into slot"); color: Theme.textMeta; font.pixelSize: Theme.fontSmall }
-                                FbLabel {
+                                UzLabel { text: qsTr("File"); color: Theme.textMeta; font.pixelSize: Theme.fontSmall }
+                                UzMono { objectName: "uploadFileName"; Layout.fillWidth: true; text: root.hist.uploadRequest.fileName || ""; color: Theme.text; font.pixelSize: Theme.fontSmall; elide: Text.ElideRight }
+                                UzLabel { text: qsTr("Size"); color: Theme.textMeta; font.pixelSize: Theme.fontSmall }
+                                UzMono { objectName: "uploadSize"; Layout.fillWidth: true; text: root.hist.uploadRequest.sizeText || ""; color: Theme.text; font.pixelSize: Theme.fontSmall; elide: Text.ElideRight }
+                                UzLabel { text: qsTr("Into slot"); color: Theme.textMeta; font.pixelSize: Theme.fontSmall }
+                                UzLabel {
                                     objectName: "uploadSlot"
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
@@ -1210,7 +1210,7 @@ FocusScope {
                                 }
                             }
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "uploadConfirmNote"
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -1226,8 +1226,8 @@ FocusScope {
                             Layout.minimumWidth: 0
                             spacing: 8
                             layoutDirection: Qt.RightToLeft
-                            FbButton { objectName: "uploadConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Upload as new current"); onClicked: root.hist.confirmUploadFile() }
-                            FbButton { objectName: "uploadCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.hist.cancelUploadFile() }
+                            UzButton { objectName: "uploadConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Upload as new current"); onClicked: root.hist.confirmUploadFile() }
+                            UzButton { objectName: "uploadCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.hist.cancelUploadFile() }
                         }
                     }
                 }
@@ -1252,17 +1252,17 @@ FocusScope {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             spacing: 8
-                            FbSpinner { size: 14 }
-                            FbLabel {
+                            UzSpinner { size: 14 }
+                            UzLabel {
                                 Layout.fillWidth: true
                                 elide: Text.ElideRight
                                 text: qsTr("Uploading to “%1”").arg(root.hist.slotLabel)
-                                color: Theme.accent
+                                color: Theme.accentText
                                 font.pixelSize: Theme.fontBody
                                 font.weight: Font.DemiBold
                             }
                         }
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Play is disabled until the upload finishes.")
@@ -1288,8 +1288,8 @@ FocusScope {
                         anchors.fill: parent
                         anchors.margins: 14
                         spacing: 8
-                        FbLabel { Layout.fillWidth: true; text: qsTr("✕ Upload failed"); color: Theme.error; font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
-                        FbLabel {
+                        UzLabel { Layout.fillWidth: true; text: qsTr("✕ Upload failed"); color: Theme.error; font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
+                        UzLabel {
                             objectName: "uploadFailedText"
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -1302,18 +1302,18 @@ FocusScope {
                             Layout.minimumWidth: 0
                             spacing: 8
                             layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
-                            FbButton { objectName: "uploadRetry"; kind: "primary"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Try again"); enabled: root.hist.online; onClicked: root.hist.retryUpload() }
-                            FbButton { objectName: "uploadFailedCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { root.hist.dismissUploadFailure(); root.hist.dismissMessage() } }
+                            UzButton { objectName: "uploadRetry"; kind: "primary"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Try again"); enabled: root.hist.online; onClicked: root.hist.retryUpload() }
+                            UzButton { objectName: "uploadFailedCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { root.hist.dismissUploadFailure(); root.hist.dismissMessage() } }
                         }
                     }
                 }
 
-                FbLabel {
+                UzLabel {
                     objectName: "historyUnsupported"
                     visible: !root.historyAvailable
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: qsTr("This Hub keeps no version history. Update the Hub to restore versions or create snapshots.")
+                    text: qsTr("This server keeps no version history. Update the server to restore versions or create snapshots.")
                     color: Theme.textMeta
                     font.pixelSize: Theme.fontMeta
                 }
@@ -1329,7 +1329,7 @@ FocusScope {
                     spacing: 8
                     Eyebrow { id: historyEyebrow; text: qsTr("History") }
                     Item { Layout.fillWidth: true }
-                    FbSegment {
+                    UzSegmented {
                         objectName: "historyFilter"
                         // Deterministic width: never wider than what the eyebrow leaves, so wide fonts shrink and elide the labels
                         Layout.preferredWidth: Math.max(0, Math.min(implicitWidth, 200, body.width - historyEyebrow.implicitWidth - historyHeader.spacing))
@@ -1345,7 +1345,7 @@ FocusScope {
                     }
                 }
 
-                FbLabel {
+                UzLabel {
                     objectName: "historyLoading"
                     visible: root.historyAvailable && root.hist.loading && !root.hasCurrent && root.hist.history.length === 0
                     Layout.fillWidth: true
@@ -1360,8 +1360,8 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 4
-                    FbLabel { text: qsTr("No saves yet"); font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
-                    FbLabel {
+                    UzLabel { text: qsTr("No saves yet"); font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
+                    UzLabel {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: qsTr("The first save appears in slot “%1” after you play.").arg(root.hist.slotLabel)
@@ -1369,7 +1369,7 @@ FocusScope {
                         font.pixelSize: Theme.fontMeta
                     }
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "snapshotsEmpty"
                     visible: root.historyAvailable && root.filter === "snapshots" && root.rows.length <= (root.hasCurrent ? 1 : 0) && (root.hasCurrent || root.hist.history.length > 0)
                     Layout.fillWidth: true

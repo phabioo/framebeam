@@ -32,10 +32,10 @@ QString friendlyConnectError(const QString& raw, QString* detail) {
   QString friendly;
   if (lower.contains(QLatin1String("wrong version number")) || lower.contains(QLatin1String("http request"))) {
     friendly = QCoreApplication::translate("uzume::ui::HubPresenter",
-                                           "The Hub does not answer with HTTPS on this port. Check the address and the port.");
+                                           "The server does not answer with HTTPS on this port. Check the address and the port.");
   } else if (lower.contains(QLatin1String("ssl handshake failed")) || lower.contains(QLatin1String("ssl routines"))) {
     friendly = QCoreApplication::translate("uzume::ui::HubPresenter",
-                                           "A secure connection to the Hub could not be set up. Check the address and the port.");
+                                           "A secure connection to the server could not be set up. Check the address and the port.");
   }
   if (friendly.isEmpty()) return raw;
   *detail = raw;
@@ -89,8 +89,8 @@ QVariantMap HubPresenter::hubCard(const HubProfile& p) const {
         status = QStringLiteral("certChanged");
         text = tr("Certificate changed");
         tone = QStringLiteral("error");
-        message = tr("The Hub's certificate changed. The connection is blocked and nothing was sent to the Hub. "
-                     "Compare the new fingerprint with the one on the Hub's web Settings page. Trust it only if they match.");
+        message = tr("The server's certificate changed. The connection is blocked and nothing was sent to the server. "
+                     "Compare the new fingerprint with the one on the server's web Settings page. Trust it only if they match.");
         m.insert(QStringLiteral("expectedFingerprint"), formatFingerprint(conn_->expectedFingerprint().isEmpty() ? p.pinnedFingerprint : conn_->expectedFingerprint()));
         m.insert(QStringLiteral("observedFingerprint"), formatFingerprint(conn_->observedFingerprint()));
         m.insert(QStringLiteral("observedFingerprintRaw"), conn_->observedFingerprint());
@@ -98,19 +98,19 @@ QVariantMap HubPresenter::hubCard(const HubProfile& p) const {
       case S::Incompatible: {
         status = QStringLiteral("incompatible");
         const bool hubOld = conn_->incompatibleReason() == HubConnection::IncompatibleReason::HubTooOld;
-        text = hubOld ? tr("Hub too old") : tr("Player too old");
+        text = hubOld ? tr("Server too old") : tr("App too old");
         tone = QStringLiteral("warn");
         const HubInfo& hi = conn_->hubInfo();
-        message = hubOld ? tr("Hub speaks protocol v%1, Player requires at least v%2").arg(hi.protocolVersion).arg(kMinProtocolVersion)
-                         : tr("Hub requires at least protocol v%1, Player speaks v%2").arg(hi.minProtocolVersion).arg(kProtocolVersion);
+        message = hubOld ? tr("Server speaks protocol v%1, app requires at least v%2").arg(hi.protocolVersion).arg(kMinProtocolVersion)
+                         : tr("Server requires at least protocol v%1, app speaks v%2").arg(hi.minProtocolVersion).arg(kProtocolVersion);
         break;
       }
       case S::UserDisabled:
         status = QStringLiteral("userDisabled");
         text = tr("User disabled");
         tone = QStringLiteral("error");
-        message = tr("This user is disabled on the Hub. Ask the Hub admin to enable it again. "
-                     "The Player does not retry on its own; use Retry once it is enabled.");
+        message = tr("This user is disabled on the server. Ask the server admin to enable it again. "
+                     "Uzume does not retry on its own; use Retry once it is enabled.");
         break;
       case S::Unreachable:
         status = QStringLiteral("unreachable");

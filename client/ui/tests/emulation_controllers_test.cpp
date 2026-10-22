@@ -337,7 +337,7 @@ class EmulationControllersTest : public QObject {
 
     // System item: name, core + version, readiness, firmware (no firmware_v1 on this hub -> built-in BIOS).
     QCOMPARE(text(h, "systemCore_nds"), QStringLiteral("melonDS DS · 1.4.0"));
-    QCOMPARE(text(h, "systemReady_nds"), QStringLiteral("Ready · included in the Player"));
+    QCOMPARE(text(h, "systemReady_nds"), QStringLiteral("Ready · included in Uzume"));
     QCOMPARE(text(h, "systemFirmware_nds"), QStringLiteral("Built-in BIOS"));
     QCOMPARE(text(h, "emulationTitle"), QStringLiteral("Nintendo DS · melonDS DS 1.4.0"));
     QVERIFY(!emu->defaultsSelected());
@@ -746,7 +746,7 @@ class EmulationControllersTest : public QObject {
         {QStringLiteral("native"),
          QJsonArray{fwFile(QStringLiteral("bios7"), QStringLiteral("ARM7 BIOS"), true, b7), fwFile(QStringLiteral("bios9"), QStringLiteral("ARM9 BIOS"), true, b9),
                     fwFile(QStringLiteral("firmware"), QStringLiteral("DS Firmware"), true, fw)},
-         QStringLiteral("Firmware from Hub · verified")},
+         QStringLiteral("Firmware from server · verified")},
     };
     for (const Case& c : cases) {
       FakeHub hub(QStringLiteral("a"));
@@ -1020,7 +1020,7 @@ class EmulationControllersTest : public QObject {
 #else
     QCOMPARE(text(h, "systemCore_nds").left(10), QStringLiteral("melonDS DS"));
 #endif
-    QCOMPARE(text(h, "systemReady_nds"), QStringLiteral("Ready · included in the Player"));
+    QCOMPARE(text(h, "systemReady_nds"), QStringLiteral("Ready · included in Uzume"));
     QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
     QVERIFY(h.item("optionRow_melonds_render_mode") != nullptr);
     QVERIFY(h.item("optionRow_melonds_sysfile_mode") == nullptr);
@@ -1212,7 +1212,7 @@ class EmulationControllersTest : public QObject {
     QVERIFY(!visible(h, "hotkeysInfo"));
     QVERIFY(h.click("tabHotkeys"));
     QVERIFY(visible(h, "hotkeysInfo"));
-    QCOMPARE(text(h, "hotkeysInfo"), QStringLiteral("Player hotkeys work on the keyboard and on a gamepad (hold the hotkey button, then press another one) and are never sent to the game."));
+    QCOMPARE(text(h, "hotkeysInfo"), QStringLiteral("Uzume hotkeys work on the keyboard and on a gamepad (hold the hotkey button, then press another one) and are never sent to the game."));
     QCOMPARE(c->hotkeyRows().size(), 5);  // four actions + the fixed Esc row
     QCOMPARE(text(h, "hotkeyText_fullscreen"), QStringLiteral("F11"));
     QCOMPARE(text(h, "hotkeyText_diagnostics"), QStringLiteral("F3"));

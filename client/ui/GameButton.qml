@@ -101,7 +101,7 @@ Button {
                 anchors.verticalCenter: parent.verticalCenter
                 implicitWidth: keyText.implicitWidth + 8
                 implicitHeight: keyText.implicitHeight + 2
-                radius: 3
+                radius: 0
                 color: "transparent"
                 border.width: 1
                 border.color: control.on ? Theme.gameOnBorder : Theme.gameKeyLine
@@ -127,7 +127,7 @@ Button {
     }
     background: Rectangle {
         visible: !control.plain
-        radius: 7
+        radius: 0
         color: control.on ? (control.look === "surface" ? Theme.gameOnBg : Theme.gameOnBg)
              : control.danger ? Theme.gameDangerBg
              : control.look === "surface" ? (control.hovered ? Theme.gameHover : Theme.gameTrack)

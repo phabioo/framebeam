@@ -270,7 +270,7 @@ Item {
                 policy: ScrollBar.AsNeeded
                 contentItem: Rectangle {
                     implicitWidth: 5
-                    radius: 2.5
+                    radius: 0
                     color: Theme.blockColor("borderButton", root.dark)
                     opacity: parent.active ? 1 : 0.6
                 }
@@ -472,7 +472,7 @@ Item {
                         objectName: "pluginLocationStatus"
                         implicitWidth: statusLabel.implicitWidth + 18
                         implicitHeight: 22
-                        radius: 11
+                        radius: 0
                         color: Theme.toneBgFor(loc.tone, root.dark)
                         Text {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
@@ -572,7 +572,7 @@ Item {
             onActivated: root.action(root.node.action, root.node.value)
             Rectangle {
                 anchors.fill: parent
-                radius: 14
+                radius: 0
                 color: chip.picked ? Theme.blockColor("text", root.dark) : (chip.hovered ? Theme.blockColor("hover", root.dark) : "transparent")
                 border.width: chip.picked ? 0 : 1
                 border.color: chip.tone === "neutral" ? Theme.blockColor("border", root.dark) : Theme.toneLine(chip.tone, root.dark)
@@ -594,7 +594,7 @@ Item {
         Rectangle {
             implicitHeight: 20
             implicitWidth: badgeLabel.implicitWidth + 16
-            radius: 10
+            radius: 0
             color: Theme.toneBgFor(root.node.tone || "neutral", root.dark)
             Text {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
@@ -613,7 +613,7 @@ Item {
             readonly property int px: root.node.size === "s" ? 20 : (root.node.size === "l" ? 32 : 26)
             implicitWidth: px
             implicitHeight: px
-            radius: px / 2
+            radius: 0
             color: Theme.playerColor(root.node.color || 1, root.dark)
             Text {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
@@ -621,7 +621,7 @@ Item {
                 text: (root.node.initial || "").substring(0, 1).toUpperCase()
                 font.pixelSize: Math.round(parent.px * 0.46)
                 font.weight: Font.DemiBold
-                color: root.dark ? "#121315" : "#ffffff"
+                color: Theme.tok("ground", root.dark)
             }
         }
     }
@@ -664,13 +664,13 @@ Item {
                 Layout.fillWidth: true
                 implicitWidth: 80
                 implicitHeight: 4
-                radius: 2
+                radius: 0
                 color: Theme.blockColor("track", root.dark)
                 Rectangle {
                     objectName: "pluginBarFill"
                     width: parent.width * parent.parent.v
                     height: parent.height
-                    radius: 2
+                    radius: 0
                     color: Theme.toneFg(parent.parent.tone, root.dark)
                 }
             }

@@ -30,7 +30,7 @@ PluginFocusable {
         objectName: "pluginToggleSwitch"
         width: 40
         height: 22
-        radius: 11
+        radius: 0
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         color: root.checked ? Theme.blockColor("accent", root.dark) : Theme.blockColor("border", root.dark)
@@ -40,7 +40,7 @@ PluginFocusable {
             y: 3
             width: 16
             height: 16
-            radius: 8
+            radius: 0
             color: root.checked ? Theme.blockColor("textOnAccent", root.dark) : Theme.blockColor("text", root.dark)
             Behavior on x { NumberAnimation { duration: Theme.durFast; easing.type: Easing.OutCubic } }
         }

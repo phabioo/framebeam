@@ -14,7 +14,7 @@ RowLayout {
     property string subName: ""
     spacing: 10
 
-    FbLabel {
+    UzLabel {
         Layout.preferredWidth: 76
         Layout.alignment: Qt.AlignTop
         text: root.label
@@ -28,7 +28,7 @@ RowLayout {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            FbMono {
+            UzMono {
                 objectName: root.valueName
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
@@ -37,7 +37,7 @@ RowLayout {
                 font.pixelSize: 12
                 color: Theme.gameText
             }
-            FbPill {
+            UzTag {
                 objectName: root.valueName !== "" ? root.valueName + "Pill" : ""
                 visible: root.pill !== ""
                 small: true
@@ -45,7 +45,7 @@ RowLayout {
                 tone: root.pillTone
             }
         }
-        FbMono {
+        UzMono {
             objectName: root.subName
             Layout.fillWidth: true
             Layout.minimumWidth: 0

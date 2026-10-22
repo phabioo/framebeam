@@ -22,7 +22,7 @@ Item {
     // Dimmed library behind the dialog; swallows clicks.
     Rectangle {
         anchors.fill: parent
-        color: Theme.dark ? Qt.rgba(8 / 255, 9 / 255, 10 / 255, 0.8) : Qt.rgba(0, 0, 0, 0.6)
+        color: Theme.scrim
     }
     MouseArea {
         anchors.fill: parent
@@ -61,14 +61,14 @@ Item {
                         text: qsTr("▲ Save conflict · %1").arg(root.conflict.gameTitle || "")
                         color: Theme.warn
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
-                        text: qsTr("The Hub and this device have different saves")
+                        text: qsTr("The server and this device have different saves")
                         font.pixelSize: Theme.fontDialog
                         font.weight: Font.DemiBold
                         wrapMode: Text.WordWrap
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         text: qsTr("This device kept playing offline while another device secured a new checkpoint. Nothing is overwritten until you decide. Both saves are secured in the history beforehand.")
                         color: Theme.textMuted
@@ -84,7 +84,7 @@ Item {
                     rowSpacing: 12
                     Repeater {
                         model: [
-                            { objectName: "hubSide", eyebrow: qsTr("On the Hub"), side: root.conflict.hub },
+                            { objectName: "hubSide", eyebrow: qsTr("On the server"), side: root.conflict.hub },
                             { objectName: "localSide", eyebrow: qsTr("On this device"), side: root.conflict.local }
                         ]
                         delegate: Rectangle {
@@ -105,21 +105,21 @@ Item {
                                 anchors.margins: 16
                                 spacing: 6
                                 Eyebrow { text: sideCard.modelData.eyebrow }
-                                FbLabel {
+                                UzLabel {
                                     Layout.fillWidth: true
                                     text: sideCard.side.title || ""
                                     font.pixelSize: Theme.fontSection
                                     font.weight: Font.Medium
                                     elide: Text.ElideRight
                                 }
-                                FbLabel {
+                                UzLabel {
                                     Layout.fillWidth: true
                                     text: sideCard.side.when || ""
                                     color: Theme.textSecondary
                                     font.pixelSize: Theme.fontSmall
                                     elide: Text.ElideRight
                                 }
-                                FbMono {
+                                UzMono {
                                     Layout.fillWidth: true
                                     text: sideCard.side.base || ""
                                     font.pixelSize: Theme.fontMono
@@ -136,7 +136,7 @@ Item {
                     implicitHeight: errText.implicitHeight + 24
                     radius: Theme.radius8
                     color: Theme.errorBg
-                    FbLabel {
+                    UzLabel {
                         id: errText
                         anchors.fill: parent
                         anchors.margins: 12
@@ -154,12 +154,12 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 16
-                        FbButton {
+                        UzButton {
                             id: hubButton
                             objectName: "useHubButton"
                             Layout.preferredWidth: 340
                             implicitHeight: 46
-                            text: qsTr("Use Hub version")
+                            text: qsTr("Use server version")
                             enabled: !root.conflict.busy
                             busyOnClick: true
                             activeFocusOnTab: true
@@ -169,7 +169,7 @@ Item {
                             Keys.onReturnPressed: clicked()
                             Keys.onEnterPressed: clicked()
                         }
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             text: qsTr("local save stays secured")
                             color: Theme.textMeta
@@ -180,7 +180,7 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 16
-                        FbButton {
+                        UzButton {
                             id: localButton
                             objectName: "useLocalButton"
                             Layout.preferredWidth: 340
@@ -195,7 +195,7 @@ Item {
                             Keys.onReturnPressed: clicked()
                             Keys.onEnterPressed: clicked()
                         }
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             text: qsTr("becomes the new checkpoint")
                             color: Theme.textMeta
@@ -206,7 +206,7 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 16
-                        FbButton {
+                        UzButton {
                             id: keepButton
                             objectName: "keepBothButton"
                             Layout.preferredWidth: 340
@@ -225,14 +225,14 @@ Item {
                             Rectangle {
                                 anchors.fill: parent
                                 anchors.margins: -3
-                                radius: 11
+                                radius: 0
                                 color: "transparent"
                                 border.width: 2
                                 border.color: Theme.text
                                 visible: keepButton.activeFocus
                             }
                         }
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             text: qsTr("default · the game starts with the local save")
                             color: Theme.textMeta
@@ -242,9 +242,9 @@ Item {
                     }
                 }
 
-                FbLabel {
+                UzLabel {
                     Layout.fillWidth: true
-                    text: qsTr("Decide later: the conflict stays visible on the game and on the Saves page in the Hub.")
+                    text: qsTr("Decide later: the conflict stays visible on the game and on the Saves page in the server.")
                     color: Theme.textFaint
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap

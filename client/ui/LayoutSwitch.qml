@@ -34,7 +34,7 @@ Rectangle {
     visible: layouts.length > 1
     implicitHeight: 36
     implicitWidth: row.implicitWidth + 6
-    radius: 8
+    radius: 0
     color: Theme.surface
     border.width: 1
     border.color: Theme.borderInput
@@ -56,7 +56,7 @@ Rectangle {
                 implicitWidth: content.implicitWidth + (root.compact ? 16 : 20)
                 Accessible.role: Accessible.Button
                 Accessible.name: root.labels[modelData] || modelData
-                radius: 6
+                radius: 0
                 color: active ? Theme.surfaceRaised : "transparent"
                 border.width: active ? 1 : 0
                 border.color: Theme.borderButton

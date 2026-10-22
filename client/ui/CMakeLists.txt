@@ -9,6 +9,7 @@ qt_add_qml_module(uzume_ui
   RESOURCE_PREFIX /qt/qml
   OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Uzume/App
   SOURCES
+    uifonts.h uifonts.cpp
     inputmapping.h inputmapping.cpp
     timeformat.h timeformat.cpp
     screenlayout.h screenlayout.cpp
@@ -45,17 +46,18 @@ qt_add_qml_module(uzume_ui
   QML_FILES
     Main.qml
     Theme.qml
-    FbLabel.qml
-    FbMono.qml
-    FbButton.qml
-    FbToggle.qml
-    FbField.qml
-    FbPill.qml
-    FbChip.qml
-    FbSpinner.qml
+    UzLabel.qml
+    UzMono.qml
+    UzButton.qml
+    UzToggle.qml
+    UzField.qml
+    UzTag.qml
+    UzChip.qml
+    UzSpinner.qml
     ShellColumn.qml
     ColumnItem.qml
-    Logo.qml
+    UzMark.qml
+    UzLockup.qml
     StatusDot.qml
     Eyebrow.qml
     HubCard.qml
@@ -63,7 +65,9 @@ qt_add_qml_module(uzume_ui
     StepCard.qml
     ConnectionScreen.qml
     PairingScreen.qml
-    Sidebar.qml
+    UzAppNav.qml
+    UzNavItem.qml
+    UzNavGroupHead.qml
     GameTile.qml
     DetailPane.qml
     LibraryScreen.qml
@@ -73,7 +77,7 @@ qt_add_qml_module(uzume_ui
     ConflictDialog.qml
     StartConfirmDialog.qml
     RollbackDialog.qml
-    FbSegment.qml
+    UzSegmented.qml
     SessionsSection.qml
     GamePanel.qml
     GameHeader.qml
@@ -94,9 +98,9 @@ qt_add_qml_module(uzume_ui
     DiagnosticsOverlay.qml
     LayoutSwitch.qml
     KeyHintButton.qml
-    FbSelect.qml
-    FbModelSelect.qml
-    SettingsRow.qml
+    UzSelect.qml
+    UzModelSelect.qml
+    UzSettingsRow.qml
     EmulationScreen.qml
     ControllersScreen.qml
     PadGlyph.qml
@@ -152,6 +156,50 @@ qt_add_qml_module(uzume_ui
     PluginHudLayer.qml
     PluginToast.qml
     PluginTileStrip.qml
+    UzFocusRing.qml
+    UzGlyph.qml
+    UzIconButton.qml
+    UzKeyCap.qml
+    UzKbd.qml
+    UzGamepadHint.qml
+    UzHintRow.qml
+    UzDisclosure.qml
+    UzOpenColumn.qml
+    UzHelpColumn.qml
+    UzRegisterMarks.qml
+    UzSectionLabel.qml
+    UzPageHeader.qml
+    UzTabs.qml
+    UzVoiceMark.qml
+    UzVoiceBars.qml
+    UzAvatar.qml
+    UzAvatarStack.qml
+    UzStatusIcon.qml
+    UzStatusLine.qml
+    UzEnso.qml
+    UzStateBlock.qml
+    UzProgress.qml
+    UzFilterChip.qml
+    UzSystemChip.qml
+    UzSlider.qml
+    UzCheckbox.qml
+    UzDialog.qml
+    UzPopover.qml
+    UzToast.qml
+    UzStageDiagnostics.qml
+    UzHotkeySheet.qml
+    UzMenu.qml
+    UzMenuList.qml
+    UzMenuItem.qml
+  RESOURCES
+    fonts/IBMPlexSans-Light.ttf
+    fonts/IBMPlexSans-Regular.ttf
+    fonts/IBMPlexSans-Medium.ttf
+    fonts/IBMPlexSans-SemiBold.ttf
+    fonts/IBMPlexMono-Regular.ttf
+    fonts/IBMPlexMono-Medium.ttf
+    fonts/IBMPlexMono-SemiBold.ttf
+    fonts/IBM-Plex-OFL.txt
 )
 # Zero-copy display (ADR 0027): the platform implementation of makePlatformDisplay(); Windows has its own (WIN32 block below).
 if(NOT WIN32)

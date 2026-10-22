@@ -282,7 +282,7 @@ void RunClient::send(const QByteArray& method, const QString& path, const std::o
   if (reply == nullptr) {
     HttpResult r;
     r.networkError = true;
-    r.errorString = QStringLiteral("Not connected to the Hub");
+    r.errorString = QStringLiteral("Not connected to the server");
     QTimer::singleShot(0, this, [cb = std::move(cb), r]() { cb(r); });
     return;
   }

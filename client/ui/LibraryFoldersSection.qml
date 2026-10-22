@@ -40,14 +40,14 @@ ColumnLayout {
             Layout.fillWidth: true
             text: qsTr("Library folders · %1").arg(root.folders.length)
         }
-        FbButton {
+        UzButton {
             objectName: "libraryFolderAdd"
             kind: "link"
             text: qsTr("+ Add folder…")
             onClicked: root.openFolderDialog()
         }
     }
-    FbLabel {
+    UzLabel {
         objectName: "libraryFoldersHint"
         Layout.fillWidth: true
         Layout.minimumWidth: 0
@@ -57,7 +57,7 @@ ColumnLayout {
         lineHeight: 1.35
         font.pixelSize: Theme.fontSmall
         color: Theme.textMuted
-        text: qsTr("The Player finds games in these folders and starts them from there. It tells the Hub which games you have; the files stay on this device.")
+        text: qsTr("Uzume finds games in these folders and starts them from there. It tells the server which games you have; the files stay on this device.")
     }
 
     Repeater {
@@ -82,7 +82,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 2
-                    FbMono {
+                    UzMono {
                         objectName: "libraryFolderPath"
                         Layout.fillWidth: true
                         text: folderRow.modelData.path
@@ -94,7 +94,7 @@ ColumnLayout {
                         ToolTip.text: folderRow.modelData.path
                         ToolTip.delay: 400
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "libraryFolderStatus"
                         Layout.fillWidth: true
                         elide: Text.ElideRight
@@ -114,7 +114,7 @@ ColumnLayout {
                 RowLayout {
                     Layout.alignment: Qt.AlignVCenter
                     spacing: 6
-                    FbButton {
+                    UzButton {
                         objectName: folderRow.modelData.scanning ? "libraryFolderStop" : "libraryFolderRescan"
                         implicitHeight: 32
                         hPadding: 24
@@ -122,7 +122,7 @@ ColumnLayout {
                         enabled: folderRow.modelData.scanning || root.scan.active !== true
                         onClicked: folderRow.modelData.scanning ? root.player.stopLibraryScan() : root.player.rescanLibrary()
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "libraryFolderRemove"
                         implicitHeight: 32
                         hPadding: 24
@@ -145,7 +145,7 @@ ColumnLayout {
         color: "transparent"
         border.width: 1
         border.color: Theme.borderButton
-        FbLabel {
+        UzLabel {
             id: emptyText
             anchors.centerIn: parent
             width: parent.width - 32
@@ -156,7 +156,7 @@ ColumnLayout {
             color: Theme.textFaint
         }
     }
-    FbLabel {
+    UzLabel {
         visible: root.folders.length > 0
         Layout.fillWidth: true
         Layout.leftMargin: Theme.settingsDotSlot
@@ -172,14 +172,14 @@ ColumnLayout {
         visible: root.pathPromptOpen
         Layout.fillWidth: true
         spacing: Theme.space10
-        FbField {
+        UzField {
             id: pathField
             objectName: "libraryFolderPathField"
             Layout.fillWidth: true
             placeholderText: qsTr("Folder path, e.g. D:\\Games\\ROMs")
             onAccepted: applyPath.clicked()
         }
-        FbButton {
+        UzButton {
             id: applyPath
             objectName: "libraryFolderApplyButton"
             implicitHeight: 32
@@ -189,7 +189,7 @@ ColumnLayout {
         }
     }
 
-    FbLabel {
+    UzLabel {
         objectName: "libraryScanStatus"
         visible: root.scan.isError === true && (root.scan.text || "") !== ""
         Layout.fillWidth: true

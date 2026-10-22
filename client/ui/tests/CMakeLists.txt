@@ -64,6 +64,10 @@ target_compile_definitions(test_ui_report PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST
 # SettingsRow in isolation (grid, dot slot, More / Less, segment -> select, disabled reason, narrow); no hub, no core.
 uzume_add_test(ui_settings_row settings_row_ui_test.cpp LIBS ${FB_UI_TEST_LIBS})
 
+# Design system blocks (0.18 package 3): every Uz* block in Sumi and Kinari, token facts, focus ring, keyboard behaviour,
+# dialog busy state, popover closing; no hub, no core.
+uzume_add_test(ui_design_system design_system_ui_test.cpp LIBS ${FB_UI_TEST_LIBS})
+
 # Emulation page (3e, settings hierarchy, core options) and Controllers page (3f) with SDL virtual joysticks.
 # The test with the real core QSKIPs without UZUME_MELONDS_DS_CORE.
 uzume_add_test(ui_emulation_controllers emulation_controllers_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
@@ -244,7 +248,7 @@ target_compile_definitions(test_ui_runs PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_D
 # that only fit with Linux font metrics (Windows CI renders wider; 16 px letter spacing is about the Windows fallback font).
 # Not on Windows: its fonts are already the wide case, extra spacing there tests something no user sees.
 if(NOT WIN32)
-  foreach(t ui_shell_layout ui_library_saves ui_ingame ui_plugin_slots ui_settings_row ui_screens ui_plugins ui_connection_check ui_report)
+  foreach(t ui_shell_layout ui_library_saves ui_ingame ui_plugin_slots ui_settings_row ui_design_system ui_screens ui_plugins ui_connection_check ui_report)
     add_test(NAME ${t}_widefont COMMAND test_${t})
     set_tests_properties(${t}_widefont PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;UZUME_TEST_WIDE_FONT=16")
   endforeach()

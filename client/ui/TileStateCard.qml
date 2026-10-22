@@ -15,7 +15,7 @@ Rectangle {
     readonly property real pad: compact ? 20 : 32
     implicitWidth: Math.min(maxCardWidth, col.implicitWidth + pad)
     implicitHeight: col.implicitHeight + (compact ? 12 : 20)
-    radius: 10
+    radius: 0
     color: Theme.gameCard
     border.width: 1
     border.color: Theme.gamePopoverBorder
@@ -24,7 +24,7 @@ Rectangle {
         anchors.centerIn: parent
         width: root.width - root.pad
         spacing: 4
-        FbLabel {
+        UzLabel {
             objectName: "tileCardTitle"
             Layout.fillWidth: true
             Layout.minimumWidth: 0
@@ -37,7 +37,7 @@ Rectangle {
             font.weight: Font.DemiBold
             color: Theme.gameText
         }
-        FbLabel {
+        UzLabel {
             objectName: "tileCardSub"
             visible: root.sub !== "" && !root.compact
             Layout.fillWidth: true

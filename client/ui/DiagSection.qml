@@ -22,8 +22,8 @@ ColumnLayout {
         RowLayout {
             anchors.fill: parent
             spacing: 8
-            FbMono { text: root.expanded ? "▾" : "▸"; font.pixelSize: 10; color: Theme.gameMeta }
-            FbMono {
+            UzMono { text: root.expanded ? "▾" : "▸"; font.pixelSize: 10; color: Theme.gameMeta }
+            UzMono {
                 text: root.title
                 font.pixelSize: 11
                 font.weight: Font.Medium
@@ -31,7 +31,7 @@ ColumnLayout {
                 color: Theme.gameFaint
             }
             Item { Layout.fillWidth: true }
-            FbMono {
+            UzMono {
                 objectName: "diagSectionSummary"
                 visible: !root.expanded
                 text: root.summary

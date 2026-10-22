@@ -39,7 +39,7 @@ Item {
                 anchors.leftMargin: 16
                 anchors.rightMargin: 12
                 spacing: 10
-                FbLabel {
+                UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     Layout.fillWidth: true
                     text: qsTr("Paused · showing its last state")
@@ -82,7 +82,7 @@ Item {
                 enabled: !root.paused
                 onAction: (a, v) => root.player.plugins.sendAction(root.pluginId, "panel", a, v)
             }
-            FbLabel {
+            UzLabel {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 x: 20
                 y: 20

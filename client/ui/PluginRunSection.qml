@@ -17,7 +17,7 @@ ColumnLayout {
     visible: sections.length > 0 || viewState !== "" || problems !== ""
     spacing: 18
 
-    FbLabel {
+    UzLabel {
         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
         objectName: "pluginRunStatus"
         Layout.fillWidth: true
@@ -27,7 +27,7 @@ ColumnLayout {
         font.pixelSize: Theme.fontSmall
         text: root.viewState !== "" ? root.player.runs.runViewText : root.problems
     }
-    FbButton {
+    UzButton {
         objectName: "pluginRunRetry"
         visible: root.viewState === "error"
         text: qsTr("Try again")
@@ -48,7 +48,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 spacing: 8
-                FbLabel {
+                UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "pluginRunFrom"
                     Layout.fillWidth: true
@@ -64,7 +64,7 @@ ColumnLayout {
                     text: sec.modelData.originText || sec.marker
                 }
             }
-            FbLabel {
+            UzLabel {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "pluginRunNote"
                 Layout.fillWidth: true

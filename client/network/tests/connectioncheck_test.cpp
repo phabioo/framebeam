@@ -65,7 +65,7 @@ StunMapping map(const QString& server, const QString& mapped, bool behindNat = t
 
 ConnectionTarget target(bool turn = true, bool stun = true) {
   ConnectionTarget t;
-  t.hubName = QStringLiteral("Home Hub");
+  t.hubName = QStringLiteral("Home server");
   t.hubAddress = QStringLiteral("https://hub.example.com:8443");
   t.deviceName = QStringLiteral("Desktop-LivingRoom");
   if (stun) t.stunUrls = {QStringLiteral("stun:stun.example.org:3478")};
@@ -170,7 +170,7 @@ class ConnectionCheckTest : public QObject {
     QTest::newRow("refused") << "refused" << "hub.example.com:8443 refused";
     QTest::newRow("dns") << "dns" << "The name hub.example.com cannot be found";
     QTest::newRow("certificate") << "certificate" << "The certificate of hub.example.com:8443 does not match";
-    QTest::newRow("http") << "http" << "hub.example.com:8443 does not answer like a Hub";
+    QTest::newRow("http") << "http" << "hub.example.com:8443 does not answer like a server";
   }
   void hubFailureSkipsEverythingElse() {
     QFETCH(QString, kind);
@@ -186,7 +186,7 @@ class ConnectionCheckTest : public QObject {
       QCOMPARE(r.steps[i].state, CheckStepState::Skipped);
       QCOMPARE(r.steps[i].result, QString("Skipped"));
     }
-    QCOMPARE(r.summary, QString("Home Hub cannot be reached"));
+    QCOMPARE(r.summary, QString("Home server cannot be reached"));
     QVERIFY(r.summaryDetail.contains("hub.example.com:8443"));
     QVERIFY(r.summaryDetail.contains("were skipped"));
   }
@@ -200,7 +200,7 @@ class ConnectionCheckTest : public QObject {
     QCOMPARE(r.steps[0].state, CheckStepState::Ok);
     for (int i = 1; i < 5; ++i) QCOMPARE(r.steps[i].state, CheckStepState::Skipped);
     QCOMPARE(r.outcome, CheckOutcome::NotConnected);
-    QVERIFY(r.summary.startsWith("Connect to Home Hub"));
+    QVERIFY(r.summary.startsWith("Connect to Home server"));
   }
 
   void turnOffIsSkippedWithExplanation() {
@@ -251,7 +251,7 @@ class ConnectionCheckTest : public QObject {
     s.test.error = QStringLiteral("no connection within 15 s");
     const CheckResult r = run(s, target());
     QCOMPARE(r.steps[2].state, CheckStepState::Failed);
-    QVERIFY(r.steps[2].result.contains("refused the Player's credentials"));
+    QVERIFY(r.steps[2].result.contains("refused this PC's credentials"));
     QCOMPARE(r.steps[4].state, CheckStepState::Failed);
     QCOMPARE(r.outcome, CheckOutcome::Blocked);
   }
@@ -367,7 +367,7 @@ class ConnectionCheckTest : public QObject {
     QCOMPARE(o["steps"].toArray()[3].toObject()["id"].toString(), QString("nat"));
     QCOMPARE(o["steps"].toArray()[3].toObject()["state"].toString(), QString("warning"));
     QVERIFY(!o["generated_at"].toString().isEmpty());
-    QVERIFY(text.contains("1. Hub reachable: hub.example.com:8443 · 22 ms (ok)"));
+    QVERIFY(text.contains("1. Server reachable: hub.example.com:8443 · 22 ms (ok)"));
     QVERIFY(text.contains("4. NAT type: Symmetric NAT (warning)"));
     QVERIFY(text.contains("Only relayed connections are possible here"));
     QVERIFY(text.contains("198.51.100.4:40000"));  // technical details are in the export

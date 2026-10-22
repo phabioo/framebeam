@@ -72,7 +72,7 @@ class FakeUdpServer : public QObject {
 
 ConnectionTarget baseTarget() {
   ConnectionTarget t;
-  t.hubName = QStringLiteral("Test Hub");
+  t.hubName = QStringLiteral("Test server");
   return t;
 }
 

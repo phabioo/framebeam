@@ -126,7 +126,7 @@ void GameStarter::onCoreFinished(const CoreResult& result) {
       continueStartAfterCore(*game, *man);
       return;
     }
-    blockedText = tr("The cached core %1 %2 is not compatible with version %3 the Hub expects. The game was not started.")
+    blockedText = tr("The cached core %1 %2 is not compatible with version %3 the server expects. The game was not started.")
                       .arg(man->coreId, loc.version, hubVersion);
   }
   phase_ = PlayPhase::None;
@@ -174,7 +174,7 @@ void GameStarter::beginRomPhase(const GameEntry& game) {
     pendingSha_.clear();
     phase_ = PlayPhase::None;
     shareOnStart_ = false;
-    startError_ = tr("File missing on this device. Add the folder with this game's ROM under Settings > Library folders, or upload it to the Hub from a device that has it. The game was not started.");
+    startError_ = tr("File missing on this device. Add the folder with this game's ROM under Settings > Library folders, or upload it to the server from a device that has it. The game was not started.");
     emit selectedGameChanged();
     return;
   }
@@ -259,7 +259,7 @@ void GameStarter::launch(const GameEntry& game, const QString& romPath) {
   const emu::SystemManifest* man = catalog_->manifestFor(game);
   if (man == nullptr || profiles_->hubDir(conn_->hubInfo().hubId).isEmpty()) {
     phase_ = PlayPhase::None;
-    startError_ = tr("Cannot start the game (system or Hub directory unknown).");
+    startError_ = tr("Cannot start the game (system or server directory unknown).");
     emit selectedGameChanged();
     return;
   }

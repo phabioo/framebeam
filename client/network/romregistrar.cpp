@@ -110,7 +110,7 @@ void RomRegistrar::unregisterGame(const QString& gameId) {
   QNetworkReply* reply =
       conn_ ? conn_->authorizedSend("DELETE", QStringLiteral("/games/") + gameId + QStringLiteral("/registration"), {}) : nullptr;
   if (reply == nullptr) {
-    emit unregistered(gameId, false, tr("Not connected to a Hub"));
+    emit unregistered(gameId, false, tr("Not connected to a server"));
     return;
   }
   connect(reply, &QNetworkReply::finished, this, [this, reply, gameId]() {

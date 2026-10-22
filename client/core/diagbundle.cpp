@@ -414,9 +414,9 @@ QByteArray redactedTail(const QString& path, qint64 budget, qint64* used, QStrin
 const char* kReadme =
     "Uzume diagnostics bundle\n"
     "\n"
-    "player-info.json   versions, system, Hubs (no tokens), installed cores, media encoders, controllers, settings\n"
+    "player-info.json   versions, system, servers (no tokens), installed cores, media encoders, controllers, settings\n"
     "connection-check.json  result of the connection check, only when it was added to the bundle\n"
-    "logs/              the Player's log files, newest first, and plugin logs (logs/plugins) when they exist\n"
+    "logs/              the app's log files, newest first, and plugin logs (logs/plugins) when they exist\n"
     "\n"
     "This bundle contains IP addresses and host names (they are needed to debug connections), but no passwords or\n"
     "tokens. Removed before packing: TURN username and credential, device tokens, tokens, passwords, invite codes,\n"

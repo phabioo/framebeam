@@ -51,7 +51,7 @@ QString ReportController::hubName() const {
     if (const auto p = d_.conn->profile(); p && !p->name.isEmpty()) return p->name;
     if (!d_.conn->hubInfo().name.isEmpty()) return d_.conn->hubInfo().name;
   }
-  return tr("your Hub");
+  return tr("your server");
 }
 
 QString ReportController::linkedText() const {
@@ -71,7 +71,7 @@ QVariantList ReportController::attachments() const {
       label = tr("Logs of the last 3 days");
     } else if (a.id == QLatin1String("settings")) {
       label = tr("Settings");
-      detail = tr("no passwords, no Hub token");
+      detail = tr("no passwords, no server token");
     } else if (a.id == QLatin1String("connection")) {
       label = a.time.isValid() ? tr("Connection check from %1").arg(TimeFormat::when(a.time)) : tr("Connection check");
     } else if (a.id == QLatin1String("system")) {

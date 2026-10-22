@@ -19,7 +19,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        Sidebar {
+        UzAppNav {
             Layout.fillHeight: true
             Layout.preferredWidth: Theme.sidebarWidth
             player: root.player
@@ -36,22 +36,22 @@ Rectangle {
                 onClicked: root.emu.level = "global"
                 RowLayout {
                     Layout.fillWidth: true
-                    FbLabel { Layout.fillWidth: true; text: qsTr("Defaults"); font.weight: Font.DemiBold }
-                    FbLabel {
+                    UzLabel { Layout.fillWidth: true; text: qsTr("Defaults"); font.weight: Font.DemiBold }
+                    UzLabel {
                         objectName: "defaultsChanged"
                         visible: root.emu.defaultsChangedCount > 0
                         text: qsTr("%1 changed").arg(root.emu.defaultsChangedCount)
                         font.pixelSize: Theme.fontMono
-                        color: Theme.accent
+                        color: Theme.accentText
                     }
                 }
-                FbLabel { text: qsTr("Apply to every system"); color: Theme.textMuted; font.pixelSize: Theme.fontMeta }
+                UzLabel { text: qsTr("Apply to every system"); color: Theme.textMuted; font.pixelSize: Theme.fontMeta }
             }
 
             Eyebrow { text: qsTr("Systems"); Layout.leftMargin: 4; Layout.topMargin: Theme.space14; Layout.bottomMargin: Theme.space6 }
 
             // Quiet indicator of the background core update (no dialog): progress row, else the last result.
-            FbLabel {
+            UzLabel {
                 objectName: "coreUpdateRow"
                 Layout.fillWidth: true
                 Layout.leftMargin: 4
@@ -73,16 +73,16 @@ Rectangle {
                     onClicked: { root.emu.level = "system"; root.emu.selectSystem(card.modelData.id) }
                     RowLayout {
                         Layout.fillWidth: true
-                        FbLabel { Layout.fillWidth: true; text: card.modelData.name; font.weight: Font.DemiBold; elide: Text.ElideRight }
-                        FbLabel {
+                        UzLabel { Layout.fillWidth: true; text: card.modelData.name; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                        UzLabel {
                             objectName: "systemChanged_" + card.modelData.id
                             visible: card.modelData.changedCount > 0
                             text: qsTr("%1 changed").arg(card.modelData.changedCount)
                             font.pixelSize: Theme.fontMono
-                            color: Theme.accent
+                            color: Theme.accentText
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "systemCore_" + card.modelData.id
                         Layout.fillWidth: true
                         text: card.modelData.coreVersion !== ""
@@ -95,7 +95,7 @@ Rectangle {
                     RowLayout {
                         spacing: Theme.space6
                         StatusDot { tone: card.modelData.readyTone }
-                        FbLabel {
+                        UzLabel {
                             objectName: "systemReady_" + card.modelData.id
                             Layout.fillWidth: true
                             text: card.modelData.readyText
@@ -104,7 +104,7 @@ Rectangle {
                             elide: Text.ElideRight
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "systemFirmware_" + card.modelData.id
                         visible: card.modelData.firmwareText !== ""
                         Layout.fillWidth: true
@@ -124,16 +124,16 @@ Rectangle {
                 onClicked: root.emu.level = "game"
                 RowLayout {
                     Layout.fillWidth: true
-                    FbLabel { Layout.fillWidth: true; text: qsTr("Game overrides"); font.weight: Font.DemiBold; elide: Text.ElideRight }
-                    FbLabel {
+                    UzLabel { Layout.fillWidth: true; text: qsTr("Game overrides"); font.weight: Font.DemiBold; elide: Text.ElideRight }
+                    UzLabel {
                         objectName: "gameOverridesChanged"
                         visible: root.emu.gameOverrideCount > 0
                         text: Theme.plural(root.emu.gameOverrideCount, qsTr("game"), qsTr("games"))
                         font.pixelSize: Theme.fontMono
-                        color: Theme.accent
+                        color: Theme.accentText
                     }
                 }
-                FbLabel {
+                UzLabel {
                     Layout.fillWidth: true
                     text: qsTr("Core and options for a single game")
                     color: Theme.textMuted
@@ -177,7 +177,7 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 2
-                        FbLabel {
+                        UzLabel {
                             objectName: "emulationTitle"
                             Layout.fillWidth: true
                             text: root.emu.defaultsSelected ? qsTr("Defaults for all systems")
@@ -192,7 +192,7 @@ Rectangle {
                             font.letterSpacing: -0.4
                             elide: Text.ElideRight
                         }
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             text: root.emu.defaultsSelected
                                   ? qsTr("Systems use these unless you change them there. Saved on this device only.")
@@ -204,7 +204,7 @@ Rectangle {
                             wrapMode: Text.WordWrap
                         }
                     }
-                    FbField {
+                    UzField {
                         objectName: "emulationSearch"
                         Layout.fillWidth: headRow.stacked
                         Layout.preferredWidth: headRow.stacked ? -1 : 260
@@ -227,8 +227,8 @@ Rectangle {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.space10
-                        FbLabel { text: qsTr("Game"); color: Theme.textMuted; font.pixelSize: Theme.fontSmall }
-                        FbModelSelect {
+                        UzLabel { text: qsTr("Game"); color: Theme.textMuted; font.pixelSize: Theme.fontSmall }
+                        UzModelSelect {
                             id: gameSelect
                             objectName: "gameSelect"
                             Layout.fillWidth: true
@@ -239,15 +239,15 @@ Rectangle {
                             current: root.emu.selectedGame
                             onPicked: value => root.emu.selectGame(value)
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "gameChangedCount"
                             visible: root.emu.selectedGame !== "" && root.emu.game.changedCount > 0
                             text: qsTr("%1 changed").arg(root.emu.game.changedCount)
                             font.pixelSize: Theme.fontMono
-                            color: Theme.accent
+                            color: Theme.accentText
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "gamePickerHint"
                         visible: root.emu.selectedGame === ""
                         Layout.fillWidth: true
@@ -299,7 +299,7 @@ Rectangle {
 
                         Row {
                             spacing: Theme.space8
-                            FbChip {
+                            UzChip {
                                 id: allChip
                                 objectName: "categoryAll"
                                 maxWidth: chipBar.width
@@ -309,7 +309,7 @@ Rectangle {
                             }
                             Repeater {
                                 model: chipBar.cats
-                                delegate: FbChip {
+                                delegate: UzChip {
                                     required property string modelData
                                     required property int index
                                     objectName: "category_" + modelData
@@ -319,7 +319,7 @@ Rectangle {
                                     onClicked: root.emu.categoryFilter = modelData
                                 }
                             }
-                            FbChip {
+                            UzChip {
                                 id: moreChip
                                 objectName: "categoryMore"
                                 maxWidth: Math.max(60, chipBar.width - allChip.width - Theme.space8)
@@ -378,7 +378,7 @@ Rectangle {
                             }
                         }
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "resetAllChanged"
                         Layout.alignment: Qt.AlignTop
                         visible: root.emu.changedCount > 0
@@ -395,7 +395,7 @@ Rectangle {
                     implicitHeight: hintText.implicitHeight + 20
                     radius: Theme.radius8
                     color: Theme.accentChipBg
-                    FbLabel {
+                    UzLabel {
                         id: hintText
                         anchors.fill: parent
                         anchors.leftMargin: 14
@@ -403,7 +403,7 @@ Rectangle {
                         verticalAlignment: Text.AlignVCenter
                         wrapMode: Text.WordWrap
                         text: qsTr("Some changes apply after the next game start.")
-                        color: Theme.accent
+                        color: Theme.accentText
                         font.pixelSize: Theme.fontSmall
                     }
                 }
@@ -413,8 +413,8 @@ Rectangle {
                     objectName: "coreProbingNote"
                     Layout.fillWidth: true
                     spacing: Theme.space10
-                    FbSpinner { size: 14; color: Theme.accent }
-                    FbLabel {
+                    UzSpinner { size: 14; color: Theme.accent }
+                    UzLabel {
                         Layout.fillWidth: true
                         text: qsTr("Reading the core's options ...")
                         color: Theme.textMuted
@@ -423,7 +423,7 @@ Rectangle {
                     }
                 }
 
-                FbLabel {
+                UzLabel {
                     visible: root.emu.gameRunning
                     objectName: "gameRunningNote"
                     Layout.fillWidth: true
@@ -442,13 +442,13 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 0
 
-                        FbLabel {
+                        UzLabel {
                             objectName: "coreNoteHint"
                             visible: group.modelData.note !== ""
                             Layout.fillWidth: true
                             Layout.bottomMargin: Theme.space10
                             text: group.modelData.note
-                            color: Theme.accent     // one hint style: accent link colour, like the per-row "Reset" (P32)
+                            color: Theme.accentText     // one hint style: accent link colour, like the per-row "Reset" (P32)
                             font.pixelSize: Theme.fontMeta
                             wrapMode: Text.WordWrap
                         }
@@ -471,7 +471,7 @@ Rectangle {
                                     Eyebrow { objectName: "categoryTitle_" + opt.modelData.category; text: opt.modelData.category }
                                     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderCard }
                                 }
-                                SettingsRow {
+                                UzSettingsRow {
                                     objectName: "optionRow_" + opt.modelData.key
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: 0
@@ -493,7 +493,7 @@ Rectangle {
                     }
                 }
 
-                FbLabel {
+                UzLabel {
                     visible: root.emu.defaultsSelected
                     objectName: "globalCoreHint"
                     Layout.fillWidth: true
@@ -502,7 +502,7 @@ Rectangle {
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
                 }
-                FbLabel {
+                UzLabel {
                     visible: !root.emu.defaultsSelected && root.emu.lockedCount > 0
                     objectName: "lockedHint"
                     Layout.fillWidth: true
@@ -512,7 +512,7 @@ Rectangle {
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "noMatchHint"
                     visible: (root.emu.searchText !== "" || root.emu.categoryFilter !== "") && root.emu.groups.length > 0 && !root.hasVisibleOptions
                     Layout.fillWidth: true

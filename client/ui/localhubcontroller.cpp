@@ -63,13 +63,13 @@ void LocalHubController::setPhase(const QString& p, const QString& err) {
 QString LocalHubController::friendly(const QString& code, const QString& message) {
   if (code == QLatin1String("rate_limited")) return tr("Too many attempts. Please wait a moment and try again.");
   if (code == QLatin1String("invalid_credentials") || code == QLatin1String("unauthorized")) {
-    return tr("User name or password is wrong, or this user is not a Hub admin.");
+    return tr("User name or password is wrong, or this user is not a server admin.");
   }
-  if (code == QLatin1String("admin_exists")) return tr("This Hub already has an admin. Sign in instead.");
-  if (code == QLatin1String("not_local")) return tr("This is only possible with the Hub on this PC.");
+  if (code == QLatin1String("admin_exists")) return tr("This server already has an admin. Sign in instead.");
+  if (code == QLatin1String("not_local")) return tr("This is only possible with the server on this PC.");
   if (code == QLatin1String("invalid_input")) return tr("Please enter a user name and a password.");
-  if (code == QLatin1String("unreachable")) return tr("The Hub on this PC does not respond. Check that the Windows service \"Uzume server\" is running.");
-  return message.isEmpty() ? tr("The Hub refused the request (%1).").arg(code) : message;
+  if (code == QLatin1String("unreachable")) return tr("The Server on this PC does not respond. Check that the Windows service \"Uzume server\" is running.");
+  return message.isEmpty() ? tr("The server refused the request (%1).").arg(code) : message;
 }
 
 void LocalHubController::start() {
@@ -78,7 +78,7 @@ void LocalHubController::start() {
   error_.clear();
   if (!info_.present()) {
     if (!localhub::installSupported()) {
-      setPhase(QStringLiteral("error"), tr("Setting up a Hub from the Player is only available on Windows."));
+      setPhase(QStringLiteral("error"), tr("Setting up a server from Uzume is only available on Windows."));
       return;
     }
     setPhase(QStringLiteral("installing"));
@@ -127,7 +127,7 @@ void LocalHubController::onState(S s) {
         deps_.conn->confirmTrust();
       } else {
         active_ = false;
-        setPhase(QStringLiteral("error"), tr("The address does not match the Hub on this PC."));
+        setPhase(QStringLiteral("error"), tr("The address does not match the server on this PC."));
       }
       break;
     case S::NeedsPairing:
@@ -150,7 +150,7 @@ void LocalHubController::onState(S s) {
     case S::Incompatible:
     case S::UserDisabled:
       active_ = false;
-      setPhase(QStringLiteral("error"), tr("The Player could not connect to the Hub on this PC. Use the Hubs settings to check it."));
+      setPhase(QStringLiteral("error"), tr("Uzume could not connect to the server on this PC. Use Settings › Servers to check it."));
       break;
     case S::Disconnected:
       if (phase_ != QLatin1String("idle") && phase_ != QLatin1String("error")) {
@@ -181,7 +181,7 @@ void LocalHubController::loadStatus(bool forPairingForm) {
       active_ = false;
       setPhase(QStringLiteral("error"),
                why == QLatin1String("not_local") ? friendly(why, {})
-                                                 : tr("This Hub cannot be set up from the Player. Update Uzume server or add it as a normal Hub."));
+                                                 : tr("This server cannot be set up from Uzume. Update Uzume server or add it as a normal server."));
       return;
     }
     applyStatus(st);
@@ -229,7 +229,7 @@ void LocalHubController::putSettings(const QJsonObject& body, const std::functio
   QNetworkReply* reply = deps_.conn->authorizedSend("PUT", QStringLiteral("/local/settings"),
                                                     QJsonDocument(body).toJson(QJsonDocument::Compact), {}, "application/json");
   if (reply == nullptr) {
-    done(false, tr("The Hub on this PC is not connected."));
+    done(false, tr("The Server on this PC is not connected."));
     return;
   }
   connect(reply, &QNetworkReply::finished, this, [this, reply, done]() {
@@ -279,9 +279,9 @@ void LocalHubController::chooseFolder(const QString& pathOrUrl) {
     putSettings({{QStringLiteral("import_dir"), path}}, [this](bool ok, const QString& why) {
       settingsBusy_ = false;
       if (ok) {
-        settingsNotice_ = tr("Folder saved. Open the Hub web page and choose \"Rescan folder\" to import the games.");
+        settingsNotice_ = tr("Folder saved. Open the server web page and choose \"Rescan folder\" to import the games.");
       } else {
-        settingsError_ = why.isEmpty() ? tr("The Hub did not answer.") : why;
+        settingsError_ = why.isEmpty() ? tr("The server did not answer.") : why;
       }
       emit changed();
     });
@@ -299,7 +299,7 @@ void LocalHubController::chooseFolder(const QString& pathOrUrl) {
     if (res.first != 0) {
       settingsBusy_ = false;
       settingsError_ = res.first < 0 ? res.second
-                                     : tr("Windows could not give the Hub access to this folder (code %1).").arg(res.first);
+                                     : tr("Windows could not give the server access to this folder (code %1).").arg(res.first);
       emit changed();
       return;
     }

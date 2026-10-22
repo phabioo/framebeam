@@ -50,7 +50,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.dark ? "#b3050506" : "#99000000"
+        color: Theme.scrim
     }
     MouseArea {
         anchors.fill: parent
@@ -83,7 +83,7 @@ Item {
             width: Math.min(600, parent.width - 32)
             implicitHeight: col.implicitHeight
             height: Math.min(implicitHeight, parent.height - 32)
-            radius: 14
+            radius: 0
             color: Theme.popupBg
             border.width: 1
             border.color: Theme.borderPopup
@@ -108,13 +108,13 @@ Item {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 2
-                        FbLabel {
+                        UzLabel {
                             objectName: "connectionCheckTitle"
                             text: qsTr("Connection check")
                             font.pixelSize: 18
                             font.weight: Font.DemiBold
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "connectionCheckSubtitle"
                             Layout.fillWidth: true
                             text: root.check.subtitle
@@ -123,7 +123,7 @@ Item {
                             elide: Text.ElideRight
                         }
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "connectionCheckClose"
                         kind: "link"
                         implicitHeight: 30
@@ -193,11 +193,11 @@ Item {
                                         Layout.topMargin: 1
                                         Layout.leftMargin: 0
                                         Layout.rightMargin: 4
-                                        radius: 9
+                                        radius: 0
                                         color: root.stepIconBg(row.st)
                                         border.width: row.st === "running" ? 2 : row.st === "waiting" || row.st === "skipped" ? 1.5 : 0
                                         border.color: root.stepRing(row.st)
-                                        FbLabel {
+                                        UzLabel {
                                             anchors.centerIn: parent
                                             text: root.stepIcon(row.st)
                                             color: root.stepIconFg(row.st)
@@ -205,7 +205,7 @@ Item {
                                             font.weight: Font.DemiBold
                                         }
                                     }
-                                    FbLabel {
+                                    UzLabel {
                                         Layout.preferredWidth: 150
                                         Layout.alignment: Qt.AlignTop
                                         text: row.modelData.title
@@ -217,7 +217,7 @@ Item {
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
                                         spacing: 2
-                                        FbLabel {
+                                        UzLabel {
                                             objectName: "connectionCheckResult_" + row.modelData.id
                                             Layout.fillWidth: true
                                             text: row.modelData.result
@@ -226,7 +226,7 @@ Item {
                                             color: row.st === "warning" ? Theme.pluginWarn
                                                  : row.st === "waiting" || row.st === "skipped" ? Theme.textFaint : Theme.textSecondary
                                         }
-                                        FbLabel {
+                                        UzLabel {
                                             objectName: "connectionCheckExplain_" + row.modelData.id
                                             visible: text !== ""
                                             Layout.fillWidth: true
@@ -254,10 +254,10 @@ Item {
                         Layout.rightMargin: 24
                         Layout.topMargin: 8
                         implicitHeight: sumCol.implicitHeight + 24
-                        radius: 8
+                        radius: 0
                         color: tone === "ok" ? Theme.okBg : tone === "warn" ? Theme.amberRow : Theme.surface
                         border.width: 1
-                        border.color: tone === "ok" ? (Theme.dark ? "#1f3a2a" : "#bfe0cb") : tone === "warn" ? Theme.pluginWarnLine : Theme.borderInput
+                        border.color: tone === "ok" ? Theme.ok : tone === "warn" ? Theme.pluginWarnLine : Theme.borderInput
                         ColumnLayout {
                             id: sumCol
                             anchors.fill: parent
@@ -265,7 +265,7 @@ Item {
                             anchors.leftMargin: 14
                             anchors.rightMargin: 14
                             spacing: 3
-                            FbLabel {
+                            UzLabel {
                                 objectName: "connectionCheckSummaryTitle"
                                 Layout.fillWidth: true
                                 text: root.check.summary
@@ -274,7 +274,7 @@ Item {
                                 font.weight: Font.DemiBold
                                 color: summaryCard.tone === "ok" ? Theme.ok : summaryCard.tone === "warn" ? Theme.pluginWarn : Theme.text
                             }
-                            FbLabel {
+                            UzLabel {
                                 objectName: "connectionCheckSummaryDetail"
                                 visible: text !== ""
                                 Layout.fillWidth: true
@@ -299,14 +299,14 @@ Item {
                     Layout.topMargin: 16
                     Layout.bottomMargin: 20
                     spacing: 8
-                    FbLabel {
+                    UzLabel {
                         objectName: "connectionCheckProgress"
                         text: root.check.progressText
-                        color: Theme.accent
+                        color: Theme.accentText
                         font.pixelSize: Theme.fontSmall
                     }
                     Item { Layout.fillWidth: true }
-                    FbButton {
+                    UzButton {
                         objectName: "connectionCheckCancel"
                         implicitHeight: 34
                         text: qsTr("Cancel")
@@ -328,27 +328,27 @@ Item {
                     Layout.preferredHeight: implicitHeight
                     spacing: 8
 
-                    FbButton {
+                    UzButton {
                         objectName: "connectionCheckCopy"
                         implicitHeight: 34
                         text: root.check.copied ? qsTr("Copied") : qsTr("Copy result")
                         onClicked: root.check.copyResult()
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "connectionCheckAttach"
                         enabled: root.check.canAttach && !root.check.attached
                         implicitHeight: 34
                         text: root.check.attached ? qsTr("Added to the next report") : qsTr("Add to problem report")
                         onClicked: root.check.addToReport()
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "connectionCheckEditHub"
                         visible: root.check.canEditHubAddress
                         implicitHeight: 34
-                        text: qsTr("Edit Hub address…")
+                        text: qsTr("Edit server address…")
                         onClicked: root.check.editHubAddress()
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "connectionCheckRun"
                         implicitHeight: 34
                         kind: root.check.canEditHubAddress ? "primary" : "outline"

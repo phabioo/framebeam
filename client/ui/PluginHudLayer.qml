@@ -74,12 +74,12 @@ Item {
         y: root.height - 62 - height     // above the bottom edge of the game, not on it (3h-3, P45)
         width: restoreLabel.implicitWidth + 24
         height: 28
-        radius: 14
+        radius: 0
         color: Theme.gameHover
         border.width: 1
         border.color: Theme.gamePopoverBorder
         opacity: restoreHover.hovered || (menu.open && menu.anchorItem === restorePill) ? 1 : 0.6
-        FbLabel {
+        UzLabel {
             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             id: restoreLabel
             anchors.centerIn: parent
@@ -104,9 +104,9 @@ Item {
         y: 16
         width: hintLabel.implicitWidth + 24
         height: 28
-        radius: 7
-        color: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.85)
-        FbLabel { textFormat: Text.PlainText; id: hintLabel; anchors.centerIn: parent; text: qsTr("HUD hidden · F4 to show"); font.pixelSize: 12; color: Theme.gameBadgeText }
+        radius: 0
+        color: Theme.withAlpha(Theme.sumi.ground, 0.85)
+        UzLabel { textFormat: Text.PlainText; id: hintLabel; anchors.centerIn: parent; text: qsTr("HUD hidden · F4 to show"); font.pixelSize: 12; color: Theme.gameBadgeText }
     }
 
     // ---- notices
@@ -143,9 +143,9 @@ Item {
             anchors.right: parent.right
             width: pillLabel.implicitWidth + 24
             height: 24
-            radius: 12
-            color: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.85)
-            FbLabel {
+            radius: 0
+            color: Theme.withAlpha(Theme.sumi.ground, 0.85)
+            UzLabel {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 id: pillLabel
                 anchors.centerIn: parent

@@ -25,7 +25,7 @@ Rectangle {
     // Diagnostics are docked as a panel tab while they are open (3h-3); fullscreen uses the floating overlay (the panel is hidden then).
     readonly property bool diagTab: diag.open
     readonly property bool diagTabOpen: diagTab && panelTab === "diag"
-    readonly property string hubWord: qsTr("this Hub")
+    readonly property string hubWord: qsTr("this server")
     readonly property bool quitting: player.quitting
     readonly property string shareText: ctl.shared ? qsTr("Shared · %1 watching").arg(ctl.viewerCount) : qsTr("Not shared")
     // "Manage saves" opens the saves view (SavesView, the one of the Library) inside the panel; the game keeps running.
@@ -198,15 +198,15 @@ Rectangle {
         Rectangle {
             visible: root.multi
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 20; height: 20; radius: 4
+            width: 20; height: 20; radius: 0
             color: Theme.gameSelection
-            FbMono { anchors.centerIn: parent; text: String(root.tileNo); font.pixelSize: 11; color: "#121315" }
+            UzMono { anchors.centerIn: parent; text: String(root.tileNo); font.pixelSize: 11; color: Theme.onPerson }
         }
         Rectangle {
             id: railDot
             objectName: "panelRailShareDot"
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 8; height: 8; radius: 4
+            width: 8; height: 8; radius: 0
             color: root.ctl.shared ? Theme.gameOk : Theme.gameMeta
             HoverHandler { id: dotHover }
             ToolTip.visible: dotHover.hovered
@@ -264,11 +264,11 @@ Rectangle {
                 spacing: 10
                 Rectangle {
                     objectName: "panelTileBadge"
-                    Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 4
+                    Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 0
                     color: Theme.gameSelection
-                    FbMono { anchors.centerIn: parent; text: String(root.tileNo); font.pixelSize: 11; color: "#121315" }
+                    UzMono { anchors.centerIn: parent; text: String(root.tileNo); font.pixelSize: 11; color: Theme.onPerson }
                 }
-                FbMono {
+                UzMono {
                     objectName: "panelTileLabel"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -329,14 +329,14 @@ Rectangle {
                                 icon: tabItem.entry.icon
                                 dot: tabItem.entry.dot
                             }
-                            FbMono {
+                            UzMono {
                                 visible: tabItem.entry.mark !== ""
                                 text: tabItem.entry.mark
                                 font.pixelSize: 12
                                 color: tabItem.open ? Theme.gameText : Theme.gameTextMuted
                                 anchors.verticalCenter: parent.verticalCenter
                             }
-                            FbLabel {
+                            UzLabel {
                                 objectName: "panelTabLabel"
                                 visible: tabItem.showLabel
                                 text: tabItem.entry.name
@@ -367,14 +367,14 @@ Rectangle {
                         for (var i = 0; i < o.length; ++i) if (o[i].dot !== "") return true
                         return false
                     }
-                    FbLabel {
+                    UzLabel {
                         id: overflowLabel
                         anchors.centerIn: parent
                         text: "+" + root.tabPlan.overflow.length + " ▾"
                         font.pixelSize: 13
                         color: root.overflowOpen ? Theme.gameText : Theme.gameTextMuted
                     }
-                    Rectangle { visible: overflowTab.hasNews; x: parent.width - 12; y: 11; width: 6; height: 6; radius: 3; color: Theme.gameAccent }
+                    Rectangle { visible: overflowTab.hasNews; x: parent.width - 12; y: 11; width: 6; height: 6; radius: 0; color: Theme.gameAccent }
                     TapHandler { onTapped: root.overflowRequested() }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
@@ -466,17 +466,17 @@ Rectangle {
                     visible: root.ctl.hubLink !== "online"
                     implicitHeight: bannerText.implicitHeight + 16
                     height: implicitHeight
-                    radius: 8
+                    radius: 0
                     color: Theme.gameOnBg
-                    FbLabel {
+                    UzLabel {
                         id: bannerText
                         anchors.fill: parent
                         anchors.margins: 8
                         wrapMode: Text.WordWrap
                         font.pixelSize: 12
                         color: Theme.gameAccent
-                        text: root.ctl.shared ? qsTr("Hub not reachable · reconnecting. The running Session continues until the Hub ends it.")
-                                              : qsTr("Hub not reachable · reconnecting. Sharing needs a Hub connection.")
+                        text: root.ctl.shared ? qsTr("Server not reachable · reconnecting. The running Session continues until the server ends it.")
+                                              : qsTr("Server not reachable · reconnecting. Sharing needs a server connection.")
                     }
                 }
                 Rectangle {
@@ -485,9 +485,9 @@ Rectangle {
                     visible: root.ctl.message !== ""
                     implicitHeight: msgText.implicitHeight + 16
                     height: implicitHeight
-                    radius: 8
+                    radius: 0
                     color: root.ctl.messageIsError ? Theme.gameDangerBg : Theme.gameHover
-                    FbLabel {
+                    UzLabel {
                         id: msgText
                         anchors.fill: parent
                         anchors.margins: 8
@@ -547,12 +547,12 @@ Rectangle {
                         current: root.ctl.visibility
                         options: [
                             { value: "private", label: qsTr("Private"), name: "visPrivate" },
-                            { value: "hub_users", label: qsTr("Hub users"), name: "visHubUsers" },
+                            { value: "hub_users", label: qsTr("Everyone here"), name: "visHubUsers" },
                             { value: "invite_only", label: qsTr("Invite only"), name: "visInviteOnly" }
                         ]
                         onPicked: (v) => root.ctl.setVisibility(v)
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "visibilityHint"
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -564,11 +564,11 @@ Rectangle {
                             if (root.ctl.shared)
                                 return v === "invite_only" ? qsTr("Only invited users can watch. They send no input and cannot invite others.")
                                                            : qsTr("Everyone on %1 can watch. Viewers send no input.").arg(root.hubWord)
-                            if (v === "private") return qsTr("Only you can see this game. Choose Hub users or Invite only, then share.")
-                            return v === "hub_users" ? qsTr("Not shared yet. Share to let Hub users watch.") : qsTr("Not shared yet. Share to let invited users watch.")
+                            if (v === "private") return qsTr("Only you can see this game. Choose Everyone here or Invite only, then share.")
+                            return v === "hub_users" ? qsTr("Not shared yet. Share to let everyone here watch.") : qsTr("Not shared yet. Share to let invited users watch.")
                         }
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "shareButton"
                         visible: !root.ctl.shared
                         width: parent.width
@@ -587,7 +587,7 @@ Rectangle {
                         width: parent.width
                         visible: root.ctl.shared
                         spacing: 6
-                        FbLabel {
+                        UzLabel {
                             objectName: "participantsTitle"
                             width: parent.width
                             elide: Text.ElideRight
@@ -598,7 +598,7 @@ Rectangle {
                             color: Theme.gameFaint
                             visible: root.ctl.participants.length > 0
                         }
-                        FbLabel {
+                        UzLabel {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             visible: root.ctl.participants.length === 0 && root.ctl.visibility === "invite_only"
@@ -611,7 +611,7 @@ Rectangle {
                             visible: root.ctl.participants.length > 0
                             implicitHeight: plist.implicitHeight + 2
                             height: implicitHeight
-                            radius: 8
+                            radius: 0
                             color: Theme.gameGroupBg
                             border.width: 1
                             border.color: Theme.gameGroupBorder
@@ -644,11 +644,11 @@ Rectangle {
                                             anchors.left: parent.left
                                             anchors.leftMargin: 10
                                             anchors.verticalCenter: parent.verticalCenter
-                                            width: 26; height: 26; radius: 13
+                                            width: 26; height: 26; radius: 0
                                             color: Theme.gameSegmentOn
-                                            FbLabel { anchors.centerIn: parent; text: ((prow.modelData.name || "?").charAt(0)).toUpperCase(); font.pixelSize: 12; font.weight: Font.DemiBold; color: Theme.gameText }
+                                            UzLabel { anchors.centerIn: parent; text: ((prow.modelData.name || "?").charAt(0)).toUpperCase(); font.pixelSize: 12; font.weight: Font.DemiBold; color: Theme.gameText }
                                         }
-                                        FbButton {
+                                        UzButton {
                                             id: pbtn
                                             objectName: (prow.modelData.kind === "viewer" ? "remove_" : "withdraw_") + prow.modelData.id
                                             kind: "link"
@@ -672,7 +672,7 @@ Rectangle {
                                             onClicked: prow.modelData.kind === "viewer" ? root.ctl.removeViewer(prow.modelData.id)
                                                                                        : root.ctl.withdrawInvite(prow.modelData.id)
                                         }
-                                        FbPill {
+                                        UzTag {
                                             id: ppill
                                             objectName: "participantPill"
                                             anchors.right: pbtn.left
@@ -690,12 +690,12 @@ Rectangle {
                                             anchors.rightMargin: 6
                                             anchors.verticalCenter: parent.verticalCenter
                                             spacing: 0
-                                            FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: prow.modelData.name; font.pixelSize: 13; color: Theme.gameText }
+                                            UzLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: prow.modelData.name; font.pixelSize: 13; color: Theme.gameText }
                                             RowLayout {
                                                 Layout.fillWidth: true
                                                 spacing: 5
-                                                Rectangle { implicitWidth: 5; implicitHeight: 5; radius: 2.5; color: prow.modelData.online ? Theme.gameOk : Theme.gameMeta }
-                                                FbLabel { objectName: "participantStatus"; Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: prow.modelData.status; font.pixelSize: 11; color: Theme.gameMeta }
+                                                Rectangle { implicitWidth: 5; implicitHeight: 5; radius: 0; color: prow.modelData.online ? Theme.gameOk : Theme.gameMeta }
+                                                UzLabel { objectName: "participantStatus"; Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: prow.modelData.status; font.pixelSize: 11; color: Theme.gameMeta }
                                             }
                                         }
                                     }
@@ -709,7 +709,7 @@ Rectangle {
                             visible: root.ctl.relayHint !== ""
                             implicitHeight: relayRow.implicitHeight + 18
                             height: implicitHeight
-                            radius: 8
+                            radius: 0
                             color: Theme.infoBg
                             border.width: 1
                             border.color: Theme.infoBorder
@@ -718,8 +718,8 @@ Rectangle {
                                 anchors.fill: parent
                                 anchors.margins: 9
                                 spacing: 8
-                                FbLabel { text: "ⓘ"; font.pixelSize: 12; color: Theme.gameAccent; Layout.alignment: Qt.AlignTop }
-                                FbLabel {
+                                UzLabel { text: "ⓘ"; font.pixelSize: 12; color: Theme.gameAccent; Layout.alignment: Qt.AlignTop }
+                                UzLabel {
                                     objectName: "relayHintText"
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: 0
@@ -739,23 +739,23 @@ Rectangle {
                         width: parent.width
                         visible: root.ctl.shared && root.ctl.visibility === "invite_only"
                         spacing: 8
-                        FbField {
+                        UzField {
                             id: inviteField
                             objectName: "inviteField"
                             width: parent.width
                             implicitHeight: 34
                             font.family: Qt.application.font.family
                             color: Theme.gameText
-                            placeholderText: qsTr("+ Invite a Hub user…")
+                            placeholderText: qsTr("+ Invite someone…")
                             background: Rectangle {
-                                radius: 7
+                                radius: 0
                                 color: "transparent"
                                 border.width: 1
                                 border.color: inviteField.activeFocus ? Theme.gameAccent : Theme.gameKeyLine
                             }
                             onTextChanged: root.ctl.searchUsers(text)
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "userSearchHint"
                             width: parent.width
                             visible: root.ctl.userSearchHint.length > 0
@@ -772,14 +772,14 @@ Rectangle {
                                 objectName: "userResult_" + modelData.id
                                 width: invBlock.width
                                 spacing: 10
-                                Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: urow.modelData.online ? Theme.gameOk : Theme.gameMeta }
+                                Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 0; color: urow.modelData.online ? Theme.gameOk : Theme.gameMeta }
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: 0
                                     Layout.preferredWidth: 0
                                     spacing: 0
-                                    FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: urow.modelData.name; font.pixelSize: 13; color: Theme.gameText }
-                                    FbLabel {
+                                    UzLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: urow.modelData.name; font.pixelSize: 13; color: Theme.gameText }
+                                    UzLabel {
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
                                         text: urow.modelData.hint
@@ -788,7 +788,7 @@ Rectangle {
                                         color: Theme.gameMeta
                                     }
                                 }
-                                FbButton {
+                                UzButton {
                                     objectName: "invite_" + urow.modelData.id
                                     implicitHeight: 28
                                     kind: "primary"
@@ -801,7 +801,7 @@ Rectangle {
                         }
                     }
 
-                    FbButton {
+                    UzButton {
                         objectName: "shareButton"
                         visible: root.ctl.shared
                         width: parent.width
@@ -824,7 +824,7 @@ Rectangle {
                     RowLayout {
                         width: parent.width
                         Eyebrow { Layout.fillWidth: true; Layout.minimumWidth: 0; text: qsTr("Save") }
-                        FbButton {
+                        UzButton {
                             id: manageBtn
                             objectName: "manageSavesButton"
                             kind: "link"
@@ -846,7 +846,7 @@ Rectangle {
                     RowLayout {
                         width: parent.width
                         spacing: 8
-                        FbLabel {
+                        UzLabel {
                             objectName: "saveSlotLabel"
                             Layout.minimumWidth: 0
                             elide: Text.ElideRight
@@ -855,7 +855,7 @@ Rectangle {
                             font.weight: Font.DemiBold
                             color: Theme.gameText
                         }
-                        FbMono {
+                        UzMono {
                             objectName: "saveVersionLabel"
                             visible: root.saves.history.length > 0
                             text: root.saves.history.length > 0 ? root.saves.history[0].versionText : ""
@@ -863,10 +863,10 @@ Rectangle {
                             color: Theme.gameTextMuted
                         }
                         Item { Layout.fillWidth: true }
-                        FbLabel {
+                        UzLabel {
                             Layout.minimumWidth: 0
                             elide: Text.ElideRight
-                            text: qsTr("✓ synced to Hub")
+                            text: qsTr("✓ Saved")
                             font.pixelSize: 12
                             color: Theme.gameOk
                         }
@@ -882,7 +882,7 @@ Rectangle {
                         enabled: root.saves.available && !root.saves.busy
                         onClicked: root.saves.createSnapshotInGame("")
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "gameSnapshotMessage"
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -935,17 +935,17 @@ Rectangle {
                 y: 16
                 width: parent.width - 48
                 spacing: 8
-                FbButton {
+                UzButton {
                     objectName: "endGameButton"
                     visible: !root.quitting
                     width: parent.width
                     implicitHeight: 40
                     focusPolicy: Qt.NoFocus
                     text: qsTr("Quit game")
-                    background: Rectangle { radius: 8; color: parent.hovered ? Theme.gameSegmentOn : Theme.gameHover }
+                    background: Rectangle { radius: 0; color: parent.hovered ? Theme.gameSegmentOn : Theme.gameHover }
                     onClicked: root.player.requestQuit()
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "quitNote"
                     visible: !root.quitting
                     width: parent.width
@@ -960,7 +960,7 @@ Rectangle {
                     width: parent.width
                     implicitHeight: qcol.implicitHeight + 24
                     height: implicitHeight
-                    radius: 8
+                    radius: 0
                     color: Theme.gameTrack
                     border.width: 1
                     border.color: Theme.gameGroupBorder
@@ -971,10 +971,10 @@ Rectangle {
                         spacing: 6
                         RowLayout {
                             spacing: 8
-                            FbSpinner { size: 14; color: Theme.gameAccent }
-                            FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; text: qsTr("Saving and syncing…"); font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.gameText; elide: Text.ElideRight }
+                            UzSpinner { size: 14; color: Theme.gameAccent }
+                            UzLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; text: qsTr("Saving and syncing…"); font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.gameText; elide: Text.ElideRight }
                         }
-                        FbLabel { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: qsTr("Returns to the Library when done."); font.pixelSize: 12; color: Theme.gameFaint }
+                        UzLabel { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: qsTr("Returns to the Library when done."); font.pixelSize: 12; color: Theme.gameFaint }
                     }
                 }
             }
@@ -996,30 +996,30 @@ Rectangle {
                     width: parent.width
                     spacing: 12
                     Rectangle {
-                        Layout.preferredWidth: 36; Layout.preferredHeight: 36; radius: 18
+                        Layout.preferredWidth: 36; Layout.preferredHeight: 36; radius: 0
                         color: Theme.gameSegmentOn
-                        FbLabel { anchors.centerIn: parent; text: ((root.tileInfo.who || "?").charAt(0)).toUpperCase(); font.pixelSize: 14; font.weight: Font.DemiBold; color: Theme.gameText }
+                        UzLabel { anchors.centerIn: parent; text: ((root.tileInfo.who || "?").charAt(0)).toUpperCase(); font.pixelSize: 14; font.weight: Font.DemiBold; color: Theme.gameText }
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         Layout.preferredWidth: 0
                         spacing: 0
-                        FbLabel { objectName: "remoteWho"; Layout.fillWidth: true; elide: Text.ElideRight; text: root.tileInfo.who || ""; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.gameText }
-                        FbLabel { objectName: "remoteGame"; Layout.fillWidth: true; elide: Text.ElideRight; text: root.tileInfo.game || ""; font.pixelSize: 13; color: Theme.gameTextMuted }
+                        UzLabel { objectName: "remoteWho"; Layout.fillWidth: true; elide: Text.ElideRight; text: root.tileInfo.who || ""; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.gameText }
+                        UzLabel { objectName: "remoteGame"; Layout.fillWidth: true; elide: Text.ElideRight; text: root.tileInfo.game || ""; font.pixelSize: 13; color: Theme.gameTextMuted }
                     }
                 }
                 RowLayout {
                     width: parent.width
                     spacing: 10
-                    FbPill {
+                    UzTag {
                         objectName: "remoteLinkPill"
                         visible: root.tileLink !== null
                         small: true
                         text: root.tileLink ? (root.tileLink.text + (root.tileLink.rtt ? " · " + root.tileLink.rtt : "")) : ""
                         tone: root.tileLink ? root.tileLink.tone : "neutral"
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         elide: Text.ElideRight
@@ -1028,7 +1028,7 @@ Rectangle {
                         color: Theme.gameMeta
                     }
                 }
-                FbPill {
+                UzTag {
                     objectName: "remotePausedPill"
                     visible: root.tileInfo.paused === true
                     small: true
@@ -1054,7 +1054,7 @@ Rectangle {
                     text: qsTr("Remove from multiview")
                     onClicked: root.ctl.removeSurface(root.tile)
                 }
-                FbLabel {
+                UzLabel {
                     width: parent.width
                     wrapMode: Text.WordWrap
                     lineHeight: 1.25
@@ -1079,11 +1079,11 @@ Rectangle {
                     anchors.rightMargin: 24
                     spacing: 10
                     Rectangle {
-                        Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 4
+                        Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 0
                         color: Theme.gameBadge
-                        FbMono { anchors.centerIn: parent; text: String(root.ctl.surfaceOrder.indexOf("local") + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
+                        UzMono { anchors.centerIn: parent; text: String(root.ctl.surfaceOrder.indexOf("local") + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         elide: Text.ElideRight
@@ -1091,7 +1091,7 @@ Rectangle {
                         font.pixelSize: 12
                         color: Theme.gameTextMuted
                     }
-                    FbButton {
+                    UzButton {
                         id: selBtn
                         objectName: "selectLocalTile"
                         kind: "link"

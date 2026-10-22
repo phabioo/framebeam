@@ -20,30 +20,30 @@ Item {
         id: col
         width: page.width
         spacing: 0
-        SettingsRow { objectName: "rToggle"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "t"; controlName: "cT"; toggleName: "tT"
+        UzSettingsRow { objectName: "rToggle"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "t"; controlName: "cT"; toggleName: "tT"
                       label: "Threaded Software Renderer"; values: [{value: "disabled", label: "disabled"}, {value: "enabled", label: "enabled"}]; current: "enabled" }
-        SettingsRow { objectName: "rSeg"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "s"; controlName: "cS"; changed: true
+        UzSettingsRow { objectName: "rSeg"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "s"; controlName: "cS"; changed: true
                       label: "Interpolation"; values: [{value: "none", label: "None"}, {value: "linear", label: "Linear"}, {value: "cosine", label: "Cosine"}, {value: "cubic", label: "Cubic"}]; current: "linear" }
-        SettingsRow { objectName: "rSel"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "x"; controlName: "cX"
+        UzSettingsRow { objectName: "rSel"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "x"; controlName: "cX"
                       label: "Microphone Input Mode"; meta: "Channel: beta"; values: [{value: "a", label: "Silence"}, {value: "b", label: "Microphone"}, {value: "c", label: "White noise"}, {value: "d", label: "Host microphone input"}]; current: "b" }
-        SettingsRow { objectName: "rBtn"; Layout.fillWidth: true; Layout.minimumWidth: 0; resetMode: "none"; ctrl: "buttons"
+        UzSettingsRow { objectName: "rBtn"; Layout.fillWidth: true; Layout.minimumWidth: 0; resetMode: "none"; ctrl: "buttons"
                       label: "Log file"; description: "/home/someone/.local/share/uzume/logs/player.log"
                       buttons: [{name: "b1", text: "Copy path to the clipboard"}, {name: "b2", text: "Open containing folder"}] }
-        SettingsRow { objectName: "rVal"; Layout.fillWidth: true; Layout.minimumWidth: 0; resetMode: "none"; ctrl: "value"; controlName: "cV"
+        UzSettingsRow { objectName: "rVal"; Layout.fillWidth: true; Layout.minimumWidth: 0; resetMode: "none"; ctrl: "value"; controlName: "cV"
                       label: "Version"; valueText: "0.7.12"; description: "Windows x86-64 · Protocol v1" }
-        SettingsRow { objectName: "rList"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "l"; controlName: "cL"
+        UzSettingsRow { objectName: "rList"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "l"; controlName: "cL"
                       label: "Microphone Input Mode"
                       description: "Select the microphone input.\n- Silence: No input.\n- Microphone: Use the host microphone.\n- White noise: Random noise."
                       values: [{value: "a", label: "Silence"}, {value: "b", label: "Microphone"}, {value: "c", label: "White noise"}]; current: "a" }
-        SettingsRow { objectName: "rLong"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "g"; controlName: "cG"
+        UzSettingsRow { objectName: "rLong"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "g"; controlName: "cG"
                       label: "Render Mode"; badge: "applies on next start"
                       description: "Software is fastest and most accurate. OpenGL (Classic) can scale up 3D graphics but is slower on weak hardware. OpenGL (Compute) needs a recent GPU and is the most demanding mode of the three, but it produces the best looking image."
                       values: [{value: "a", label: "Software"}, {value: "b", label: "OpenGL"}]; current: "a" }
-        SettingsRow { objectName: "rDis"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "d"; controlName: "cD"; toggleName: "tD"
+        UzSettingsRow { objectName: "rDis"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "d"; controlName: "cD"; toggleName: "tD"
                       label: "Threaded Software Renderer"; disabledReason: "Software renderer only. Render Mode is OpenGL (Compute)."
                       values: [{value: "disabled", label: "disabled"}, {value: "enabled", label: "enabled"}]; current: "enabled" }
-        FbLabel { objectName: "plainLabel"; Layout.preferredWidth: 120; Layout.maximumWidth: 120; elide: Text.ElideRight; text: "<b>Peer</b> name" }
-        FbChip { objectName: "plainChip"; maxWidth: 120; Layout.maximumWidth: 120; text: "<i>Run</i>"; count: 2 }
+        UzLabel { objectName: "plainLabel"; Layout.preferredWidth: 120; Layout.maximumWidth: 120; elide: Text.ElideRight; text: "<b>Peer</b> name" }
+        UzChip { objectName: "plainChip"; maxWidth: 120; Layout.maximumWidth: 120; text: "<i>Run</i>"; count: 2 }
     }
 }
 )";
@@ -102,7 +102,7 @@ class SettingsRowTest : public QObject {
     QCOMPARE(uitest::warningCount().load(), 0);
   }
 
-  // PlainText audit: text that comes from peers, plugins or the Hub is never read as markup (FbLabel, FbChip).
+  // PlainText audit: text that comes from peers, plugins or the Hub is never read as markup (UzLabel, UzChip).
   void peerTextIsPlain() {
     QQuickItem* l = row("plainLabel");
     QVERIFY(l != nullptr);

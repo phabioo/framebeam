@@ -1,6 +1,6 @@
-// Windows executable icon of the launcher (Explorer, taskbar, shortcuts): the same icon as the real Player.
-// "icons/player.ico" is found via the include directory client/app set in CMakeLists.txt.
-IDI_ICON1 ICON "icons/player.ico"
+// Windows executable icon of the launcher (Explorer, taskbar, shortcuts): the same icon as the real app.
+// "icons/uzume.ico" is found via the include directory client/app set in CMakeLists.txt.
+IDI_ICON1 ICON "icons/uzume.ico"
 
 #ifdef __MINGW32__
 // MSVC gets the manifest from CMake (client/launcher/CMakeLists.txt).

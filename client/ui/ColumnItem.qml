@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Item of a second column (3e/3f/3p): radius 8, padding 11 12; selected = raised surface with a 1 px ring.
+// Item of a second column (3e/3f/3p): a text item, square, with the 2 px Yamabuki start marker when selected (frame.md "0-4 E").
 Rectangle {
     id: root
     property bool selected: false
@@ -10,24 +10,21 @@ Rectangle {
 
     Layout.fillWidth: true
     implicitHeight: inner.implicitHeight + 22
-    radius: Theme.radius8
-    color: selected ? Theme.surfaceRaised : (hover.hovered ? Theme.surface : "transparent")
+    radius: 0
+    color: hover.hovered ? Theme.hover : "transparent"
     Behavior on color { ColorAnimation { duration: Theme.durFast } }
 
-    // Ring 0 0 0 1px #2f3035
-    Rectangle {
-        anchors.fill: parent
-        radius: root.radius
-        color: "transparent"
-        border.width: 1
-        border.color: Theme.borderPopup
-        opacity: root.selected ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
+    Rectangle {   // marker-start
+        objectName: "columnItemMarker"
+        visible: root.selected
+        width: 2
+        height: parent.height
+        color: Theme.accent
     }
     ColumnLayout {
         id: inner
         anchors.fill: parent
-        anchors.leftMargin: 12
+        anchors.leftMargin: 14
         anchors.rightMargin: 12
         anchors.topMargin: 11
         anchors.bottomMargin: 11

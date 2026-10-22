@@ -75,7 +75,7 @@ QVariantMap GameDetail::selectedGame() const {
   m.insert(QStringLiteral("localFile"), fromLibraryFolder);
   m.insert(QStringLiteral("localPath"), fromLibraryFolder ? st.localPath : QString());
   if (kind == QLatin1String("ready") && fromLibraryFolder) {
-    romText = game->onHub ? tr("Local file · starts from your library folder") : tr("Local file · not on the Hub");
+    romText = game->onHub ? tr("Local file · starts from your library folder") : tr("Local file · not on the server");
     romTone = QStringLiteral("ok");
   } else if (kind == QLatin1String("ready")) {
     romText = tr("Cached locally · verified");
@@ -100,7 +100,7 @@ QVariantMap GameDetail::selectedGame() const {
   m.insert(QStringLiteral("romTone"), romTone);
 
   const bool hubUp = conn_->state() == HubConnection::State::Connected && !hubLinkDown_;
-  const QString hubLabel = conn_->hubInfo().name.isEmpty() ? tr("the Hub") : conn_->hubInfo().name;
+  const QString hubLabel = conn_->hubInfo().name.isEmpty() ? tr("the server") : conn_->hubInfo().name;
   // Core / firmware
   bool coreOk = false;
   bool coreProvisionable = false;  // missing locally, but the Hub offers it: provisioned at game start
@@ -136,7 +136,7 @@ QVariantMap GameDetail::selectedGame() const {
     } else if (systems_->supported() && systems_->state() == HubSystems::State::Failed) {
       fwText = tr("Status unavailable");
       fwTone = QStringLiteral("warn");
-      fwHint = tr("The firmware status could not be read from the Hub; the built-in firmware is used.");
+      fwHint = tr("The firmware status could not be read from the server; the built-in firmware is used.");
     } else if (catalog_->nativeFirmware(*man, &sys)) {
       const QStringList wanted = catalog_->wantedFirmwareIds(*man);
       QList<FirmwareProblem> problems = FirmwareProvisioner::missingOnHub(sys, wanted);
@@ -152,12 +152,12 @@ QVariantMap GameDetail::selectedGame() const {
         QStringList parts;
         for (const FirmwareProblem& p : problems) {
           const QString name = p.displayName.isEmpty() ? p.fileId : p.displayName;
-          const QString why = p.reason == QLatin1String("missing_on_hub") ? tr("missing on the Hub")
-                              : p.reason == QLatin1String("invalid_hash") ? tr("does not match the Hub's SHA-256")
+          const QString why = p.reason == QLatin1String("missing_on_hub") ? tr("missing on the server")
+                              : p.reason == QLatin1String("invalid_hash") ? tr("does not match the server's SHA-256")
                                                                           : tr("has the wrong size");
           parts.append(QStringLiteral("%1 (%2)").arg(name, why));
         }
-        fwHint = tr("%1. The Hub admin can provide the files on the Systems page; then check again.").arg(parts.join(QStringLiteral(", ")));
+        fwHint = tr("%1. The server admin can provide the files on the Systems page; then check again.").arg(parts.join(QStringLiteral(", ")));
       } else {
         bool allCached = true;
         for (const FirmwareFileInfo& f : sys.firmware) {
@@ -165,7 +165,7 @@ QVariantMap GameDetail::selectedGame() const {
             allCached = false;
           }
         }
-        fwText = allCached ? tr("From Hub · cached") : tr("From Hub · download at start");
+        fwText = allCached ? tr("From server · cached") : tr("From server · download at start");
         fwTone = allCached ? QStringLiteral("ok") : QStringLiteral("neutral");
       }
     } else if (systems_->supported()) {
@@ -199,11 +199,11 @@ QVariantMap GameDetail::selectedGame() const {
     } else if (sk == QLatin1String("pending")) {
       saveText = tr("Sync pending");
       saveTone = QStringLiteral("warn");
-      saveHint = tr("Local changes are uploaded to this Hub as soon as it is reachable.");
+      saveHint = tr("Local changes are uploaded to this server as soon as it is reachable.");
     } else if (sk == QLatin1String("conflict")) {
       saveText = tr("Conflict");
       saveTone = QStringLiteral("warn");
-      saveHint = tr("Decide when starting the game or on the Saves page in the Hub.");
+      saveHint = tr("Decide when starting the game or on the Saves page in the server.");
     } else {
       saveText = tr("No save yet");
     }
@@ -231,22 +231,22 @@ QVariantMap GameDetail::selectedGame() const {
   // Step title follows the state (R-P13): "Core ready" is only shown while the core is usable or can still be provisioned.
   const bool coreWaitsForHub = !coreOk && !coreProvisionable && man != nullptr && !hubUp && catalog_->hubOffersCore(*man);
   const QString coreStepLabel = coreOk || coreProvisionable || phase_ == PlayPhase::Core ? tr("Core ready")
-                                : coreWaitsForHub ? tr("Core needs the Hub")
+                                : coreWaitsForHub ? tr("Core needs the server")
                                                   : (coreStatusText.isEmpty() ? tr("Core missing") : coreStatusText);
   const bool saveLocal = man != nullptr && man->saveSource == QLatin1String("none");
   const QString saveState = phase_ == PlayPhase::Launching ? (saveReady_ ? QStringLiteral("done") : QStringLiteral("active")) : QStringLiteral("pending");
-  const QString saveLabel = saveLocal ? tr("Local save folder prepared") : tr("Save checked with Hub");
+  const QString saveLabel = saveLocal ? tr("Local save folder prepared") : tr("Save checked with server");
   if (fromLibraryFolder) {
     // A game that starts from a library folder (3c-7): the file itself is the first step, no ROM download.
     list.append(checkItem(tr("Local file found"), QStringLiteral("done"),
-                          game->onHub ? tr("same hash as the Hub") : tr("%1 · hash checked").arg(LibraryModel::formatSize(game->romSize))));
+                          game->onHub ? tr("same hash as the server") : tr("%1 · hash checked").arg(LibraryModel::formatSize(game->romSize))));
     list.append(checkItem(coreStepLabel, coreState, coreMeta));
     list.append(checkItem(saveLabel, saveState, saveNoteStart_));
   } else {
-    list.append(checkItem(tr("Game data from Hub"), QStringLiteral("done")));
+    list.append(checkItem(tr("Game data from server"), QStringLiteral("done")));
     if (man != nullptr && catalog_->nativeFirmware(*man)) {
       const bool fwDone = phase_ == PlayPhase::Rom || phase_ == PlayPhase::Launching;
-      list.append(checkItem(tr("Firmware from Hub verified"),
+      list.append(checkItem(tr("Firmware from server verified"),
                             fwDone ? QStringLiteral("done") : (phase_ == PlayPhase::Firmware ? QStringLiteral("active")
                                                                : (fwOk ? QStringLiteral("pending") : QStringLiteral("error"))),
                             QString()));
@@ -274,13 +274,13 @@ QVariantMap GameDetail::selectedGame() const {
       whyNot = tr("No emulator is known for .%1 files.").arg(ext);
     } else if (!coreOk && !coreProvisionable) {
       if (!hubUp && catalog_->hubOffersCore(*man))
-        whyNot = tr("%1 is offline, so %2 cannot download. Try again when the Hub is back.").arg(hubLabel, coreLabelForList);
+        whyNot = tr("%1 is offline, so %2 cannot download. Try again when the server is back.").arg(hubLabel, coreLabelForList);
       else
         whyNot = tr("%1 is not on this device and %2 does not offer it.").arg(coreLabelForList, hubLabel);
     } else if (romNeedsHub) {
-      whyNot = tr("%1 is offline, so the game cannot download. Try again when the Hub is back.").arg(hubLabel);
+      whyNot = tr("%1 is offline, so the game cannot download. Try again when the server is back.").arg(hubLabel);
     } else if (fwBlocked) {
-      whyNot = tr("Firmware is missing. Ask the Hub admin to provide it, then check again.");
+      whyNot = tr("Firmware is missing. Ask the server admin to provide it, then check again.");
     } else if (kind == QLatin1String("missing")) {
       whyNot = tr("The game file is missing on this device.");
     }
@@ -328,7 +328,7 @@ QVariantMap GameDetail::selectedGame() const {
       pill = hubUp ? tr("Core missing") : tr("Needs attention");
       tone = QStringLiteral("amber");
     } else if (fromLibraryFolder) {
-      pill = game->onHub ? tr("Local · on Hub") : tr("Local");
+      pill = game->onHub ? tr("Local · on server") : tr("Local");
       tone = game->onHub ? QStringLiteral("info") : QStringLiteral("neutral");
     }
     m.insert(QStringLiteral("pillText"), pill);

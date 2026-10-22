@@ -508,7 +508,7 @@ void UpdateManager::onIndex(const FetchedIndex& fi) {
       return;
     case Selection::Status::Incompatible:
       setState(State::Incompatible,
-               tr("Uzume %1 is available but needs a newer Hub. It is not installed automatically.")
+               tr("Uzume %1 is available but needs a newer server. It is not installed automatically.")
                    .arg(selection_.release.version));
       return;
     case Selection::Status::Available:

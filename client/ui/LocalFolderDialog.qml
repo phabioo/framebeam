@@ -6,6 +6,6 @@ import QtQuick.Dialogs
 FolderDialog {
     id: dialog
     property var local: null
-    title: qsTr("ROM folder of the Hub")
+    title: qsTr("ROM folder of the server")
     onAccepted: if (dialog.local !== null) dialog.local.chooseFolder(dialog.selectedFolder.toString())
 }

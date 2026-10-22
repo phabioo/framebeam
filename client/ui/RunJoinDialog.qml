@@ -50,14 +50,14 @@ Popup {
 
     contentItem: ColumnLayout {
         spacing: Theme.space12
-        FbLabel {
+        UzLabel {
             Layout.fillWidth: true
             text: qsTr("Join \u201C%1\u201D?").arg(root.runName)
             wrapMode: Text.WordWrap
             font.pixelSize: Theme.fontCard
             font.weight: Font.DemiBold
         }
-        FbLabel {
+        UzLabel {
             Layout.fillWidth: true
             objectName: "runJoinLine"
             text: root.inviteLine !== "" ? root.inviteLine : qsTr("Which game do you play in this run?")
@@ -77,7 +77,7 @@ Popup {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         text: jp.model.name + " " + jp.model.version
                         elide: Text.ElideRight
@@ -89,7 +89,7 @@ Popup {
                         text: jp.model.originText
                     }
                 }
-                FbLabel {
+                UzLabel {
                     Layout.fillWidth: true
                     text: qsTr("It will be able to: %1").arg(jp.model.permissionsText)
                     wrapMode: Text.WordWrap
@@ -110,11 +110,11 @@ Popup {
             Layout.fillWidth: true
             rows: root.runs.games
         }
-        FbLabel {
+        UzLabel {
             objectName: "runJoinWhy"
             visible: root.noGame
             Layout.fillWidth: true
-            text: qsTr("Join is off until you have the game. Ask a Hub admin to upload it, or add a library folder that contains it.")
+            text: qsTr("Join is off until you have the game. Ask a server admin to upload it, or add a library folder that contains it.")
             color: Theme.pluginWarn
             wrapMode: Text.WordWrap
             font.pixelSize: Theme.fontSmall
@@ -123,12 +123,12 @@ Popup {
             Layout.fillWidth: true
             spacing: Theme.space8
             Item { Layout.fillWidth: true }
-            FbButton {
+            UzButton {
                 objectName: "runJoinCancel"
                 text: qsTr("Cancel")
                 onClicked: root.close()
             }
-            FbButton {
+            UzButton {
                 objectName: "runJoinConfirm"
                 kind: "primary"
                 text: qsTr("Join")

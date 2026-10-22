@@ -190,25 +190,25 @@ void CoreCatalog::coreStatus(const emu::SystemManifest& man, QString* text, QStr
     // "Core missing" needs your judgment (amber); a failed download or an incompatible core stays an error.
     *tone = problem == QLatin1String("not_on_hub") || problem == QLatin1String("not_cached_on_hub") ? QStringLiteral("amber") : QStringLiteral("error");
     if (problem == QLatin1String("not_on_hub")) {
-      *hint = tr("The Hub has no package of this core. Ask the Hub admin to select a core version on the Systems & Cores page.");
+      *hint = tr("The server has no package of this core. Ask the server admin to select a core version on the Systems & Cores page.");
     } else if (problem == QLatin1String("not_cached_on_hub")) {
-      *hint = tr("The Hub has not downloaded the core files yet. Ask the Hub admin to check the core source.");
+      *hint = tr("The server has not downloaded the core files yet. Ask the server admin to check the core source.");
     } else if (problem == QLatin1String("incompatible")) {
-      *hint = tr("The Hub has this core only for other platforms than %1.").arg(CoreCache::currentPlatform());
+      *hint = tr("The server has this core only for other platforms than %1.").arg(CoreCache::currentPlatform());
     } else {
       *hint = tr("The core could not be downloaded or verified. Play to try again.");
     }
     return;
   }
   if (hubOffersCore(man)) {
-    *text = tr("Core from Hub · download at start");
+    *text = tr("Core from server · download at start");
     *tone = QStringLiteral("neutral");
     return;
   }
   *text = tr("Core missing");
   *tone = QStringLiteral("amber");
   // The search paths are not shown here (a developer path wrapped mid-word in mono, P13).
-  *hint = tr("This core is not installed on this device. Connect to a Hub that provides cores.");
+  *hint = tr("This core is not installed on this device. Connect to a server that provides cores.");
 }
 
 // "Needs attention" (D14) for the Library: core missing/incompatible or firmware missing, per system once.
@@ -255,7 +255,7 @@ QVariantList CoreCatalog::systemCards() {
     QString readyText;
     QString readyTone;
     if (coreUsable(m)) {
-      readyText = loc.source == QLatin1String("cache") ? tr("Ready · core from the Hub") : tr("Ready · included in the Player");
+      readyText = loc.source == QLatin1String("cache") ? tr("Ready · core from the server") : tr("Ready · included in Uzume");
       readyTone = QStringLiteral("ok");
     } else {
       QString hint;
@@ -276,7 +276,7 @@ QVariantList CoreCatalog::systemCards() {
         fwText = tr("Firmware required/missing");
         fwTone = QStringLiteral("error");
       } else {
-        fwText = tr("Firmware from Hub · verified");
+        fwText = tr("Firmware from server · verified");
         fwTone = QStringLiteral("ok");
       }
     }
@@ -460,7 +460,7 @@ QString CoreCatalog::coreNoticeFor(const QString& systemId, const QString& gameI
   if (c.staleChoice.isEmpty() || !c.valid()) {
     return {};
   }
-  return tr("The core \"%1\" chosen for this %2 is not served by the Hub any more. %3 is used instead.")
+  return tr("The core \"%1\" chosen for this %2 is not served by the server any more. %3 is used instead.")
       .arg(c.staleChoice, c.staleLevel == QLatin1String("game") ? tr("game") : tr("system"),
            c.core.displayName.isEmpty() ? c.core.coreId : c.core.displayName);
 }

@@ -13,22 +13,22 @@ ColumnLayout {
     readonly property bool working: local.phase === "working"
     spacing: 6
 
-    FbLabel {
+    UzLabel {
         Layout.fillWidth: true
-        text: root.setup ? qsTr("Create the Hub admin") : qsTr("Sign in as a Hub admin")
+        text: root.setup ? qsTr("Create the server admin") : qsTr("Sign in as a server admin")
         font.pixelSize: Theme.fontBody
         font.weight: Font.Medium
     }
-    FbLabel {
+    UzLabel {
         Layout.fillWidth: true
-        text: root.setup ? qsTr("This Hub has no admin yet. The admin manages games, users and settings on the Hub.")
-                         : qsTr("Use the user name and password of an admin of the Hub on this PC. This Player is approved right away.")
+        text: root.setup ? qsTr("This server has no admin yet. The admin manages games, users and settings on the server.")
+                         : qsTr("Use the user name and password of an admin of the server on this PC. This PC is approved right away.")
         color: Theme.textMuted
         font.pixelSize: Theme.fontMeta
         wrapMode: Text.WordWrap
     }
     Eyebrow { text: qsTr("User name"); Layout.topMargin: 4 }
-    FbField {
+    UzField {
         id: userField
         objectName: "localUserField"
         Layout.fillWidth: true
@@ -38,7 +38,7 @@ ColumnLayout {
         onAccepted: passField.forceActiveFocus()
     }
     Eyebrow { text: qsTr("Password"); Layout.topMargin: 4 }
-    FbField {
+    UzField {
         id: passField
         objectName: "localPasswordField"
         Layout.fillWidth: true
@@ -48,7 +48,7 @@ ColumnLayout {
         onAccepted: root.setup ? againField.forceActiveFocus() : submitButton.clicked()
     }
     Eyebrow { text: qsTr("Password again"); Layout.topMargin: 4; visible: root.setup }
-    FbField {
+    UzField {
         id: againField
         objectName: "localPasswordAgainField"
         visible: root.setup
@@ -58,7 +58,7 @@ ColumnLayout {
         enabled: !root.working
         onAccepted: submitButton.clicked()
     }
-    FbLabel {
+    UzLabel {
         objectName: "localHubError"
         visible: root.local.error !== ""
         Layout.fillWidth: true
@@ -67,7 +67,7 @@ ColumnLayout {
         font.pixelSize: Theme.fontMeta
         wrapMode: Text.WordWrap
     }
-    FbButton {
+    UzButton {
         id: submitButton
         objectName: "localSubmitButton"
         Layout.topMargin: 4

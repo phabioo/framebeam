@@ -152,7 +152,7 @@ class RunsUiTest : public QObject {
     // Every plugin of the run is listed with name, version, origin pill, permissions and the unverified warning.
     QCOMPARE(runs->joinPlugins()->rowCount(), 1);
     QTRY_VERIFY(h.item(("runJoinPlugin_" + spec.id).toUtf8().constData()) != nullptr);
-    QCOMPARE(h.item("runJoinPluginOrigin")->property("text").toString(), QStringLiteral("Hub upload · unverified"));
+    QCOMPARE(h.item("runJoinPluginOrigin")->property("text").toString(), QStringLiteral("Server upload · unverified"));
     QVERIFY(runs->joinUnverified());
     QTRY_VERIFY(h.item("runJoinUnverified") != nullptr && h.item("runJoinUnverified")->isVisible());
     QCOMPARE(h.item("runJoinUnverified")->property("text").toString(), runs->unverifiedWarning());
@@ -273,7 +273,7 @@ class RunsUiTest : public QObject {
     QCOMPARE(runs->startRulesCurrent(), kPluginId);
     QVERIFY(runs->startUnverified());
     QTRY_VERIFY(h.item("runStartUnverified") != nullptr && h.item("runStartUnverified")->isVisible());
-    QCOMPARE(h.item("runPluginOrigin")->property("text").toString(), QStringLiteral("Hub upload · unverified"));
+    QCOMPARE(h.item("runPluginOrigin")->property("text").toString(), QStringLiteral("Server upload · unverified"));
     QVERIFY(h.click("runUser_u_lena"));
     QVERIFY(h.click(("runGame_" + kGameId).toUtf8().constData()));
     QVERIFY(h.click("runStartConfirm"));
@@ -574,7 +574,7 @@ class RunsUiTest : public QObject {
     QVERIFY(!h.controller->runs()->available());
     h.controller->showRuns();
     QCOMPARE(h.controller->screen(), QStringLiteral("library"));
-    QVERIFY(h.item("navRuns") == nullptr || !h.item("navRuns")->isVisible());
+    QVERIFY(h.item("navRuns") != nullptr && h.item("navRuns")->isVisible());  // the nav entry is always listed
   }
   // The game picker keeps what every plugin of the run accepts: system and, when the Hub knows it, the game code (globs,
   // case-insensitive). Unknown codes stay after the matching games with a hint; a known code that matches nothing is dropped.
@@ -767,8 +767,8 @@ class RunsUiTest : public QObject {
         hubInfo("net.t.soul", "1.0.0", "SoulLink & Nuzlocke", {{"net.t.core", "^0.1"}}), hubInfo("net.t.core", "0.2.0", "SoulLink Core"),
         hubInfo("net.t.strict", "1.0.0", "Strict", {{"net.t.core", "^0.2"}}), hubInfo("net.t.lost", "1.0.0", "Lost", {{"net.t.gone", "^1"}}),
         hubInfo("net.t.bad", "1.0.0", "Bad", {{"net.t.core", "huh"}})};
-    QCOMPARE(resolveStartPlugins(offered, {"net.t.soul"}).error, QString("SoulLink & Nuzlocke needs SoulLink Core ^0.1, which this Hub does not offer."));
-    QCOMPARE(resolveStartPlugins(offered, {"net.t.lost"}).error, QString("Lost needs net.t.gone ^1, which this Hub does not offer."));
+    QCOMPARE(resolveStartPlugins(offered, {"net.t.soul"}).error, QString("SoulLink & Nuzlocke needs SoulLink Core ^0.1, which this server does not offer."));
+    QCOMPARE(resolveStartPlugins(offered, {"net.t.lost"}).error, QString("Lost needs net.t.gone ^1, which this server does not offer."));
     const QString conflict = resolveStartPlugins(offered, {"net.t.soul", "net.t.strict"}).error;
     QVERIFY2(conflict.contains("SoulLink & Nuzlocke needs SoulLink Core ^0.1") && conflict.contains("Strict needs SoulLink Core ^0.2"), qPrintable(conflict));
     QVERIFY(resolveStartPlugins(offered, {"net.t.bad"}).error.contains("not valid"));
@@ -926,9 +926,9 @@ class RunsUiTest : public QObject {
     runs->beginStart();
     QTRY_COMPARE_WITH_TIMEOUT(runs->startPlugins()->rowCount(), 1, 8000);
     runs->toggleStartPlugin(QStringLiteral("net.test.soul"));
-    QCOMPARE(runs->startError(), QString("SoulLink needs net.test.core ^0.1, which this Hub does not offer."));
+    QCOMPARE(runs->startError(), QString("SoulLink needs net.test.core ^0.1, which this server does not offer."));
     runs->startRun(QStringLiteral("X"), QStringLiteral("g"));
-    QCOMPARE(runs->startError(), QString("SoulLink needs net.test.core ^0.1, which this Hub does not offer."));
+    QCOMPARE(runs->startError(), QString("SoulLink needs net.test.core ^0.1, which this server does not offer."));
     QVERIFY(hub.runs.isEmpty());
     runs->toggleStartPlugin(QStringLiteral("net.test.soul"));  // unpicked: the error goes away
     QCOMPARE(runs->startError(), QString());

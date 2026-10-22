@@ -59,7 +59,7 @@ Popup {
 
             RowLayout {
                 Layout.fillWidth: true
-                FbButton {
+                UzButton {
                     textFormat: Text.PlainText
                     objectName: "pluginDetailBack"
                     kind: "link"
@@ -74,7 +74,7 @@ Popup {
                     items: [{ name: "uninstall", label: root.info && root.info.devLinked ? qsTr("Unlink folder…") : qsTr("Uninstall…"), danger: true, divider: false }]
                     onActivated: name => { if (name === "uninstall") root.confirmUninstall = true }
                 }
-                FbButton {
+                UzButton {
                     textFormat: Text.PlainText
                     objectName: "pluginDetailClose"
                     kind: "link"
@@ -103,7 +103,7 @@ Popup {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
-                    FbLabel {
+                    UzLabel {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginDetailName"
                         Layout.fillWidth: true
@@ -112,7 +112,7 @@ Popup {
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
-                    FbLabel {
+                    UzLabel {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginDetailVersion"
                         Layout.fillWidth: true
@@ -146,14 +146,14 @@ Popup {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        FbLabel {
+                        UzLabel {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             objectName: "pluginDetailState"
                             text: root.info && root.info.enabled ? qsTr("On") : qsTr("Off")
                             font.pixelSize: Theme.fontBody
                             font.weight: Font.DemiBold
                         }
-                        FbLabel {
+                        UzLabel {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             objectName: "pluginDetailStateNote"
                             Layout.fillWidth: true
@@ -169,7 +169,7 @@ Popup {
                             font.pixelSize: Theme.fontMeta
                         }
                     }
-                    FbToggle {
+                    UzToggle {
                         objectName: "pluginDetailToggle"
                         Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                         Layout.preferredWidth: 40
@@ -209,11 +209,11 @@ Popup {
                         origin: root.info ? root.info.origin : "local"
                         text: root.info ? root.info.originText : ""
                     }
-                    FbLabel {
+                    UzLabel {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: root.info && root.info.origin === "unverified"
-                              ? qsTr("Not checked by Uzume. Turn it on only if you trust the admin of your Hub.")
+                              ? qsTr("Not checked by Uzume. Turn it on only if you trust the admin of your server.")
                               : qsTr("Loaded from a file on this device. It is not checked by Uzume.")
                         wrapMode: Text.WordWrap
                         color: Theme.pluginWarnText
@@ -228,7 +228,7 @@ Popup {
                 spacing: 4
                 Repeater {
                     model: root.info ? root.info.permissionList : []
-                    delegate: FbLabel {
+                    delegate: UzLabel {
                         textFormat: Text.PlainText
                         required property string modelData
                         objectName: "pluginDetailPermission"
@@ -238,7 +238,7 @@ Popup {
                         wrapMode: Text.WordWrap
                     }
                 }
-                FbLabel {
+                UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: !root.info || root.info.permissionList.length === 0
                     text: qsTr("No special permissions")
@@ -254,7 +254,7 @@ Popup {
             }
             Repeater {
                 model: root.info ? root.info.needsLines : []
-                delegate: FbLabel {
+                delegate: UzLabel {
                     textFormat: Text.PlainText
                     required property string modelData
                     Layout.fillWidth: true
@@ -263,7 +263,7 @@ Popup {
                     wrapMode: Text.WordWrap
                 }
             }
-            FbLabel {
+            UzLabel {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "pluginAdds"
                 visible: root.info && root.info.adds !== ""
@@ -275,7 +275,7 @@ Popup {
             }
 
             // Plugins that declare ui.screen show it as a run tab; outside a run it opens from here as a sheet.
-            FbButton {
+            UzButton {
                 textFormat: Text.PlainText
                 objectName: "pluginDetailOpen"
                 visible: root.info && root.info.hasScreen === true
@@ -304,25 +304,25 @@ Popup {
                     anchors.fill: parent
                     anchors.margins: 12
                     spacing: 10
-                    FbLabel {
+                    UzLabel {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: root.info && root.info.devLinked ? qsTr("Remove the link? The folder itself is kept.")
-                                                               : qsTr("Remove this plugin from this device? Run data stays on the Hub.")
+                                                               : qsTr("Remove this plugin from this device? Run data stays on the server.")
                         wrapMode: Text.WordWrap
                         font.pixelSize: Theme.fontSmall
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         Item { Layout.fillWidth: true }
-                        FbButton {
+                        UzButton {
                             textFormat: Text.PlainText
                             objectName: "pluginUninstallCancel"
                             implicitHeight: 32
                             text: qsTr("Cancel")
                             onClicked: root.confirmUninstall = false
                         }
-                        FbButton {
+                        UzButton {
                             textFormat: Text.PlainText
                             objectName: "pluginUninstallConfirm"
                             implicitHeight: 32
@@ -344,14 +344,14 @@ Popup {
                 Layout.fillWidth: true
                 Layout.topMargin: 6
                 spacing: 8
-                FbLabel {
+                UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     Layout.fillWidth: true
                     text: root.info && root.info.updateVersion !== "" ? qsTr("Update to %1 is available").arg(root.info.updateVersion) : ""
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontMeta
                 }
-                FbButton {
+                UzButton {
                     textFormat: Text.PlainText
                     objectName: "pluginDetailUpdate"
                     visible: root.info && root.info.updateVersion !== ""

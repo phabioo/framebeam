@@ -44,7 +44,7 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.space8
-                    FbLabel {
+                    UzLabel {
                         objectName: "runRowName"
                         Layout.fillWidth: true
                         text: row.model.name
@@ -52,9 +52,9 @@ Rectangle {
                         font.weight: Font.DemiBold
                         font.pixelSize: Theme.fontSection
                     }
-                    FbPill { objectName: "runRowStatus"; tone: row.model.tone; text: row.model.statusText }
+                    UzTag { objectName: "runRowStatus"; tone: row.model.tone; text: row.model.statusText }
                 }
-                FbLabel {
+                UzLabel {
                     Layout.fillWidth: true
                     text: row.model.subText
                     elide: Text.ElideRight
@@ -63,17 +63,17 @@ Rectangle {
                 }
             }
             RunAvatars { participants: row.model.participants; Layout.alignment: Qt.AlignVCenter }
-            FbMono {
+            UzMono {
                 Layout.alignment: Qt.AlignVCenter
                 text: row.model.timeText
                 color: Theme.textMeta
                 font.pixelSize: Theme.fontMono
                 visible: root.width > 760
             }
-            FbLabel {
+            UzLabel {
                 Layout.alignment: Qt.AlignVCenter
                 text: row.model.action
-                color: Theme.accent
+                color: Theme.accentText
                 font.weight: Font.Medium
                 font.pixelSize: Theme.fontSmall
             }
@@ -86,7 +86,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        Sidebar {
+        UzAppNav {
             Layout.fillHeight: true
             Layout.preferredWidth: Theme.sidebarWidth
             player: root.player
@@ -123,21 +123,21 @@ Rectangle {
                         id: msgRow
                         anchors.fill: parent
                         anchors.margins: 10
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             text: root.runs.message
                             wrapMode: Text.WordWrap
                             color: root.runs.messageIsError ? Theme.errorText : Theme.infoText
                             font.pixelSize: Theme.fontSmall
                         }
-                        FbButton { kind: "link"; text: qsTr("Dismiss"); onClicked: root.runs.dismissMessage() }
+                        UzButton { kind: "link"; text: qsTr("Dismiss"); onClicked: root.runs.dismissMessage() }
                     }
                 }
                 RowLayout {
                     visible: root.runs.busy
                     spacing: Theme.space8
-                    FbSpinner { size: 14; color: Theme.accent }
-                    FbLabel { objectName: "runsBusy"; text: root.runs.busyText; color: Theme.textMuted; font.pixelSize: Theme.fontSmall }
+                    UzSpinner { size: 14; color: Theme.accent }
+                    UzLabel { objectName: "runsBusy"; text: root.runs.busyText; color: Theme.textMuted; font.pixelSize: Theme.fontSmall }
                 }
 
                 // ================================================================ list
@@ -148,13 +148,13 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             text: qsTr("Runs")
                             font.pixelSize: Theme.fontPage
                             font.weight: Font.DemiBold
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "runsStartButton"
                             kind: "primary"
                             text: qsTr("New run...")
@@ -179,8 +179,8 @@ Rectangle {
                                 anchors.fill: parent
                                 anchors.margins: 16
                                 spacing: 6
-                                Eyebrow { text: qsTr("Run invite"); color: Theme.accent }
-                                FbLabel {
+                                Eyebrow { text: qsTr("Run invite"); color: Theme.accentText }
+                                UzLabel {
                                     objectName: "runInviteHeadline"
                                     Layout.fillWidth: true
                                     text: card.model.headline
@@ -188,7 +188,7 @@ Rectangle {
                                     font.weight: Font.DemiBold
                                     font.pixelSize: Theme.fontSection
                                 }
-                                FbLabel {
+                                UzLabel {
                                     Layout.fillWidth: true
                                     text: card.model.subText + " · " + card.model.joinedText
                                     color: Theme.textMuted
@@ -198,13 +198,13 @@ Rectangle {
                                 RowLayout {
                                     Layout.topMargin: 4
                                     spacing: Theme.space8
-                                    FbButton {
+                                    UzButton {
                                         objectName: "runInviteDecline"
                                         text: qsTr("Decline")
                                         enabled: !root.runs.busy
                                         onClicked: root.runs.declineRun(card.model.runId)
                                     }
-                                    FbButton {
+                                    UzButton {
                                         objectName: "runInviteJoin"
                                         kind: "primary"
                                         text: qsTr("Join")
@@ -240,14 +240,14 @@ Rectangle {
                         visible: root.runs.loaded && root.runs.invites.count === 0 && root.runs.active.count === 0 && root.runs.finished.count === 0
                         Layout.fillWidth: true
                         spacing: Theme.space12
-                        FbLabel {
+                        UzLabel {
                             objectName: "runsEmpty"
                             Layout.fillWidth: true
                             text: qsTr("No runs yet. A run is a playthrough with its own save slot, for 1-8 people.")
                             color: Theme.textMuted
                             wrapMode: Text.WordWrap
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "runsEmptyStart"
                             kind: "primary"
                             text: qsTr("New run...")
@@ -284,7 +284,7 @@ Rectangle {
                     onDChanged: rebuildMenu()
                     Component.onCompleted: rebuildMenu()
 
-                    FbButton {
+                    UzButton {
                         objectName: "runsBack"
                         kind: "link"
                         text: qsTr("‹ Runs")
@@ -293,7 +293,7 @@ Rectangle {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.space12
-                        FbLabel {
+                        UzLabel {
                             objectName: "runDetailName"
                             Layout.fillWidth: true
                             text: detailCol.d.name || ""
@@ -301,9 +301,9 @@ Rectangle {
                             font.pixelSize: Theme.fontDetail
                             font.weight: Font.DemiBold
                         }
-                        FbPill { objectName: "runDetailStatus"; tone: detailCol.d.tone || "neutral"; text: detailCol.d.statusText || "" }
+                        UzTag { objectName: "runDetailStatus"; tone: detailCol.d.tone || "neutral"; text: detailCol.d.statusText || "" }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "runDetailLine"
                         Layout.fillWidth: true
                         text: detailCol.d.line || ""
@@ -311,14 +311,14 @@ Rectangle {
                         color: Theme.textMuted
                         font.pixelSize: Theme.fontSmall
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         text: detailCol.d.pluginsText || ""
                         wrapMode: Text.WordWrap
                         color: Theme.textSecondary
                         font.pixelSize: Theme.fontSmall
                     }
-                    FbLabel {
+                    UzLabel {
                         visible: (detailCol.d.note || "") !== ""
                         Layout.fillWidth: true
                         text: detailCol.d.note || ""
@@ -331,7 +331,7 @@ Rectangle {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.space8
-                        FbButton {
+                        UzButton {
                             objectName: "runPlay"
                             visible: detailCol.d.canPlay === true
                             kind: "primary"
@@ -339,7 +339,7 @@ Rectangle {
                             enabled: !root.runs.busy
                             onClicked: root.runs.playRun(detailCol.d.runId)
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "runInvitePlayers"
                             visible: detailCol.d.canInvite === true
                             text: qsTr("Invite players")
@@ -378,7 +378,7 @@ Rectangle {
                                        name: "runTab_plugin_" + t[i].pluginId })
                         return out
                     }
-                    FbSegment {
+                    UzSegmented {
                         objectName: "runTabs"
                         options: detailCol.tabOptions
                         current: root.runs.runTab
@@ -430,13 +430,13 @@ Rectangle {
                                             participants: [{ name: prow.model.name, color: prow.model.color }]
                                             size: 28
                                         }
-                                        FbLabel {
+                                        UzLabel {
                                             Layout.fillWidth: true
                                             text: prow.model.me ? qsTr("%1 (you)").arg(prow.model.name) : prow.model.name
                                             elide: Text.ElideRight
                                             font.weight: Font.Medium
                                         }
-                                        FbLabel {
+                                        UzLabel {
                                             objectName: "runParticipantSlot"
                                             Layout.preferredWidth: 180
                                             visible: root.width > 760
@@ -445,7 +445,7 @@ Rectangle {
                                             color: Theme.textSecondary
                                             font.pixelSize: Theme.fontSmall
                                         }
-                                        FbLabel {
+                                        UzLabel {
                                             Layout.preferredWidth: 200
                                             visible: root.width > 760
                                             text: prow.model.gameTitle
@@ -453,7 +453,7 @@ Rectangle {
                                             color: Theme.textMuted
                                             font.pixelSize: Theme.fontSmall
                                         }
-                                        FbLabel {
+                                        UzLabel {
                                             text: prow.model.statusText
                                             color: prow.model.statusText === qsTr("Joined") ? Theme.ok : Theme.textMuted
                                             font.pixelSize: Theme.fontSmall
@@ -488,7 +488,7 @@ Rectangle {
                         color: Theme.surface
                         border.width: 1
                         border.color: Theme.borderCard
-                        FbLabel {
+                        UzLabel {
                             anchors.centerIn: parent
                             visible: root.runs.events.count === 0
                             text: qsTr("No events yet.")
@@ -524,7 +524,7 @@ Rectangle {
                                         anchors.leftMargin: 16
                                         anchors.rightMargin: 16
                                         spacing: Theme.space12
-                                        FbMono {
+                                        UzMono {
                                             objectName: "runEventTime"
                                             Layout.preferredWidth: 130
                                             text: erow.model.timeText
@@ -535,13 +535,13 @@ Rectangle {
                                             ToolTip.visible: evHover.hovered && erow.model.fullTimeText !== ""
                                             ToolTip.text: erow.model.fullTimeText
                                         }
-                                        FbLabel {
+                                        UzLabel {
                                             Layout.fillWidth: true
                                             text: erow.model.text
                                             wrapMode: Text.WordWrap
                                             font.pixelSize: Theme.fontSmall
                                         }
-                                        FbLabel {
+                                        UzLabel {
                                             Layout.preferredWidth: 170
                                             visible: root.width > 820
                                             text: erow.model.sourceText
@@ -589,7 +589,7 @@ Rectangle {
         }
         contentItem: ColumnLayout {
             spacing: Theme.space12
-            FbLabel {
+            UzLabel {
                 objectName: "runConfirmTitle"
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
@@ -598,7 +598,7 @@ Rectangle {
                 text: root.confirmAction === "finished" ? qsTr("Finish this run?")
                       : (root.confirmAction === "abandoned" ? qsTr("Abandon this run?") : qsTr("Leave this run?"))
             }
-            FbLabel {
+            UzLabel {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
@@ -610,8 +610,8 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: Theme.space8
                 Item { Layout.fillWidth: true }
-                FbButton { objectName: "runConfirmCancel"; text: qsTr("Cancel"); onClicked: confirmDialog.close() }
-                FbButton {
+                UzButton { objectName: "runConfirmCancel"; text: qsTr("Cancel"); onClicked: confirmDialog.close() }
+                UzButton {
                     objectName: "runConfirmOk"
                     kind: "primary"
                     text: root.confirmAction === "finished" ? qsTr("Finish run") : (root.confirmAction === "abandoned" ? qsTr("Abandon run") : qsTr("Leave run"))
