@@ -21,5 +21,7 @@ Further bundled libraries (built via vcpkg, see client/vcpkg.json):
 - Opus, BSD-3-Clause, https://opus-codec.org/ (source: https://gitlab.xiph.org/xiph/opus)
 - SDL3 (gamepad input only), zlib, https://libsdl.org/ (source: https://github.com/libsdl-org/SDL)
 - OpenSSL, Apache-2.0, https://www.openssl.org/
+- IBM Plex Sans and IBM Plex Mono (fonts, embedded in the application), SIL Open Font License 1.1, Copyright (C) 2017 IBM Corp.,
+  https://github.com/IBM/plex (licence text: client/ui/fonts/IBM-Plex-OFL.txt in the source)
 - Qt 6 (LGPL-3.0, dynamically linked), https://www.qt.io/
 The FFmpeg and Qt DLLs are shared libraries and can be replaced by compatible builds.

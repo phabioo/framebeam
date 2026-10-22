@@ -138,6 +138,7 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString logFile READ logFile CONSTANT)
   // Shell (sidebar user block, Settings footer)
   Q_PROPERTY(QString deviceName READ deviceName CONSTANT)
+  Q_PROPERTY(bool isAdmin READ isAdmin NOTIFY hubChanged)  // handshake `user.role` is "admin"; false for older servers
   Q_PROPERTY(QString userName READ userName NOTIFY hubChanged)  // Hub user (handshake `user`); empty for older Hubs
   Q_PROPERTY(QString playerVersion READ playerVersion CONSTANT)
   Q_PROPERTY(QString platformText READ platformText CONSTANT)  // "Windows x86-64 · Protocol v1"
@@ -198,6 +199,7 @@ class PlayerController : public QObject {
   QString logFile() const;
   QString deviceName() const;
   QString userName() const;
+  bool isAdmin() const;
   QString playerVersion() const;
   QString platformText() const;
   // A game or a watched Session is running (updates are never applied then).
@@ -300,6 +302,8 @@ class PlayerController : public QObject {
   // Library header / Sidebar
   Q_INVOKABLE void showLibrary();
   Q_INVOKABLE void showSettings();
+  // Settings, scrolled to a section ("updates" | "hubs" | "appearance" | "library" | "storage" | "plugins" | "diagnostics").
+  Q_INVOKABLE void showSettingsSection(const QString& section);
   Q_INVOKABLE void openLogFolder();
   // "Collect logs" (Settings -> Diagnostics): diagnostics bundle zip (core/diagbundle.h). The info is gathered here, the
   // zip is built off the GUI thread; diagnosticsCollected() reports the result.
@@ -341,6 +345,7 @@ class PlayerController : public QObject {
 
  signals:
   void screenChanged();
+  void settingsSectionRequested(const QString& section);
   void pluginPageChanged();
   // Settings screen: scroll to a section ("plugins") and highlight a plugin row.
   void pluginSettingsRequested(const QString& pluginId);

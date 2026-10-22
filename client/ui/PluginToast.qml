@@ -28,7 +28,7 @@ Item {
             y: 10 + index * 2
             width: card.width + index * 6
             height: card.height + index * 3
-            radius: 10 + index * 3
+            radius: 0
             color: "#14000000"
             z: -1
         }
@@ -37,7 +37,7 @@ Item {
         id: card
         width: parent.width
         height: grid.implicitHeight + 24
-        radius: 10
+        radius: 0
         color: root.warn ? Theme.gamePluginWarnBg : Theme.gameOnBg
         border.width: 1
         border.color: root.warn ? Theme.gamePluginWarnLine : Theme.gameOnBorder
@@ -51,8 +51,8 @@ Item {
             Rectangle {
                 Layout.alignment: Qt.AlignTop
                 Layout.preferredWidth: 28; Layout.preferredHeight: 28
-                radius: 7
-                color: root.warn ? "#3a3118" : "#1b3a42"
+                radius: 0
+                color: root.warn ? Theme.gamePluginWarnBg : Theme.gameBadge
                 Text {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     anchors.centerIn: parent
@@ -70,7 +70,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 6
-                    FbLabel {
+                    UzLabel {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "toastSource"
                         Layout.minimumWidth: 0
@@ -87,15 +87,15 @@ Item {
                         visible: root.marker !== ""
                         Layout.preferredWidth: markerLabel.implicitWidth + 10
                         Layout.preferredHeight: 15
-                        radius: 4
+                        radius: 0
                         color: "transparent"
                         border.width: 1
                         border.color: root.warn ? Theme.gamePluginWarnLine : Theme.gameKeyLine
-                        FbLabel { textFormat: Text.PlainText; id: markerLabel; anchors.centerIn: parent; text: root.marker; font.pixelSize: 10; color: root.warn ? Theme.gamePluginWarn : Theme.gameTextMuted }
+                        UzLabel { textFormat: Text.PlainText; id: markerLabel; anchors.centerIn: parent; text: root.marker; font.pixelSize: 10; color: root.warn ? Theme.gamePluginWarn : Theme.gameTextMuted }
                     }
                     Item { Layout.fillWidth: true }
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "toastText"
                     Layout.fillWidth: true
                     visible: text !== ""
@@ -128,13 +128,13 @@ Item {
                                 objectName: "toastAction_" + modelData.action
                                 width: Math.min(actLabel.implicitWidth + 24, act.parent ? act.parent.width : 100000)   // never wider than the notice (wide fonts)
                                 height: 28
-                                radius: 6
+                                radius: 0
                                 color: act.index === 0 ? (root.warn ? Theme.gamePluginWarn : Theme.gameAccent) : (actHover.hovered ? Theme.gameSegmentOn : "transparent")
                                 border.width: act.index === 0 ? 0 : 1
                                 border.color: Theme.gameKeyLine
                                 Accessible.role: Accessible.Button
                                 Accessible.name: modelData.label
-                                FbLabel {
+                                UzLabel {
                                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                     id: actLabel
                                     anchors.centerIn: parent
@@ -143,7 +143,7 @@ Item {
                                     text: act.modelData.label
                                     font.pixelSize: 12
                                     font.weight: Font.DemiBold
-                                    color: act.index === 0 ? "#161512" : Theme.gameText
+                                    color: act.index === 0 ? Theme.inkOnAccent : Theme.gameText
                                 }
                                 HoverHandler { id: actHover; cursorShape: Qt.PointingHandCursor }
                                 TapHandler { onTapped: root.actionPicked(act.modelData) }
@@ -159,7 +159,7 @@ Item {
                     id: moreBtn
                     objectName: "toastMore"
                     visible: !root.host
-                    width: 22; height: 22; radius: 6
+                    width: 22; height: 22; radius: 0
                     color: moreHover.hovered ? Theme.gameSegmentOn : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Notice menu")
@@ -169,7 +169,7 @@ Item {
                 }
                 Rectangle {
                     objectName: "toastDismiss"
-                    width: 22; height: 22; radius: 6
+                    width: 22; height: 22; radius: 0
                     color: closeHover.hovered ? Theme.gameSegmentOn : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Dismiss")

@@ -36,14 +36,14 @@ ApplicationWindow {
             anchors.rightMargin: 20
             spacing: 12
             StatusDot { tone: "ok" }
-            FbLabel {
+            UzLabel {
                 objectName: "updateBannerText"
                 Layout.fillWidth: true
                 text: window.player.updates.bannerText
                 font.pixelSize: Theme.fontSmall
                 elide: Text.ElideRight
             }
-            FbButton {
+            UzButton {
                 objectName: "updateBannerAction"
                 visible: window.player.updates.bannerAction !== "none"
                 implicitHeight: 30
@@ -52,7 +52,7 @@ ApplicationWindow {
                 onClicked: window.player.updates.bannerAction === "link" ? window.player.updates.openNotes()
                                                                          : window.player.updates.install()
             }
-            FbButton {
+            UzButton {
                 objectName: "updateBannerDismiss"
                 implicitHeight: 30
                 kind: "link"
@@ -77,6 +77,15 @@ ApplicationWindow {
         PluginScreen { player: window.player }
         RunsScreen { player: window.player }
     }
+
+    // Hotkeys (frame.md "0-4 G"): Ctrl+1 to 4 Library, Runs, Emulation, Controllers; Ctrl+, Settings. Not in the game view,
+    // not before a server is connected.
+    readonly property bool navHotkeys: ["library", "runs", "emulation", "controllers", "settings", "plugin"].indexOf(window.player.screen) >= 0
+    Shortcut { sequence: "Ctrl+1"; enabled: window.navHotkeys; onActivated: window.player.showLibrary() }
+    Shortcut { sequence: "Ctrl+2"; enabled: window.navHotkeys && window.player.runs.available; onActivated: window.player.showRuns() }
+    Shortcut { sequence: "Ctrl+3"; enabled: window.navHotkeys; onActivated: window.player.showEmulation() }
+    Shortcut { sequence: "Ctrl+4"; enabled: window.navHotkeys; onActivated: window.player.showControllers() }
+    Shortcut { sequence: "Ctrl+,"; enabled: window.navHotkeys; onActivated: window.player.showSettings() }
 
     // Connection check (6e): modal over every screen; "Edit Hub address…" opens the inline edit of the Hub in Settings.
     ConnectionCheckDialog { player: window.player }

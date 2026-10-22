@@ -151,7 +151,7 @@ void SaveHistoryController::recomputeBlock() {
   if (gameId_.isEmpty()) {
     why.clear();
   } else if (gameRunning()) {
-    why = liveApply() ? env_.saves->liveBlockReason(gameId_, slot()) : tr("This game is running on this Player. Quit it to restore a version.");
+    why = liveApply() ? env_.saves->liveBlockReason(gameId_, slot()) : tr("This game is running on this PC. Quit it to restore a version.");
   } else if (env_.saves->available()) {
     why = env_.saves->pendingReason(gameId_, slot());
   }
@@ -188,10 +188,10 @@ QString SaveHistoryController::slotManageBlockReason() const {
     return {};
   }
   if (gameRunning()) {
-    return tr("This game is running on this Player. Quit it to rename or delete a slot.");
+    return tr("This game is running on this PC. Quit it to rename or delete a slot.");
   }
   if (!online()) {
-    return tr("Hub offline. Renaming and deleting a slot needs the Hub.");
+    return tr("Server offline. Renaming and deleting a slot needs the server.");
   }
   if (busy_) {
     return tr("Wait until the current action has finished.");
@@ -416,7 +416,7 @@ QString SaveHistoryController::createSlot(const QString& name) {
 
 QString SaveHistoryController::renameSlot(const QString& name) {
   if (!slotManageAvailable()) {
-    return tr("The Hub does not support renaming slots.");
+    return tr("The server does not support renaming slots.");
   }
   if (const QString why = slotManageBlockReason(); !why.isEmpty()) {
     return why;
@@ -607,7 +607,7 @@ void SaveHistoryController::restore(int version) {
                                                                       : r.message,
                                                   false);
                                } else if (r.kind == O::Stale) {
-                                 self->setMessage(tr("The save changed on the Hub in the meantime. The list was refreshed; check it and try again."),
+                                 self->setMessage(tr("The save changed on the server in the meantime. The list was refreshed; check it and try again."),
                                                   true);
                                } else {
                                  self->setMessage(r.message, true);
@@ -673,9 +673,9 @@ void SaveHistoryController::confirmDelete() {
     } else if (r.errorCode == QLatin1String("save_not_snapshot")) {
       self->setMessage(tr("Only manual snapshots can be deleted. Nothing was changed."), true);
     } else if (r.kind == K::Offline) {
-      self->setMessage(tr("Hub not reachable. Nothing was deleted."), true);
+      self->setMessage(tr("Server not reachable. Nothing was deleted."), true);
     } else {
-      self->setMessage(tr("The Hub refused to delete the snapshot. Nothing was changed."), true);
+      self->setMessage(tr("The server refused to delete the snapshot. Nothing was changed."), true);
     }
     self->refresh();
   });
@@ -803,7 +803,7 @@ void SaveHistoryController::confirmUploadFile() {
                                  self->setMessage(r.message.isEmpty() ? tr("\"%1\" uploaded. It is now the current save.").arg(fileName) : r.message,
                                                   false);
                                } else if (r.kind == O::Stale) {
-                                 self->setMessage(tr("The save changed on the Hub in the meantime. The list was refreshed; try again."), true);
+                                 self->setMessage(tr("The save changed on the server in the meantime. The list was refreshed; try again."), true);
                                } else {
                                  self->setMessage(r.message, true);
                                }
@@ -889,7 +889,7 @@ void SaveHistoryController::onSaveUpdated(const SaveUpdate& u, bool runningHere)
   }
   if (runningHere) {
     notice_ = tr("The save for this game was changed on %1. Your next upload will become a conflict that you can resolve at the next start.")
-                  .arg(u.deviceName.isEmpty() ? (u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000") ? tr("Hub web interface") : tr("another device")) : u.deviceName);
+                  .arg(u.deviceName.isEmpty() ? (u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000") ? tr("Server web interface") : tr("another device")) : u.deviceName);
     emit changed();
   }
 }
@@ -989,8 +989,8 @@ void SaveHistoryController::resolveConflict(const QString& action) {
         if (r.ok()) {
           self->conflictOpen_ = false;
           self->conflictInfo_.clear();
-          const QString done = useHub ? tr("Conflict resolved: the Hub save is now current here. Your device's save was backed up locally first.")
-                                      : tr("Conflict resolved: this device's save is now the current save on the Hub.");
+          const QString done = useHub ? tr("Conflict resolved: the server save is now current here. Your device's save was backed up locally first.")
+                                      : tr("Conflict resolved: this device's save is now the current save on the server.");
           self->setMessage(r.message.isEmpty() ? done : done + QLatin1Char(' ') + r.message, false);
         } else if (r.kind == O::Stale || r.kind == O::NotFound) {
           self->conflictOpen_ = false;

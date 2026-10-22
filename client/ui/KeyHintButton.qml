@@ -57,17 +57,21 @@ Button {
         anchors.centerIn: parent
         width: 14
         height: 14
-        radius: 2
+        radius: 0
         color: "transparent"
         border.width: 2
         border.color: !control.enabled ? Theme.textDisabled : Theme.text
     }
-    background: Rectangle {
-        radius: 7
-        color: control.kind === "primary" ? (control.enabled ? Theme.accent : Theme.surfaceRaised)
-             : control.kind === "raised" ? Theme.surfaceRaised
-             : (control.hovered && control.enabled ? Theme.surfaceRaised : "transparent")
-        border.width: control.kind === "primary" ? 0 : 1
-        border.color: control.visualFocus ? Theme.accent : Theme.borderButton
+    background: Item {
+        Rectangle {
+            anchors.fill: parent
+            radius: 0
+            color: control.kind === "primary" ? (control.enabled ? (control.down ? Theme.accentPressed : (control.hovered ? Theme.accentHover : Theme.accent)) : Theme.disabledGround)
+                 : control.kind === "raised" ? Theme.hover
+                 : (control.hovered && control.enabled ? Theme.hover : "transparent")
+            border.width: 1
+            border.color: control.kind === "primary" && control.enabled ? Theme.accent : (control.enabled ? Theme.rule : Theme.disabledRule)
+        }
+        UzFocusRing { visible: control.visualFocus }
     }
 }

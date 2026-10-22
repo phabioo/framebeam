@@ -15,7 +15,7 @@ CoreProvisioner::CoreProvisioner(HubConnection* connection, CoreCache* cache, QO
   connect(connection, &HubConnection::stateChanged, this, [this](HubConnection::State s) {
     if (s != HubConnection::State::Connected && busy_) {
       ++generation_;  // pending replies are aborted by the connection and ignored
-      fail(QStringLiteral("download_failed"), QStringLiteral("Connection to the Hub lost"));
+      fail(QStringLiteral("download_failed"), QStringLiteral("Connection to the server lost"));
     }
   });
 }
@@ -56,7 +56,7 @@ void CoreProvisioner::prepare(const QString& coreId, const QString& version) {
     QNetworkReply* reply =
         conn_ ? conn_->authorizedGet(QStringLiteral("/cores/%1/packages/%2/%3").arg(coreId, version, platform_)) : nullptr;
     if (reply == nullptr) {
-      fail(QStringLiteral("download_failed"), QStringLiteral("Not connected to the Hub"));
+      fail(QStringLiteral("download_failed"), QStringLiteral("Not connected to the server"));
       return;
     }
     reply_ = reply;
@@ -95,7 +95,7 @@ void CoreProvisioner::onPackage(const HttpResult& r) {
   }
   const auto pkg = parseCorePackage(r.json());
   if (!pkg || pkg->coreId != result_.coreId || pkg->version != result_.version || pkg->platform != platform_) {
-    fail(QStringLiteral("download_failed"), QStringLiteral("invalid package metadata from the Hub"));
+    fail(QStringLiteral("download_failed"), QStringLiteral("invalid package metadata from the server"));
     return;
   }
   pkg_ = *pkg;
@@ -110,13 +110,13 @@ void CoreProvisioner::startDownloads() {
 
 void CoreProvisioner::probeOtherPlatforms(quint64 gen, QStringList remaining) {
   if (remaining.isEmpty()) {
-    fail(QStringLiteral("not_on_hub"), QStringLiteral("the Hub has no package %1 %2 for %3").arg(result_.coreId, result_.version, platform_));
+    fail(QStringLiteral("not_on_hub"), QStringLiteral("the server has no package %1 %2 for %3").arg(result_.coreId, result_.version, platform_));
     return;
   }
   const QString p = remaining.takeFirst();
   QNetworkReply* reply = conn_ ? conn_->authorizedGet(QStringLiteral("/cores/%1/packages/%2/%3").arg(result_.coreId, result_.version, p)) : nullptr;
   if (reply == nullptr) {
-    fail(QStringLiteral("not_on_hub"), QStringLiteral("the Hub has no package %1 %2 for %3").arg(result_.coreId, result_.version, platform_));
+    fail(QStringLiteral("not_on_hub"), QStringLiteral("the server has no package %1 %2 for %3").arg(result_.coreId, result_.version, platform_));
     return;
   }
   reply_ = reply;
@@ -127,7 +127,7 @@ void CoreProvisioner::probeOtherPlatforms(quint64 gen, QStringList remaining) {
       return;
     }
     if (r.ok()) {
-      fail(QStringLiteral("incompatible"), QStringLiteral("the Hub has %1 %2 only for other platforms (e.g. %3)").arg(result_.coreId, result_.version, p));
+      fail(QStringLiteral("incompatible"), QStringLiteral("the server has %1 %2 only for other platforms (e.g. %3)").arg(result_.coreId, result_.version, p));
     } else {
       probeOtherPlatforms(gen, remaining);
     }
@@ -162,7 +162,7 @@ void CoreProvisioner::next() {
     return;
   }
   if (!f.available) {
-    qCWarning(lcCores) << "not cached on the Hub" << pkg_.coreId << pkg_.version << f.name;
+    qCWarning(lcCores) << "not cached on the server" << pkg_.coreId << pkg_.version << f.name;
     fail(QStringLiteral("not_cached_on_hub"), f.name);
     return;
   }
@@ -170,7 +170,7 @@ void CoreProvisioner::next() {
       conn_ ? conn_->authorizedGet(QStringLiteral("/cores/%1/packages/%2/%3/files/%4").arg(pkg_.coreId, pkg_.version, pkg_.platform, f.name))
             : nullptr;
   if (reply == nullptr) {
-    fail(QStringLiteral("download_failed"), QStringLiteral("Not connected to the Hub"));
+    fail(QStringLiteral("download_failed"), QStringLiteral("Not connected to the server"));
     return;
   }
   const quint64 gen = generation_;
@@ -190,7 +190,7 @@ void CoreProvisioner::next() {
       conn_->noteUnauthorized();
     }
     if (r.status == 404) {
-      qCWarning(lcCores) << "file not available on the Hub" << pkg_.coreId << pkg_.version << f.name;
+      qCWarning(lcCores) << "file not available on the server" << pkg_.coreId << pkg_.version << f.name;
       fail(QStringLiteral("not_cached_on_hub"), f.name);
       return;
     }

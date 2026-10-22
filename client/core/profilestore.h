@@ -16,6 +16,7 @@ struct HubProfile {
   QString address;  // normalized: scheme://host[:port]
   QString hubUserId;
   QString userDisplayName;  // Hub user name from the last handshake; empty for older Hubs
+  QString userRole;         // "admin" | "user" from the last handshake; empty for older Hubs
   QString deviceId;
   QString credentialRef;
   QString pinnedFingerprint;  // SHA-256 over leaf DER, uppercase hex with colons; empty for HTTP dev

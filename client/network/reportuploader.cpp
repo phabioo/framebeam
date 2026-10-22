@@ -47,7 +47,7 @@ void ReportUploader::start() {
   }
   if (!conn_->hubHasFeature(QString::fromLatin1(kFeature))) {
     fail(QStringLiteral("unsupported"),
-         tr("This Hub is too old to receive problem reports. Save the report as a file and send it to its admin."));
+         tr("This server is too old to receive problem reports. Save the report as a file and send it to its admin."));
     return;
   }
   auto* buf = new QBuffer;
@@ -101,19 +101,19 @@ void ReportUploader::onFinished(QNetworkReply* reply) {
       });
       return;
     }
-    fail(QStringLiteral("auth"), tr("The sign-in to the Hub expired. Try again."));
+    fail(QStringLiteral("auth"), tr("The sign-in to the server expired. Try again."));
     return;
   }
   if (r.status == 413) {
-    fail(QStringLiteral("too_large"), tr("The report is larger than the Hub accepts (25 MB). Uncheck the logs and try again."));
+    fail(QStringLiteral("too_large"), tr("The report is larger than the server accepts (25 MB). Uncheck the logs and try again."));
   } else if (r.status == 429) {
     fail(QStringLiteral("rate_limited"), tr("Too many reports from this device. Try again later or save the report as a file."));
   } else if (r.status == 400 || r.status == 403) {
-    fail(QStringLiteral("rejected"), r.apiErrorMessage.isEmpty() ? tr("The Hub did not accept the report.") : r.apiErrorMessage);
+    fail(QStringLiteral("rejected"), r.apiErrorMessage.isEmpty() ? tr("The server did not accept the report.") : r.apiErrorMessage);
   } else if (r.status == 404) {
-    fail(QStringLiteral("unsupported"), tr("This Hub does not receive problem reports. Save the report as a file."));
+    fail(QStringLiteral("unsupported"), tr("This server does not receive problem reports. Save the report as a file."));
   } else if (r.status >= 500) {
-    fail(QStringLiteral("server"), tr("The Hub answered with an error (%1). Try again.").arg(r.status));
+    fail(QStringLiteral("server"), tr("The server answered with an error (%1). Try again.").arg(r.status));
   } else {
     const int pct = total_ > 0 ? static_cast<int>(sent_ * 100 / total_) : 0;
     fail(QStringLiteral("network"), tr("Upload stopped at %1 % (connection lost). Your text is kept.").arg(pct));

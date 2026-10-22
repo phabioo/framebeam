@@ -122,7 +122,7 @@ class SaveHistoryUiTest : public QObject {
     QVERIFY(hist->history().size() == 2);
     hist->requestRestore(1);
     hist->confirmRestore();
-    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("changed on the Hub")), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("changed on the server")), 8000);
     QVERIFY(hist->messageIsError());
     QCOMPARE(hub.restoreCount, 1);
     QCOMPARE(hub.saves.value(QStringLiteral("g1")).content, QByteArray("changed-elsewhere"));
@@ -229,7 +229,7 @@ class SaveHistoryUiTest : public QObject {
                            {QStringLiteral("revision"), 2},
                            {QStringLiteral("sha256"), QString(64, QLatin1Char('a'))},
                            {QStringLiteral("device_id"), QStringLiteral("00000000-0000-0000-0000-000000000000")},
-                           {QStringLiteral("device_name"), QStringLiteral("Hub web interface")},
+                           {QStringLiteral("device_name"), QStringLiteral("Server web interface")},
                            {QStringLiteral("reason"), QStringLiteral("conflict_resolution")}});
     QTRY_COMPARE_WITH_TIMEOUT(hist->history().size(), 1, 8000);
     QVERIFY(hist->notice().isEmpty());
@@ -317,7 +317,7 @@ class SaveHistoryUiTest : public QObject {
     hub.setHubSave(QStringLiteral("g1"), "changed-elsewhere");
     hist->requestUploadFile(picked);
     hist->confirmUploadFile();
-    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("changed on the Hub")), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("changed on the server")), 8000);
     QVERIFY(hist->messageIsError());
     QCOMPARE(hub.uploadCount, 1);
   }

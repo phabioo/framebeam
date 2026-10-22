@@ -76,7 +76,7 @@ Rectangle {
                     name: root.entry.name || ""
                     icon: root.entry.icon || ""
                 }
-                FbLabel {
+                UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "pluginScreenSheetTitle"
                     Layout.fillWidth: true
@@ -87,7 +87,7 @@ Rectangle {
                     font.weight: Font.DemiBold
                     color: Theme.gameText
                 }
-                FbMono {
+                UzMono {
                     textFormat: Text.PlainText
                     text: "Esc"
                     font.pixelSize: 11
@@ -109,7 +109,7 @@ Rectangle {
                 anchors.leftMargin: 20
                 anchors.rightMargin: 16
                 spacing: 10
-                FbLabel {
+                UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     Layout.fillWidth: true
                     text: qsTr("Paused · showing its last state")
@@ -152,7 +152,7 @@ Rectangle {
                 enabled: !root.paused
                 onAction: (a, v) => root.player.plugins.sendAction(root.pluginId, "screen", a, v)
             }
-            FbLabel {
+            UzLabel {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 x: 24
                 y: 24

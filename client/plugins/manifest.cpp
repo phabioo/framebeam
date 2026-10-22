@@ -307,7 +307,7 @@ ManifestResult parseManifest(const QByteArray& json, const QString& pluginDir) {
     return fail(QStringLiteral("manifest field 'api' must be an integer"));
   m.api = apiV.toInt();
   if (m.api != kPluginApiVersion)
-    return fail(QStringLiteral("%1 needs plugin API %2; this Player supports API %3").arg(nameForMsg).arg(m.api).arg(kPluginApiVersion));
+    return fail(QStringLiteral("%1 needs plugin API %2; this app supports API %3").arg(nameForMsg).arg(m.api).arg(kPluginApiVersion));
 
   if (QString e = str("id", m.id, true); !e.isEmpty()) return fail(e);
   if (!validId(m.id))

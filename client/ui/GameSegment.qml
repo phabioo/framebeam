@@ -46,7 +46,7 @@ Rectangle {
     Layout.alignment: Qt.AlignVCenter
     implicitHeight: 32
     implicitWidth: row.implicitWidth + 6
-    radius: 7
+    radius: 0
     color: Theme.gameTrack
     border.width: bordered ? 1 : 0
     border.color: Theme.gameDivider
@@ -73,7 +73,7 @@ Rectangle {
                 Layout.preferredWidth: implicitWidth   // stretch: the longest label gets the most room, so it truncates last ("Hub us…", R-P6)
                 clip: true
                 implicitWidth: segLabel.implicitWidth + 2 * root.padX
-                radius: 5
+                radius: 0
                 color: active ? Theme.gameSegmentOn : (segHover.hovered && !off ? Theme.gameHover : "transparent")
                 Accessible.role: Accessible.Button
                 Accessible.name: modelData.label

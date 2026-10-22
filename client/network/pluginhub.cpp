@@ -220,14 +220,14 @@ void PluginHubClient::download(const QString& pluginId, const QString& version, 
   }
   if (!supported()) {
     res.problem = QStringLiteral("not_supported");
-    res.detail = QStringLiteral("this Hub does not offer plugins");
+    res.detail = QStringLiteral("this server does not offer plugins");
     finishLater(res);
     return;
   }
   QNetworkReply* reply = conn_->authorizedGet(QStringLiteral("/plugins/%1/%2/file").arg(pluginId, version));
   if (reply == nullptr) {
     res.problem = QStringLiteral("download_failed");
-    res.detail = QStringLiteral("Not connected to the Hub");
+    res.detail = QStringLiteral("Not connected to the server");
     finishLater(res);
     return;
   }
@@ -243,7 +243,7 @@ void PluginHubClient::download(const QString& pluginId, const QString& version, 
     if (r.status == 401 && conn_) conn_->noteUnauthorized();
     if (r.status == 404) {
       res.problem = QStringLiteral("not_on_hub");
-      res.detail = QStringLiteral("the Hub does not offer %1 %2").arg(res.id, res.version);
+      res.detail = QStringLiteral("the server does not offer %1 %2").arg(res.id, res.version);
     } else if (!r.ok()) {
       res.problem = aborted ? QStringLiteral("too_large") : QStringLiteral("download_failed");
       res.detail = r.networkError ? r.errorString : (r.apiErrorCode.isEmpty() ? QStringLiteral("HTTP %1").arg(r.status) : r.apiErrorCode);
@@ -253,7 +253,7 @@ void PluginHubClient::download(const QString& pluginId, const QString& version, 
       res.problem = QStringLiteral("invalid_size");
     } else if (QString::fromLatin1(QCryptographicHash::hash(r.body, QCryptographicHash::Sha256).toHex()) != pin) {
       res.problem = QStringLiteral("invalid_hash");
-      res.detail = QStringLiteral("the file does not match the SHA-256 the Hub announced");
+      res.detail = QStringLiteral("the file does not match the SHA-256 the server announced");
     } else {
       res.ok = true;
       res.bytes = r.body;

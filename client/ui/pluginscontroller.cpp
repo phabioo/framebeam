@@ -84,7 +84,7 @@ QString statusText(const QString& key) {
 
 QString originText(const QString& origin) {
   if (origin == QLatin1String("official")) return PluginsController::tr("✓ Official");
-  if (origin == QLatin1String("unverified")) return PluginsController::tr("Hub upload · unverified");
+  if (origin == QLatin1String("unverified")) return PluginsController::tr("Server upload · unverified");
   return PluginsController::tr("Local file");
 }
 
@@ -93,7 +93,7 @@ QString permissionLabel(const QString& p) {
   if (p == QLatin1String("memory.read")) return PluginsController::tr("Read game memory");
   if (p == QLatin1String("rom.read")) return PluginsController::tr("Read your game file");
   if (p == QLatin1String("ui")) return PluginsController::tr("Show panels in game");
-  if (p == QLatin1String("run.state")) return PluginsController::tr("Share run progress with your Hub");
+  if (p == QLatin1String("run.state")) return PluginsController::tr("Share run progress with your server");
   if (p == QLatin1String("video.capture")) return PluginsController::tr("Capture the game picture");
   if (p == QLatin1String("memory.write")) return PluginsController::tr("Change game memory");
   return p;
@@ -345,7 +345,7 @@ void PluginsController::onDelivered(const plugins::DeliveryResult& r) {
   }
   if (r.ok) {
     const auto info = manager_->info(r.id);
-    QString text = tr("Installed %1 %2 from your Hub. It is off until you turn it on.").arg(info ? info->manifest.name : r.id, r.version);
+    QString text = tr("Installed %1 %2 from your server. It is off until you turn it on.").arg(info ? info->manifest.name : r.id, r.version);
     if (r.origin == QLatin1String("unverified")) text += QLatin1Char(' ') + tr("Uzume has not checked this plugin.");
     if (!r.signatureNote.isEmpty()) text += QLatin1Char(' ') + tr("Its signature is not valid, so it is not treated as Official.");
     if (!r.addedPermissions.isEmpty())
@@ -462,8 +462,8 @@ void PluginsController::refreshPlugins() {
       // "Needs Player 0.16.4" (manifest field min_player, e.g. after going back to an older Player).
       static const QRegularExpression needsPlayer(QStringLiteral("^Needs Player (\\S+)$"));
       if (const auto np = needsPlayer.match(pr); np.hasMatch()) {
-        pr = p.enabled ? tr("Off · Needs Player %1. Turns on again after you update.").arg(np.captured(1))
-                       : tr("Needs Player %1. Cannot be turned on until you update.").arg(np.captured(1));
+        pr = p.enabled ? tr("Off · Needs Uzume %1. Turns on again after you update.").arg(np.captured(1))
+                       : tr("Needs Uzume %1. Cannot be turned on until you update.").arg(np.captured(1));
         continue;
       }
       static const QRegularExpression notInstalled(QStringLiteral("^needs (\\S+), not installed$"));

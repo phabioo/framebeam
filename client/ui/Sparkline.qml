@@ -47,7 +47,7 @@ Item {
             if (t.length < 2) return
 
             // area under the total line
-            ctx.fillStyle = Qt.rgba(60 / 255, 191 / 255, 216 / 255, 0.14)
+            ctx.fillStyle = Theme.withAlpha(Theme.accent, 0.14)
             ctx.beginPath()
             ctx.moveTo(0, h)
             for (var a = 0; a < t.length; ++a) ctx.lineTo(xpos(a, t.length), ypos(t[a]))
@@ -82,8 +82,8 @@ Item {
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         spacing: 10
-        FbMono { text: qsTr("— frame"); font.pixelSize: 10; color: Theme.textTile }
-        FbMono { text: qsTr("— emu"); font.pixelSize: 10; color: Theme.textTile }
-        FbMono { text: qsTr("- - %1 ms").arg(root.targetMs.toFixed(1)); font.pixelSize: 10; color: Theme.textTile }
+        UzMono { text: qsTr("— frame"); font.pixelSize: 10; color: Theme.textTile }
+        UzMono { text: qsTr("— emu"); font.pixelSize: 10; color: Theme.textTile }
+        UzMono { text: qsTr("- - %1 ms").arg(root.targetMs.toFixed(1)); font.pixelSize: 10; color: Theme.textTile }
     }
 }

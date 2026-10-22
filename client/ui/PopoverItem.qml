@@ -15,7 +15,7 @@ Rectangle {
     signal activated()
 
     implicitHeight: 32 + (divider ? 3 : 0)
-    radius: 6
+    radius: 0
     color: "transparent"
     Accessible.role: Accessible.MenuItem
     Accessible.name: text
@@ -24,7 +24,7 @@ Rectangle {
     Rectangle {
         anchors.fill: parent
         anchors.topMargin: root.divider ? 3 : 0
-        radius: 6
+        radius: 0
         color: hover.hovered ? Theme.gameSegmentOn : "transparent"
         RowLayout {
             anchors.fill: parent
@@ -38,7 +38,7 @@ Rectangle {
                 Text { visible: root.glyph !== ""; anchors.centerIn: parent; text: root.glyph; font.pixelSize: 14; color: Theme.gameText }
                 GameIcon { visible: root.iconKind !== ""; anchors.centerIn: parent; kind: root.iconKind; color: root.current ? Theme.gameText : Theme.gameTextMuted }
             }
-            FbLabel {
+            UzLabel {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 elide: Text.ElideRight
@@ -48,7 +48,7 @@ Rectangle {
                 font.weight: root.current ? Font.Medium : Font.Normal
                 color: root.current ? Theme.gameText : Theme.gameBadgeText
             }
-            FbLabel {
+            UzLabel {
                 visible: root.trailing !== "" || root.current
                 text: root.trailing !== "" ? root.trailing : "✓"
                 font.pixelSize: 11

@@ -57,9 +57,9 @@ ColumnLayout {
             // current: 12px filled with a 3px gap ring and a 1px accent ring
             Rectangle {
                 visible: root.isCurrent
-                x: 4; y: 14; width: 12; height: 12; radius: 6
+                x: 4; y: 14; width: 12; height: 12; radius: 0
                 color: Theme.accent
-                Rectangle { anchors.centerIn: parent; width: 18; height: 18; radius: 9; color: "transparent"; border.width: 1; border.color: Theme.accent }
+                Rectangle { anchors.centerIn: parent; width: 18; height: 18; radius: 0; color: "transparent"; border.width: 1; border.color: Theme.accent }
             }
             // snapshot: 9px diamond
             Rectangle {
@@ -71,7 +71,7 @@ ColumnLayout {
             // other: 10px hollow, 2px border
             Rectangle {
                 visible: !root.isCurrent && !root.isSnap
-                x: 5; y: 15; width: 10; height: 10; radius: 5
+                x: 5; y: 15; width: 10; height: 10; radius: 0
                 color: Theme.bgPanel
                 border.width: 2
                 border.color: Theme.textTile
@@ -91,7 +91,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 spacing: 8
-                FbMono {
+                UzMono {
                     objectName: "historyTitle"
                     text: root.versionText
                     color: Theme.text
@@ -100,17 +100,17 @@ ColumnLayout {
                 }
                 Rectangle {
                     visible: root.isCurrent
-                    height: 20; width: curText.implicitWidth + 16; radius: 10
+                    height: 20; width: curText.implicitWidth + 16; radius: 0
                     color: Theme.okBg
                     Text { id: curText; anchors.centerIn: parent; text: qsTr("✓ Current"); font.pixelSize: Theme.fontMono; font.weight: Font.DemiBold; color: Theme.ok }
                 }
                 Rectangle {
                     visible: root.isSnap
-                    height: 20; width: snapText.implicitWidth + 16; radius: 10
+                    height: 20; width: snapText.implicitWidth + 16; radius: 0
                     color: Theme.accentChipBg
-                    Text { id: snapText; anchors.centerIn: parent; text: qsTr("◆ Snapshot"); font.pixelSize: Theme.fontMono; font.weight: Font.DemiBold; color: Theme.accent }
+                    Text { id: snapText; anchors.centerIn: parent; text: qsTr("◆ Snapshot"); font.pixelSize: Theme.fontMono; font.weight: Font.DemiBold; color: Theme.accentText }
                 }
-                FbLabel {
+                UzLabel {
                     visible: root.label !== ""
                     objectName: "historyLabel"
                     width: Math.min(implicitWidth, textCol.width)
@@ -120,7 +120,7 @@ ColumnLayout {
                     elide: Text.ElideRight
                 }
             }
-            FbLabel {
+            UzLabel {
                 objectName: "historyMeta"
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
@@ -204,16 +204,16 @@ ColumnLayout {
             Column {
                 width: parent.width
                 spacing: 3
-                FbLabel {
+                UzLabel {
                     objectName: "confirmTitle"
                     width: parent.width
                     wrapMode: Text.WordWrap
                     text: root.confirmTitle
                     font.pixelSize: Theme.fontSmall
                     font.weight: Font.DemiBold
-                    color: root.confirm === "delete" ? Theme.error : Theme.accent
+                    color: root.confirm === "delete" ? Theme.error : Theme.accentText
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "confirmBody"
                     width: parent.width
                     wrapMode: Text.WordWrap
@@ -242,7 +242,7 @@ ColumnLayout {
                     TapHandler { id: okTap; onTapped: root.confirmed() }
                     Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.confirmed(); event.accepted = true } }
                 }
-                FbButton {
+                UzButton {
                     id: cancelBtn
                     objectName: root.confirm === "delete" ? "deleteCancel" : "restoreCancel"
                     implicitHeight: 30

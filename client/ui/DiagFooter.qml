@@ -28,11 +28,11 @@ ColumnLayout {
             visible: root.hotkey !== ""
             implicitWidth: keyLabel.implicitWidth + 8
             implicitHeight: keyLabel.implicitHeight + 2
-            radius: 3
+            radius: 0
             color: "transparent"
             border.width: 1
             border.color: Theme.gameKeyLine
-            FbMono { id: keyLabel; anchors.centerIn: parent; text: root.hotkey; font.pixelSize: 10; font.weight: Font.Medium; color: Theme.gameTextMuted }
+            UzMono { id: keyLabel; anchors.centerIn: parent; text: root.hotkey; font.pixelSize: 10; font.weight: Font.Medium; color: Theme.gameTextMuted }
         }
         TapHandler { onTapped: root.hideRequested() }
     }

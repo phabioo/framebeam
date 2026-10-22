@@ -104,14 +104,14 @@ Item {
             visible: modelData !== root.pipCorner
             x: modelData.charAt(1) === "l" ? root.pipInset : root.width - root.pipInset - width
             y: modelData.charAt(0) === "t" ? root.pipInset : root.height - root.pipInset - height
-            width: 60; height: 40; radius: 6
+            width: 60; height: 40; radius: 0
             color: "transparent"
             border.width: 1
-            border.color: "#3a3b40"
+            border.color: Theme.gameKeyLine
             z: 1
         }
     }
-    FbLabel {
+    UzLabel {
         objectName: "pipDragHint"
         visible: root.layoutMode === "pip" && root.pipDragging
         anchors.horizontalCenter: parent.horizontalCenter
@@ -163,8 +163,8 @@ Item {
             Rectangle {
                 id: surfaceBg
                 anchors.fill: parent
-                radius: 10
-                color: tapHover.hovered && !tile.pipTile ? "#16171a" : (tile.pipTile ? "#17181b" : Theme.gameTileBody)
+                radius: 0
+                color: tapHover.hovered && !tile.pipTile ? Theme.gameHover : (tile.pipTile ? Theme.gameTile : Theme.gameTileBody)
                 border.width: tile.multiple ? 2 : 0
                 border.color: tile.pipTile ? Theme.gamePopoverBorder : Theme.gameTileEdge
             }
@@ -245,7 +245,7 @@ Item {
                 objectName: "tileSelection_" + tile.modelData
                 visible: tile.picked && tile.multiple
                 anchors.fill: parent
-                radius: 10
+                radius: 0
                 color: "transparent"
                 border.width: 2
                 border.color: Theme.gameAccent
@@ -284,7 +284,7 @@ Item {
                 x: stripLoader.x + (stripLoader.item ? stripLoader.item.width : 0) + 4
                 y: stripLoader.y
                 z: 6
-                width: 20; height: 20; radius: 5
+                width: 20; height: 20; radius: 0
                 color: moreHover.hovered ? Theme.gameSegmentOn : Theme.gameChip
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Choose the strip")
@@ -318,11 +318,11 @@ Item {
                 Rectangle {
                     objectName: "keyBadge_" + tile.modelData
                     visible: tile.multiple
-                    Layout.preferredWidth: 22; Layout.preferredHeight: 20; radius: 4
+                    Layout.preferredWidth: 22; Layout.preferredHeight: 20; radius: 0
                     color: Theme.gameBadge
-                    FbMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
+                    UzMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
                 }
-                FbLabel {
+                UzLabel {
                     id: chipText
                     objectName: "nameChip_" + tile.modelData
                     visible: tile.multiple || !tile.isLocal
@@ -339,18 +339,18 @@ Item {
                     visible: tile.audible && tile.multiple
                     Layout.preferredWidth: audioText.implicitWidth + 16
                     Layout.preferredHeight: 20
-                    radius: 10
+                    radius: 0
                     color: Theme.gameOnBg
-                    FbLabel { id: audioText; anchors.centerIn: parent; text: tile.width < 300 ? qsTr("♪") : qsTr("♪ Audio"); font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.gameAccent }
+                    UzLabel { id: audioText; anchors.centerIn: parent; text: tile.width < 300 ? qsTr("♪") : qsTr("♪ Audio"); font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.gameAccent }
                 }
                 Rectangle {
                     objectName: "pausedPill_" + tile.modelData
                     visible: tile.paused
                     Layout.preferredWidth: pausedText.implicitWidth + 16
                     Layout.preferredHeight: 20
-                    radius: 10
+                    radius: 0
                     color: Theme.gameBadge
-                    FbLabel { id: pausedText; anchors.centerIn: parent; text: qsTr("Paused"); font.pixelSize: 11; color: "#d0d0d4" }
+                    UzLabel { id: pausedText; anchors.centerIn: parent; text: qsTr("Paused"); font.pixelSize: 11; color: Theme.gameBadgeText }
                 }
             }
 
@@ -367,9 +367,9 @@ Item {
                 Rectangle {
                     objectName: "pipKeyBadge_" + tile.modelData
                     visible: tile.pipTile
-                    Layout.preferredWidth: 22; Layout.preferredHeight: 20; radius: 4
+                    Layout.preferredWidth: 22; Layout.preferredHeight: 20; radius: 0
                     color: Theme.gameBadge
-                    FbMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
+                    UzMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
                 }
                 Row {
                     spacing: 2
@@ -378,9 +378,9 @@ Item {
                         delegate: Rectangle {
                             required property string modelData
                             objectName: "pipSize_" + modelData + "_" + tile.modelData
-                            width: 20; height: 20; radius: 4
+                            width: 20; height: 20; radius: 0
                             color: root.pipSize === modelData ? Theme.gameOnBg : "transparent"
-                            FbMono { anchors.centerIn: parent; text: parent.modelData; font.pixelSize: 10; color: root.pipSize === parent.modelData ? Theme.gameAccent : Theme.gameTextMuted }
+                            UzMono { anchors.centerIn: parent; text: parent.modelData; font.pixelSize: 10; color: root.pipSize === parent.modelData ? Theme.gameAccent : Theme.gameTextMuted }
                             TapHandler { onTapped: root.pipSize = parent.modelData }
                         }
                     }
@@ -388,9 +388,9 @@ Item {
                 Rectangle {
                     objectName: "pipAudioChip_" + tile.modelData
                     visible: tile.audible && tile.multiple
-                    Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 10
+                    Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 0
                     color: Theme.gameOnBg
-                    FbLabel { anchors.centerIn: parent; text: "♪"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.gameAccent }
+                    UzLabel { anchors.centerIn: parent; text: "♪"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.gameAccent }
                 }
                 Item { Layout.fillWidth: true }
                 GameButton {
@@ -413,7 +413,7 @@ Item {
                     onClicked: root.ctl.removeSurface(tile.modelData)
                 }
             }
-            FbLabel {
+            UzLabel {
                 visible: tile.pipTile
                 objectName: "pipCaption_" + tile.modelData
                 anchors.left: parent.left

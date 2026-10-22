@@ -532,12 +532,12 @@ class SaveSyncTest : public QObject {
     noFeature_ = true;
     connectAll();
     QVERIFY(!sync_->available());
-    QCOMPARE(sync_->note(), QStringLiteral("Hub does not support save sync"));
+    QCOMPARE(sync_->note(), QStringLiteral("Server does not support save sync"));
     writeFile(saveFile(), "local");
     QSignalSpy ready(sync_.get(), &SaveSync::startReady);
     sync_->prepareStart(kGame, kRom, {});
     QTRY_COMPARE(ready.count(), 1);
-    QCOMPARE(ready.at(0).at(2).toString(), QStringLiteral("Hub does not support save sync"));
+    QCOMPARE(ready.at(0).at(2).toString(), QStringLiteral("Server does not support save sync"));
     QCOMPARE(hub_->count(QStringLiteral("/api/v1/games/")), 0);
     QCOMPARE(hub_->count(QStringLiteral("/api/v1/saves")), 0);
     QCOMPARE(sync_->kind(kGame), SaveSync::Kind::None);
@@ -1051,7 +1051,7 @@ class SaveSyncTest : public QObject {
     QVERIFY(!spy.at(0).at(1).toBool());
     sync_->beginSession();
     u.deviceId = QStringLiteral("00000000-0000-0000-0000-000000000000");  // Hub web interface, any reason string
-    u.deviceName = QStringLiteral("Hub web interface");
+    u.deviceName = QStringLiteral("Server web interface");
     u.reason = QStringLiteral("conflict_resolution");
     sync_->handleSaveUpdate(u);
     QCOMPARE(spy.count(), 2);

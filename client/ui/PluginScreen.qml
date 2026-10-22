@@ -43,7 +43,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        Sidebar {
+        UzAppNav {
             Layout.fillHeight: true
             Layout.preferredWidth: Theme.sidebarWidth
             player: root.player
@@ -75,7 +75,7 @@ Rectangle {
                 ColumnLayout {
                     Layout.minimumWidth: 0
                     spacing: 4
-                    FbLabel {
+                    UzLabel {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginScreenTitle"
                         text: root.entry.title || ""
@@ -86,7 +86,7 @@ Rectangle {
                     }
                     RowLayout {
                         spacing: 8
-                        FbLabel {
+                        UzLabel {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             objectName: "pluginScreenName"
                             Layout.minimumWidth: 0
@@ -95,7 +95,7 @@ Rectangle {
                             font.pixelSize: Theme.fontMeta
                             color: Theme.textMuted
                         }
-                        FbMono {
+                        UzMono {
                             textFormat: Text.PlainText
                             objectName: "pluginScreenVersion"
                             visible: (root.info.version || "") !== ""
@@ -110,7 +110,7 @@ Rectangle {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                FbButton {
+                UzButton {
                     textFormat: Text.PlainText
                     objectName: "pluginScreenSettings"
                     implicitHeight: 36
@@ -167,12 +167,12 @@ Rectangle {
                                     spacing: 2
                                     RowLayout {
                                         spacing: 8
-                                        FbLabel { textFormat: Text.PlainText; text: runRow.modelData.name; font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.maximumWidth: 360 }
-                                        FbPill { textFormat: Text.PlainText; small: true; tone: runRow.modelData.tone; text: runRow.modelData.statusText }
+                                        UzLabel { textFormat: Text.PlainText; text: runRow.modelData.name; font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.maximumWidth: 360 }
+                                        UzTag { textFormat: Text.PlainText; small: true; tone: runRow.modelData.tone; text: runRow.modelData.statusText }
                                     }
-                                    FbLabel { textFormat: Text.PlainText; Layout.fillWidth: true; text: runRow.modelData.subText; color: Theme.textMuted; font.pixelSize: Theme.fontMeta; elide: Text.ElideRight }
+                                    UzLabel { textFormat: Text.PlainText; Layout.fillWidth: true; text: runRow.modelData.subText; color: Theme.textMuted; font.pixelSize: Theme.fontMeta; elide: Text.ElideRight }
                                 }
-                                FbButton {
+                                UzButton {
                                     textFormat: Text.PlainText
                                     objectName: "pluginScreenOpenRun"
                                     implicitHeight: 32
@@ -182,7 +182,7 @@ Rectangle {
                             }
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginScreenRunsHint"
                         visible: root.runRows.length > 0
@@ -196,7 +196,7 @@ Rectangle {
                         objectName: "pluginScreenRunsEmpty"
                         visible: root.runRows.length === 0
                         Layout.fillWidth: true
-                        FbLabel {
+                        UzLabel {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             Layout.fillWidth: true
                             text: qsTr("No %1 runs yet. Start a run with %2 in Runs.").arg(root.entry.title || "").arg(root.entry.name || "")
@@ -204,7 +204,7 @@ Rectangle {
                             font.pixelSize: Theme.fontSmall
                             wrapMode: Text.WordWrap
                         }
-                        FbButton { textFormat: Text.PlainText; objectName: "pluginScreenGoToRuns"; kind: "link"; text: qsTr("Go to Runs"); onClicked: root.player.showRuns() }
+                        UzButton { textFormat: Text.PlainText; objectName: "pluginScreenGoToRuns"; kind: "link"; text: qsTr("Go to Runs"); onClicked: root.player.showRuns() }
                     }
                 }
                 PluginBlock {

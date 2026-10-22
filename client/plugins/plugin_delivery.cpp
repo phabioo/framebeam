@@ -11,10 +11,10 @@ namespace {
 
 QString problemText(const PluginDownloadResult& r) {
   if (r.problem == QLatin1String("invalid_hash") || r.problem == QLatin1String("invalid_size"))
-    return QStringLiteral("The downloaded file does not match what the Hub announced. Nothing was installed.");
-  if (r.problem == QLatin1String("too_large")) return QStringLiteral("The plugin file from the Hub is too large. Nothing was installed.");
-  if (r.problem == QLatin1String("not_on_hub")) return QStringLiteral("The Hub does not offer this plugin version (any more).");
-  if (r.problem == QLatin1String("not_supported")) return QStringLiteral("This Hub does not offer plugins.");
+    return QStringLiteral("The downloaded file does not match what the server announced. Nothing was installed.");
+  if (r.problem == QLatin1String("too_large")) return QStringLiteral("The plugin file from the server is too large. Nothing was installed.");
+  if (r.problem == QLatin1String("not_on_hub")) return QStringLiteral("The server does not offer this plugin version (any more).");
+  if (r.problem == QLatin1String("not_supported")) return QStringLiteral("This server does not offer plugins.");
   return QStringLiteral("Could not download the plugin: %1").arg(r.detail.isEmpty() ? QStringLiteral("connection problem") : r.detail);
 }
 
@@ -64,7 +64,7 @@ void PluginDelivery::install(const QString& pluginId, const QString& version) {
   for (const HubPluginInfo& p : hub_->plugins())
     if (p.id == pluginId && p.version == version) offered = &p;
   if (offered == nullptr) {
-    emitFail(QStringLiteral("not_on_hub"), QStringLiteral("The Hub does not offer %1 %2.").arg(pluginId, version));
+    emitFail(QStringLiteral("not_on_hub"), QStringLiteral("The server does not offer %1 %2.").arg(pluginId, version));
     return;
   }
   fetch(pluginId, version, offered->sha256, offered->size, [this](const DeliveryResult& r) { emit finished(r); });

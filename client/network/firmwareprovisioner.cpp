@@ -15,7 +15,7 @@ FirmwareProvisioner::FirmwareProvisioner(HubConnection* connection, FirmwareCach
     if (s != HubConnection::State::Connected && busy_) {
       ++generation_;  // pending replies are aborted by the connection and ignored
       result_.ok = false;
-      result_.problems.append({QString(), QString(), QStringLiteral("download_failed"), QStringLiteral("Connection to the Hub lost")});
+      result_.problems.append({QString(), QString(), QStringLiteral("download_failed"), QStringLiteral("Connection to the server lost")});
       done();
     }
   });
@@ -78,7 +78,7 @@ void FirmwareProvisioner::next() {
     }
   };
   if (reply == nullptr) {
-    problem(QStringLiteral("download_failed"), QStringLiteral("Not connected to the Hub"));
+    problem(QStringLiteral("download_failed"), QStringLiteral("Not connected to the server"));
     next();
     return;
   }
@@ -107,10 +107,10 @@ void FirmwareProvisioner::next() {
           result_.pathsById.insert(f.id, cache_->path(system_.id, f.sha256));
           break;
         case FirmwareCache::StoreResult::SizeMismatch:
-          problem(QStringLiteral("invalid_size"), QStringLiteral("size differs from the Hub registry"));
+          problem(QStringLiteral("invalid_size"), QStringLiteral("size differs from the server registry"));
           break;
         case FirmwareCache::StoreResult::HashMismatch:
-          problem(QStringLiteral("invalid_hash"), QStringLiteral("SHA-256 differs from the Hub registry"));
+          problem(QStringLiteral("invalid_hash"), QStringLiteral("SHA-256 differs from the server registry"));
           break;
         default:
           problem(QStringLiteral("download_failed"), QStringLiteral("cache write failed"));

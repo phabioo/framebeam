@@ -247,15 +247,15 @@ Rectangle {
             anchors.fill: parent
             anchors.leftMargin: 20
             anchors.rightMargin: 12
-            FbLabel {
+            UzLabel {
                 id: noticeText
                 Layout.fillWidth: true
                 text: root.player.saveHistory.notice
                 wrapMode: Text.WordWrap
                 font.pixelSize: 13
-                color: Theme.accent
+                color: Theme.accentText
             }
-            FbButton { kind: "link"; focusPolicy: Qt.NoFocus; text: qsTr("Dismiss"); onClicked: root.player.saveHistory.dismissNotice() }
+            UzButton { kind: "link"; focusPolicy: Qt.NoFocus; text: qsTr("Dismiss"); onClicked: root.player.saveHistory.dismissNotice() }
         }
     }
 
@@ -293,7 +293,7 @@ Rectangle {
                         focus: true
                         onEscapePressed: root.handleEscape()
 
-                        FbLabel {
+                        UzLabel {
                             anchors.centerIn: parent
                             visible: !root.session.hasFrame && root.session.state !== GameSession.Failed
                             text: qsTr("Starting emulator…")
@@ -314,9 +314,9 @@ Rectangle {
                             anchors.leftMargin: belowDiag ? diagBottomLeft.x : 12
                             width: ffLabel.implicitWidth + 20
                             height: ffLabel.implicitHeight + 10
-                            radius: 6
+                            radius: 0
                             color: "#99000000"
-                            FbLabel {
+                            UzLabel {
                                 id: ffLabel
                                 anchors.centerIn: parent
                                 text: qsTr("Speed-up ×%1").arg(Math.round(root.session.fastForwardRatio * 10) / 10)
@@ -345,16 +345,16 @@ Rectangle {
                             anchors.fill: parent
                             anchors.leftMargin: 20
                             anchors.rightMargin: 12
-                            FbLabel {
+                            UzLabel {
                                 Layout.fillWidth: true
                                 text: root.ctl.message
                                 color: root.ctl.messageIsError ? Theme.errorText : Theme.gameText
                                 font.pixelSize: 13
                             }
-                            FbButton { kind: "link"; focusPolicy: Qt.NoFocus; text: qsTr("Dismiss"); onClicked: root.ctl.dismissMessage() }
+                            UzButton { kind: "link"; focusPolicy: Qt.NoFocus; text: qsTr("Dismiss"); onClicked: root.ctl.dismissMessage() }
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.alignment: Qt.AlignHCenter
                         Layout.margins: 20
                         visible: !root.session.active && !root.ctl.watching
@@ -392,8 +392,8 @@ Rectangle {
                         width: Math.min(380, parent.width - 32)
                         implicitHeight: pauseCol.implicitHeight + 48
                         height: implicitHeight
-                        radius: 14
-                        color: Qt.rgba(18 / 255, 19 / 255, 20 / 255, 0.92)
+                        radius: 0
+                        color: Theme.withAlpha(Theme.sumi.ground, 0.92)
                         border.width: 1
                         border.color: Theme.gameDivider
                         ColumnLayout {
@@ -405,7 +405,7 @@ Rectangle {
                             anchors.leftMargin: 32
                             anchors.rightMargin: 32
                             spacing: 8
-                            FbLabel {
+                            UzLabel {
                                 objectName: "pauseTitle"
                                 Layout.alignment: Qt.AlignHCenter
                                 text: qsTr("Paused")
@@ -413,7 +413,7 @@ Rectangle {
                                 font.weight: Font.DemiBold
                                 color: Theme.gameText
                             }
-                            FbLabel {
+                            UzLabel {
                                 objectName: "pauseDetail"
                                 Layout.fillWidth: true
                                 horizontalAlignment: Text.AlignHCenter
@@ -452,7 +452,7 @@ Rectangle {
                                     onClicked: root.setFullscreen(false)
                                 }
                             }
-                            FbLabel {
+                            UzLabel {
                                 objectName: "pauseHint"
                                 Layout.fillWidth: true
                                 horizontalAlignment: Text.AlignHCenter
@@ -539,7 +539,7 @@ Rectangle {
             Column {
                 width: parent.width
                 spacing: 4
-                FbLabel {
+                UzLabel {
                     objectName: "resetTitle"
                     width: parent.width
                     wrapMode: Text.WordWrap
@@ -548,7 +548,7 @@ Rectangle {
                     font.weight: Font.DemiBold
                     color: Theme.gameText
                 }
-                FbLabel {
+                UzLabel {
                     width: parent.width
                     wrapMode: Text.WordWrap
                     lineHeight: 1.2
@@ -565,24 +565,24 @@ Rectangle {
                     objectName: "resetConfirm"
                     width: confirmLabel.implicitWidth + 24
                     height: 30
-                    radius: 6
+                    radius: 0
                     color: Theme.gameDanger
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Reset")
-                    FbLabel { id: confirmLabel; anchors.centerIn: parent; text: qsTr("Reset"); font.pixelSize: 13; font.weight: Font.DemiBold; color: "#161512" }
+                    UzLabel { id: confirmLabel; anchors.centerIn: parent; text: qsTr("Reset"); font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.inkOnAccent }
                     TapHandler { onTapped: { root.session.reset(); root.closePopover() } }
                 }
                 Rectangle {
                     objectName: "resetCancel"
                     width: cancelLabel.implicitWidth + 24
                     height: 30
-                    radius: 6
+                    radius: 0
                     color: "transparent"
                     border.width: 1
                     border.color: Theme.gameKeyLine
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Cancel")
-                    FbLabel { id: cancelLabel; anchors.centerIn: parent; text: qsTr("Cancel"); font.pixelSize: 13; color: Theme.gameText }
+                    UzLabel { id: cancelLabel; anchors.centerIn: parent; text: qsTr("Cancel"); font.pixelSize: 13; color: Theme.gameText }
                     TapHandler { onTapped: root.closePopover() }
                 }
             }
@@ -638,7 +638,7 @@ Rectangle {
                     onActivated: { root.ctl.screenLayout = modelData; root.closePopover() }
                 }
             }
-            FbLabel {
+            UzLabel {
                 width: parent.width
                 topPadding: 4
                 bottomPadding: 6
@@ -753,8 +753,8 @@ Rectangle {
         z: 10
         implicitWidth: chipRow.implicitWidth + 20
         implicitHeight: 28
-        radius: 7
-        color: Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.8)
+        radius: 0
+        color: Theme.withAlpha(Theme.sumi.ground, 0.8)
         RowLayout {
             id: chipRow
             anchors.centerIn: parent
@@ -763,13 +763,13 @@ Rectangle {
                 visible: root.hotkeyLabels.diagnostics !== ""
                 implicitWidth: chipKey.implicitWidth + 10
                 implicitHeight: 16
-                radius: 3
+                radius: 0
                 color: "transparent"
                 border.width: 1
                 border.color: Theme.borderButton
-                FbMono { id: chipKey; anchors.centerIn: parent; text: root.hotkeyLabels.diagnostics; font.pixelSize: 10; color: Theme.textMuted }
+                UzMono { id: chipKey; anchors.centerIn: parent; text: root.hotkeyLabels.diagnostics; font.pixelSize: 10; color: Theme.textMuted }
             }
-            FbLabel { text: qsTr("Diagnostics"); font.pixelSize: 12; color: Theme.textMeta }
+            UzLabel { text: qsTr("Diagnostics"); font.pixelSize: 12; color: Theme.textMeta }
         }
         TapHandler { onTapped: root.diag.open = true }
     }
@@ -795,7 +795,7 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             implicitWidth: toolbarRow.implicitWidth + 20
             implicitHeight: 48
-            radius: 10
+            radius: 0
             color: Theme.toolbarBg
             border.width: 1
             border.color: Theme.borderInput
@@ -806,7 +806,7 @@ Rectangle {
                 anchors.leftMargin: 14
                 anchors.rightMargin: 6
                 spacing: 12
-                FbLabel {
+                UzLabel {
                     objectName: "fullscreenToolbarTitle"
                     text: root.tab === "session" ? (root.session.active ? root.session.title : qsTr("Session")) : root.modeTitle
                     font.pixelSize: 13
@@ -840,7 +840,7 @@ Rectangle {
             }
         }
     }
-    FbLabel {
+    UzLabel {
         objectName: "fullscreenHint"
         visible: root.fullscreen && !root.toolbarShown && hintTimer.running
         z: 20
@@ -861,8 +861,8 @@ Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         implicitWidth: toastText.implicitWidth + 24
         implicitHeight: 32
-        radius: 8
+        radius: 0
         color: Theme.toolbarBg
-        FbLabel { id: toastText; anchors.centerIn: parent; text: root.player.saveHistory.message; font.pixelSize: 13; color: Theme.gameText }
+        UzLabel { id: toastText; anchors.centerIn: parent; text: root.player.saveHistory.message; font.pixelSize: 13; color: Theme.gameText }
     }
 }

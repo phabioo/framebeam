@@ -67,7 +67,7 @@ class LibrarySortTest : public QObject {
     LibraryModel m;
     GameEntry local = game(QStringLiteral("b1"), QStringLiteral("Local Game"), 100, QStringLiteral("nds"), QString());
     local.onHub = false;
-    GameEntry hub = game(QStringLiteral("b2"), QStringLiteral("Hub Game"), 100, QStringLiteral("nds"), QString());
+    GameEntry hub = game(QStringLiteral("b2"), QStringLiteral("Server Game"), 100, QStringLiteral("nds"), QString());
     m.setGames({local, hub}, [](const GameEntry& g) {
       return g.onHub ? st(RomState::DownloadNeeded) : st(RomState::Missing);  // not on this device
     });

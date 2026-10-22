@@ -109,7 +109,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   });
   connect(registrar_.get(), &RomRegistrar::batchFinished, this, [this](int ok, int failed) {
     if (failed > 0) {
-      libraryScan_.insert(QStringLiteral("text"), (failed == 1 ? tr("1 file could not be registered with the Hub.") : tr("%1 files could not be registered with the Hub.").arg(failed)));
+      libraryScan_.insert(QStringLiteral("text"), (failed == 1 ? tr("1 file could not be registered with the server.") : tr("%1 files could not be registered with the server.").arg(failed)));
       libraryScan_.insert(QStringLiteral("isError"), true);
       emit libraryScanChanged();
     }
@@ -745,6 +745,7 @@ void PlayerController::refreshEmulationPage() {
 QString PlayerController::logFile() const { return QDir::toNativeSeparators(filelog::path()); }
 
 QString PlayerController::userName() const { return conn_->userDisplayName(); }
+bool PlayerController::isAdmin() const { return conn_->userRole() == QLatin1String("admin"); }
 QString PlayerController::deviceName() const { return profiles_->deviceName(); }
 QString PlayerController::playerVersion() const { return HandshakeInfo::detect().playerVersion; }
 QString PlayerController::platformText() const {
@@ -954,7 +955,7 @@ void PlayerController::setAutoConnect(bool on) {
 
 QString PlayerController::deviceFooter() const {
   const HandshakeInfo h = HandshakeInfo::detect();
-  return tr("This device: %1 · Player %2 · %3")
+  return tr("This device: %1 · Uzume %2 · %3")
       .arg(profiles_->deviceName(), h.playerVersion, platformLabel(h.platform, h.arch));
 }
 
@@ -962,7 +963,7 @@ void PlayerController::addHub(const QString& address) {
   notice_.clear();
   resumePage_.clear();
   if (address.trimmed().isEmpty()) {
-    notice_ = tr("Please enter a Hub address, e.g. hub.local:8443.");
+    notice_ = tr("Please enter a Server address, e.g. hub.local:8443.");
     emit hubsChanged();
     return;
   }
@@ -1066,13 +1067,13 @@ QString PlayerController::friendlyError(const QString& code, const QString& mess
     return tr("This invite code is not valid. It may have expired, been used already or been revoked.");
   }
   if (code == QLatin1String("display_name_taken")) {
-    return tr("This display name is already taken on the Hub. Please choose another one.");
+    return tr("This display name is already taken on the server. Please choose another one.");
   }
   if (code == QLatin1String("rate_limited")) {
     return tr("Too many attempts. Please wait a moment and try again.");
   }
   if (code == QLatin1String("not_found") && inviteBusy_) {
-    return tr("This Hub does not support invite codes.");
+    return tr("This server does not support invite codes.");
   }
   if (code == QLatin1String("invalid_input")) {
     return tr("Please enter the invite code and a display name of 1 to 32 characters.");
@@ -1216,6 +1217,11 @@ void PlayerController::showSettings() {
   updateScreen();
 }
 
+void PlayerController::showSettingsSection(const QString& section) {
+  showSettings();
+  emit settingsSectionRequested(section);
+}
+
 void PlayerController::showEmulation() {
   if (conn_->state() != HubConnection::State::Connected || (gameActive_ && !background_)) {
     return;
@@ -1342,7 +1348,7 @@ QVariantList PlayerController::coreWarnings() const {
     if (!missing) {
       mismatches.append(QVariantMap{{QStringLiteral("code"), p.code},
                                     {QStringLiteral("coreId"), p.coreId},
-                                    {QStringLiteral("text"), tr("%1 has a different version than this Hub expects. Games can still start, "
+                                    {QStringLiteral("text"), tr("%1 has a different version than this server expects. Games can still start, "
                                                                 "but may behave differently.").arg(ref.label)},
                                     {QStringLiteral("detail"), p.detail}});
       continue;
@@ -1362,7 +1368,7 @@ QVariantList PlayerController::coreWarnings() const {
   };
   QVariantList list;
   if (!download.isEmpty() && !dismissedCoreNotices_.contains(QStringLiteral("core_download"))) {
-    const QString hub = hubName().isEmpty() ? tr("the Hub") : hubName();
+    const QString hub = hubName().isEmpty() ? tr("the server") : hubName();
     list.append(QVariantMap{{QStringLiteral("code"), QStringLiteral("core_download")},
                             {QStringLiteral("coreId"), download.first().id},
                             {QStringLiteral("tone"), QStringLiteral("info")},
@@ -1374,7 +1380,7 @@ QVariantList PlayerController::coreWarnings() const {
     list.append(QVariantMap{{QStringLiteral("code"), QStringLiteral("core_missing")},
                             {QStringLiteral("coreId"), unavailable.first().id},
                             {QStringLiteral("tone"), QStringLiteral("warn")},
-                            {QStringLiteral("text"), tr("Not on this device and not offered by the Hub: %1. Games for these systems cannot start here.")
+                            {QStringLiteral("text"), tr("Not on this device and not offered by the server: %1. Games for these systems cannot start here.")
                                                          .arg(describe(unavailable))},
                             {QStringLiteral("detail"), QString()}});
   }

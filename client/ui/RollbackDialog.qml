@@ -27,7 +27,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.dark ? "#b3050506" : "#99000000"
+        color: Theme.scrim
     }
     MouseArea {
         anchors.fill: parent
@@ -57,7 +57,7 @@ Item {
                 anchors.margins: 28
                 spacing: 14
 
-                FbLabel {
+                UzLabel {
                     objectName: "rollbackTitle"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -66,15 +66,15 @@ Item {
                     font.weight: Font.DemiBold
                     wrapMode: Text.WordWrap
                 }
-                FbLabel {
+                UzLabel {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    text: qsTr("The Player closes, installs %1 and starts again. About 30 s.").arg(root.version)
+                    text: qsTr("Uzume closes, installs %1 and starts again. About 30 s.").arg(root.version)
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontBody
                     wrapMode: Text.WordWrap
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "rollbackBusy"
                     visible: root.updates.busy
                     Layout.fillWidth: true
@@ -84,7 +84,7 @@ Item {
                     font.pixelSize: Theme.fontBody
                     wrapMode: Text.WordWrap
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "rollbackUnsupported"
                     visible: !root.info.canGoBack
                     Layout.fillWidth: true
@@ -102,7 +102,7 @@ Item {
                         { name: "Settings", title: qsTr("Settings"),
                           text: qsTr("Kept. Newer settings are ignored and come back after the update.") },
                         { name: "Saves", title: qsTr("Saves and states"),
-                          text: qsTr("Not touched. They are on your Hub.") },
+                          text: qsTr("Not touched. They are on your server.") },
                         { name: "Plugins", title: qsTr("Plugins"),
                           text: root.info.pluginLines && root.info.pluginLines.length > 0
                                 ? root.info.pluginLines.join("\n") : qsTr("All keep working."),
@@ -116,14 +116,14 @@ Item {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 16
-                        FbLabel {
+                        UzLabel {
                             Layout.preferredWidth: 120
                             Layout.alignment: Qt.AlignTop
                             text: infoRow.modelData.title
                             color: Theme.textMeta
                             font.pixelSize: Theme.fontBody
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "rollbackRow" + infoRow.modelData.name
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -141,7 +141,7 @@ Item {
                     Layout.topMargin: 6
                     spacing: 10
                     Item { Layout.fillWidth: true; Layout.minimumWidth: 0 }
-                    FbButton {
+                    UzButton {
                         id: cancelButton
                         objectName: "rollbackCancel"
                         implicitHeight: 40
@@ -151,7 +151,7 @@ Item {
                         Keys.onReturnPressed: root.close()
                         onClicked: root.close()
                     }
-                    FbButton {
+                    UzButton {
                         id: goButton
                         objectName: "rollbackConfirm"
                         implicitHeight: 40

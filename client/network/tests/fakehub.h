@@ -69,7 +69,7 @@ class FakeHub : public QTcpServer {
 
   // Configuration
   QString hubId = QStringLiteral("hub-test-1");
-  QString name = QStringLiteral("Test Hub");
+  QString name = QStringLiteral("Test server");
   int protocolVersion = 1;
   int minProtocolVersion = 1;
   Decision decision = Decision::Pending;

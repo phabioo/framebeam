@@ -45,6 +45,7 @@ QJsonObject toJson(const HubProfile& p) {
   o.insert(QStringLiteral("address"), p.address);
   o.insert(QStringLiteral("hub_user_id"), p.hubUserId);
   o.insert(QStringLiteral("user_display_name"), p.userDisplayName);
+  o.insert(QStringLiteral("user_role"), p.userRole);
   o.insert(QStringLiteral("device_id"), p.deviceId);
   o.insert(QStringLiteral("credential_ref"), p.credentialRef);
   o.insert(QStringLiteral("pinned_fingerprint"), p.pinnedFingerprint);
@@ -61,6 +62,7 @@ HubProfile fromJson(const QJsonObject& o) {
   p.address = o.value(QStringLiteral("address")).toString();
   p.hubUserId = o.value(QStringLiteral("hub_user_id")).toString();
   p.userDisplayName = o.value(QStringLiteral("user_display_name")).toString();
+  p.userRole = o.value(QStringLiteral("user_role")).toString();
   p.deviceId = o.value(QStringLiteral("device_id")).toString();
   p.credentialRef = o.value(QStringLiteral("credential_ref")).toString();
   p.pinnedFingerprint = o.value(QStringLiteral("pinned_fingerprint")).toString();

@@ -44,7 +44,7 @@ class ScreensTest : public QObject {
     QCOMPARE(screenOf(h), QStringLiteral("connection"));
     QVERIFY(h.item("addressField") != nullptr);
     QVERIFY(h.controller->deviceFooter().startsWith(QStringLiteral("This device: ")));
-    QVERIFY(h.controller->deviceFooter().contains(QStringLiteral("Player ")));
+    QVERIFY(h.controller->deviceFooter().contains(QStringLiteral("Uzume ")));
     QCOMPARE(h.controller->hubs().size(), 0);
     // Empty address: notice instead of a connection attempt.
     h.controller->addHub(QStringLiteral("  "));
@@ -173,7 +173,7 @@ class ScreensTest : public QObject {
       if (v.toMap().value(QStringLiteral("hubId")).toString() == QLatin1String("hub-office")) card = v.toMap();
     }
     QCOMPARE(card.value(QStringLiteral("status")).toString(), QStringLiteral("incompatible"));
-    QCOMPARE(card.value(QStringLiteral("statusText")).toString(), QStringLiteral("Player too old"));
+    QCOMPARE(card.value(QStringLiteral("statusText")).toString(), QStringLiteral("App too old"));
     uitest::saveShot(h.window, QStringLiteral("3a-connection-incompatible"));
 
     // Remove works on every card (including the blocked one).
@@ -454,7 +454,9 @@ class ScreensTest : public QObject {
     }
 
     // Switch hub = disconnect and back to 3a.
-    QVERIFY(h.click("switchHubButton"));
+    QVERIFY(h.click("serverMenuButton"));
+    QTRY_VERIFY(h.item("menuItem_switchServer") != nullptr);
+    QVERIFY(h.click("menuItem_switchServer"));
     QTRY_COMPARE(screenOf(h), QStringLiteral("connection"));
     QCOMPARE(lib->totalCount(), 0);
     QCOMPARE(h.controller->hubs().size(), 1);

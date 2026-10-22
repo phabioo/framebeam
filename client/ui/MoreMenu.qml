@@ -3,7 +3,8 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// "⋯" button with a menu (round 3, sheet 0-2 "Row actions"): 30 x 30, the last column of a row. Items are
+// "⋯" button with a menu (design system "Menu": `surface` plane, 1 px `rule` frame, 32 px items, danger item in the danger text,
+// no shadow): 30 x 30, the last column of a row. Items are
 // [{ name, label, danger?, divider?, enabled? }]; a destructive item is red, comes after a divider and ends with "…".
 // `activated(name)` is emitted for the chosen item; the menu items are named "<objectName>_<name>".
 Item {
@@ -37,18 +38,13 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radius7
-        color: hover.hovered || root.opened ? Theme.surfaceRaised : "transparent"
-        border.width: root.activeFocus ? 1.5 : 1
-        border.color: root.opened || root.activeFocus ? Theme.accent : Theme.borderButton
-        Text {
-            anchors.centerIn: parent
-            anchors.verticalCenterOffset: -2
-            text: "⋯"
-            font.pixelSize: 16
-            color: Theme.text
-        }
+        radius: 0
+        color: root.opened ? Theme.pressed : (hover.hovered ? Theme.hover : "transparent")
+        border.width: 1
+        border.color: root.opened || hover.hovered ? Theme.ink2 : Theme.rule
+        UzGlyph { anchors.centerIn: parent; name: "more"; size: 16; color: Theme.ink2 }
     }
+    UzFocusRing { visible: root.activeFocus }
     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
     TapHandler { onTapped: root.opened ? root.close() : root.open() }
 
@@ -65,15 +61,17 @@ Item {
             y: root.height + 4
             x: root.width - width
             width: root.menuWidth
-            padding: 4
+            padding: 1
+            topPadding: 1 + Theme.space05
+            bottomPadding: 1 + Theme.space05
             margins: 8   // keeps the menu inside the window near the bottom edge
             modal: false
             closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
             background: Rectangle {
-                radius: Theme.radius8
-                color: Theme.popupBg
+                radius: 0
+                color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderPopup
+                border.color: Theme.rule
             }
             contentItem: Column {
                 spacing: 0
@@ -86,33 +84,33 @@ Item {
                         readonly property bool danger: modelData.danger === true
                         readonly property bool usable: modelData.enabled !== false
                         width: pop.availableWidth
-                        height: 30 + (modelData.divider === true ? 9 : 0)
+                        height: 32 + (modelData.divider === true ? 9 : 0)
                         Rectangle {
                             visible: entry.modelData.divider === true
                             x: 0
                             y: 4
                             width: parent.width
                             height: 1
-                            color: Theme.borderCard
+                            color: Theme.rule2
                         }
                         Rectangle {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
-                            height: 30
-                            radius: Theme.radius6
-                            color: itemHover.hovered && entry.usable ? Theme.surfaceRaised : "transparent"
+                            height: 32
+                            radius: 0
+                            color: itemHover.hovered && entry.usable ? (entry.danger ? Theme.dangerTint : Theme.hover) : "transparent"
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.left: parent.left
-                                anchors.leftMargin: 10
+                                anchors.leftMargin: Theme.space15
                                 anchors.right: parent.right
-                                anchors.rightMargin: 10
+                                anchors.rightMargin: Theme.space15
                                 elide: Text.ElideRight
                                 text: entry.modelData.label
                                 textFormat: Text.PlainText
                                 font.pixelSize: Theme.fontSmall
-                                color: !entry.usable ? Theme.textDisabled : (entry.danger ? Theme.error : Theme.text)
+                                color: !entry.usable ? Theme.disabledInk : (entry.danger ? Theme.danger : Theme.ink)
                             }
                         }
                         HoverHandler { id: itemHover; cursorShape: Qt.PointingHandCursor }

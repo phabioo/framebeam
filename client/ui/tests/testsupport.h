@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "playercontroller.h"
+#include "uifonts.h"
 
 Q_IMPORT_QML_PLUGIN(Uzume_AppPlugin)
 
@@ -146,6 +147,7 @@ inline void prepareProcess() {
     for (const std::string& a : logExtra) args.push_back(const_cast<char*>(a.c_str())); \
     int n = static_cast<int>(args.size());                      \
     QGuiApplication app(n, args.data());                        \
+    uzume::ui::loadDesignFonts();                               \
     uitest::applyWideFontIfRequested();                         \
     TestClass tc;                                               \
     const int rc = QTest::qExec(&tc, n, args.data());           \

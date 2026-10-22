@@ -171,7 +171,7 @@ Rectangle {
                                                                    + (modeCycle.visible ? modeCycle.implicitWidth + headerContext.spacing : 0) + headerContext.spacing : 0)
             spacing: 10
             // Session: title + share pill
-            FbLabel {
+            UzLabel {
                 objectName: "gameTitle"
                 visible: root.own && !root.multi
                 Layout.minimumWidth: 0
@@ -189,14 +189,14 @@ Rectangle {
                 text: root.shareText
             }
             // Watching only
-            FbLabel {
+            UzLabel {
                 visible: !root.own && !root.multi
                 Layout.minimumWidth: 0
                 text: qsTr("Watching")
                 color: Theme.gameMeta
                 font.pixelSize: 13
             }
-            FbLabel {
+            UzLabel {
                 objectName: "gameTitle"
                 visible: !root.own && !root.multi
                 Layout.minimumWidth: 0
@@ -214,7 +214,7 @@ Rectangle {
             }
             // Multiview: title + mode. When the "Multiview" title and the "YOUR GAME" label give way (narrow windows, wide fonts) the
             // header keeps the game name (elided) and the sharing pill (R-P5); watching only: the "Multiview" title.
-            FbLabel {
+            UzLabel {
                 id: multiGameTitle
                 objectName: "multiGameTitle"
                 visible: root.multi && !multiTitle.visible
@@ -240,7 +240,7 @@ Rectangle {
                 on: root.ctl.shared
                 text: root.shortPill ? root.shareShort : root.shareText
             }
-            FbLabel {
+            UzLabel {
                 id: multiTitle
                 objectName: "multiviewTitle"
                 visible: root.multi && !root.narrow && !root.hideMultiTitle
@@ -292,7 +292,7 @@ Rectangle {
                     visible: modeCycle.activeFocus
                     anchors.fill: parent
                     anchors.margins: -2
-                    radius: 9
+                    radius: 0
                     color: "transparent"
                     border.width: 2
                     border.color: Theme.gameAccent
@@ -309,7 +309,7 @@ Rectangle {
             Layout.alignment: Qt.AlignVCenter
             implicitHeight: 34
             implicitWidth: controlsRow.implicitWidth + 4
-            radius: 9
+            radius: 0
             color: Theme.gameGroupBg
             border.width: 1
             border.color: Theme.gameGroupBorder
@@ -325,7 +325,7 @@ Rectangle {
                     Layout.leftMargin: 8
                     Layout.rightMargin: 10
                     spacing: 1
-                    FbMono { text: qsTr("YOUR GAME"); font.pixelSize: 10; font.weight: Font.Medium; font.letterSpacing: 0.8; color: Theme.gameFaint }
+                    UzMono { text: qsTr("YOUR GAME"); font.pixelSize: 10; font.weight: Font.Medium; font.letterSpacing: 0.8; color: Theme.gameFaint }
                     SharePill { bare: true; on: root.ctl.shared; text: root.shareText }
                 }
                 GameButton {
@@ -346,7 +346,7 @@ Rectangle {
                     Layout.alignment: Qt.AlignVCenter
                     implicitHeight: 30
                     implicitWidth: splitRow.implicitWidth
-                    radius: 7
+                    radius: 0
                     color: root.session.fastForward || root.popover === "speed" ? Theme.gameOnBg : "transparent"
                     readonly property bool on: root.session.fastForward || root.popover === "speed"
                     RowLayout {
@@ -444,7 +444,7 @@ Rectangle {
             Layout.alignment: Qt.AlignVCenter
             implicitHeight: 34
             implicitWidth: displayRow.implicitWidth + 4
-            radius: 9
+            radius: 0
             color: Theme.gameGroupBg
             border.width: 1
             border.color: Theme.gameGroupBorder

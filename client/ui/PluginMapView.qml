@@ -300,7 +300,7 @@ Item {
                 onActivated: root.centerOn(modelData.x, modelData.y, 0.9)
                 Rectangle {
                     anchors.fill: parent
-                    radius: 15
+                    radius: 0
                     color: Theme.blockColor("popup", root.dark)
                     border.width: 1
                     border.color: cm.hovered ? Theme.blockColor("accent", root.dark) : Theme.blockColor("popupBorder", root.dark)
@@ -359,7 +359,7 @@ Item {
                 onActivated: root.selectMarker("route", modelData.id)
                 Rectangle {
                     anchors.fill: parent
-                    radius: 14
+                    radius: 0
                     color: Theme.blockColor("popup", root.dark)
                     border.width: rm.selected ? 2 : 1
                     border.color: rm.selected ? Theme.blockColor("accent", root.dark) : Theme.blockColor("popupBorder", root.dark)
@@ -433,7 +433,7 @@ Item {
                     y: 0
                     width: 30
                     height: 30
-                    radius: 15
+                    radius: 0
                     color: Theme.blockColor("mapWater", root.dark)
                     border.width: pm.selected ? 2 : 0
                     border.color: Theme.blockColor("accent", root.dark)
@@ -441,7 +441,7 @@ Item {
                         anchors.centerIn: parent
                         width: 26
                         height: 26
-                        radius: 13
+                        radius: 0
                         color: Theme.playerColor(pm.modelData.p.color || 1, root.dark)
                         Text {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
@@ -449,7 +449,7 @@ Item {
                             text: (pm.modelData.p.initial || "").substring(0, 1).toUpperCase()
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
-                            color: root.dark ? "#121315" : "#ffffff"
+                            color: Theme.tok("ground", root.dark)
                         }
                     }
                 }
@@ -468,7 +468,7 @@ Item {
             height: popCol.implicitHeight + 24
             x: a ? Math.max(8, Math.min(view.width - width - 8, a.x - width / 2)) : 0
             y: a ? (flipped ? a.y + 40 : a.y - 40 - height) : 0
-            radius: 10
+            radius: 0
             color: Theme.blockColor("popup", root.dark)
             border.width: 1
             border.color: Theme.blockColor("popupBorder", root.dark)
@@ -498,7 +498,7 @@ Item {
                         Rectangle {
                             Layout.preferredWidth: 8
                             Layout.preferredHeight: 8
-                            radius: 4
+                            radius: 0
                             color: Theme.playerColor(modelData.owner || 1, root.dark)
                         }
                         Text {
@@ -621,7 +621,7 @@ Item {
                 RowLayout {
                     visible: root.legendOpen
                     spacing: 8
-                    Rectangle { width: 8; height: 8; radius: 4; color: Theme.playerColor(1, root.dark) }
+                    Rectangle { width: 8; height: 8; radius: 0; color: Theme.playerColor(1, root.dark) }
                     Text { textFormat: Text.PlainText; text: qsTr("Caught · dot = owner"); font.pixelSize: Theme.fontMeta; color: Theme.blockColor("textSecondary", root.dark) }
                 }
                 RowLayout {

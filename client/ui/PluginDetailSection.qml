@@ -56,7 +56,7 @@ ColumnLayout {
                         origin: sec.modelData.origin || "local"
                         text: sec.marker
                     }
-                    FbButton {
+                    UzButton {
                         textFormat: Text.PlainText
                         objectName: "pluginDetailCollapse"
                         kind: "link"

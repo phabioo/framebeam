@@ -11,7 +11,7 @@ ColumnLayout {
     property var badges: ({})         // surface id -> tile number: a key badge before each group (Multiview)
     spacing: 10
 
-    FbLabel {
+    UzLabel {
         objectName: "diagStreamingEmpty"
         Layout.fillWidth: true
         visible: root.groups.length === 0
@@ -36,11 +36,11 @@ ColumnLayout {
                     visible: root.badges[grp.modelData.surface] !== undefined
                     Layout.preferredWidth: 20
                     Layout.preferredHeight: 20
-                    radius: 4
+                    radius: 0
                     color: Theme.gameBadge
-                    FbMono { anchors.centerIn: parent; text: String(root.badges[grp.modelData.surface]); font.pixelSize: 11; color: Theme.gameBadgeText }
+                    UzMono { anchors.centerIn: parent; text: String(root.badges[grp.modelData.surface]); font.pixelSize: 11; color: Theme.gameBadgeText }
                 }
-                FbMono {
+                UzMono {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     elide: Text.ElideRight
@@ -61,12 +61,12 @@ ColumnLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 8
-                        FbLabel { text: person.modelData.name; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.gameText }
-                        FbLabel { text: person.modelData.role; font.pixelSize: 11; color: Theme.gameFaint }
+                        UzLabel { text: person.modelData.name; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.gameText }
+                        UzLabel { text: person.modelData.role; font.pixelSize: 11; color: Theme.gameFaint }
                         Item { Layout.fillWidth: true }
-                        FbPill { objectName: "diagParticipantPill"; small: true; text: person.modelData.pill; tone: person.modelData.tone }
+                        UzTag { objectName: "diagParticipantPill"; small: true; text: person.modelData.pill; tone: person.modelData.tone }
                     }
-                    FbMono {
+                    UzMono {
                         objectName: "diagParticipantLine2"
                         Layout.fillWidth: true
                         text: person.modelData.line2
@@ -74,7 +74,7 @@ ColumnLayout {
                         font.pixelSize: 11
                         color: Theme.gameBadgeText
                     }
-                    FbMono {
+                    UzMono {
                         objectName: "diagParticipantLine3"
                         Layout.fillWidth: true
                         text: person.modelData.line3

@@ -14,7 +14,7 @@ Item {
         visible: root.kind === "pause"
         anchors.centerIn: parent
         spacing: 2
-        Repeater { model: 2; Rectangle { width: 3; height: 10; radius: 1; color: root.color } }
+        Repeater { model: 2; Rectangle { width: 3; height: 10; radius: 0; color: root.color } }
     }
     Column {
         visible: root.kind === "layout"
@@ -22,7 +22,7 @@ Item {
         spacing: 2
         Repeater {
             model: 2
-            Rectangle { width: 10; height: 6; radius: 1; color: "transparent"; border.width: 1.5; border.color: root.color }
+            Rectangle { width: 10; height: 6; radius: 0; color: "transparent"; border.width: 1.5; border.color: root.color }
         }
     }
     Row {
@@ -45,7 +45,7 @@ Item {
         anchors.centerIn: parent
         width: 11
         height: 11
-        radius: 2
+        radius: 0
         color: "transparent"
         border.width: 1.5
         border.color: root.color

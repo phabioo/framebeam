@@ -32,7 +32,7 @@ Rectangle {
                 anchors.centerIn: parent
                 width: 10
                 height: 10
-                radius: 5
+                radius: 0
                 color: card.stage === "done" ? Theme.accent : "transparent"
                 border.width: card.stage === "done" ? 0 : 1.5
                 border.color: card.stage === "active" ? Theme.accent : Theme.textDisabled
@@ -42,7 +42,7 @@ Rectangle {
             id: body
             Layout.fillWidth: true
             spacing: 8
-            FbLabel {
+            UzLabel {
                 Layout.fillWidth: true
                 text: card.title
                 font.pixelSize: Theme.fontSection

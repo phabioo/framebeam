@@ -700,7 +700,7 @@ class LibrarySavesUiTest : public QObject {
     QTRY_VERIFY(shown(h, "slotDeleteConfirm"));
     hub.saves[FakeHub::slotKey(QStringLiteral("g1"), QStringLiteral("final"))].revision = 4;
     QVERIFY(h.click("slotDeleteConfirm"));
-    QTRY_VERIFY_WITH_TIMEOUT(hist->messageIsError() && hist->message().contains(QStringLiteral("changed on the Hub")), 8000);
+    QTRY_VERIFY_WITH_TIMEOUT(hist->messageIsError() && hist->message().contains(QStringLiteral("changed on the server")), 8000);
     QCOMPARE(hub.slotDeleteCount, 0);
     QCOMPARE(hist->slot(), QStringLiteral("final"));
 

@@ -94,8 +94,8 @@ bool UpdatesController::updateAvailable() const {
 // Cadence of the periodic check (core/updater.cpp: timer 1 h on Beta, 24 h on Stable).
 QString UpdatesController::cadenceText() const {
   switch (manager_.effectiveChannel()) {
-    case update::Channel::Beta: return tr("checks every hour while the Player runs");
-    case update::Channel::Stable: return tr("checks every 24 hours while the Player runs");
+    case update::Channel::Beta: return tr("checks every hour while Uzume runs");
+    case update::Channel::Stable: return tr("checks every 24 hours while Uzume runs");
     default: return {};
   }
 }
@@ -134,7 +134,7 @@ QString UpdatesController::bannerText() const {
     case UpdateManager::State::Available: return tr("Uzume %1 is available").arg(v);
     case UpdateManager::State::Ready: return tr("Uzume %1 is ready to install").arg(v);
     case UpdateManager::State::Downloading: return tr("Downloading Uzume %1…").arg(v);
-    case UpdateManager::State::Incompatible: return tr("Uzume %1 needs a newer Hub").arg(v);
+    case UpdateManager::State::Incompatible: return tr("Uzume %1 needs a newer server").arg(v);
     default: break;
   }
   return {};

@@ -282,7 +282,7 @@ class SessionsUiTest : public QObject {
     QCOMPARE(list.at(0).toMap().value(QStringLiteral("title")).toString(), QStringLiteral("Jonas · Lumen Drift"));
     QCOMPARE(list.at(0).toMap().value(QStringLiteral("meta")).toString(), QStringLiteral("inviting you"));
     QCOMPARE(list.at(1).toMap().value(QStringLiteral("title")).toString(), QStringLiteral("Lena · Harbor Rally"));
-    QCOMPARE(list.at(1).toMap().value(QStringLiteral("meta")).toString(), QStringLiteral("Hub users · for 12 min"));
+    QCOMPARE(list.at(1).toMap().value(QStringLiteral("meta")).toString(), QStringLiteral("Everyone here · for 12 min"));
 
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(h.item("sessionsSection")->isVisible());
@@ -347,15 +347,14 @@ class SessionsUiTest : public QObject {
     hub.closeWsClients();
     QTRY_VERIFY(ctl->hubLink() != QLatin1String("online"));
     QTRY_VERIFY(h.item("hubLinkBanner")->isVisible());
-    // R-P3: the sidebar dot and the banner follow the link (amber while lost), the link note explains it.
+    // R-P3: the server line and the banner follow the link (OFFLINE while lost); the page banner explains it.
     QTRY_COMPARE(h.controller->hubLink(), QStringLiteral("offline"));
-    QTRY_COMPARE(h.item("hubStatusDot")->property("tone").toString(), QStringLiteral("amber"));
-    QVERIFY(h.item("hubCardLinkNote")->isVisible());
+    QTRY_COMPARE(h.item("hubStatusDot")->property("status").toString(), QStringLiteral("offline"));
     QVERIFY(h.item("hubLinkBanner")->property("lost").toBool());
     hub.refuseWs = false;
     QTRY_COMPARE_WITH_TIMEOUT(ctl->hubLink(), QStringLiteral("online"), 10000);
     QTRY_VERIFY(!h.item("hubLinkBanner")->isVisible());
-    QTRY_COMPARE(h.item("hubStatusDot")->property("tone").toString(), QStringLiteral("ok"));
+    QTRY_COMPARE(h.item("hubStatusDot")->property("status").toString(), QStringLiteral("online"));
     QVERIFY(!h.item("hubCardLinkNote")->isVisible());
   }
 
@@ -638,9 +637,9 @@ class SessionsUiTest : public QObject {
     QTRY_VERIFY(ctl->userSearchHint().isEmpty());
     hub.fakeUsers = QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("u_test_1")}, {QStringLiteral("display_name"), QStringLiteral("Tester")}, {QStringLiteral("online"), true}}};
     h.item("inviteField")->setProperty("text", QStringLiteral("sa"));
-    QTRY_COMPARE(ctl->userSearchHint(), QStringLiteral("No other users on this Hub yet"));
+    QTRY_COMPARE(ctl->userSearchHint(), QStringLiteral("Nobody else is here yet"));
     QQuickTest::qWaitForPolish(h.window);
-    QCOMPARE(textOf(h.item("userSearchHint")), QStringLiteral("No other users on this Hub yet"));
+    QCOMPARE(textOf(h.item("userSearchHint")), QStringLiteral("Nobody else is here yet"));
     QVERIFY2(panelButtonsOutside(h).isEmpty(), qPrintable(panelButtonsOutside(h)));
     h.item("inviteField")->setProperty("text", QString());
 
@@ -1099,7 +1098,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(visibleItem(h, "diagnosticsPanel") == nullptr);  // the bottom bar is gone
     QCOMPARE(ctl->diagnostics()->tiles().size(), 2);
     QVERIFY(ctl->diagnostics()->tiles().at(0).toMap().value(QStringLiteral("local")).toBool());
-    QVERIFY(ctl->diagnostics()->tiles().at(1).toMap().value(QStringLiteral("note")).toString().contains(QStringLiteral("Emulation runs on Lena's Player")));
+    QVERIFY(ctl->diagnostics()->tiles().at(1).toMap().value(QStringLiteral("note")).toString().contains(QStringLiteral("Emulation runs on Lena's PC")));
     QVERIFY(visibleItem(h, "diagTileBlock") != nullptr && visibleItem(h, "diagOnlyYourTile") != nullptr);
     QCOMPARE(ctl->diagnostics()->streaming().size(), 2);  // own session + the watched one
     const QVariantMap remoteHost = ctl->diagnostics()->streaming().at(1).toMap().value(QStringLiteral("participants")).toList().at(0).toMap();

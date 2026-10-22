@@ -94,7 +94,7 @@ void HubSetupInstaller::onIndex(const FetchedIndex& fi) {
   }
   const auto art = findOwnMsi(fi.index, config_.currentVersion);
   if (!art) {
-    fail(tr("There is no installer with the Hub for Uzume %1 yet.").arg(config_.currentVersion));
+    fail(tr("There is no installer with the server for Uzume %1 yet.").arg(config_.currentVersion));
     return;
   }
   if (!config_.indexUrl.startsWith(QLatin1String("file:")) && !art->url.startsWith(QLatin1String("https:"))) {

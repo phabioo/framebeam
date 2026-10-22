@@ -67,7 +67,7 @@ Rectangle {
             anchors.fill: parent
             spacing: 0
 
-            Sidebar {
+            UzAppNav {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 232
                 player: root.player
@@ -90,20 +90,20 @@ Rectangle {
                         RowLayout {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
-                            FbLabel {
+                            UzLabel {
                                 Layout.fillWidth: true
                                 text: dev.modelData.name
                                 font.weight: Font.Medium
                                 elide: Text.ElideRight
                             }
-                            FbMono {
+                            UzMono {
                                 objectName: "deviceSlot_" + dev.modelData.key
                                 text: dev.modelData.slot
                                 font.pixelSize: Theme.fontMono
                                 color: Theme.textMeta
                             }
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "deviceStatus_" + dev.modelData.key
                             Layout.fillWidth: true
                             text: (dev.modelData.connected ? "● " : "") + dev.modelData.status
@@ -115,7 +115,7 @@ Rectangle {
                     }
                 }
 
-                FbLabel {
+                UzLabel {
                     visible: !root.ctl.gamepadAvailable
                     objectName: "gamepadNote"
                     Layout.fillWidth: true
@@ -125,7 +125,7 @@ Rectangle {
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
                 }
-                FbLabel {
+                UzLabel {
                     visible: root.ctl.gamepadAvailable && root.ctl.devices.length <= 2
                     objectName: "noGamepadHint"
                     Layout.fillWidth: true
@@ -137,7 +137,7 @@ Rectangle {
                 }
 
                 Item { Layout.fillHeight: true }
-                FbLabel {
+                UzLabel {
                     objectName: "profilesLocalFooter"
                     Layout.fillWidth: true
                     text: qsTr("Saved on this device only")
@@ -175,7 +175,7 @@ Rectangle {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             spacing: Theme.space6
-                            FbLabel {
+                            UzLabel {
                                 objectName: "controllersTitle"
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
@@ -190,7 +190,7 @@ Rectangle {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 spacing: Theme.space10
-                                FbPill {
+                                UzTag {
                                     objectName: "devicePill"
                                     visible: root.ctl.device.name !== undefined && !root.hotkeysTab
                                     tone: root.ctl.device.connected ? "ok" : "neutral"
@@ -198,11 +198,11 @@ Rectangle {
                                           ? (root.ctl.device.slot !== "—" ? qsTr("Connected · %1").arg(root.ctl.device.slot) : qsTr("Connected"))
                                           : qsTr("Not connected")
                                 }
-                                FbLabel {
+                                UzLabel {
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: 0
                                     elide: Text.ElideRight
-                                    text: root.hotkeysTab ? qsTr("Player hotkeys · saved on this device only") : qsTr("Saved on this device only")
+                                    text: root.hotkeysTab ? qsTr("Uzume hotkeys · saved on this device only") : qsTr("Saved on this device only")
                                     color: Theme.textMuted
                                     font.pixelSize: Theme.fontMeta
                                 }
@@ -221,8 +221,8 @@ Rectangle {
                                 Layout.preferredWidth: 170
                                 Layout.minimumWidth: 110
                                 spacing: 4
-                                FbLabel { text: qsTr("Button labels"); color: Theme.textFaint; font.pixelSize: Theme.fontMono }
-                                FbSelect {
+                                UzLabel { text: qsTr("Button labels"); color: Theme.textFaint; font.pixelSize: Theme.fontMono }
+                                UzSelect {
                                     objectName: "labelSetSelect"
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: 0
@@ -236,8 +236,8 @@ Rectangle {
                                 Layout.preferredWidth: 180
                                 Layout.minimumWidth: 110
                                 spacing: 4
-                                FbLabel { text: qsTr("Profile"); color: Theme.textFaint; font.pixelSize: Theme.fontMono }
-                                FbSelect {
+                                UzLabel { text: qsTr("Profile"); color: Theme.textFaint; font.pixelSize: Theme.fontMono }
+                                UzSelect {
                                     objectName: "profileSelect"
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: 0
@@ -249,7 +249,7 @@ Rectangle {
                             }
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "labelSetHelp"
                         visible: root.ctl.device.kind === "gamepad" && !root.hotkeysTab
                         Layout.fillWidth: true
@@ -272,14 +272,14 @@ Rectangle {
                         readonly property real chipsWidth: tabButtonsChip.implicitWidth + tabHotkeysChip.implicitWidth + spacing
                         readonly property real linkWidth: resetChangedButton.visible ? resetChangedButton.implicitWidth : 0
                         readonly property bool oneRow: chipsWidth + (linkWidth > 0 ? spacing + linkWidth : 0) <= width
-                        FbChip { id: tabButtonsChip; objectName: "tabButtons"; text: qsTr("Buttons"); active: !root.hotkeysTab; onClicked: { root.ctl.cancelHotkeyCapture(); root.plugins.cancelHotkeyCapture(); root.tab = "buttons" } }
-                        FbChip { id: tabHotkeysChip; objectName: "tabHotkeys"; text: qsTr("Hotkeys"); active: root.hotkeysTab; onClicked: { root.ctl.cancelCapture(); root.ctl.cancelHotkeyCapture(); root.tab = "hotkeys" } }
+                        UzChip { id: tabButtonsChip; objectName: "tabButtons"; text: qsTr("Buttons"); active: !root.hotkeysTab; onClicked: { root.ctl.cancelHotkeyCapture(); root.plugins.cancelHotkeyCapture(); root.tab = "buttons" } }
+                        UzChip { id: tabHotkeysChip; objectName: "tabHotkeys"; text: qsTr("Hotkeys"); active: root.hotkeysTab; onClicked: { root.ctl.cancelCapture(); root.ctl.cancelHotkeyCapture(); root.tab = "hotkeys" } }
                         Item {   // pushes Reset to the right edge when everything fits on one line
                             visible: chipFlow.oneRow && resetChangedButton.visible
                             width: Math.max(0, chipFlow.width - chipFlow.chipsWidth - chipFlow.linkWidth - chipFlow.spacing)
                             height: 1
                         }
-                        FbButton {
+                        UzButton {
                             id: resetChangedButton
                             objectName: "resetChanged"
                             readonly property int n: root.hotkeysTab ? root.ctl.hotkeysChangedCount : root.ctl.changedCount
@@ -298,10 +298,10 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: Theme.space8
-                        FbLabel { text: qsTr("System"); color: Theme.textFaint; font.pixelSize: Theme.fontMono; Layout.rightMargin: Theme.space4 }
+                        UzLabel { text: qsTr("System"); color: Theme.textFaint; font.pixelSize: Theme.fontMono; Layout.rightMargin: Theme.space05 }
                         Repeater {
                             model: root.ctl.systems
-                            delegate: FbChip {
+                            delegate: UzChip {
                                 required property var modelData
                                 objectName: "systemChip_" + modelData.id
                                 text: modelData.label
@@ -311,7 +311,7 @@ Rectangle {
                         }
                         Item { Layout.fillWidth: true }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "systemNote"
                         visible: !root.isMouse && !root.hotkeysTab && root.ctl.systems.length > 1
                         Layout.fillWidth: true
@@ -324,7 +324,7 @@ Rectangle {
                     }
 
                     // Mouse: touch input (fixed)
-                    FbLabel {
+                    UzLabel {
                         visible: root.isMouse && !root.hotkeysTab
                         objectName: "mouseNote"
                         Layout.fillWidth: true
@@ -340,7 +340,7 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: Theme.space12
-                        FbLabel {
+                        UzLabel {
                             objectName: "builtinNote"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -349,7 +349,7 @@ Rectangle {
                             font.pixelSize: Theme.fontMeta
                             wrapMode: Text.WordWrap
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "duplicateToEditButton"
                             text: qsTr("Duplicate to edit")
                             onClicked: root.ctl.duplicateProfile()
@@ -365,13 +365,13 @@ Rectangle {
                         Layout.maximumWidth: content.width
                         spacing: 0
 
-                        FbLabel {
+                        UzLabel {
                             objectName: "hotkeysInfo"
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
                             Layout.bottomMargin: Theme.space12
-                            text: qsTr("Player hotkeys work on the keyboard and on a gamepad (hold the hotkey button, then press another one) and are never sent to the game.")
+                            text: qsTr("Uzume hotkeys work on the keyboard and on a gamepad (hold the hotkey button, then press another one) and are never sent to the game.")
                             color: Theme.textMuted
                             font.pixelSize: Theme.fontMeta
                             wrapMode: Text.WordWrap
@@ -382,7 +382,7 @@ Rectangle {
                             Layout.minimumWidth: 0
                             Layout.bottomMargin: Theme.space12
                             spacing: Theme.space16
-                            FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: qsTr("Gamepad hotkey button"); elide: Text.ElideRight }
+                            UzLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: qsTr("Gamepad hotkey button"); elide: Text.ElideRight }
                             Rectangle {
                                 objectName: "padModifierField"
                                 Layout.fillWidth: true
@@ -395,14 +395,14 @@ Rectangle {
                                 readonly property bool listening: root.ctl.padHotkeyListening === "modifier"
                                 border.width: listening ? 1.5 : 1
                                 border.color: listening ? Theme.accent : Theme.borderInput
-                                FbLabel {
+                                UzLabel {
                                     objectName: "padModifierText"
                                     anchors.fill: parent
                                     anchors.leftMargin: 10
                                     anchors.rightMargin: 4
                                     verticalAlignment: Text.AlignVCenter
                                     text: parent.listening ? qsTr("Press a button…") : root.ctl.padHotkeyModifier
-                                    color: parent.listening ? Theme.accent : Theme.text
+                                    color: parent.listening ? Theme.accentText : Theme.text
                                     font.pixelSize: Theme.fontSmall
                                     elide: Text.ElideRight
                                 }
@@ -414,7 +414,7 @@ Rectangle {
                                 Layout.preferredWidth: root.actionWidth
                                 Layout.minimumWidth: root.actionWidth
                                 Layout.maximumWidth: root.actionWidth
-                                FbButton {
+                                UzButton {
                                     objectName: "padModifierReset"
                                     Layout.maximumWidth: root.actionWidth
                                     visible: root.ctl.padHotkeyModifierChanged
@@ -447,7 +447,7 @@ Rectangle {
                             spacing: Theme.space8
                             Eyebrow { objectName: "uzumeHotkeyGroup"; text: qsTr("Uzume"); Layout.fillWidth: false }
                             Item { Layout.fillWidth: true }
-                            FbMono { text: qsTr("always win"); color: Theme.textMuted }
+                            UzMono { text: qsTr("always win"); color: Theme.textMuted }
                         }
                         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
 
@@ -474,11 +474,11 @@ Rectangle {
                                             visible: hrow.modelData.changed || hrow.modelData.padChanged
                                             Layout.preferredWidth: 7
                                             Layout.preferredHeight: 7
-                                            radius: 3.5
+                                            radius: 0
                                             color: Theme.accent
                                         }
                                         // Same structure as the Buttons table: one label directly in the cell.
-                                        FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: hrow.modelData.label; elide: Text.ElideRight }
+                                        UzLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: hrow.modelData.label; elide: Text.ElideRight }
                                     }
                                     Rectangle {
                                         objectName: "hotkeyField_" + hrow.modelData.action
@@ -496,18 +496,18 @@ Rectangle {
                                             anchors.fill: parent
                                             anchors.leftMargin: 10
                                             anchors.rightMargin: 4
-                                            FbLabel {
+                                            UzLabel {
                                                 objectName: "hotkeyText_" + hrow.modelData.action
                                                 Layout.fillWidth: true
                                                 Layout.preferredWidth: 1
                                                 Layout.minimumWidth: 0
                                                 text: hrow.modelData.listening ? qsTr("Press a key…") : hrow.modelData.key
-                                                color: hrow.modelData.listening ? Theme.accent
+                                                color: hrow.modelData.listening ? Theme.accentText
                                                        : (hrow.modelData.set ? Theme.text : Theme.textFaint)
                                                 font.pixelSize: Theme.fontSmall
                                                 elide: Text.ElideRight
                                             }
-                                            FbButton {
+                                            UzButton {
                                                 visible: hrow.modelData.set && !hrow.modelData.fixed && !hrow.modelData.listening
                                                 objectName: "hotkeyClear_" + hrow.modelData.action
                                                 kind: "link"
@@ -536,18 +536,18 @@ Rectangle {
                                             anchors.fill: parent
                                             anchors.leftMargin: 10
                                             anchors.rightMargin: 4
-                                            FbLabel {
+                                            UzLabel {
                                                 objectName: "hotkeyPadText_" + hrow.modelData.action
                                                 Layout.fillWidth: true
                                                 Layout.preferredWidth: 1
                                                 Layout.minimumWidth: 0
                                                 text: hrow.modelData.padListening ? qsTr("Press a button…") : hrow.modelData.pad
-                                                color: hrow.modelData.padListening ? Theme.accent
+                                                color: hrow.modelData.padListening ? Theme.accentText
                                                        : (hrow.modelData.padSet ? Theme.text : Theme.textFaint)
                                                 font.pixelSize: Theme.fontSmall
                                                 elide: Text.ElideRight
                                             }
-                                            FbButton {
+                                            UzButton {
                                                 visible: hrow.modelData.padSet && !hrow.modelData.padListening && !hrow.modelData.fixed
                                                 objectName: "hotkeyPadClear_" + hrow.modelData.action
                                                 kind: "link"
@@ -564,7 +564,7 @@ Rectangle {
                                         Layout.preferredWidth: root.actionWidth
                                         Layout.minimumWidth: root.actionWidth
                                         Layout.maximumWidth: root.actionWidth
-                                        FbButton {
+                                        UzButton {
                                             objectName: "hotkeyReset_" + hrow.modelData.action
                                             Layout.maximumWidth: root.actionWidth
                                             visible: hrow.modelData.changed || hrow.modelData.padChanged
@@ -574,13 +574,13 @@ Rectangle {
                                             text: qsTr("Reset")
                                             onClicked: root.ctl.resetHotkey(hrow.modelData.action)
                                         }
-                                        FbLabel {
+                                        UzLabel {
                                             visible: !(hrow.modelData.changed || hrow.modelData.padChanged) && !hrow.modelData.fixed
                                             text: qsTr("Default")
                                             font.pixelSize: Theme.fontMeta
                                             color: Theme.textDisabled
                                         }
-                                        FbLabel {
+                                        UzLabel {
                                             visible: hrow.modelData.fixed
                                             text: qsTr("Fixed")
                                             font.pixelSize: Theme.fontMeta
@@ -597,7 +597,7 @@ Rectangle {
                                     Layout.bottomMargin: 6
                                     spacing: Theme.space16
                                     Item { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0 }
-                                    FbLabel {
+                                    UzLabel {
                                         objectName: "hotkeyConflict_" + hrow.modelData.action
                                         Layout.preferredWidth: root.hotkeyKeyWidth + root.hotkeyPadWidth + Theme.space16
                                         Layout.minimumWidth: root.hotkeyKeyWidth + root.hotkeyPadWidth + Theme.space16
@@ -629,7 +629,7 @@ Rectangle {
                                     Layout.topMargin: 6
                                     Layout.bottomMargin: 6
                                     spacing: Theme.space16
-                                    FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: frow.modelData.label; elide: Text.ElideRight }
+                                    UzLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: frow.modelData.label; elide: Text.ElideRight }
                                     Rectangle {
                                         objectName: "hotkeyField_" + frow.modelData.id
                                         Layout.fillWidth: true
@@ -642,7 +642,7 @@ Rectangle {
                                         border.width: 1
                                         border.color: Theme.borderInput
                                         opacity: 0.85
-                                        FbLabel {
+                                        UzLabel {
                                             objectName: "hotkeyText_" + frow.modelData.id
                                             anchors.fill: parent
                                             anchors.leftMargin: 10
@@ -666,7 +666,7 @@ Rectangle {
                                         border.width: 1
                                         border.color: Theme.borderInput
                                         opacity: 0.85
-                                        FbLabel {
+                                        UzLabel {
                                             objectName: "hotkeyPadText_" + frow.modelData.id
                                             anchors.fill: parent
                                             anchors.leftMargin: 10
@@ -678,7 +678,7 @@ Rectangle {
                                             elide: Text.ElideRight
                                         }
                                     }
-                                    FbLabel {
+                                    UzLabel {
                                         Layout.preferredWidth: root.actionWidth
                                         Layout.minimumWidth: root.actionWidth
                                         Layout.maximumWidth: root.actionWidth
@@ -709,7 +709,7 @@ Rectangle {
                                     Layout.bottomMargin: 6
                                     spacing: Theme.space8
                                     Eyebrow { objectName: "pluginHotkeyName_" + pgroup.modelData.pluginId; text: pgroup.modelData.name; Layout.fillWidth: false; Layout.maximumWidth: 260 }
-                                    FbPill {
+                                    UzTag {
                                         objectName: "pluginHotkeyOrigin_" + pgroup.modelData.pluginId
                                         visible: pgroup.modelData.marker !== ""
                                         small: true
@@ -717,7 +717,7 @@ Rectangle {
                                         text: pgroup.modelData.marker
                                     }
                                     Item { Layout.fillWidth: true }
-                                    FbMono {
+                                    UzMono {
                                         objectName: "pluginHotkeyCount_" + pgroup.modelData.pluginId
                                         text: pgroup.modelData.conflicts > 0
                                               ? qsTr("%1 · %2").arg(Theme.plural(pgroup.modelData.count, qsTr("key"), qsTr("keys"))).arg(Theme.plural(pgroup.modelData.conflicts, qsTr("conflict"), qsTr("conflicts")))
@@ -765,10 +765,10 @@ Rectangle {
                                                             visible: prow.modelData.changed
                                                             Layout.preferredWidth: 7
                                                             Layout.preferredHeight: 7
-                                                            radius: 3.5
+                                                            radius: 0
                                                             color: Theme.accent
                                                         }
-                                                        FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: prow.modelData.label; elide: Text.ElideRight }
+                                                        UzLabel { Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.minimumWidth: 0; text: prow.modelData.label; elide: Text.ElideRight }
                                                     }
                                                     Rectangle {
                                                         objectName: "pluginHotkeyField_" + prow.rid
@@ -785,18 +785,18 @@ Rectangle {
                                                             anchors.fill: parent
                                                             anchors.leftMargin: 10
                                                             anchors.rightMargin: 4
-                                                            FbMono {
+                                                            UzMono {
                                                                 objectName: "pluginHotkeyText_" + prow.rid
                                                                 Layout.fillWidth: true
                                                                 Layout.preferredWidth: 1
                                                                 Layout.minimumWidth: 0
                                                                 text: prow.modelData.listening ? qsTr("Press a key…") : prow.modelData.keyText
-                                                                color: prow.modelData.listening ? Theme.accent
+                                                                color: prow.modelData.listening ? Theme.accentText
                                                                        : (prow.conflict ? Theme.pluginWarn : (prow.modelData.set ? Theme.text : Theme.textFaint))
                                                                 font.pixelSize: Theme.fontSmall
                                                                 elide: Text.ElideRight
                                                             }
-                                                            FbButton {
+                                                            UzButton {
                                                                 visible: prow.modelData.set && !prow.modelData.listening
                                                                 objectName: "pluginHotkeyClear_" + prow.rid
                                                                 kind: "link"
@@ -809,7 +809,7 @@ Rectangle {
                                                                                               : root.plugins.beginHotkeyCapture(prow.modelData.pluginId, prow.modelData.id)
                                                         }
                                                     }
-                                                    FbLabel {
+                                                    UzLabel {
                                                         objectName: "pluginHotkeyPad_" + prow.rid
                                                         Layout.fillWidth: true
                                                         Layout.preferredWidth: root.hotkeyPadWidth
@@ -823,7 +823,7 @@ Rectangle {
                                                         Layout.preferredWidth: root.actionWidth
                                                         Layout.minimumWidth: root.actionWidth
                                                         Layout.maximumWidth: root.actionWidth
-                                                        FbButton {
+                                                        UzButton {
                                                             objectName: "pluginHotkeyReset_" + prow.rid
                                                             Layout.maximumWidth: root.actionWidth
                                                             visible: prow.modelData.changed
@@ -833,7 +833,7 @@ Rectangle {
                                                             text: qsTr("Reset")
                                                             onClicked: root.plugins.resetHotkey(prow.modelData.pluginId, prow.modelData.id)
                                                         }
-                                                        FbLabel {
+                                                        UzLabel {
                                                             visible: !prow.modelData.changed
                                                             text: qsTr("Default")
                                                             font.pixelSize: Theme.fontMeta
@@ -842,7 +842,7 @@ Rectangle {
                                                         Item { Layout.fillWidth: true }
                                                     }
                                                 }
-                                                FbLabel {
+                                                UzLabel {
                                                     id: prowNote
                                                     objectName: "pluginHotkeyNote_" + prow.rid
                                                     visible: prow.conflict
@@ -861,7 +861,7 @@ Rectangle {
                                 }
                             }
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "hotkeysFooter"
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
@@ -872,7 +872,7 @@ Rectangle {
                             font.pixelSize: Theme.fontMeta
                             wrapMode: Text.WordWrap
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "pluginHotkeyCaptureNote"
                             visible: root.plugins.hotkeyNote !== ""
                             Layout.fillWidth: true
@@ -884,7 +884,7 @@ Rectangle {
                             font.pixelSize: Theme.fontMeta
                             wrapMode: Text.WordWrap
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "hotkeyNote"
                             visible: root.ctl.hotkeyNote !== ""
                             Layout.fillWidth: true
@@ -948,11 +948,11 @@ Rectangle {
                                             anchors.centerIn: parent
                                             width: 7
                                             height: 7
-                                            radius: 3.5
+                                            radius: 0
                                             color: Theme.accent
                                         }
                                     }
-                                    FbLabel {
+                                    UzLabel {
                                         objectName: "mapLabel_" + mrow.modelData.input
                                         Layout.fillWidth: true
                                         Layout.preferredWidth: 90
@@ -994,7 +994,7 @@ Rectangle {
                                                     }
                                                 }
                                             }
-                                            FbLabel {
+                                            UzLabel {
                                                 objectName: "mapText_" + mrow.modelData.input
                                                 Layout.fillWidth: true
                                                 Layout.minimumWidth: 0
@@ -1002,12 +1002,12 @@ Rectangle {
                                                 text: mrow.modelData.listening
                                                       ? (root.ctl.device.kind === "keyboard" ? qsTr("Press a key…") : qsTr("Press a button…"))
                                                       : mrow.modelData.bindingName
-                                                color: mrow.modelData.listening ? Theme.accent
+                                                color: mrow.modelData.listening ? Theme.accentText
                                                        : (mrow.modelData.mapped ? Theme.textSecondary : Theme.textFaint)
                                                 font.pixelSize: Theme.fontSmall
                                                 elide: Text.ElideRight
                                             }
-                                            FbButton {
+                                            UzButton {
                                                 visible: mrow.modelData.mapped && !root.ctl.profileBuiltin && !mrow.modelData.listening
                                                 objectName: "mapClear_" + mrow.modelData.input
                                                 kind: "link"
@@ -1026,7 +1026,7 @@ Rectangle {
                                         Layout.preferredWidth: root.padActionWidth
                                         Layout.minimumWidth: root.padActionWidth
                                         Layout.maximumWidth: root.padActionWidth
-                                        FbButton {
+                                        UzButton {
                                             objectName: "mapReset_" + mrow.modelData.input
                                             Layout.minimumWidth: 0
                                             visible: mrow.modelData.changed
@@ -1036,7 +1036,7 @@ Rectangle {
                                             text: qsTr("Reset")
                                             onClicked: root.ctl.resetBinding(mrow.modelData.input)
                                         }
-                                        FbLabel {
+                                        UzLabel {
                                             visible: !mrow.modelData.changed
                                             text: qsTr("Default")
                                             font.pixelSize: Theme.fontMeta
@@ -1056,8 +1056,8 @@ Rectangle {
                             sourceComponent: RowLayout {
                                 spacing: Theme.space12
                                 Item { Layout.preferredWidth: 14 }
-                                FbLabel { Layout.fillWidth: true; Layout.preferredWidth: 90; Layout.minimumWidth: 0; text: qsTr("Close lid") }
-                                FbLabel { Layout.preferredWidth: root.tight ? 190 : 240; Layout.minimumWidth: 120; Layout.maximumWidth: 240; Layout.fillWidth: true; text: qsTr("Unassigned"); color: Theme.textFaint }
+                                UzLabel { Layout.fillWidth: true; Layout.preferredWidth: 90; Layout.minimumWidth: 0; text: qsTr("Close lid") }
+                                UzLabel { Layout.preferredWidth: root.tight ? 190 : 240; Layout.minimumWidth: 120; Layout.maximumWidth: 240; Layout.fillWidth: true; text: qsTr("Unassigned"); color: Theme.textFaint }
                                 Item { Layout.preferredWidth: root.padActionWidth }
                             }
                         }
@@ -1068,27 +1068,27 @@ Rectangle {
                         visible: !root.isMouse && !root.hotkeysTab
                         Layout.fillWidth: true
                         spacing: 10
-                        FbButton {
+                        UzButton {
                             objectName: "resetProfileButton"
                             implicitHeight: 38
                             text: qsTr("Reset profile to default")
                             enabled: !root.ctl.profileBuiltin
                             onClicked: root.ctl.resetProfile()
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "duplicateProfileButton"
                             implicitHeight: 38
                             text: qsTr("Duplicate profile")
                             onClicked: root.ctl.duplicateProfile()
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "renameProfileButton"
                             implicitHeight: 38
                             text: qsTr("Rename")
                             enabled: !root.ctl.profileBuiltin
                             onClicked: { root.renaming = true; renameField.text = root.ctl.profileName; renameField.forceActiveFocus(); renameField.selectAll() }
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "deleteProfileButton"
                             implicitHeight: 38
                             text: root.confirmDelete ? qsTr("Confirm delete") : qsTr("Delete")
@@ -1102,7 +1102,7 @@ Rectangle {
                         visible: root.renaming && !root.isMouse && !root.hotkeysTab
                         Layout.fillWidth: true
                         spacing: 10
-                        FbField {
+                        UzField {
                             id: renameField
                             objectName: "renameField"
                             width: 240
@@ -1110,13 +1110,13 @@ Rectangle {
                             onAccepted: { root.ctl.renameProfile(text); root.renaming = false; keyScope.forceActiveFocus() }
                             Keys.onEscapePressed: { root.renaming = false; keyScope.forceActiveFocus() }
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "renameSaveButton"
                             kind: "primary"
                             text: qsTr("Save")
                             onClicked: { root.ctl.renameProfile(renameField.text); root.renaming = false; keyScope.forceActiveFocus() }
                         }
-                        FbButton { text: qsTr("Cancel"); onClicked: { root.renaming = false; keyScope.forceActiveFocus() } }
+                        UzButton { text: qsTr("Cancel"); onClicked: { root.renaming = false; keyScope.forceActiveFocus() } }
                     }
                 }
             }
@@ -1145,7 +1145,7 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         Eyebrow { Layout.fillWidth: true; text: qsTr("Input test") }
-                        FbLabel {
+                        UzLabel {
                             objectName: "testLabelsNote"
                             visible: !root.isMouse
                             text: qsTr("Labels: %1").arg(root.ctl.labelSetName)
@@ -1153,7 +1153,7 @@ Rectangle {
                             font.pixelSize: Theme.fontMeta
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         text: root.ctl.device.kind === "keyboard" ? qsTr("Press keys. Active inputs light up.")
@@ -1210,14 +1210,14 @@ Rectangle {
                         color: Theme.surface
                         border.width: 1
                         border.color: Theme.borderCard
-                        FbLabel {
+                        UzLabel {
                             anchors.centerIn: parent
                             text: qsTr("Mouse on bottom screen")
                             color: Theme.textMuted
                             font.pixelSize: Theme.fontSmall
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         visible: root.ctl.hasTouch
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0

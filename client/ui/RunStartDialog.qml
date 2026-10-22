@@ -58,7 +58,7 @@ Popup {
 
     contentItem: ColumnLayout {
         spacing: Theme.space12
-        FbLabel {
+        UzLabel {
             Layout.fillWidth: true
             text: root.inviting ? qsTr("Invite players") : qsTr("Start a run")
             font.pixelSize: Theme.fontCard
@@ -80,7 +80,7 @@ Popup {
                 spacing: Theme.space10
 
                 Eyebrow { visible: !root.inviting; text: qsTr("Name") }
-                FbField {
+                UzField {
                     id: nameField
                     objectName: "runNameField"
                     visible: !root.inviting
@@ -91,10 +91,10 @@ Popup {
                 }
 
                 Eyebrow { visible: !root.inviting; text: qsTr("Plugins") }
-                FbLabel {
+                UzLabel {
                     visible: !root.inviting && root.runs.startPlugins.count === 0
                     Layout.fillWidth: true
-                    text: qsTr("Your Hub offers no plugin for runs yet.")
+                    text: qsTr("Your server offers no plugin for runs yet.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap
@@ -116,7 +116,7 @@ Popup {
                 }
                 Repeater {
                     model: root.inviting ? null : root.runs.startIncluded
-                    delegate: FbLabel {
+                    delegate: UzLabel {
                         id: incRow
                         required property var model
                         objectName: "runIncluded_" + incRow.model.id
@@ -148,7 +148,7 @@ Popup {
                         readonly property bool isHeader: ruleRow.model.kind === "header"
                         Layout.fillWidth: true
                         spacing: 2
-                        FbLabel {
+                        UzLabel {
                             visible: ruleRow.isHeader
                             objectName: "runRulesHeader_" + ruleRow.model.pluginId
                             Layout.fillWidth: true
@@ -164,12 +164,12 @@ Popup {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 1
-                                FbLabel {
+                                UzLabel {
                                     Layout.fillWidth: true
                                     text: ruleRow.model.label
                                     wrapMode: Text.WordWrap
                                 }
-                                FbLabel {
+                                UzLabel {
                                     visible: ruleRow.model.hint !== ""
                                     Layout.fillWidth: true
                                     text: ruleRow.model.hint
@@ -178,7 +178,7 @@ Popup {
                                     wrapMode: Text.WordWrap
                                 }
                             }
-                            FbToggle {
+                            UzToggle {
                                 visible: ruleRow.model.widget === "toggle"
                                 objectName: "runRule_" + ruleRow.model.pluginId + "_" + ruleRow.model.key
                                 checked: ruleRow.model.value === true
@@ -187,14 +187,14 @@ Popup {
                                     checked = Qt.binding(function() { return ruleRow.model.value === true })
                                 }
                             }
-                            FbSegment {
+                            UzSegmented {
                                 visible: ruleRow.model.widget === "segments"
                                 objectName: "runRule_" + ruleRow.model.pluginId + "_" + ruleRow.model.key
                                 options: ruleRow.model.options
                                 current: String(ruleRow.model.value)
                                 onPicked: value => root.runs.setStartRule(ruleRow.model.pluginId, ruleRow.model.key, value)
                             }
-                            FbSelect {
+                            UzSelect {
                                 visible: ruleRow.model.widget === "select"
                                 objectName: "runRule_" + ruleRow.model.pluginId + "_" + ruleRow.model.key
                                 Layout.preferredWidth: 180
@@ -207,16 +207,16 @@ Popup {
                 }
 
                 Eyebrow { text: qsTr("Players") }
-                FbLabel {
+                UzLabel {
                     visible: root.runs.startUsersLoading
                     text: qsTr("Loading players…")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSmall
                 }
-                FbLabel {
+                UzLabel {
                     visible: !root.runs.startUsersLoading && root.runs.startUsers.count === 0
                     Layout.fillWidth: true
-                    text: qsTr("There is nobody else to invite on this Hub.")
+                    text: qsTr("There is nobody else to invite yet.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap
@@ -245,7 +245,7 @@ Popup {
             }
         }
 
-        FbLabel {
+        UzLabel {
             objectName: "runStartError"
             visible: root.runs.startError !== ""
             Layout.fillWidth: true
@@ -258,12 +258,12 @@ Popup {
             Layout.fillWidth: true
             spacing: Theme.space8
             Item { Layout.fillWidth: true }
-            FbButton {
+            UzButton {
                 objectName: "runStartCancel"
                 text: qsTr("Cancel")
                 onClicked: root.close()
             }
-            FbButton {
+            UzButton {
                 objectName: "runStartConfirm"
                 kind: "primary"
                 text: root.inviting ? qsTr("Invite") : qsTr("Start run")

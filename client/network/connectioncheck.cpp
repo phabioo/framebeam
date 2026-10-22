@@ -42,7 +42,7 @@ QString stepIdName(CheckStepId id) {
 
 QString stepTitle(CheckStepId id) {
   switch (id) {
-    case CheckStepId::Hub: return QStringLiteral("Hub reachable");
+    case CheckStepId::Hub: return QStringLiteral("Server reachable");
     case CheckStepId::Stun: return QStringLiteral("STUN");
     case CheckStepId::Turn: return QStringLiteral("TURN relay");
     case CheckStepId::Nat: return QStringLiteral("NAT type");
@@ -229,7 +229,7 @@ void ConnectionCheck::runStep(int index) {
         turnOff_ = true;
         setStep(index, CheckStepState::Skipped, QStringLiteral("Not turned on"),
                 QStringLiteral("%1 has no relay (TURN). Sessions across networks then work only when a direct connection is possible. "
-                               "An admin can turn the relay on in the Hub's Network settings.").arg(target_.hubName));
+                               "An admin can turn the relay on in the server's Network settings.").arg(target_.hubName));
         begin(index + 1);
         break;
       }
@@ -256,7 +256,7 @@ void ConnectionCheck::runStep(int index) {
 void ConnectionCheck::onHub(const HubProbeResult& r) {
   const QString hub = hostPort(target_.hubAddress);
   if (r.ok) {
-    setStep(0, CheckStepState::Ok, QStringLiteral("%1 · %2").arg(hub, ms(r.latencyMs)), QStringLiteral("The Player can talk to %1.").arg(target_.hubName));
+    setStep(0, CheckStepState::Ok, QStringLiteral("%1 · %2").arg(hub, ms(r.latencyMs)), QStringLiteral("Uzume can talk to %1.").arg(target_.hubName));
     if (!target_.iceKnown) {
       skipRest(1, QStringLiteral("Skipped"));
       finish(CheckOutcome::NotConnected);
@@ -269,18 +269,18 @@ void ConnectionCheck::onHub(const HubProbeResult& r) {
   QString res, expl;
   if (r.errorKind == QLatin1String("timeout")) {
     res = r.latencyMs >= 1000 ? QStringLiteral("No answer from %1 after %2 s").arg(hub).arg(qRound(r.latencyMs / 1000.0)) : QStringLiteral("No answer from %1").arg(hub);
-    expl = QStringLiteral("Either the Hub is off, the address is wrong, or a firewall blocks port %1.").arg(port);
+    expl = QStringLiteral("Either the server is off, the address is wrong, or a firewall blocks port %1.").arg(port);
   } else if (r.errorKind == QLatin1String("refused")) {
     res = QStringLiteral("%1 refused the connection").arg(hub);
-    expl = QStringLiteral("The computer answers, but nothing listens on port %1. Check that the Hub is running and the port is right.").arg(port);
+    expl = QStringLiteral("The computer answers, but nothing listens on port %1. Check that the server is running and the port is right.").arg(port);
   } else if (r.errorKind == QLatin1String("dns")) {
     res = QStringLiteral("The name %1 cannot be found").arg(hub.section(QLatin1Char(':'), 0, -2));
     expl = QStringLiteral("Check the address for typos, and that this device is online.");
   } else if (r.errorKind == QLatin1String("certificate")) {
     res = QStringLiteral("The certificate of %1 does not match").arg(hub);
-    expl = QStringLiteral("This is not the Hub this Player has trusted, or its certificate changed. Nothing was sent. Check the Hub under Settings → Hubs.");
+    expl = QStringLiteral("This is not the server this PC has trusted, or its certificate changed. Nothing was sent. Check the server under Settings › Servers.");
   } else if (r.errorKind == QLatin1String("http")) {
-    res = QStringLiteral("%1 does not answer like a Hub").arg(hub);
+    res = QStringLiteral("%1 does not answer like a server").arg(hub);
     expl = QStringLiteral("Something answers on this address, but it is not an Uzume server (or an incompatible version). Check the address.");
   } else {
     res = QStringLiteral("%1 cannot be reached").arg(hub);
@@ -306,16 +306,16 @@ void ConnectionCheck::onStun(const StunProbeResult& r) {
   result_.nat = classifyNat(r.mappings);  // used by steps 3 to 5; step 4 only reports it
   if (r.mappings.isEmpty()) {
     setStep(1, CheckStepState::Skipped, QStringLiteral("No STUN server"),
-            QStringLiteral("%1 hands out no STUN server (it is set up for a local network). Players then find each other on the same network, or through the relay.").arg(target_.hubName));
+            QStringLiteral("%1 hands out no STUN server (it is set up for a local network). Devices then find each other on the same network, or through the relay.").arg(target_.hubName));
     begin(2);
     return;
   }
   if (answered == 0) {
     setStep(1, CheckStepState::Failed, QStringLiteral("No answer from the STUN servers"),
-            QStringLiteral("Other Players cannot learn your public address, so direct connections are unlikely. UDP may be blocked by a firewall."), details);
+            QStringLiteral("Other devices cannot learn your public address, so direct connections are unlikely. UDP may be blocked by a firewall."), details);
   } else {
     stunAnswered_ = true;
-    setStep(1, CheckStepState::Ok, QStringLiteral("Public address found"), QStringLiteral("Other Players can find you."), details);
+    setStep(1, CheckStepState::Ok, QStringLiteral("Public address found"), QStringLiteral("Other devices can find you."), details);
   }
   begin(2);
 }
@@ -328,8 +328,8 @@ void ConnectionCheck::onTurn(const TurnProbeResult& r) {
     if (!r.relayed.isEmpty()) d << QStringLiteral("relayed address %1").arg(r.relayed);
     setStep(2, CheckStepState::Ok, QStringLiteral("Works · %1").arg(ms(r.rttMs)), QStringLiteral("Used only when a direct connection fails."), d);
   } else if (r.errorKind == QLatin1String("auth")) {
-    setStep(2, CheckStepState::Failed, QStringLiteral("The relay refused the Player's credentials"),
-            QStringLiteral("The relay credentials are short-lived and come from %1. Reconnect to the Hub and run the check again.").arg(target_.hubName),
+    setStep(2, CheckStepState::Failed, QStringLiteral("The relay refused this PC's credentials"),
+            QStringLiteral("The relay credentials are short-lived and come from %1. Reconnect to the server and run the check again.").arg(target_.hubName),
             r.error.isEmpty() ? QStringList{} : QStringList{r.error});
   } else {
     setStep(2, CheckStepState::Failed, QStringLiteral("No answer from %1").arg(server),
@@ -371,19 +371,19 @@ void ConnectionCheck::onTest(const TestProbeResult& r) {
   if (!r.ok) {
     setStep(4, CheckStepState::Failed, QStringLiteral("The test connection failed"),
             testRelayOnly_ ? QStringLiteral("Two test peers could not exchange data through the relay%1.").arg(r.error.isEmpty() ? QString() : QStringLiteral(" (") + r.error + QLatin1Char(')'))
-                           : QStringLiteral("Two test peers in this Player could not connect%1.").arg(r.error.isEmpty() ? QString() : QStringLiteral(" (") + r.error + QLatin1Char(')')),
+                           : QStringLiteral("Two test peers on this PC could not connect%1.").arg(r.error.isEmpty() ? QString() : QStringLiteral(" (") + r.error + QLatin1Char(')')),
             details);
   } else if (testRelayOnly_) {
     testOk_ = true;
     const QString via = r.server.isEmpty() ? turnServer_ : r.server;
     setStep(4, CheckStepState::Warning, QStringLiteral("Relayed through %1 · %2").arg(via, ms(r.rttMs)),
-            target_.forceRelay ? QStringLiteral("The relay is forced on this Player (UZUME_FORCE_RELAY). Data flowed between two test peers through the relay.")
-                               : QStringLiteral("Data flowed between two test peers in this Player through the relay of %1.").arg(target_.hubName),
+            target_.forceRelay ? QStringLiteral("The relay is forced on this PC (UZUME_FORCE_RELAY). Data flowed between two test peers through the relay.")
+                               : QStringLiteral("Data flowed between two test peers on this PC through the relay of %1.").arg(target_.hubName),
             details);
   } else if (r.srflxCandidates > 0) {
     testOk_ = true;
     setStep(4, CheckStepState::Ok, QStringLiteral("WebRTC works · public address found"),
-            QStringLiteral("Two test peers in this Player connected and found a public address through the Hub's servers. Whether a direct path to another Player works also depends on that Player's network."),
+            QStringLiteral("Two test peers on this PC connected and found a public address through the STUN servers of the server. Whether a direct path to another PC works also depends on that PC's network."),
             details);
   } else {
     setStep(4, CheckStepState::Warning, QStringLiteral("No public address found"),
@@ -398,23 +398,23 @@ void ConnectionCheck::decideOutcome() {
   const bool direct = stunAnswered_ && result_.nat != NatType::Symmetric && !target_.forceRelay && testOk_ && !testRelayOnly_;
   if (direct) {
     result_.summary = QStringLiteral("Your network allows direct connections");
-    result_.summaryDetail = turnOk_ ? QStringLiteral("Sessions go straight between Players. The relay is ready as a fallback.")
-                          : turnOff_ ? QStringLiteral("Sessions go straight between Players. %1 has no relay, so a Session fails if a direct connection is not possible.").arg(hub)
-                                     : QStringLiteral("Sessions go straight between Players. The relay did not work (see step 3), so a Session fails if a direct connection is not possible.");
+    result_.summaryDetail = turnOk_ ? QStringLiteral("Sessions go straight between PCs. The relay is ready as a fallback.")
+                          : turnOff_ ? QStringLiteral("Sessions go straight between PCs. %1 has no relay, so a Session fails if a direct connection is not possible.").arg(hub)
+                                     : QStringLiteral("Sessions go straight between PCs. The relay did not work (see step 3), so a Session fails if a direct connection is not possible.");
     finish(CheckOutcome::Direct);
   } else if (turnOk_ && (!testRelayOnly_ || testOk_)) {
     result_.steps[2].explanation = QStringLiteral("Sessions will use the relay on this network.");
     emit stepChanged(2);
     result_.summary = QStringLiteral("Only relayed connections are possible here");
     result_.summaryDetail = target_.forceRelay
-        ? QStringLiteral("The relay is forced on this Player (UZUME_FORCE_RELAY), so every Session uses it. This works but adds delay.")
+        ? QStringLiteral("The relay is forced on this PC (UZUME_FORCE_RELAY), so every Session uses it. This works but adds delay.")
         : QStringLiteral("This works but adds delay. Common on office and mobile networks. Turning on UPnP on your router, or using another network, usually allows direct connections.");
     finish(CheckOutcome::Relayed);
   } else {
     result_.summary = QStringLiteral("Connections to other networks are not possible from here");
     result_.summaryDetail = noRoute
-        ? QStringLiteral("%1 hands out no STUN server and has no relay, so Sessions work between devices on the same network only. An admin can change this in the Hub's Network settings.").arg(hub)
-        : QStringLiteral("Your network blocks direct connections and the relay does not work or is not turned on at %1. Sessions work between devices on the same network. Try another network, or ask the Hub's admin to check the relay.").arg(hub);
+        ? QStringLiteral("%1 hands out no STUN server and has no relay, so Sessions work between devices on the same network only. An admin can change this in the server's Network settings.").arg(hub)
+        : QStringLiteral("Your network blocks direct connections and the relay does not work or is not turned on at %1. Sessions work between devices on the same network. Try another network, or ask the server's admin to check the relay.").arg(hub);
     finish(CheckOutcome::Blocked);
   }
 }
@@ -440,12 +440,12 @@ void ConnectionCheck::abort(CheckOutcome why) {
 void ConnectionCheck::finish(CheckOutcome outcome) {
   if (outcome == CheckOutcome::HubUnreachable) {
     result_.summary = QStringLiteral("%1 cannot be reached").arg(target_.hubName);
-    result_.summaryDetail = QStringLiteral("Check that the Hub is running and that %1 is the right address. Other steps need the Hub and were skipped.").arg(hostPort(target_.hubAddress));
+    result_.summaryDetail = QStringLiteral("Check that the server is running and that %1 is the right address. Other steps need the server and were skipped.").arg(hostPort(target_.hubAddress));
   }
   if (outcome == CheckOutcome::NotConnected) {
     result_.summary = QStringLiteral("Connect to %1 to run the full check").arg(target_.hubName);
-    result_.summaryDetail = QStringLiteral("%1 answers, but this Player is not connected to it right now, so it does not know the Hub's STUN and relay servers. "
-                                           "Connect to the Hub (Settings → Hubs) and run the check again.").arg(target_.hubName);
+    result_.summaryDetail = QStringLiteral("%1 answers, but this PC is not connected to it right now, so it does not know the server's STUN and relay servers. "
+                                           "Connect to the server (Settings › Servers) and run the check again.").arg(target_.hubName);
   }
   running_ = false;
   timeout_.stop();
