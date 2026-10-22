@@ -163,6 +163,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"ListAdminBackups", "StartAdminBackup", "GetAdminBackupStatus", "CancelAdminBackup", "GetAdminBackupSettings", "UpdateAdminBackupSettings",
 			"DismissAdminRestoreResult", "DeleteAdminBackup", "RestoreAdminBackup",
 			"CreateReport", "ListAdminReports", "GetAdminReport", "MarkAdminReportSeen", "DeleteAdminReport", "GetAdminReportFile", "GetAdminReportArchive",
+			"GetAdminUpdateVersions", "RollbackAdminUpdate", "ResumeAdminUpdates",
 			"ListRuns", "CreateRun", "GetRun", "JoinRun", "DeclineRun", "LeaveRun", "InviteRun", "SetRunStatus", "PutRunState", "AppendRunEvent", "ListRunEvents", "PutRunBoard":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {

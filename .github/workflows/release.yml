@@ -233,9 +233,10 @@ jobs:
               --arg sha "$(sha256sum "$rel/$name" | cut -d' ' -f1)" \
               '{platform:$platform, kind:$kind, name:$name, size:$a.size, sha256:$sha, url:$a.url}'
           }
-          mk() { # product info-file artifacts-json notes-file (short release notes for the index; the field is left out when empty)
+          mk() { # product info-file artifacts-json notes-file (short release notes for the index; the field is left out when empty; schema_version / msi_downgrade pass through from the info file only when set, for update rollback)
             jq --arg now "$now" --arg notes "https://github.com/$GH_REPO/releases/tag/$TAG" --argjson artifacts "$3" --rawfile text "$4" \
               '{product, channel, version, commit, published_at:$now, notes_url:$notes, protocol_version, min_protocol_version, artifacts:$artifacts}
+               + ({schema_version, msi_downgrade} | with_entries(select(.value != null and .value != false and .value != 0)))
                | if .product == "hub" or .product == "player" then . else error("bad product") end
                | if ($text | length) > 0 then . + {notes: $text} else . end' "$2"
           }

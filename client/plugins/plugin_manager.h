@@ -78,6 +78,13 @@ class PluginManager : public QObject {
   bool setEnabled(const QString& id, bool enabled);
   void setDeveloperMode(bool on);
   bool developerMode() const { return m_devMode; }
+  // The version of the running Player, compared with the manifest field `min_player` (default empty: not checked, e.g. development builds). A plugin that
+  // needs a newer Player has the problem "Needs Player <version>": it is off (kept enabled) until the Player is updated.
+  void setPlayerVersion(const QString& version);
+  QString playerVersion() const { return m_playerVersion; }
+  // Display names of the installed plugins that are turned on and need a Player newer than `version` (the rollback
+  // dialog: "X needs 0.16.4 and is turned off until you update."), as {name, min_player} pairs sorted by name.
+  QList<QPair<QString, QString>> pluginsNeedingNewerPlayer(const QString& version) const;
 
   // Enabled plugins whose games match, plus (transitively) the plugins they require, in start order. Plugins with
   // problems are listed in `problems` and not started, nor are plugins that depend on them.
@@ -112,6 +119,7 @@ class PluginManager : public QObject {
 
   QString m_root;
   bool m_devMode = false;
+  QString m_playerVersion;
   QMap<QString, bool> m_enabled;
   QMap<QString, QString> m_linked;   // plugin id -> folder
   QMap<QString, Entry> m_entries;                    // the active copy per plugin id

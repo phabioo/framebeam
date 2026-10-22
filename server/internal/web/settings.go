@@ -16,6 +16,7 @@ import (
 	"github.com/phabioo/framebeam/server/internal/hub"
 	"github.com/phabioo/framebeam/server/internal/tlsutil"
 	"github.com/phabioo/framebeam/server/internal/turnsrv"
+	"github.com/phabioo/framebeam/server/internal/updates"
 )
 
 // NetConfig is what the Network settings need to know about the running Hub (set by cmd/framebeam-hub).
@@ -126,10 +127,28 @@ type updatesBody struct {
 	LastCheckAt  When
 	LastResultAt When
 	CadenceText  string // "checks every hour" ... or ""
-	// OffOption: the channel "Off" is offered (development builds).
+	// Earlier lists the earlier versions (fetched only when asked for: ?earlier=1).
+	Earlier   *earlierBody
+	PausedAt  When
 	OffOption bool
 	Channel   string // select value: stable, beta or "" (development default)
 	Err       bool   // the status could not be read
+}
+
+// earlierBody is the "Earlier versions" card (design 6c-hub).
+type earlierBody struct {
+	hub.RollbackInfo
+	Err  string
+	Rows []earlierRow
+}
+
+type earlierRow struct {
+	hub.RollbackVersion
+	Used      string
+	LostSince When
+	NeedsConf bool
+	Refused   bool
+	Published When
 }
 
 // extTURNRow is an external TURN server as shown in Settings: URLs and credential mode, never a password or secret.
@@ -289,6 +308,12 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 		}
 		if updStatus.LastResult != nil {
 			b.Updates.LastResultAt = fmtWhen(updStatus.LastResult.Time, time.Now())
+		}
+		if updStatus.Paused != nil {
+			b.Updates.PausedAt = fmtWhen(updStatus.Paused.At, time.Now())
+		}
+		if sec.ID == "updates" && r.URL.Query().Get("earlier") == "1" {
+			b.Updates.Earlier = s.earlierData(ctx)
 		}
 	} else {
 		b.Updates.Err = true
@@ -752,6 +777,62 @@ func (s *Server) settingsUpdatesInstall(w http.ResponseWriter, r *http.Request, 
 		s.log.Error("install update", "err", err)
 		s.redirect(w, r, "/settings/updates?err=updatefailed")
 	}
+}
+
+// earlierData builds the "Earlier versions" card. It fetches the signed index, so it only runs on request.
+func (s *Server) earlierData(ctx context.Context) *earlierBody {
+	info, err := s.svc.RollbackVersions(ctx)
+	e := &earlierBody{RollbackInfo: info}
+	if err != nil {
+		e.Err = "The earlier versions could not be listed: " + err.Error()
+		return e
+	}
+	now := time.Now()
+	for _, v := range info.Versions {
+		row := earlierRow{RollbackVersion: v, Published: fmtWhen(v.PublishedAt, now), NeedsConf: v.Action == updates.SchemaRestore, Refused: v.Action == updates.SchemaRefuse}
+		if !v.FirstUsed.IsZero() {
+			row.Used = "used " + v.FirstUsed.Local().Format("2 Jan") + " - " + v.LastUsed.Local().Format("2 Jan")
+		}
+		if !v.LostSince.IsZero() {
+			row.LostSince = fmtWhen(v.LostSince, now)
+		}
+		e.Rows = append(e.Rows, row)
+	}
+	return e
+}
+
+// settingsUpdatesRollback goes back to the posted version. The browser asks for confirmation first (hx-confirm);
+// a version that replaces the database also needs confirm_loss=1.
+func (s *Server) settingsUpdatesRollback(w http.ResponseWriter, r *http.Request, sess *session) {
+	_, err := s.svc.Rollback(r.Context(), hub.RollbackRequest{Version: r.PostFormValue("version"), By: sess.User.Username,
+		ConfirmDataLoss: r.PostFormValue("confirm_loss") == "1"})
+	var he *hub.Error
+	switch {
+	case err == nil:
+		s.redirect(w, r, "/settings/updates?ok=updateback")
+	case errors.Is(err, hub.ErrRollbackConfirm):
+		s.redirect(w, r, "/settings/updates?earlier=1&err=rollbackconfirm")
+	case errors.Is(err, hub.ErrNotPackaged):
+		s.redirect(w, r, "/settings/updates?err=updatepackage")
+	case errors.Is(err, hub.ErrInContainer):
+		s.redirect(w, r, "/settings/updates?err=rollbackcontainer")
+	case errors.As(err, &he) && he.Code == hub.CodeBadRequest:
+		s.redirect(w, r, "/settings/updates?earlier=1&err=rollbackversion")
+	case errors.As(err, &he) && he.Code == hub.CodeConflict:
+		s.redirect(w, r, "/settings/updates?earlier=1&err=rollbackrefused")
+	default:
+		s.log.Error("update rollback", "err", err)
+		s.redirect(w, r, "/settings/updates?err=rollbackfailed")
+	}
+}
+
+// settingsUpdatesResume ends the pause after going back.
+func (s *Server) settingsUpdatesResume(w http.ResponseWriter, r *http.Request, sess *session) {
+	if err := s.svc.ResumeUpdates(r.Context()); err != nil {
+		s.redirect(w, r, "/settings/updates?err=resumefailed")
+		return
+	}
+	s.redirect(w, r, "/settings/updates?ok=updateresume")
 }
 
 // ---- handlers: Network ----

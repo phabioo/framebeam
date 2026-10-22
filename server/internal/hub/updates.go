@@ -167,6 +167,9 @@ type UpdateAvailable struct {
 	// Breaking: min_protocol_version is above the protocol version of a Player seen in the last 30 days (S4).
 	Breaking      bool `json:"breaking"`
 	BreakingCount int  `json:"breaking_count"`
+	// Skipped: going back skipped this version; it is listed as "skipped · available" and never installed
+	// automatically. Computed when the status is read, not stored.
+	Skipped bool `json:"skipped,omitempty"`
 }
 
 // Warning returns the S4 warning text, or "".
@@ -194,6 +197,12 @@ type UpdateStatus struct {
 	ActiveSessions int
 	// ManualCommand is shown when the update cannot be installed from the page.
 	ManualCommand string
+	// Paused is set after going back: automatic updates stay off until they are resumed. Skipped is the version
+	// that was left.
+	Paused  *updates.Pause
+	Skipped string
+	// InContainer: the Hub runs in the official image and is rolled back by pulling the older image tag.
+	InContainer bool
 }
 
 // UpdateStatus gathers the update state.
@@ -220,6 +229,12 @@ func (s *Service) UpdateStatus(ctx context.Context) (UpdateStatus, error) {
 		return st, err
 	}
 	st.Available = s.storedAvailable(ctx)
+	st.Paused = s.UpdatePause(ctx)
+	st.Skipped = s.UpdateSkipped(ctx)
+	st.InContainer = updates.InContainer()
+	if st.Available != nil && skippedVersion(st.Available.Version, st.Skipped) {
+		st.Available.Skipped = true
+	}
 	st.Packaged = s.packaged()
 	st.Staged, _ = updates.ReadStaged(s.dataDir)
 	st.RequestPending = updates.RequestPending(s.updCfg.requestDir)
@@ -353,6 +368,7 @@ func (s *Service) CheckUpdates(ctx context.Context) (_ UpdateCheckReport, err er
 		return rep, err
 	}
 	_ = s.setSetting(ctx, settingUpdateLastError, "")
+	s.recordRunning(ctx)
 	rep.Skipped = len(f.Skipped)
 	s.dropObsoleteStage()
 	if sel.Release == nil {
@@ -370,6 +386,10 @@ func (s *Service) CheckUpdates(ctx context.Context) (_ UpdateCheckReport, err er
 
 	set, _ := s.UpdateSettings(ctx)
 	if !set.Auto || a.Breaking || !s.packaged() || s.countActiveSessions(ctx) > 0 {
+		return rep, nil
+	}
+	// After going back, automatic updates are paused, and the skipped version is never installed automatically.
+	if s.UpdatePause(ctx) != nil || skippedVersion(a.Version, s.UpdateSkipped(ctx)) {
 		return rep, nil
 	}
 	if r, _ := updates.ReadResult(s.dataDir); r != nil && !r.OK && r.Version == a.Version {
@@ -430,7 +450,16 @@ func (s *Service) InstallUpdate(ctx context.Context, confirmBreaking bool) (_ up
 	if n := s.playersBelow(ctx, sel.Release.MinProtocolVersion); n > 0 && !confirmBreaking {
 		return updates.Staged{}, ErrUpdateBreaking
 	}
-	return s.stageAndRequest(ctx, f, sel)
+	st, err := s.stageAndRequest(ctx, f, sel)
+	if err == nil {
+		// "Update to X" after going back: moving forward again ends the pause and the skip.
+		if p := s.UpdatePause(ctx); p != nil {
+			s.endPause(ctx, p, true)
+		} else {
+			_ = s.setSetting(ctx, updates.SettingSkip, "")
+		}
+	}
+	return st, err
 }
 
 // TriggerUpdateCheck asks the background loop for a check now; it never blocks.

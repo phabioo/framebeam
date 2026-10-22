@@ -326,6 +326,14 @@ ManifestResult parseManifest(const QByteArray& json, const QString& pluginDir) {
   if (m.type == QLatin1String("tool")) return fail(QStringLiteral("tool plugins are not supported yet"));
   if (m.type != QLatin1String("script")) return fail(QStringLiteral("unknown plugin type '%1'").arg(m.type));
 
+  QString minPlayerText;
+  if (QString e = str("min_player", minPlayerText, false); !e.isEmpty()) return fail(e);
+  if (!minPlayerText.isEmpty()) {
+    const auto mp = SemVer::parse(minPlayerText);
+    if (!mp) return fail(QStringLiteral("invalid min_player '%1': use SemVer, e.g. 0.16.4").arg(minPlayerText));
+    m.minPlayer = *mp;
+  }
+
   const QJsonValue req = o.value(QLatin1String("requires"));
   if (!req.isUndefined() && !req.isNull()) {
     if (!req.isObject()) return fail(QStringLiteral("manifest field 'requires' must be an object of plugin id to version range"));

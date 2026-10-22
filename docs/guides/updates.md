@@ -41,4 +41,39 @@ Release notes ([ADR 0028](../adr/0028-release-notes-and-changelogs.md)): the sta
 
 ## Rollback
 
-Manual (ADR 0011 D8): `sudo apt install --allow-downgrades ./framebeam-hub_<old>.deb` for the Hub, and if the schema changed, restore the matching database backup from `<data>/backups/`. The Player is reinstalled from an older release.
+"Go back" installs one of the last 5 earlier releases of the same product from the signed index ([ADR 0029](../adr/0029-operations-and-safety.md) D4, which finishes ADR 0011 D8). The list holds releases of the channel the install follows (a beta install also sees stable releases) plus the versions this device actually ran, which a small local history remembers with the first and last day they ran. A version is never offered when it is not older than the running one, when it does not speak the current `protocol_version` (the Hub and the Players would not understand each other), or when it has no installer for this platform. Everything is verified like an update: the signature of the index, its freshness (`expires_at`: an old signed installer cannot come back through a stale index), size and SHA-256 of the file, and that the target is strictly older.
+
+After going back, automatic updates are paused. The version you left is listed as "skipped · available" and is never installed automatically; "Update to X" installs it again, "Resume updates" turns automatic updates back on as they were (the skipped version stays skipped until you update to it or to something newer). The pause ends by itself once the running version has reached the version you went back from. The state is stored where an older program also reads it (the Hub's `settings` table, the Player's `player.json`: `update_auto` / `update_auto_install` is set to off), so the older version does not update itself right back.
+
+### Player (Windows installer)
+
+Settings → Updates → EARLIER VERSIONS lists the releases with "Go back…". The dialog says what happens: the Player closes, installs the older version and starts again (about 30 s); settings are kept (newer keys are ignored and come back after the update); saves and states are on the Hub and are not touched; plugins that need a newer Player (manifest field `min_player`) are turned off and listed ("X needs 0.16.4 and is turned off until you update."), they turn on again after the update; updates are paused. Never while a game or Session runs: the button is muted and the dialog says so. The installer is downloaded from the index, verified, and run by the same launcher copy as an update. For that the Player MSI is authored with `AllowDowngrades` (`packaging/windows/framebeam.wxs`): an MSI built without it refuses to install over a newer version, so the index marks the releases built with it (`msi_downgrade`) and only those are offered. Releases from before this change cannot be reached from the list; install them by hand from the release page.
+
+A portable, Linux or development build lists the same releases with a "View release" link only.
+
+### Hub
+
+Settings → Updates → "Earlier versions" (a plain page, loaded on request), the CLI and the admin API do the same:
+
+```
+framebeam-hub rollback --list [--json]          the earlier versions and what going back does to the data
+framebeam-hub rollback <version> [--yes] [--confirm-data-loss]
+framebeam-hub rollback --resume                 resume automatic updates
+GET  /api/v1/admin/updates/versions             the list (OpenAPI 1.26.0)
+POST /api/v1/admin/updates/rollback {"version": "...", "confirm_data_loss": false}
+POST /api/v1/admin/updates/resume
+```
+
+Migrations are forward-only, so what happens to the data depends on the database schema the target version uses (`schema_version` in the index entry, from `framebeam-hub version --json`; an entry without it is "unknown"):
+
+| Target | What happens |
+| --- | --- |
+| Knows the current schema | The database is kept as it is. |
+| Needs an older schema, and the automatic pre-update backup of exactly that step exists (`backups/hub-<from>-to-<to>-*.db`, [ADR 0011](../adr/0011-automatic-updates.md) D6) | The database is replaced by that backup. The dialog states "changes since <time> are lost; kept in the safety backup" and needs an explicit confirmation (`--confirm-data-loss`, the checkbox, `confirm_data_loss`). |
+| Needs an older schema and no such backup exists, or the schema is unknown | Refused with the reason. Nothing is dropped silently. |
+
+Before anything changes, a safety backup without ROMs is written (the same archive as [Backup and restore](hub-backup.md), marked `-safety`) into the backup folder, or `<data>/backups` when none is set. The older package is staged and handed to the root helper, which re-verifies everything (signature, freshness, protocol, that it is older, the database backup and its schema) and trusts nothing in the data folder; for a database restore it stops the service, moves the live database aside (`framebeam.db.rollback-<time>`), puts the backup in place with the pause written into it, installs the package and starts the service again. If the installer fails, the files are put back. On Windows the same runs through the update service and the MSI.
+
+In a container the Hub never goes back by itself: the Updates page shows how to pull the older image tag (`docker compose pull` with the tag, then recreate), and `rollback --list` prints the same. The Status page shows the banner "Running X · automatic updates paused" until updates are resumed.
+
+Manual fallback (also for a Hub that cannot go back by itself): `sudo apt install --allow-downgrades ./framebeam-hub_<old>.deb`, and if the schema changed, restore the matching database backup from `<data>/backups/` while the Hub is stopped. The Player is reinstalled from an older installer on the release page.

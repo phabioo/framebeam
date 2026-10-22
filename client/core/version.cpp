@@ -39,7 +39,7 @@ std::string playerVersionJson() {
   return "{\"product\":\"player\",\"version\":\"" + jsonEscape(playerVersion()) + "\",\"channel\":\"" +
          jsonEscape(playerChannel()) + "\",\"commit\":\"" + jsonEscape(playerCommit()) +
          "\",\"protocol_version\":" + std::to_string(kProtocolVersion) +
-         ",\"min_protocol_version\":" + std::to_string(kMinProtocolVersion) + "}";
+         ",\"min_protocol_version\":" + std::to_string(kMinProtocolVersion) + ",\"msi_downgrade\":true}";
 }
 
 }  // namespace framebeam

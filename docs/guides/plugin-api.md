@@ -36,6 +36,7 @@ A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n
 | `api` | Must be `1`. Otherwise the plugin is rejected: "`<name>` needs plugin API `<n>`; this Player supports API 1". |
 | `type` | `"script"` (default). `"tool"` is rejected: "tool plugins are not supported yet". |
 | `requires` | Map of plugin id to version range: `^1.2` (compatible, below the next major; `^0.2` stays below `0.3`), `~1.2` (below the next minor), `>=1.0`, `1.2.3` (exact), `*`. Required plugins start first. A required plugin must be installed and match the range. |
+| `min_player` | Optional SemVer (`"0.16.4"`): the oldest FrameBeam Player that runs the plugin. A plugin that needs a newer Player has the problem "Needs Player X", is not started and cannot be turned on; an enabled one stays enabled and runs again after the Player is updated (also after "Go back" to an older Player, see [updates](updates.md#rollback)). The Hub does not check it. |
 | `provides` | Interface names this plugin offers to others with `fb.provide`. |
 | `games` | List of `{ "system", "codes" }`. `codes` are globs (`*` any run, `?` one character, case-insensitive); no `codes` = every game of that system. An empty or missing list = all games. |
 | `permissions` | `memory.read`, `rom.read`, `ui`, `run.state`, `video.capture`. `memory.write` and `tool.exec` are rejected ("permission `<p>` is not available yet"), unknown names are errors. |

@@ -26,12 +26,13 @@ const DefaultPluginIndexURL = "https://github.com/phabioo/framebeam/releases/dow
 
 // Limits.
 const (
-	MaxIndexBytes   = 4 << 20
-	MaxSigBytes     = 4 << 10
-	MaxArtifactSize = 1 << 30
-	MaxReleases     = 2048
-	MaxArtifacts    = 16
-	maxTextLen      = 512
+	MaxIndexBytes    = 4 << 20
+	MaxSigBytes      = 4 << 10
+	MaxArtifactSize  = 1 << 30
+	MaxReleases      = 2048
+	MaxArtifacts     = 16
+	maxTextLen       = 512
+	maxSchemaVersion = 100000
 	// MaxNotesBytes is the limit of Release.Notes (UTF-8 bytes).
 	MaxNotesBytes = 4000
 )
@@ -89,10 +90,16 @@ type Release struct {
 	PublishedAt time.Time `json:"published_at"`
 	NotesURL    string    `json:"notes_url,omitempty"`
 	// Notes is the optional short plain-text "What's new" (groups like "### Added", bullets "- line"), signed with the index.
-	Notes              string     `json:"notes,omitempty"`
-	ProtocolVersion    int        `json:"protocol_version"`
-	MinProtocolVersion int        `json:"min_protocol_version"`
-	Artifacts          []Artifact `json:"artifacts"`
+	Notes              string `json:"notes,omitempty"`
+	ProtocolVersion    int    `json:"protocol_version"`
+	MinProtocolVersion int    `json:"min_protocol_version"`
+	// SchemaVersion is the database schema version of a Hub release (the newest migration its binary knows); 0 or
+	// absent = unknown (releases from before rollback support). Rollback needs it: migrations are forward-only.
+	SchemaVersion int `json:"schema_version,omitempty"`
+	// MSIDowngrade marks a release whose MSI can be installed over a newer version of FrameBeam (MajorUpgrade
+	// AllowDowngrades); older MSIs refuse that, so they are not offered as a rollback target on Windows.
+	MSIDowngrade bool       `json:"msi_downgrade,omitempty"`
+	Artifacts    []Artifact `json:"artifacts"`
 }
 
 // Index is the content of updates-index.json.
@@ -304,6 +311,9 @@ func validateRelease(r Release, allowFile bool) error {
 	}
 	if r.ProtocolVersion < 1 || r.MinProtocolVersion < 1 || r.MinProtocolVersion > r.ProtocolVersion {
 		return errors.New("invalid protocol_version/min_protocol_version")
+	}
+	if r.SchemaVersion < 0 || r.SchemaVersion > maxSchemaVersion {
+		return errors.New("invalid schema_version")
 	}
 	if len(r.Artifacts) == 0 || len(r.Artifacts) > MaxArtifacts {
 		return errors.New("a release needs 1 to 16 artifacts")

@@ -1,6 +1,6 @@
 # ADR 0029: Operations and safety
 
-- Status: Accepted for D1, D2, D3 and D5; further decisions (update rollback, Hub health) follow in later 0.17 PRs
+- Status: Accepted for D1 to D5; further decisions (Hub health) follow in later 0.17 PRs
 - Date: 2026-10-22
 - Deciders: Fabio
 
@@ -40,6 +40,17 @@ Roadmap 0.17 ([roadmap.md](../roadmap.md)) collects the operations items that ma
 - **Status.** New reports raise only the ADMIN → Reports nav badge ("n new"), not a Status problem. Opening does not mark seen; "Mark as seen" does.
 - **Offline.** If the Hub is unreachable the Player keeps the dialog, retries once the connection is back, and offers "Save as file…" with the same zip.
 
+### D4 Update rollback
+
+Finishes [ADR 0011](0011-automatic-updates.md) D8. Single-plugin rollback is not part of it (decision 32); runs keep their pinned plugin version.
+
+- **Candidates.** Releases of the same product and platform from the signed index (verified and fresh like for an update): the channel of the install (beta also sees stable) plus the versions the device actually ran, from a small local history (`update_history` in the Hub's `settings` table and in `player.json`, first and last day, capped at 20 entries). Strictly older than the running version, never older than the oldest version that speaks the current `protocol_version`, newest first, at most 5 (the Player screen draws 3). A version listed in two channels counts once, stable wins.
+- **Hub schema.** Migrations stay forward-only. The index entry carries `schema_version` (from `framebeam-hub version --json`); an entry without it is unknown. A target that knows the current schema keeps the data. A target that needs an older schema may only restore the automatic pre-update backup of exactly that step (ADR 0011 D6, `hub-<from>-to-<to>-*.db`); the confirmation names what is lost ("changes since <time> are lost; kept in the safety backup") and must be given explicitly. Without such a backup, or with an unknown schema, the rollback is refused with the reason. Before anything changes the Hub writes a safety backup without ROMs with the D2 code (backup folder, else `<data>/backups`).
+- **Root helper.** The rollback reuses the update path: `Stage` writes the same staged directory (plus the optional `restore_db` name and `settings.json`), and `update apply-staged` re-verifies everything and trusts nothing in the data folder: signature and freshness of the stored index, strictly older, protocol, the database backup name and the schema it was taken with. A database restore stops the service, moves the live database aside, puts the backup in place (with the update state written into it, see below), installs the package and starts the service; a failing installer puts everything back. On Windows the same runs in `update watch`. A container is never rolled back by itself (`FRAMEBEAM_HUB_CONTAINER`): the page and the CLI print the older image tag to pull.
+- **Pause and skip.** After going back, automatic updates are paused until "Resume updates", and the version that was left is "skipped · available": never installed automatically, "Update to X" installs it. The state lives in the data the older program reads (Hub `settings`: `update_auto=0`, `update_paused`, `update_skip`; Player `player.json`: `update_auto_install=false`, `update_paused`, `update_skip`), so an older binary that knows nothing of this feature stays quiet too, and a restored database carries it (the helper writes the keys into it). The pause holds while the running version is older than the one left; it ends by itself when the running version reaches it, or when the helper reported a failure or nothing happened within 30 minutes (Hub). Resume restores the previous automatic-install setting.
+- **Player.** The installer is downloaded from the index, verified (signature of the stored index, freshness, strictly older, protocol, size, SHA-256) and started through the update launcher copy, which checks size and hash again. Never while a game or Session runs. The MSI is authored with `MajorUpgrade AllowDowngrades="yes"` so a downgrade keeps the data; an MSI built without it refuses to install over a newer version, so releases built with it set `msi_downgrade` in the index (from `--version-json`) and only those are offered. Settings stay (unknown keys are preserved). A plugin manifest may declare `min_player`; a plugin that needs a newer Player has the problem "Needs Player X", is not started and turns on again after the update. Portable, Linux and development builds list the releases with links only.
+- **Interfaces.** `framebeam-hub rollback --list [--json] | <version> [--yes] [--confirm-data-loss] | --resume`; admin API `GET /api/v1/admin/updates/versions`, `POST /api/v1/admin/updates/rollback`, `POST /api/v1/admin/updates/resume` (OpenAPI 1.26.0); Settings → Updates in the Hub web is a plain page on the same service functions (the admin moves into the Player app in the next milestone). Status page and API show the problem "Updates paused" (info, amber) while paused.
+
 ### D5 Connection check in the Player
 
 - The Player's connection check is its own set of probes (Hub info endpoint with the pinned certificate, STUN binding from one socket to at least two destinations, TURN allocate with the Hub's short-lived credentials and an immediate refresh to free it) plus a WebRTC loopback inside the Player. NAT type comes from comparing the mapped addresses of two destinations for the same socket: equal means endpoint-independent, different means symmetric, and one answer means undetermined.
@@ -55,6 +66,9 @@ Roadmap 0.17 ([roadmap.md](../roadmap.md)) collects the operations items that ma
 - **Backup by copying the data folder with the Hub running:** the SQLite file and its WAL are not consistent that way; hence `VACUUM INTO`.
 - **Compressing (tar.zst/gz):** saves and ROMs hardly compress, and it would add a dependency or a CPU load on a Raspberry Pi; the format can get a compressed variant later.
 - **Pruning to make room on a full disk:** decision 26; the Hub only warns.
+- **Rolling back to an MSI that was built without `AllowDowngrades`:** Windows Installer would refuse it; the list only offers releases that say they can (`msi_downgrade`), the rest stays a manual install.
+- **Guessing the schema of a release that does not say it:** the rollback is refused; replacing a database on a guess could lose data.
+- **Starting the older version first and pausing afterwards:** the older program could update itself back before the pause exists; the state is written before the installer starts (and reverted when nothing started).
 - **Letting the container update itself** (for example by replacing the binary in the writable layer or in `/data`): the change would be lost on the next recreate and bypasses the image as the unit of upgrade and rollback.
 
 ## Consequences

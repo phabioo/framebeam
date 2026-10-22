@@ -38,6 +38,30 @@ func SnapshotTo(db *sql.DB, dest string) error {
 	return os.Chmod(dest, 0o600)
 }
 
+// PutSettings writes settings into the database file at path without migrating it (the update rollback prepares a
+// restored pre-update database for an older Hub, which may use an older schema). The settings table exists in
+// every schema.
+func PutSettings(path string, kv map[string]string) error {
+	esc := strings.NewReplacer("%", "%25", "?", "%3F", "#", "%23").Replace(path)
+	db, err := sql.Open("sqlite", "file:"+esc+"?_pragma=busy_timeout(5000)")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	for k, v := range kv {
+		if _, err := tx.Exec(`INSERT INTO settings(key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, k, v); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 // OpenExisting opens an existing database file without migrating it (for the CLI next to a running Hub).
 func OpenExisting(path string) (*sql.DB, error) {
 	if _, err := os.Stat(path); err != nil {

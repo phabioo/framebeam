@@ -121,6 +121,50 @@ class ManagerTest : public QObject {
     QVERIFY(ids(m.resolveForGame("3ds", "ABCD")).isEmpty());
   }
 
+  void needsNewerPlayer() {
+    QTemporaryDir root, src;
+    PluginManager m(root.path());
+    PluginSpec fine;
+    fine.id = "net.test.fine";
+    PluginSpec newer;
+    newer.id = "net.test.newer"; newer.name = "Newer"; newer.games = ndsGames(); newer.minPlayer = "0.16.4";
+    PluginSpec off;  // needs a newer Player too, but is not switched on: not listed for the rollback dialog
+    off.id = "net.test.off"; off.name = "Off"; off.minPlayer = "0.20.0";
+    PluginSpec user;  // needs the plugin that needs a newer Player
+    user.id = "net.test.user"; user.games = ndsGames(); user.requires_ = QJsonObject{{"net.test.newer", "*"}};
+    for (const PluginSpec* s : {&fine, &newer, &off, &user}) QVERIFY(m.installFromFolder(writePlugin(src.path(), *s)).ok);
+    m.setDeveloperMode(true);
+    QVERIFY(m.setEnabled("net.test.newer", true));
+    QVERIFY(m.setEnabled("net.test.user", true));
+
+    // No Player version known (development build): not checked.
+    QVERIFY(m.info("net.test.newer")->problems.isEmpty());
+    m.setPlayerVersion("0.16.3");
+    QCOMPARE(m.info("net.test.newer")->problems, QStringList{"Needs Player 0.16.4"});
+    QVERIFY(m.info("net.test.newer")->enabled);  // stays on, comes back after the update
+    QVERIFY(m.info("net.test.fine")->problems.isEmpty());
+    QVERIFY(m.info("net.test.user")->problems.contains("needs Newer, which has problems"));
+    const GameResolution r = m.resolveForGame("nds", "ABCD");
+    QVERIFY(r.start.isEmpty());
+    QCOMPARE(r.problems.value("net.test.newer"), QStringList{"Needs Player 0.16.4"});
+    QVERIFY(!m.setEnabled("net.test.off", true));  // cannot be turned on until the Player is updated
+
+    m.setPlayerVersion("0.16.4");
+    QVERIFY(m.info("net.test.newer")->problems.isEmpty());
+    QVERIFY(m.info("net.test.user")->problems.isEmpty());
+    QCOMPARE(ids(m.resolveForGame("nds", "ABCD")), (QStringList{"net.test.newer", "net.test.user"}));
+    m.setPlayerVersion("0.17.0-beta.3");
+    QVERIFY(m.info("net.test.newer")->problems.isEmpty());
+
+    // The rollback dialog asks what would be turned off by going back to a version.
+    QVERIFY(m.pluginsNeedingNewerPlayer("0.16.4").isEmpty());
+    const auto needing = m.pluginsNeedingNewerPlayer("0.16.3");
+    QCOMPARE(needing.size(), 1);
+    QCOMPARE(needing[0].first, QString("Newer"));
+    QCOMPARE(needing[0].second, QString("0.16.4"));
+    QVERIFY(m.pluginsNeedingNewerPlayer("garbage").isEmpty());
+  }
+
   void developerModeGate() {
     QTemporaryDir root, src;
     PluginManager m(root.path());

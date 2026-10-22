@@ -42,6 +42,9 @@ struct Release {
   QString notes;  // optional short plain-text "What's new" (<= kMaxNotesBytes UTF-8, no control chars but \n \t); empty if absent/invalid
   int protocolVersion = 0;
   int minProtocolVersion = 0;
+  // The Player MSI of this release installs over a newer version (MajorUpgrade AllowDowngrades). Only such a release
+  // is offered as a rollback target: an older MSI refuses to install over a newer one. `schema_version` (Hub) is ignored.
+  bool msiDowngrade = false;
   QList<Artifact> artifacts;
 
   std::optional<Artifact> artifact(const QString& platform, const QString& kind) const;

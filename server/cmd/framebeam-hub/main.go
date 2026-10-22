@@ -9,11 +9,12 @@
 //	framebeam-hub diagnostics <out.zip>        write the diagnostics bundle (logs, configuration; no database access) and exit
 //	framebeam-hub backup [--out DIR]           make a backup now; also: backup list | config | verify <file>
 //	framebeam-hub restore <file>               restore a backup (the Hub must be stopped; makes a safety backup first)
-//	framebeam-hub version [--json]            print the version (JSON: product, version, channel, commit, protocol versions)
+//	framebeam-hub version [--json]            print the version (JSON: product, version, channel, commit, protocol and schema versions)
 //	framebeam-hub update check [-channel c]    print the update selection as JSON
 //	framebeam-hub update stage [-channel c]    check, download, verify and stage the update, create the request file
 //	framebeam-hub update apply-staged          root helper of the update unit: verify and install the staged .deb (Windows: .msi)
 //	framebeam-hub update watch                 Windows: SYSTEM helper service, applies a staged update when the Hub requests it
+//	framebeam-hub rollback --list              list the earlier versions and what going back does to the data; also: rollback <version> | --resume
 package main
 
 import (
@@ -73,6 +74,8 @@ func main() {
 		err = runRestore(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "version" {
 		err = runVersion(args[1:], os.Stdout)
+	} else if len(args) > 0 && args[0] == "rollback" {
+		err = runRollback(args[1:], os.Stdin, os.Stdout)
 	} else if len(args) > 0 && args[0] == "update" {
 		err = runUpdate(args[1:], os.Stdout)
 	} else {

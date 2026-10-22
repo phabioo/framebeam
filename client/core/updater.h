@@ -16,6 +16,7 @@
 #include "installroot.h"
 #include "playersettings.h"
 #include "updateindex.h"
+#include "updaterollback.h"
 
 class QNetworkReply;
 
@@ -44,6 +45,14 @@ struct StagedUpdate {
 std::optional<StagedUpdate> loadVerifiedStaged(const QString& baseDir, const QString& currentVersion,
                                                const QList<QByteArray>& trustedKeys, bool allowFileUrls);
 QString stagingRoot(const QString& baseDir);  // <baseDir>/cache/updates
+// Rollback installers are staged apart (<baseDir>/cache/rollback/<version>/): the normal staging only keeps newer versions.
+QString rollbackStagingRoot(const QString& baseDir);
+// The staged installer of the rollback to `version`, only when everything still holds: signature of the stored index,
+// the index is fresh (an old signed installer must not come back through a stale index), the release is a strictly
+// older player release that speaks `protocolVersion` (0 = not checked) and whose MSI allows downgrades, size and SHA-256.
+std::optional<StagedUpdate> loadVerifiedRollback(const QString& baseDir, const QString& version, const QString& currentVersion,
+                                                 const QList<QByteArray>& trustedKeys, bool allowFileUrls, int protocolVersion,
+                                                 const QDateTime& now);
 
 // Verifies size and SHA-256 of a file against an artifact.
 bool verifyArtifactFile(const QString& path, const Artifact& artifact, QString* error = nullptr);
@@ -73,6 +82,7 @@ class UpdateManager : public QObject {
     QList<QByteArray> trustedKeys;
     QString installRoot;      // install root (installRootFor), empty = unknown
     bool forceApplySupport = false;  // tests: behave like an installed Windows Player
+    int protocolVersion = 0;         // this Player's Hub protocol (rollback targets must speak it); 0 = not checked
   };
 
   UpdateManager(const Config& config, PlayerSettings* settings, QObject* parent = nullptr);
@@ -88,7 +98,10 @@ class UpdateManager : public QObject {
   bool channelIsOverridden() const { return !settings_->updateChannel().isEmpty(); }
   // Automatic install is only effective on the beta channel (stable always asks first).
   bool autoInstallSetting() const;
-  bool autoInstallEffective() const { return effectiveChannel() == Channel::Beta && autoInstallSetting(); }
+  // Not while paused after going back, and never for the version the user went back from.
+  bool autoInstallEffective() const {
+    return effectiveChannel() == Channel::Beta && autoInstallSetting() && !updatesPaused() && !selectionSkipped();
+  }
   // Only an installer-based Windows install updates itself; zip/dev/Linux just show the release.
   bool applySupported() const;
   QString applyUnsupportedReason() const;
@@ -115,6 +128,24 @@ class UpdateManager : public QObject {
   // when the installer was started and the Player has to quit (never during a game). Used before the main window.
   bool applyStagedAtStart();
 
+  // ---- Update rollback (ADR 0029 D4)
+  // Automatic updates are paused after going back, until resumeUpdates() (or until the Player has reached the version it
+  // went back from, by "Update to").
+  bool updatesPaused() const;
+  Pause pause() const;
+  // The version the user went back from (empty when none or when the Player has reached it); listed as "skipped".
+  QString skippedVersion() const;
+  // The newest release found is the skipped one: it is listed as available, but not installed automatically.
+  bool selectionSkipped() const;
+  // Older releases of the last verified index that may be offered (empty until a check succeeded).
+  QList<RollbackCandidate> rollbackOptions() const;
+  bool rollbackListLoaded() const { return lastIndex_.ok; }
+  // Downloads the older installer, verifies it, pauses automatic updates and starts the installer. Refused while a game or
+  // Session runs and when this copy cannot update itself. Nothing changes when it is refused.
+  void rollbackTo(const QString& version);
+  // Ends the pause (automatic updates as before the rollback) and checks right away. The skipped version stays skipped.
+  void resumeUpdates();
+
   // Fetches and verifies an index (used by check and by the CLI). indexUrl may be https:// or file://.
   static void fetchIndex(QNetworkAccessManager* nam, const QUrl& indexUrl, const QList<QByteArray>& trustedKeys,
                          QObject* context, std::function<void(const FetchedIndex&)> done);
@@ -128,8 +159,13 @@ class UpdateManager : public QObject {
   void setState(State s, const QString& text);
   void onIndex(const FetchedIndex& fi);
   void startDownload(bool applyAfter);
+  void beginDownload(const Release& release, const Artifact& artifact, const QString& dir, bool applyAfter, bool rollback);
   void finishDownload(const QString& partPath);
   void apply(const StagedUpdate& staged);
+  void applyRollback(const StagedUpdate& staged);
+  void recordRunning();
+  void settle();
+  void endPause(const Pause& p);
   bool hasAttemptRecord(const StagedUpdate& staged) const;
   void recordAttempt(const StagedUpdate& staged);
   bool allowFileUrls() const;
@@ -149,6 +185,9 @@ class UpdateManager : public QObject {
   QString lastError_;
   bool checkRunning_ = false;
   bool applyAfterDownload_ = false;
+  Release dlRelease_;        // what the running download fetches (the selected release, or a rollback target)
+  Artifact dlArtifact_;
+  bool dlRollback_ = false;
   QPointer<QNetworkReply> download_;
   std::function<std::optional<HubProtocol>()> hubProtocol_;
   std::function<bool()> busy_;

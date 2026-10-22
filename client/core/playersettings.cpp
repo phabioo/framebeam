@@ -27,6 +27,9 @@ constexpr const char* kAppearanceKey = "appearance";
 constexpr const char* kUpdateChannelKey = "update_channel";
 constexpr const char* kUpdateChannelDefaultKey = "update_channel_default";
 constexpr const char* kUpdateAutoKey = "update_auto_install";
+constexpr const char* kUpdateHistoryKey = "update_history";
+constexpr const char* kUpdatePausedKey = "update_paused";
+constexpr const char* kUpdateSkipKey = "update_skip";
 constexpr const char* kDiagOpenKey = "diagnostics_open";
 constexpr const char* kDeveloperModeKey = "developer_mode";
 constexpr const char* kPluginLanguageKey = "plugin_language";
@@ -62,6 +65,7 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   if (raw_.value(QLatin1String(kUpdateAutoKey)).isBool()) {
     updateAutoInstall_ = raw_.value(QLatin1String(kUpdateAutoKey)).toBool();
   }
+  updateSkip_ = raw_.value(QLatin1String(kUpdateSkipKey)).toString();
   diagOpen_ = raw_.value(QLatin1String(kDiagOpenKey)).toBool(false);
   developerMode_ = raw_.value(QLatin1String(kDeveloperModeKey)).toBool(false);
   if (const QString lang = raw_.value(QLatin1String(kPluginLanguageKey)).toString(); isValidPluginLanguage(lang)) pluginLanguage_ = lang;
@@ -131,6 +135,40 @@ bool PlayerSettings::setUpdateChannelDefault(const QString& channel) {
 bool PlayerSettings::setUpdateAutoInstall(bool on) {
   updateAutoInstall_ = on;
   raw_.insert(QLatin1String(kUpdateAutoKey), on);
+  return save();
+}
+
+bool PlayerSettings::clearUpdateAutoInstall() {
+  updateAutoInstall_.reset();
+  raw_.remove(QLatin1String(kUpdateAutoKey));
+  return save();
+}
+
+QJsonArray PlayerSettings::updateHistory() const { return raw_.value(QLatin1String(kUpdateHistoryKey)).toArray(); }
+
+bool PlayerSettings::setUpdateHistory(const QJsonArray& history) {
+  raw_.insert(QLatin1String(kUpdateHistoryKey), history);
+  return save();
+}
+
+QJsonObject PlayerSettings::updatePause() const { return raw_.value(QLatin1String(kUpdatePausedKey)).toObject(); }
+
+bool PlayerSettings::setUpdatePause(const QJsonObject& pause) {
+  if (pause.isEmpty()) {
+    raw_.remove(QLatin1String(kUpdatePausedKey));
+  } else {
+    raw_.insert(QLatin1String(kUpdatePausedKey), pause);
+  }
+  return save();
+}
+
+bool PlayerSettings::setUpdateSkip(const QString& version) {
+  updateSkip_ = version;
+  if (version.isEmpty()) {
+    raw_.remove(QLatin1String(kUpdateSkipKey));
+  } else {
+    raw_.insert(QLatin1String(kUpdateSkipKey), version);
+  }
   return save();
 }
 

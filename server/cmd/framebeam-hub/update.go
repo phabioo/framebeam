@@ -16,6 +16,7 @@ import (
 
 	"github.com/phabioo/framebeam/server/internal/config"
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/store"
 	"github.com/phabioo/framebeam/server/internal/updates"
 	"github.com/phabioo/framebeam/server/internal/version"
 )
@@ -28,11 +29,17 @@ type versionInfo struct {
 	Commit             string `json:"commit"`
 	ProtocolVersion    int    `json:"protocol_version"`
 	MinProtocolVersion int    `json:"min_protocol_version"`
+	// SchemaVersion is the newest database migration this build knows; the release info copies it into the index
+	// entry so a rollback can tell whether the older build understands the current database.
+	SchemaVersion int `json:"schema_version"`
+	// MSIDowngrade: the MSI built with this binary can be installed over a newer version (AllowDowngrades).
+	MSIDowngrade bool `json:"msi_downgrade"`
 }
 
 func currentVersionInfo() versionInfo {
 	return versionInfo{Product: "hub", Version: version.Version, Channel: version.Channel, Commit: version.Commit,
-		ProtocolVersion: hub.ProtocolVersion, MinProtocolVersion: hub.MinProtocolVersion}
+		ProtocolVersion: hub.ProtocolVersion, MinProtocolVersion: hub.MinProtocolVersion,
+		SchemaVersion: store.KnownSchemaVersion(), MSIDowngrade: true}
 }
 
 // runVersion prints the version, or with --json one JSON object.
@@ -203,7 +210,8 @@ func runApplyStaged(args []string, out io.Writer, run updates.Runner) error {
 	ctx, cancel := context.WithTimeout(context.Background(), applyTimeout)
 	defer cancel()
 	res, err := updates.ApplyStaged(ctx, updates.ApplyOptions{DataDir: cfg.DataDir, RequestFile: updates.RequestPath(cfg.UpdateRequestDir),
-		Keys: keys, CurrentVersion: version.Version, Run: run, TempDir: updates.DefaultPrivateDir(runtime.GOOS, os.Getenv)})
+		Keys: keys, CurrentVersion: version.Version, Run: run, TempDir: updates.DefaultPrivateDir(runtime.GOOS, os.Getenv),
+		Protocol: hub.ProtocolVersion, PrepareDB: store.PutSettings})
 	if err != nil {
 		return err
 	}

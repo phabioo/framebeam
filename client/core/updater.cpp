@@ -14,6 +14,7 @@
 #include <QProcess>
 #include <QSaveFile>
 #include <QUrl>
+#include <algorithm>
 
 #include "updatesig.h"
 
@@ -74,6 +75,7 @@ void getBytes(QNetworkAccessManager* nam, const QUrl& url, qint64 maxBytes, QObj
 }  // namespace
 
 QString stagingRoot(const QString& baseDir) { return QDir(baseDir).filePath(QStringLiteral("cache/updates")); }
+QString rollbackStagingRoot(const QString& baseDir) { return QDir(baseDir).filePath(QStringLiteral("cache/rollback")); }
 
 bool verifyArtifactFile(const QString& path, const Artifact& artifact, QString* error) {
   QFile f(path);
@@ -144,6 +146,33 @@ std::optional<StagedUpdate> loadVerifiedStaged(const QString& baseDir, const QSt
     if (name != bestDir) QDir(root.filePath(name)).removeRecursively();
   }
   return best;
+}
+
+std::optional<StagedUpdate> loadVerifiedRollback(const QString& baseDir, const QString& version, const QString& currentVersion,
+                                                 const QList<QByteArray>& trustedKeys, bool allowFileUrls, int protocolVersion,
+                                                 const QDateTime& now) {
+  const auto cur = SemVer::parse(currentVersion);
+  const auto want = SemVer::parse(version);
+  if (!cur || !want || SemVer::compare(*want, *cur) >= 0) return std::nullopt;  // only ever older
+  const QDir d(QDir(rollbackStagingRoot(baseDir)).filePath(want->toString()));
+  const QJsonObject staged = QJsonDocument::fromJson(readFile(d.filePath(QStringLiteral("staged.json")), 65536)).object();
+  const QString artifactName = staged.value(QLatin1String("artifact")).toString();
+  if (staged.value(QLatin1String("version")).toString() != want->toString() || artifactName.isEmpty()) return std::nullopt;
+  const QByteArray idx = readFile(d.filePath(QStringLiteral("index.json")));
+  const QByteArray sig = readFile(d.filePath(QStringLiteral("index.json.sig")), kMaxSigBytes);
+  if (idx.isEmpty() || !verifyIndexSignature(idx, sig, trustedKeys).ok) return std::nullopt;
+  const ParseResult pr = parseIndex(idx, allowFileUrls);
+  if (!pr.ok || !checkIndexFresh(pr.index, now).isEmpty()) return std::nullopt;
+  for (const Release& r : pr.index.releases) {
+    if (r.product != QLatin1String("player") || r.semver.toString() != want->toString() || !r.msiDowngrade) continue;
+    if (protocolVersion > 0 && !(r.minProtocolVersion <= protocolVersion && protocolVersion <= r.protocolVersion)) continue;
+    const auto art = r.artifact(QLatin1String(kPlayerPlatform), QLatin1String(kKindMsi));
+    if (!art || art->name != artifactName) continue;
+    const QString path = d.filePath(art->name);
+    if (!verifyArtifactFile(path, *art)) return std::nullopt;
+    return StagedUpdate{r.version, path, r.notesUrl, art->sha256, art->size};
+  }
+  return std::nullopt;
 }
 
 // ---------------------------------------------------------------- fetch
@@ -235,6 +264,122 @@ UpdateManager::UpdateManager(const Config& config, PlayerSettings* settings, QOb
     if (effectiveChannel() != Channel::Off && !busy()) checkNow();
     else scheduleNext();
   });
+  recordRunning();
+  settle();
+  // A rollback installer that has done its job (this is the version it installed) is not kept.
+  if (const auto cur = SemVer::parse(config_.currentVersion); cur) {
+    QDir(QDir(rollbackStagingRoot(config_.baseDir)).filePath(cur->toString())).removeRecursively();
+  }
+}
+
+void UpdateManager::recordRunning() {
+  if (config_.compiledChannel == QLatin1String("dev")) return;  // a development build is no release to go back to
+  QList<HistoryEntry> h = parseHistory(settings_->updateHistory());
+  if (recordVersion(h, config_.currentVersion, QDateTime::currentDateTimeUtc())) {
+    if (!settings_->setUpdateHistory(historyToJson(h))) qCWarning(lcUpdate) << "could not persist the version history";
+  }
+}
+
+Pause UpdateManager::pause() const { return parsePause(settings_->updatePause()); }
+
+bool UpdateManager::updatesPaused() const { return pauseEffective(pause(), config_.currentVersion); }
+
+QString UpdateManager::skippedVersion() const {
+  const QString skip = settings_->updateSkip();
+  return skipEffective(skip, config_.currentVersion) ? skip : QString();
+}
+
+bool UpdateManager::selectionSkipped() const {
+  return !selection_.release.version.isEmpty() && selection_.release.version == skippedVersion();
+}
+
+void UpdateManager::endPause(const Pause& p) {
+  bool ok = true;
+  if (p.prevAuto == 1) ok = settings_->setUpdateAutoInstall(true);
+  else if (p.prevAuto == 0) ok = settings_->setUpdateAutoInstall(false);
+  else ok = settings_->clearUpdateAutoInstall();
+  ok = settings_->setUpdatePause({}) && ok;
+  if (!ok) qCWarning(lcUpdate) << "could not persist the end of the update pause";
+}
+
+// The pause ends by itself once the Player is no longer older than the version it went back from; a skip that the
+// running version has reached is moot.
+void UpdateManager::settle() {
+  const Pause p = pause();
+  if (p.active() && !pauseEffective(p, config_.currentVersion)) endPause(p);
+  const QString skip = settings_->updateSkip();
+  if (!skip.isEmpty() && !skipEffective(skip, config_.currentVersion)) settings_->setUpdateSkip(QString());
+}
+
+void UpdateManager::resumeUpdates() {
+  const Pause p = pause();
+  if (!p.active()) return;
+  endPause(p);
+  settingsChanged();
+}
+
+QList<RollbackCandidate> UpdateManager::rollbackOptions() const {
+  if (!lastIndex_.ok) return {};
+  RollbackQuery q;
+  q.currentVersion = config_.currentVersion;
+  q.channel = effectiveChannel();
+  q.history = parseHistory(settings_->updateHistory());
+  q.protocolVersion = config_.protocolVersion;
+  return rollbackCandidates(lastIndex_.index, q);
+}
+
+void UpdateManager::rollbackTo(const QString& version) {
+  if (state_ == State::Downloading || state_ == State::Applying) return;
+  if (!applySupported()) {
+    setState(state_, tr("This copy cannot go back by itself. %1").arg(applyUnsupportedReason()));
+    return;
+  }
+  if (busy()) {
+    setState(state_, tr("A game or Session is running. Finish it first, then go back."));
+    return;
+  }
+  if (!lastIndex_.ok || !checkIndexFresh(lastIndex_.index, QDateTime::currentDateTimeUtc()).isEmpty()) {
+    setState(State::Error, tr("The list of earlier versions is not up to date. Check for updates first."));
+    return;
+  }
+  const auto want = SemVer::parse(version);
+  const QList<RollbackCandidate> options = rollbackOptions();
+  const auto it = std::find_if(options.cbegin(), options.cend(),
+                               [&](const RollbackCandidate& c) { return want && c.release.semver.toString() == want->toString(); });
+  if (it == options.cend()) {
+    setState(State::Error, tr("%1 is not one of the earlier versions that can be installed.").arg(version));
+    return;
+  }
+  QDir(rollbackStagingRoot(config_.baseDir)).removeRecursively();
+  beginDownload(it->release, it->artifact, QDir(rollbackStagingRoot(config_.baseDir)).filePath(it->release.semver.toString()), true, true);
+}
+
+void UpdateManager::applyRollback(const StagedUpdate& staged) {
+  // Pause first, so that the older Player (which reads the same player.json) does not update itself right back.
+  const QJsonObject oldPause = settings_->updatePause();
+  const QString oldSkip = settings_->updateSkip();
+  const std::optional<bool> oldAuto = settings_->updateAutoInstall();
+  Pause p = pause();
+  if (!updatesPaused()) {
+    p.prevAuto = oldAuto ? (*oldAuto ? 1 : 0) : -1;  // an already running pause keeps the setting from before it began
+  }
+  p.from = config_.currentVersion;  // going back from here
+  p.to = staged.version;
+  p.at = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+  if (!settings_->setUpdatePause(pauseToJson(p)) || !settings_->setUpdateSkip(config_.currentVersion) ||
+      !settings_->setUpdateAutoInstall(false)) {
+    lastError_ = QStringLiteral("settings could not be written");
+    setState(State::Error, tr("Going back was stopped: the settings could not be saved."));
+  } else {
+    apply(staged);
+  }
+  if (state_ != State::Applying) {  // nothing was started: leave the settings as they were
+    settings_->setUpdatePause(oldPause);
+    settings_->setUpdateSkip(oldSkip);
+    if (oldAuto) settings_->setUpdateAutoInstall(*oldAuto);
+    else settings_->clearUpdateAutoInstall();
+    emit changed();
+  }
 }
 
 Channel UpdateManager::effectiveChannel() const {
@@ -344,6 +489,8 @@ void UpdateManager::onIndex(const FetchedIndex& fi) {
   }
   lastError_.clear();
   lastIndex_ = fi;
+  recordRunning();
+  settle();
   resolveDefaultChannel(fi.index);
   SelectionInput in;
   in.channel = effectiveChannel();
@@ -383,12 +530,15 @@ void UpdateManager::onIndex(const FetchedIndex& fi) {
 }
 
 void UpdateManager::startDownload(bool applyAfter) {
-  const Artifact art = selection_.artifact;
+  beginDownload(selection_.release, selection_.artifact,
+                QDir(stagingRoot(config_.baseDir)).filePath(selection_.release.semver.toString()), applyAfter, false);
+}
+
+void UpdateManager::beginDownload(const Release& release, const Artifact& art, const QString& dir, bool applyAfter, bool rollback) {
   if (art.size > kMaxInstallerBytes) {
     setState(State::Error, tr("The update is too large."));
     return;
   }
-  const QString dir = QDir(stagingRoot(config_.baseDir)).filePath(selection_.release.semver.toString());
   QDir(dir).removeRecursively();
   if (!QDir().mkpath(dir)) {
     setState(State::Error, tr("The update folder could not be created."));
@@ -401,8 +551,11 @@ void UpdateManager::startDownload(bool applyAfter) {
     return;
   }
   applyAfterDownload_ = applyAfter;
+  dlRelease_ = release;
+  dlArtifact_ = art;
+  dlRollback_ = rollback;
   progress_ = 0;
-  setState(State::Downloading, tr("Downloading FrameBeam Player %1…").arg(selection_.release.version));
+  setState(State::Downloading, tr("Downloading FrameBeam Player %1…").arg(release.version));
   QNetworkReply* reply = nam_.get(makeRequest(QUrl(art.url)));
   download_ = reply;
   file->setParent(reply);
@@ -438,7 +591,7 @@ void UpdateManager::startDownload(bool applyAfter) {
 }
 
 void UpdateManager::finishDownload(const QString& partPath) {
-  const Artifact art = selection_.artifact;
+  const Artifact art = dlArtifact_;
   QString why;
   if (!verifyArtifactFile(partPath, art, &why)) {
     QFile::remove(partPath);
@@ -456,7 +609,7 @@ void UpdateManager::finishDownload(const QString& partPath) {
       !writeFile(dir.filePath(QStringLiteral("index.json")), lastIndex_.indexBytes) ||
       !writeFile(dir.filePath(QStringLiteral("index.json.sig")), lastIndex_.sigBytes) ||
       !writeFile(dir.filePath(QStringLiteral("staged.json")),
-                 QJsonDocument(QJsonObject{{"version", selection_.release.version},
+                 QJsonDocument(QJsonObject{{"version", dlRelease_.version},
                                            {"artifact", art.name},
                                            {"size", finalInfo.size()},
                                            {"mtime_ms", finalInfo.lastModified().toMSecsSinceEpoch()}})
@@ -464,7 +617,25 @@ void UpdateManager::finishDownload(const QString& partPath) {
     setState(State::Error, tr("The update could not be staged."));
     return;
   }
-  setState(State::Ready, tr("FrameBeam Player %1 is ready to install.").arg(selection_.release.version));
+  if (dlRollback_) {
+    // Verify again from what is on disk (signature of the stored index, freshness, older, protocol, MSI flag, hash).
+    dlRollback_ = false;
+    applyAfterDownload_ = false;
+    const auto staged = loadVerifiedRollback(config_.baseDir, dlRelease_.version, config_.currentVersion, config_.trustedKeys,
+                                             allowFileUrls(), config_.protocolVersion, QDateTime::currentDateTimeUtc());
+    if (!staged) {
+      lastError_ = QStringLiteral("the older installer did not pass the checks");
+      setState(State::Error, tr("The older version was rejected: it did not pass the checks."));
+      return;
+    }
+    if (busy()) {  // a game started while it downloaded
+      setState(State::Error, tr("A game or Session is running. Finish it first, then go back."));
+      return;
+    }
+    applyRollback(*staged);
+    return;
+  }
+  setState(State::Ready, tr("FrameBeam Player %1 is ready to install.").arg(dlRelease_.version));
   if (applyAfterDownload_) {
     applyAfterDownload_ = false;
     installNow();
@@ -481,6 +652,7 @@ void UpdateManager::installNow() {
     setState(state_, tr("A game or Session is running. Finish it first, then install the update."));
     return;
   }
+  if (selectionSkipped()) settings_->setUpdateSkip(QString());  // "Update to X": the user asked for it
   const auto staged = loadVerifiedStaged(config_.baseDir, config_.currentVersion, config_.trustedKeys, allowFileUrls());
   if (staged && (selection_.release.version.isEmpty() || staged->version == selection_.release.version)) {
     apply(*staged);
@@ -494,9 +666,9 @@ void UpdateManager::installNow() {
 }
 
 bool UpdateManager::applyStagedAtStart() {
-  if (!applySupported() || effectiveChannel() != Channel::Beta || !autoInstallSetting() || busy()) return false;
+  if (!applySupported() || effectiveChannel() != Channel::Beta || !autoInstallSetting() || updatesPaused() || busy()) return false;
   const auto staged = loadVerifiedStaged(config_.baseDir, config_.currentVersion, config_.trustedKeys, allowFileUrls());
-  if (!staged) return false;
+  if (!staged || staged->version == skippedVersion()) return false;
   if (hasAttemptRecord(*staged)) {
     // We are still on the old version, so the earlier attempt failed: do not loop, leave the retry to the user.
     qCWarning(lcUpdate) << "update to" << staged->version << "was attempted before and failed; not applying automatically";

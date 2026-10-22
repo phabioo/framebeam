@@ -77,6 +77,7 @@ struct Manifest {
   int api = kPluginApiVersion;
   QString type = QStringLiteral("script");
   QList<Dependency> dependencies;  // manifest field "requires"
+  std::optional<update::SemVer> minPlayer;  // optional field "min_player": the oldest FrameBeam Player that runs the plugin
   QStringList provides;
   QList<GamePattern> games;        // empty = all games
   QStringList permissions;

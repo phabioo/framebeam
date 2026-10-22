@@ -11,13 +11,15 @@ import (
 
 // Names inside the data directory and request directory.
 const (
-	UpdatesDir      = "updates"
-	StagedDirName   = "staged"
-	IndexFileName   = "updates-index.json"
-	SigFileName     = "updates-index.json.sig"
-	StagedFileName  = "staged.json"
-	LastResultName  = "last-result.json"
-	RequestFileName = "update-request"
+	UpdatesDir     = "updates"
+	StagedDirName  = "staged"
+	IndexFileName  = "updates-index.json"
+	SigFileName    = "updates-index.json.sig"
+	StagedFileName = "staged.json"
+	// SettingsFileName holds the update settings the root helper writes into a restored database (rollback only).
+	SettingsFileName = "settings.json"
+	LastResultName   = "last-result.json"
+	RequestFileName  = "update-request"
 	// DefaultRequestDir is where the request file lives (systemd RuntimeDirectory of the Hub service).
 	DefaultRequestDir = "/run/framebeam"
 	// PackagedExecutable is the path of the Hub binary of a .deb install.
@@ -28,6 +30,12 @@ const (
 type Staged struct {
 	Version  string `json:"version"`
 	Artifact string `json:"artifact"`
+	// Rollback: the version is older than the running one (going back). The root helper then requires a fresh
+	// signed index and a release that speaks its protocol version instead of "strictly newer".
+	Rollback bool `json:"rollback,omitempty"`
+	// RestoreDB names a file of <data>/backups (hub-<from>-to-<to>-<ts>.db) that replaces the database while the
+	// Hub is stopped, because the target needs an older schema.
+	RestoreDB string `json:"restore_db,omitempty"`
 }
 
 // StagedDir is <data>/updates/staged.
@@ -57,7 +65,22 @@ func ClearStaged(dataDir string) error { return os.RemoveAll(StagedDir(dataDir))
 // staged.json. A previous staged update is replaced. staged.json is written last, so a half-written stage is
 // never applied.
 func Stage(ctx context.Context, f *Fetched, rel Release, art Artifact, dataDir string) (Staged, error) {
-	st := Staged{Version: rel.Version, Artifact: art.Name}
+	return stage(ctx, f, rel, art, dataDir, Staged{Version: rel.Version, Artifact: art.Name}, nil)
+}
+
+// StageRollback is Stage for going back to an older release. restoreDB (optional) names the pre-update database
+// backup to put in place; settings (optional) are written into that restored database (update_auto = 0 and the
+// pause, so that the older Hub, which may not know the rollback, does not update itself again).
+func StageRollback(ctx context.Context, f *Fetched, rel Release, art Artifact, dataDir, restoreDB string, settings map[string]string) (Staged, error) {
+	if restoreDB != "" {
+		if _, ok := ParseDBBackupName(restoreDB); !ok {
+			return Staged{}, errors.New("invalid database backup name")
+		}
+	}
+	return stage(ctx, f, rel, art, dataDir, Staged{Version: rel.Version, Artifact: art.Name, Rollback: true, RestoreDB: restoreDB}, settings)
+}
+
+func stage(ctx context.Context, f *Fetched, rel Release, art Artifact, dataDir string, st Staged, settings map[string]string) (Staged, error) {
 	if !ValidSemVer(rel.Version) || !nameRe.MatchString(art.Name) {
 		return st, errors.New("invalid release or artifact name")
 	}
@@ -94,6 +117,12 @@ func Stage(ctx context.Context, f *Fetched, rel Release, art Artifact, dataDir s
 	}
 	for name, data := range map[string][]byte{IndexFileName: f.Data, SigFileName: f.Sig} {
 		if err := os.WriteFile(filepath.Join(dir, name), data, 0o640); err != nil {
+			return fail(err)
+		}
+	}
+	if settings != nil {
+		b, _ := json.Marshal(settings)
+		if err := os.WriteFile(filepath.Join(dir, SettingsFileName), b, 0o640); err != nil {
 			return fail(err)
 		}
 	}
