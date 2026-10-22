@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8m-1 Linux · first start</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">FIRST START · LINUX</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:40px 24px 24px;display:flex;flex-direction:column;gap:28px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="UZUME-SERVER IS INSTALLED">Welcome</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Welcome to Uzume</h1>
+        <div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm">A server is installed on this PC (uzume-server). Set it up here, or ignore it.</x-import></div>
+      </div>
+      <div role="list" aria-label="How do you want to play?" style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+        <div role="listitem" style="display:grid;grid-template-columns:40px minmax(0,1fr) 220px;column-gap:24px;align-items:start;padding:20px 16px;border-bottom:1px solid var(--rule-2);background:var(--hover);box-shadow:var(--focus-ring);position:relative;z-index:1;">
+          <span style="font:400 11px/28px var(--font-mono);color:var(--muted)">01</span>
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Set up the server on this PC</span><span style="font-size:14px;line-height:22px;color:var(--ink-2);max-width:520px">Uses the installed package. You become the admin.</span></div>
+          <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted);text-align:right;padding-top:6px">SYSTEMD SERVICE · UZUME-SERVER</span>
+        </div>
+        <div role="listitem" style="display:grid;grid-template-columns:40px minmax(0,1fr) 220px;column-gap:24px;align-items:start;padding:20px 16px;border-bottom:1px solid var(--rule-2);">
+          <span style="font:400 11px/28px var(--font-mono);color:var(--dim)">02</span>
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Play on this PC</span><span style="font-size:14px;line-height:22px;color:var(--ink-2);max-width:520px">Your games and saves stay on this computer. No account.</span></div>
+          <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);text-align:right;padding-top:6px">NO SERVER NEEDED</span>
+        </div>
+        <div role="listitem" style="display:grid;grid-template-columns:40px minmax(0,1fr) 220px;column-gap:24px;align-items:start;padding:20px 16px;border-bottom:1px solid var(--rule-2);">
+          <span style="font:400 11px/28px var(--font-mono);color:var(--dim)">03</span>
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Join a server</span><span style="font-size:14px;line-height:22px;color:var(--ink-2);max-width:520px">A friend runs Uzume for a group. You need their address or an invite code.</span></div>
+          <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);text-align:right;padding-top:6px">ADDRESS OR INVITE</span>
+        </div>
+      </div>
+      <span style="font-size:12px;line-height:18px;color:var(--muted)">Without the server package this line is not shown, and Set up a server offers On another device only.</span>
+    </div>
+    <div style="padding-top:40px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · FIRST START · LINUX" items="{{ help }}"></x-import></div>
+  </div>
+  <div style="height:44px;flex:none;border-top:1px solid var(--rule-2);display:flex;align-items:center;justify-content:flex-end;gap:24px;padding:0 56px">
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="A" label="Choose"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="B" label="Back"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}]}, { noop: () => {}, help: [{ title: 'Packages', text: T(M('uzume'), ' is the app, ', M('uzume-server'), ' the systemd service.') }, { title: 'Docker', text: T('The image is ', M('ghcr.io/<owner>/uzume-server'), '.') }, { text: 'The app finds the package by its service; nothing is started until you choose.' }] });
+  }
+}
+</script>
+</body>
+</html>

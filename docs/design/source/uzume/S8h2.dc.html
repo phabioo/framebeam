@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8h-2 Docker · logs</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">WHAT THE SERVER SHOWS</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:8px 24px 24px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="DOCKER · GHCR.IO/&lt;OWNER&gt;/UZUME-SERVER">Server</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">First start in Docker</h1>
+      </div>
+      <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">docker logs shows the same block after the start lines. Environment variables are read once at start.</p>
+      <div role="img" aria-label="max@nas: ~" style="display:flex;flex-direction:column;border:1px solid var(--rule);background:var(--stage)">
+          <div style="height:32px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--rule-2);font:400 11px/16px var(--font-mono);color:var(--muted)">max@nas: ~</div>
+          <div style="padding:16px 20px 20px;font:400 12px/20px var(--font-mono)"><div style="white-space:pre-wrap;min-height:20px;color:var(--ink);font-weight:500">max@nas:~ $ docker run -d --name uzume -p 8443:8443 -p 3478:3478/udp -p 3478:3478/tcp -p 49160-49199:49160-49199/udp -e UZUME_PUBLIC_HOST=server.example.com:8443 -v /srv/uzume:/data ghcr.io/&lt;owner&gt;/uzume-server:0.17.0</div><div style="white-space:pre-wrap;min-height:20px;color:var(--ink);font-weight:500">max@nas:~ $ docker logs uzume</div><div style="white-space:pre-wrap;min-height:20px;color:var(--muted);font-weight:400">2026-10-22T14:02:11Z INFO  Uzume server 0.17.0 starting</div><div style="white-space:pre-wrap;min-height:20px;color:var(--muted);font-weight:400">2026-10-22T14:02:11Z INFO  data dir /data (UZUME_DATA_DIR)</div><div style="white-space:pre-wrap;min-height:20px;color:var(--muted);font-weight:400">2026-10-22T14:02:12Z INFO  listening on 0.0.0.0:8443 · relay 3478 udp/tcp · 49160-49199 udp</div><div style="white-space:pre-wrap;min-height:20px;color:var(--muted);font-weight:400">2026-10-22T14:02:12Z INFO  no admin yet: waiting for setup</div><div style="white-space:pre-wrap;min-height:20px;color:var(--muted);font-weight:400"></div><div style="white-space:pre-wrap;min-height:20px;color:var(--ink);font-weight:500">  Uzume server 0.17.0 · ready for setup</div><div style="white-space:pre-wrap;min-height:20px;color:var(--muted);font-weight:400"></div><div style="white-space:pre-wrap;min-height:20px;color:var(--muted);font-weight:400">  Address         192.0.2.10:8443</div><div style="white-space:pre-wrap;min-height:20px;color:var(--ink);font-weight:500">  Security code   R2M8-X4TQ-7KDW</div><div style="white-space:pre-wrap;min-height:20px;color:var(--ink);font-weight:500">  Setup code      7H4K-2Q        one use · valid 60 min</div><div style="white-space:pre-wrap;min-height:20px;color:var(--muted);font-weight:400"></div></div>
+        </div>
+    </div>
+    <div style="padding-top:8px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME SERVER · FIRST START" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}]}, { noop: () => {}, help: [{ title: 'Inside Docker', text: T('Run commands with ', M('docker exec uzume uzume-server setup-code'), '.') }, { text: 'The address shown is the container’s view. Friends use the public host from UZUME_PUBLIC_HOST.' }] });
+  }
+}
+</script>
+</body>
+</html>

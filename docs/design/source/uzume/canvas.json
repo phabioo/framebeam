@@ -1,0 +1,2827 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-10-22T11:40:00Z"
+ },
+ "title": "Uzume · Round 5",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [
+  {
+   "id": "b0",
+   "name": "0 All sheets"
+  },
+  {
+   "id": "b1",
+   "name": "1 Frame and first start"
+  },
+  {
+   "id": "b2",
+   "name": "2 Accounts and server"
+  },
+  {
+   "id": "b3",
+   "name": "3 Runs and server"
+  },
+  {
+   "id": "b4",
+   "name": "4 Play and plugins"
+  }
+ ],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": -160,
+   "w": 1280,
+   "h": 1480,
+   "title": "1 Frame and first start · Index"
+  },
+  "S04A.dc.html": {
+   "x": 0,
+   "y": 1640,
+   "w": 1280,
+   "h": 800,
+   "title": "0-4 A · Name, mark, server glyph"
+  },
+  "S04B.dc.html": {
+   "x": 1360,
+   "y": 1640,
+   "w": 1280,
+   "h": 1240,
+   "title": "0-4 B · AppNav"
+  },
+  "S04C.dc.html": {
+   "x": 2720,
+   "y": 1640,
+   "w": 1280,
+   "h": 1040,
+   "title": "0-4 C · Server line, sign-in, blocks, density"
+  },
+  "S04D.dc.html": {
+   "x": 4080,
+   "y": 1640,
+   "w": 1280,
+   "h": 800,
+   "title": "0-4 D · One library, admin inline · Sumi"
+  },
+  "S04E.dc.html": {
+   "x": 5440,
+   "y": 1640,
+   "w": 1280,
+   "h": 800,
+   "title": "0-4 E · Settings This PC / Server · Sumi"
+  },
+  "S04F.dc.html": {
+   "x": 6800,
+   "y": 1640,
+   "w": 1280,
+   "h": 1040,
+   "title": "0-4 F · Copy pass"
+  },
+  "S04G.dc.html": {
+   "x": 8160,
+   "y": 1640,
+   "w": 1280,
+   "h": 800,
+   "title": "0-4 G · Tokens, hotkeys, server commands"
+  },
+  "S04H.dc.html": {
+   "x": 9520,
+   "y": 1640,
+   "w": 1280,
+   "h": 1040,
+   "title": "0-4 H · Round 5 index and Later"
+  },
+  "S04DKinari.dc.html": {
+   "x": 4080,
+   "y": 2800,
+   "w": 1280,
+   "h": 800,
+   "title": "0-4 D · One library, admin inline · Kinari"
+  },
+  "S04EKinari.dc.html": {
+   "x": 5440,
+   "y": 2800,
+   "w": 1280,
+   "h": 800,
+   "title": "0-4 E · Settings This PC / Server · Kinari"
+  },
+  "S8a1.dc.html": {
+   "x": 0,
+   "y": 4040,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-1 · First start · gamepad · Sumi"
+  },
+  "S8a2.dc.html": {
+   "x": 1360,
+   "y": 4040,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-2 · First start · keyboard · Sumi"
+  },
+  "S8a3.dc.html": {
+   "x": 2720,
+   "y": 4040,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-3 · Play on this PC · Sumi"
+  },
+  "S8a4.dc.html": {
+   "x": 4080,
+   "y": 4040,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-4 · Set up a server · steps 1–3 · Sumi"
+  },
+  "S8a5.dc.html": {
+   "x": 5440,
+   "y": 4040,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-5 · Set up a server · step 4 · Sumi"
+  },
+  "S8a6.dc.html": {
+   "x": 6800,
+   "y": 4040,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-6 · Set up a server · errors · Sumi"
+  },
+  "S8a1Kinari.dc.html": {
+   "x": 0,
+   "y": 4960,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-1 · First start · gamepad · Kinari"
+  },
+  "S8a2Kinari.dc.html": {
+   "x": 1360,
+   "y": 4960,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-2 · First start · keyboard · Kinari"
+  },
+  "S8a3Kinari.dc.html": {
+   "x": 2720,
+   "y": 4960,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-3 · Play on this PC · Kinari"
+  },
+  "S8a4Kinari.dc.html": {
+   "x": 4080,
+   "y": 4960,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-4 · Set up a server · steps 1–3 · Kinari"
+  },
+  "S8a5Kinari.dc.html": {
+   "x": 5440,
+   "y": 4960,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-5 · Set up a server · step 4 · Kinari"
+  },
+  "S8a6Kinari.dc.html": {
+   "x": 6800,
+   "y": 4960,
+   "w": 1280,
+   "h": 800,
+   "title": "8a-6 · Set up a server · errors · Kinari"
+  },
+  "S8b1.dc.html": {
+   "x": 0,
+   "y": 6200,
+   "w": 1280,
+   "h": 800,
+   "title": "8b-1 · Join · address or code · Sumi"
+  },
+  "S8b2.dc.html": {
+   "x": 1360,
+   "y": 6200,
+   "w": 1280,
+   "h": 800,
+   "title": "8b-2 · Join · security code · Sumi"
+  },
+  "S8b3.dc.html": {
+   "x": 2720,
+   "y": 6200,
+   "w": 1280,
+   "h": 800,
+   "title": "8b-3 · Join · with an invite · Sumi"
+  },
+  "S8b4.dc.html": {
+   "x": 4080,
+   "y": 6200,
+   "w": 1280,
+   "h": 800,
+   "title": "8b-4 · Join · sign in · gamepad · Sumi"
+  },
+  "S8b5.dc.html": {
+   "x": 5440,
+   "y": 6200,
+   "w": 1280,
+   "h": 1040,
+   "title": "8b-5 · Sign in · every state · Sumi"
+  },
+  "S8b6.dc.html": {
+   "x": 6800,
+   "y": 6200,
+   "w": 1280,
+   "h": 800,
+   "title": "8b-6 · Sign in · keyboard · Sumi"
+  },
+  "S8b1Kinari.dc.html": {
+   "x": 0,
+   "y": 7360,
+   "w": 1280,
+   "h": 800,
+   "title": "8b-1 · Join · address or code · Kinari"
+  },
+  "S8b2Kinari.dc.html": {
+   "x": 1360,
+   "y": 7360,
+   "w": 1280,
+   "h": 800,
+   "title": "8b-2 · Join · security code · Kinari"
+  },
+  "S8b3Kinari.dc.html": {
+   "x": 2720,
+   "y": 7360,
+   "w": 1280,
+   "h": 800,
+   "title": "8b-3 · Join · with an invite · Kinari"
+  },
+  "S8b4Kinari.dc.html": {
+   "x": 4080,
+   "y": 7360,
+   "w": 1280,
+   "h": 800,
+   "title": "8b-4 · Join · sign in · gamepad · Kinari"
+  },
+  "S8b5Kinari.dc.html": {
+   "x": 5440,
+   "y": 7360,
+   "w": 1280,
+   "h": 1040,
+   "title": "8b-5 · Sign in · every state · Kinari"
+  },
+  "S8b6Kinari.dc.html": {
+   "x": 6800,
+   "y": 7360,
+   "w": 1280,
+   "h": 800,
+   "title": "8b-6 · Sign in · keyboard · Kinari"
+  },
+  "S8c1.dc.html": {
+   "x": 0,
+   "y": 8840,
+   "w": 1280,
+   "h": 800,
+   "title": "8c-1 · Invite link · first start · Sumi"
+  },
+  "S8c2.dc.html": {
+   "x": 1360,
+   "y": 8840,
+   "w": 1280,
+   "h": 800,
+   "title": "8c-2 · Invite link · already on a server · Sumi"
+  },
+  "S8c3.dc.html": {
+   "x": 2720,
+   "y": 8840,
+   "w": 1280,
+   "h": 800,
+   "title": "8c-3 · Invite link · other states · Sumi"
+  },
+  "S8c1Kinari.dc.html": {
+   "x": 0,
+   "y": 9760,
+   "w": 1280,
+   "h": 800,
+   "title": "8c-1 · Invite link · first start · Kinari"
+  },
+  "S8c2Kinari.dc.html": {
+   "x": 1360,
+   "y": 9760,
+   "w": 1280,
+   "h": 800,
+   "title": "8c-2 · Invite link · already on a server · Kinari"
+  },
+  "S8c3Kinari.dc.html": {
+   "x": 2720,
+   "y": 9760,
+   "w": 1280,
+   "h": 800,
+   "title": "8c-3 · Invite link · other states · Kinari"
+  },
+  "S2Index.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 1480,
+   "page": "b2",
+   "title": "2 Accounts and server · Index"
+  },
+  "S2Blocks.dc.html": {
+   "x": 1360,
+   "y": 0,
+   "w": 1280,
+   "h": 1040,
+   "page": "b2",
+   "title": "2 · Ma blocks: metrics, storage bar, lanes, dialog"
+  },
+  "S8d1.dc.html": {
+   "x": 0,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-1 · Switch user · gamepad · Sumi"
+  },
+  "S8d2.dc.html": {
+   "x": 1360,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-2 · PIN · 2 of 4 · Sumi"
+  },
+  "S8d3.dc.html": {
+   "x": 2720,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-3 · PIN wrong · Sumi"
+  },
+  "S8d4.dc.html": {
+   "x": 4080,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-4 · Switch user · keyboard · Sumi"
+  },
+  "S8d5.dc.html": {
+   "x": 5440,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-5 · Switch while a game runs · Sumi"
+  },
+  "S8d6.dc.html": {
+   "x": 6800,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-6 · Add a user to this PC · Sumi"
+  },
+  "S8d7.dc.html": {
+   "x": 8160,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-7 · Switch user · other states · Sumi"
+  },
+  "S8d1Kinari.dc.html": {
+   "x": 0,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-1 · Switch user · gamepad · Kinari"
+  },
+  "S8d2Kinari.dc.html": {
+   "x": 1360,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-2 · PIN · 2 of 4 · Kinari"
+  },
+  "S8d3Kinari.dc.html": {
+   "x": 2720,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-3 · PIN wrong · Kinari"
+  },
+  "S8d4Kinari.dc.html": {
+   "x": 4080,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-4 · Switch user · keyboard · Kinari"
+  },
+  "S8d5Kinari.dc.html": {
+   "x": 5440,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-5 · Switch while a game runs · Kinari"
+  },
+  "S8d6Kinari.dc.html": {
+   "x": 6800,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-6 · Add a user to this PC · Kinari"
+  },
+  "S8d7Kinari.dc.html": {
+   "x": 8160,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8d-7 · Switch user · other states · Kinari"
+  },
+  "S8e1.dc.html": {
+   "x": 0,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8e-1 · My account · admin · Sumi"
+  },
+  "S8e2.dc.html": {
+   "x": 1360,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8e-2 · My account · member · Sumi"
+  },
+  "S8e3.dc.html": {
+   "x": 2720,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8e-3 · Change password · Sumi"
+  },
+  "S8e4.dc.html": {
+   "x": 4080,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8e-4 · Sign out everywhere · Sumi"
+  },
+  "S8e5.dc.html": {
+   "x": 5440,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8e-5 · My account · other states · Sumi"
+  },
+  "S8f1.dc.html": {
+   "x": 6800,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8f-1 · Confirm it’s you · Sumi"
+  },
+  "S8f2.dc.html": {
+   "x": 8160,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8f-2 · Confirmed · time left · Sumi"
+  },
+  "S8f3.dc.html": {
+   "x": 9520,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8f-3 · Confirm it’s you · states · Sumi"
+  },
+  "S8g1.dc.html": {
+   "x": 10880,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8g-1 · Forgot password · Sumi"
+  },
+  "S8e1Kinari.dc.html": {
+   "x": 0,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8e-1 · My account · admin · Kinari"
+  },
+  "S8e2Kinari.dc.html": {
+   "x": 1360,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8e-2 · My account · member · Kinari"
+  },
+  "S8e3Kinari.dc.html": {
+   "x": 2720,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8e-3 · Change password · Kinari"
+  },
+  "S8e4Kinari.dc.html": {
+   "x": 4080,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8e-4 · Sign out everywhere · Kinari"
+  },
+  "S8e5Kinari.dc.html": {
+   "x": 5440,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8e-5 · My account · other states · Kinari"
+  },
+  "S8f1Kinari.dc.html": {
+   "x": 6800,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8f-1 · Confirm it’s you · Kinari"
+  },
+  "S8f2Kinari.dc.html": {
+   "x": 8160,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8f-2 · Confirmed · time left · Kinari"
+  },
+  "S8f3Kinari.dc.html": {
+   "x": 9520,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8f-3 · Confirm it’s you · states · Kinari"
+  },
+  "S8g1Kinari.dc.html": {
+   "x": 10880,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "8g-1 · Forgot password · Kinari"
+  },
+  "S6f1.dc.html": {
+   "x": 0,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6f-app-1 · Server status · Sumi"
+  },
+  "S6f2.dc.html": {
+   "x": 1360,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6f-app-2 · Status · states · Sumi"
+  },
+  "S3j1.dc.html": {
+   "x": 2720,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3j-app-1 · Library · admin · Sumi"
+  },
+  "S3j2.dc.html": {
+   "x": 4080,
+   "y": 7280,
+   "w": 1280,
+   "h": 1040,
+   "page": "b2",
+   "title": "3j-app-2 · Library · dialogs and results · Sumi"
+  },
+  "S3j3.dc.html": {
+   "x": 5440,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3j-app-3 · Library · member · Sumi"
+  },
+  "S3s1.dc.html": {
+   "x": 6800,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3s-app-1 · Saves · all users · conflict · Sumi"
+  },
+  "S3s2.dc.html": {
+   "x": 8160,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3s-app-2 · Saves · restore for another person · Sumi"
+  },
+  "S3s3.dc.html": {
+   "x": 9520,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3s-app-3 · Saves · member · Sumi"
+  },
+  "S3s4.dc.html": {
+   "x": 10880,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3s-app-4 · Saves · states · Sumi"
+  },
+  "S6f1Kinari.dc.html": {
+   "x": 0,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6f-app-1 · Server status · Kinari"
+  },
+  "S6f2Kinari.dc.html": {
+   "x": 1360,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6f-app-2 · Status · states · Kinari"
+  },
+  "S3j1Kinari.dc.html": {
+   "x": 2720,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3j-app-1 · Library · admin · Kinari"
+  },
+  "S3j2Kinari.dc.html": {
+   "x": 4080,
+   "y": 8440,
+   "w": 1280,
+   "h": 1040,
+   "page": "b2",
+   "title": "3j-app-2 · Library · dialogs and results · Kinari"
+  },
+  "S3j3Kinari.dc.html": {
+   "x": 5440,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3j-app-3 · Library · member · Kinari"
+  },
+  "S3s1Kinari.dc.html": {
+   "x": 6800,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3s-app-1 · Saves · all users · conflict · Kinari"
+  },
+  "S3s2Kinari.dc.html": {
+   "x": 8160,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3s-app-2 · Saves · restore for another person · Kinari"
+  },
+  "S3s3Kinari.dc.html": {
+   "x": 9520,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3s-app-3 · Saves · member · Kinari"
+  },
+  "S3s4Kinari.dc.html": {
+   "x": 10880,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3s-app-4 · Saves · states · Kinari"
+  },
+  "S3n1.dc.html": {
+   "x": 0,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3n-app-1 · Users › People · Sumi"
+  },
+  "S3n2.dc.html": {
+   "x": 1360,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3n-app-2 · Users › Invites · Sumi"
+  },
+  "S3n3.dc.html": {
+   "x": 2720,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3n-app-3 · Users · actions and states · Sumi"
+  },
+  "S3m1.dc.html": {
+   "x": 4080,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3m-app-1 · Users › Devices · Sumi"
+  },
+  "S3m2.dc.html": {
+   "x": 5440,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3m-app-2 · Devices · states · Sumi"
+  },
+  "S3l1.dc.html": {
+   "x": 6800,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3l-app-1 · Systems & cores › Cores · Sumi"
+  },
+  "S3l2.dc.html": {
+   "x": 8160,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3l-app-2 · Systems & cores › Firmware · Sumi"
+  },
+  "S3l3.dc.html": {
+   "x": 9520,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3l-app-3 · Systems & cores · states · Sumi"
+  },
+  "S4i1.dc.html": {
+   "x": 10880,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "4i-app-1 · Plugins · server · Sumi"
+  },
+  "S4i2.dc.html": {
+   "x": 12240,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "4i-app-2 · Settings › This PC › Plugins · Sumi"
+  },
+  "S4i3.dc.html": {
+   "x": 13600,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "4i-app-3 · Plugins · dialogs and states · Sumi"
+  },
+  "S3n1Kinari.dc.html": {
+   "x": 0,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3n-app-1 · Users › People · Kinari"
+  },
+  "S3n2Kinari.dc.html": {
+   "x": 1360,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3n-app-2 · Users › Invites · Kinari"
+  },
+  "S3n3Kinari.dc.html": {
+   "x": 2720,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3n-app-3 · Users · actions and states · Kinari"
+  },
+  "S3m1Kinari.dc.html": {
+   "x": 4080,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3m-app-1 · Users › Devices · Kinari"
+  },
+  "S3m2Kinari.dc.html": {
+   "x": 5440,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3m-app-2 · Devices · states · Kinari"
+  },
+  "S3l1Kinari.dc.html": {
+   "x": 6800,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3l-app-1 · Systems & cores › Cores · Kinari"
+  },
+  "S3l2Kinari.dc.html": {
+   "x": 8160,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3l-app-2 · Systems & cores › Firmware · Kinari"
+  },
+  "S3l3Kinari.dc.html": {
+   "x": 9520,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3l-app-3 · Systems & cores · states · Kinari"
+  },
+  "S4i1Kinari.dc.html": {
+   "x": 10880,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "4i-app-1 · Plugins · server · Kinari"
+  },
+  "S4i2Kinari.dc.html": {
+   "x": 12240,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "4i-app-2 · Settings › This PC › Plugins · Kinari"
+  },
+  "S4i3Kinari.dc.html": {
+   "x": 13600,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "4i-app-3 · Plugins · dialogs and states · Kinari"
+  },
+  "S3q1.dc.html": {
+   "x": 0,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-1 · Server › General · Sumi"
+  },
+  "S3q2.dc.html": {
+   "x": 1360,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-2 · Server › Network & sharing · Sumi"
+  },
+  "S3q3.dc.html": {
+   "x": 2720,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-3 · Server › Sign-in · Sumi"
+  },
+  "S3q4.dc.html": {
+   "x": 4080,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-4 · Server › Updates · Sumi"
+  },
+  "S3q5.dc.html": {
+   "x": 5440,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-5 · Server › Backups · Sumi"
+  },
+  "S3q6.dc.html": {
+   "x": 6800,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-6 · Server › Storage · Sumi"
+  },
+  "S3q7.dc.html": {
+   "x": 8160,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-7 · Server › Diagnostics · Sumi"
+  },
+  "S3q1Kinari.dc.html": {
+   "x": 0,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-1 · Server › General · Kinari"
+  },
+  "S3q2Kinari.dc.html": {
+   "x": 1360,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-2 · Server › Network & sharing · Kinari"
+  },
+  "S3q3Kinari.dc.html": {
+   "x": 2720,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-3 · Server › Sign-in · Kinari"
+  },
+  "S3q4Kinari.dc.html": {
+   "x": 4080,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-4 · Server › Updates · Kinari"
+  },
+  "S3q5Kinari.dc.html": {
+   "x": 5440,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-5 · Server › Backups · Kinari"
+  },
+  "S3q6Kinari.dc.html": {
+   "x": 6800,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-6 · Server › Storage · Kinari"
+  },
+  "S3q7Kinari.dc.html": {
+   "x": 8160,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "3q-app-7 · Server › Diagnostics · Kinari"
+  },
+  "S6d1.dc.html": {
+   "x": 0,
+   "y": 15200,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6d-app-1 · Reports · Sumi"
+  },
+  "S6d2.dc.html": {
+   "x": 1360,
+   "y": 15200,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6d-app-2 · Reports · states · Sumi"
+  },
+  "S6a1.dc.html": {
+   "x": 2720,
+   "y": 15200,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6a-app-1 · What’s new · admin · Sumi"
+  },
+  "S6a2.dc.html": {
+   "x": 4080,
+   "y": 15200,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6a-app-2 · What’s new · member · Sumi"
+  },
+  "S7a1.dc.html": {
+   "x": 5440,
+   "y": 15200,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "7a-app-1 · Setup assistant · internet · Sumi"
+  },
+  "S7a2.dc.html": {
+   "x": 6800,
+   "y": 15200,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "7a-app-2 · Setup assistant · done · Sumi"
+  },
+  "S6d1Kinari.dc.html": {
+   "x": 0,
+   "y": 16360,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6d-app-1 · Reports · Kinari"
+  },
+  "S6d2Kinari.dc.html": {
+   "x": 1360,
+   "y": 16360,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6d-app-2 · Reports · states · Kinari"
+  },
+  "S6a1Kinari.dc.html": {
+   "x": 2720,
+   "y": 16360,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6a-app-1 · What’s new · admin · Kinari"
+  },
+  "S6a2Kinari.dc.html": {
+   "x": 4080,
+   "y": 16360,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "6a-app-2 · What’s new · member · Kinari"
+  },
+  "S7a1Kinari.dc.html": {
+   "x": 5440,
+   "y": 16360,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "7a-app-1 · Setup assistant · internet · Kinari"
+  },
+  "S7a2Kinari.dc.html": {
+   "x": 6800,
+   "y": 16360,
+   "w": 1280,
+   "h": 800,
+   "page": "b2",
+   "title": "7a-app-2 · Setup assistant · done · Kinari"
+  },
+  "S3Index.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 1480,
+   "page": "b3",
+   "title": "3 Runs and server · Index"
+  },
+  "S4j1.dc.html": {
+   "x": 0,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-1 · Runs · admin · Sumi"
+  },
+  "S4j1Kinari.dc.html": {
+   "x": 0,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-1 · Runs · admin · Kinari"
+  },
+  "S4j2.dc.html": {
+   "x": 1360,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-2 · Runs · member · Sumi"
+  },
+  "S4j2Kinari.dc.html": {
+   "x": 1360,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-2 · Runs · member · Kinari"
+  },
+  "S4j3.dc.html": {
+   "x": 2720,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-3 · Runs · New run · Sumi"
+  },
+  "S4j3Kinari.dc.html": {
+   "x": 2720,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-3 · Runs · New run · Kinari"
+  },
+  "S4j4.dc.html": {
+   "x": 4080,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-4 · Run · plain · Sumi"
+  },
+  "S4j4Kinari.dc.html": {
+   "x": 4080,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-4 · Run · plain · Kinari"
+  },
+  "S4j5.dc.html": {
+   "x": 5440,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-5 · Run · SoulLink tab · Sumi"
+  },
+  "S4j5Kinari.dc.html": {
+   "x": 5440,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-5 · Run · SoulLink tab · Kinari"
+  },
+  "S4j6.dc.html": {
+   "x": 6800,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-6 · Runs · states · Sumi"
+  },
+  "S4j6Kinari.dc.html": {
+   "x": 6800,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-6 · Runs · states · Kinari"
+  },
+  "S4j7.dc.html": {
+   "x": 8160,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-7 · In game · run tabs · Sumi"
+  },
+  "S4j7Kinari.dc.html": {
+   "x": 8160,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4j-app-7 · In game · run tabs · Kinari"
+  },
+  "S4jh1.dc.html": {
+   "x": 9520,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4jh-app-1 · Run board · admin · Sumi"
+  },
+  "S4jh1Kinari.dc.html": {
+   "x": 9520,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4jh-app-1 · Run board · admin · Kinari"
+  },
+  "S4jh2.dc.html": {
+   "x": 10880,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4jh-app-2 · Run recap · member · Sumi"
+  },
+  "S4jh2Kinari.dc.html": {
+   "x": 10880,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "4jh-app-2 · Run recap · member · Kinari"
+  },
+  "S8h1.dc.html": {
+   "x": 0,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8h-1 · Raspberry Pi · terminal · Sumi"
+  },
+  "S8h1Kinari.dc.html": {
+   "x": 0,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8h-1 · Raspberry Pi · terminal · Kinari"
+  },
+  "S8h2.dc.html": {
+   "x": 1360,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8h-2 · Docker · logs · Sumi"
+  },
+  "S8h2Kinari.dc.html": {
+   "x": 1360,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8h-2 · Docker · logs · Kinari"
+  },
+  "S8h3.dc.html": {
+   "x": 2720,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8h-3 · Windows · installer last page · Sumi"
+  },
+  "S8h3Kinari.dc.html": {
+   "x": 2720,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8h-3 · Windows · installer last page · Kinari"
+  },
+  "S8h4.dc.html": {
+   "x": 4080,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8h-4 · Setup code · states · Sumi"
+  },
+  "S8h4Kinari.dc.html": {
+   "x": 4080,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8h-4 · Setup code · states · Kinari"
+  },
+  "S8k1.dc.html": {
+   "x": 5440,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8k-1 · Server offline · member · Sumi"
+  },
+  "S8k1Kinari.dc.html": {
+   "x": 5440,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8k-1 · Server offline · member · Kinari"
+  },
+  "S8k2.dc.html": {
+   "x": 6800,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8k-2 · Server problems · states · Sumi"
+  },
+  "S8k2Kinari.dc.html": {
+   "x": 6800,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8k-2 · Server problems · states · Kinari"
+  },
+  "S8j1.dc.html": {
+   "x": 0,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8j-1 · On this PC · Library · Sumi"
+  },
+  "S8j1Kinari.dc.html": {
+   "x": 0,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8j-1 · On this PC · Library · Kinari"
+  },
+  "S8j2.dc.html": {
+   "x": 1360,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8j-2 · On this PC · Backups · Sumi"
+  },
+  "S8j2Kinari.dc.html": {
+   "x": 1360,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8j-2 · On this PC · Backups · Kinari"
+  },
+  "S8j3.dc.html": {
+   "x": 2720,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8j-3 · On this PC · Runs · Sumi"
+  },
+  "S8j3Kinari.dc.html": {
+   "x": 2720,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8j-3 · On this PC · Runs · Kinari"
+  },
+  "S8j4.dc.html": {
+   "x": 4080,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8j-4 · On this PC · states · Sumi"
+  },
+  "S8j4Kinari.dc.html": {
+   "x": 4080,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8j-4 · On this PC · states · Kinari"
+  },
+  "S8i1.dc.html": {
+   "x": 5440,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-1 · Share with others · what changes · Sumi"
+  },
+  "S8i1Kinari.dc.html": {
+   "x": 5440,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-1 · Share with others · what changes · Kinari"
+  },
+  "S8i2.dc.html": {
+   "x": 6800,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-2 · Share with others · set up · Sumi"
+  },
+  "S8i2Kinari.dc.html": {
+   "x": 6800,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-2 · Share with others · set up · Kinari"
+  },
+  "S8i3.dc.html": {
+   "x": 8160,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-3 · Share with others · progress · Sumi"
+  },
+  "S8i3Kinari.dc.html": {
+   "x": 8160,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-3 · Share with others · progress · Kinari"
+  },
+  "S8i4.dc.html": {
+   "x": 9520,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-4 · Share with others · done · Sumi"
+  },
+  "S8i4Kinari.dc.html": {
+   "x": 9520,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-4 · Share with others · done · Kinari"
+  },
+  "S8i5.dc.html": {
+   "x": 10880,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-5 · Stop sharing · Sumi"
+  },
+  "S8i5Kinari.dc.html": {
+   "x": 10880,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-5 · Stop sharing · Kinari"
+  },
+  "S8i6.dc.html": {
+   "x": 12240,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-6 · Share with others · states · Sumi"
+  },
+  "S8i6Kinari.dc.html": {
+   "x": 12240,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8i-6 · Share with others · states · Kinari"
+  },
+  "S8l0.dc.html": {
+   "x": 0,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8l-0 · Installer bitmaps"
+  },
+  "S8l1.dc.html": {
+   "x": 1360,
+   "y": 9920,
+   "w": 1280,
+   "h": 1040,
+   "page": "b3",
+   "title": "8l-1 · Installer · first install"
+  },
+  "S8l2.dc.html": {
+   "x": 2720,
+   "y": 9920,
+   "w": 1280,
+   "h": 1040,
+   "page": "b3",
+   "title": "8l-2 · Installer · finish"
+  },
+  "S8l3.dc.html": {
+   "x": 4080,
+   "y": 9920,
+   "w": 1280,
+   "h": 1040,
+   "page": "b3",
+   "title": "8l-3 · Installer · maintenance"
+  },
+  "S8m1.dc.html": {
+   "x": 5440,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8m-1 · Linux · first start · Sumi"
+  },
+  "S8m1Kinari.dc.html": {
+   "x": 5440,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "8m-1 · Linux · first start · Kinari"
+  },
+  "S4Index.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 1660,
+   "page": "b4",
+   "title": "4 Play and plugins · Index"
+  },
+  "S3c0.dc.html": {
+   "x": 0,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3c-0 · Library · continue and collections · Sumi"
+  },
+  "S3c0Kinari.dc.html": {
+   "x": 0,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3c-0 · Library · continue and collections · Kinari"
+  },
+  "S3c1.dc.html": {
+   "x": 1360,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3c-1 · Game page · overview · Sumi"
+  },
+  "S3c1Kinari.dc.html": {
+   "x": 1360,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3c-1 · Game page · overview · Kinari"
+  },
+  "S3c2.dc.html": {
+   "x": 2720,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3c-2 · Game page · saves and states · Sumi"
+  },
+  "S3c2Kinari.dc.html": {
+   "x": 2720,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3c-2 · Game page · saves and states · Kinari"
+  },
+  "S3c3.dc.html": {
+   "x": 4080,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3c-3 · Settings for this game · Sumi"
+  },
+  "S3c3Kinari.dc.html": {
+   "x": 4080,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3c-3 · Settings for this game · Kinari"
+  },
+  "S3c4.dc.html": {
+   "x": 5440,
+   "y": 2000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3c-4 · Library · states · Sumi"
+  },
+  "S3c4Kinari.dc.html": {
+   "x": 5440,
+   "y": 3160,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3c-4 · Library · states · Kinari"
+  },
+  "S3g1.dc.html": {
+   "x": 0,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-1 · In game · Session tab · Sumi"
+  },
+  "S3g1Kinari.dc.html": {
+   "x": 0,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-1 · In game · Session tab · Kinari"
+  },
+  "S3g2.dc.html": {
+   "x": 1360,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-2 · In game · Saves tab · Sumi"
+  },
+  "S3g2Kinari.dc.html": {
+   "x": 1360,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-2 · In game · Saves tab · Kinari"
+  },
+  "S3g3.dc.html": {
+   "x": 2720,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-3 · In game · paused · Sumi"
+  },
+  "S3g3Kinari.dc.html": {
+   "x": 2720,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-3 · In game · paused · Kinari"
+  },
+  "S3g4.dc.html": {
+   "x": 4080,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-4 · In game · quick menu · Sumi"
+  },
+  "S3g4Kinari.dc.html": {
+   "x": 4080,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-4 · In game · quick menu · Kinari"
+  },
+  "S3g5.dc.html": {
+   "x": 5440,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-5 · In game · load a state · Sumi"
+  },
+  "S3g5Kinari.dc.html": {
+   "x": 5440,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-5 · In game · load a state · Kinari"
+  },
+  "S3g6.dc.html": {
+   "x": 6800,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-6 · In game · diagnostics · Sumi"
+  },
+  "S3g6Kinari.dc.html": {
+   "x": 6800,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-6 · In game · diagnostics · Kinari"
+  },
+  "S3g7.dc.html": {
+   "x": 8160,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-7 · In game · Chat tab · Sumi"
+  },
+  "S3g7Kinari.dc.html": {
+   "x": 8160,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-7 · In game · Chat tab · Kinari"
+  },
+  "S3g8.dc.html": {
+   "x": 9520,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-8 · In game · NDS screen layout · Sumi"
+  },
+  "S3g8Kinari.dc.html": {
+   "x": 9520,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-8 · In game · NDS screen layout · Kinari"
+  },
+  "S3g9.dc.html": {
+   "x": 10880,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-9 · In game · volume · Sumi"
+  },
+  "S3g9Kinari.dc.html": {
+   "x": 10880,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-9 · In game · volume · Kinari"
+  },
+  "S3g10.dc.html": {
+   "x": 12240,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-10 · In game · hold Select · Sumi"
+  },
+  "S3g10Kinari.dc.html": {
+   "x": 12240,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-10 · In game · hold Select · Kinari"
+  },
+  "S3g11.dc.html": {
+   "x": 13600,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-11 · In game · notices · Sumi"
+  },
+  "S3g11Kinari.dc.html": {
+   "x": 13600,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-11 · In game · notices · Kinari"
+  },
+  "S3r1.dc.html": {
+   "x": 0,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3r-1 · Multiview · 2 tiles · Sumi"
+  },
+  "S3r1Kinari.dc.html": {
+   "x": 0,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3r-1 · Multiview · 2 tiles · Kinari"
+  },
+  "S3r2.dc.html": {
+   "x": 1360,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3r-2 · Multiview · 3 tiles · Sumi"
+  },
+  "S3r2Kinari.dc.html": {
+   "x": 1360,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3r-2 · Multiview · 3 tiles · Kinari"
+  },
+  "S3r3.dc.html": {
+   "x": 2720,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3r-3 · Multiview · 2 × 2 · Sumi"
+  },
+  "S3r3Kinari.dc.html": {
+   "x": 2720,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3r-3 · Multiview · 2 × 2 · Kinari"
+  },
+  "S3r4.dc.html": {
+   "x": 4080,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3r-4 · Multiview · focus and strip · Sumi"
+  },
+  "S3r4Kinari.dc.html": {
+   "x": 4080,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3r-4 · Multiview · focus and strip · Kinari"
+  },
+  "S3r5.dc.html": {
+   "x": 5440,
+   "y": 7280,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3r-5 · Multiview · states · Sumi"
+  },
+  "S3r5Kinari.dc.html": {
+   "x": 5440,
+   "y": 8440,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3r-5 · Multiview · states · Kinari"
+  },
+  "S3e1.dc.html": {
+   "x": 0,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3e-1 · Emulation · NDS · Display · Sumi"
+  },
+  "S3e1Kinari.dc.html": {
+   "x": 0,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3e-1 · Emulation · NDS · Display · Kinari"
+  },
+  "S3e2.dc.html": {
+   "x": 1360,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3e-2 · Emulation · 3DS · Display · Sumi"
+  },
+  "S3e2Kinari.dc.html": {
+   "x": 1360,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3e-2 · Emulation · 3DS · Display · Kinari"
+  },
+  "S9a1.dc.html": {
+   "x": 2720,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "9a-1 · Controllers · mapping · Sumi"
+  },
+  "S9a1Kinari.dc.html": {
+   "x": 2720,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "9a-1 · Controllers · mapping · Kinari"
+  },
+  "S9a2.dc.html": {
+   "x": 4080,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "9a-2 · Controllers · gamepad · Sumi"
+  },
+  "S9a2Kinari.dc.html": {
+   "x": 4080,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "9a-2 · Controllers · gamepad · Kinari"
+  },
+  "S9b1.dc.html": {
+   "x": 5440,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "9b-1 · Settings › This PC › Hotkeys · Sumi"
+  },
+  "S9b1Kinari.dc.html": {
+   "x": 5440,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "9b-1 · Settings › This PC › Hotkeys · Kinari"
+  },
+  "S6g1.dc.html": {
+   "x": 6800,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6g-1 · Settings › This PC › Audio & video · Sumi"
+  },
+  "S6g1Kinari.dc.html": {
+   "x": 6800,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6g-1 · Settings › This PC › Audio & video · Kinari"
+  },
+  "S9c1.dc.html": {
+   "x": 8160,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "9c-1 · Settings › This PC › Appearance · Sumi"
+  },
+  "S9c1Kinari.dc.html": {
+   "x": 8160,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "9c-1 · Settings › This PC › Appearance · Kinari"
+  },
+  "S6l1.dc.html": {
+   "x": 9520,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6l-1 · Settings › This PC › Storage · Sumi"
+  },
+  "S6l1Kinari.dc.html": {
+   "x": 9520,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6l-1 · Settings › This PC › Storage · Kinari"
+  },
+  "S6w1.dc.html": {
+   "x": 10880,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6w-1 · Settings › This PC › Voice · Sumi"
+  },
+  "S6w1Kinari.dc.html": {
+   "x": 10880,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6w-1 · Settings › This PC › Voice · Kinari"
+  },
+  "S6w2.dc.html": {
+   "x": 12240,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6w-2 · Voice · states · Sumi"
+  },
+  "S6w2Kinari.dc.html": {
+   "x": 12240,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6w-2 · Voice · states · Kinari"
+  },
+  "S6r1.dc.html": {
+   "x": 13600,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6r-1 · Settings › This PC › Notifications · Sumi"
+  },
+  "S6r1Kinari.dc.html": {
+   "x": 13600,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6r-1 · Settings › This PC › Notifications · Kinari"
+  },
+  "S6r2.dc.html": {
+   "x": 14960,
+   "y": 9920,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6r-2 · Notifications · bell · Sumi"
+  },
+  "S6r2Kinari.dc.html": {
+   "x": 14960,
+   "y": 11080,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "6r-2 · Notifications · bell · Kinari"
+  },
+  "S5a1.dc.html": {
+   "x": 0,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5a-1 · New run · SoulLink rules · Sumi"
+  },
+  "S5a1Kinari.dc.html": {
+   "x": 0,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5a-1 · New run · SoulLink rules · Kinari"
+  },
+  "S5a2.dc.html": {
+   "x": 1360,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5a-2 · New run · summary · Sumi"
+  },
+  "S5a2Kinari.dc.html": {
+   "x": 1360,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5a-2 · New run · summary · Kinari"
+  },
+  "S5b1.dc.html": {
+   "x": 2720,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5b-1 · In game · SoulLink tab · Sumi"
+  },
+  "S5b1Kinari.dc.html": {
+   "x": 2720,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5b-1 · In game · SoulLink tab · Kinari"
+  },
+  "S5b2.dc.html": {
+   "x": 4080,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5b-2 · SoulLink · panel states · Sumi"
+  },
+  "S5b2Kinari.dc.html": {
+   "x": 4080,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5b-2 · SoulLink · panel states · Kinari"
+  },
+  "S5e1.dc.html": {
+   "x": 5440,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5e-1 · SoulLink run · map · Sumi"
+  },
+  "S5e1Kinari.dc.html": {
+   "x": 5440,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5e-1 · SoulLink run · map · Kinari"
+  },
+  "S5e2.dc.html": {
+   "x": 6800,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5e-2 · SoulLink run · routes · Sumi"
+  },
+  "S5e2Kinari.dc.html": {
+   "x": 6800,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5e-2 · SoulLink run · routes · Kinari"
+  },
+  "S5e3.dc.html": {
+   "x": 8160,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5e-3 · SoulLink run · team and box · Sumi"
+  },
+  "S5e3Kinari.dc.html": {
+   "x": 8160,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5e-3 · SoulLink run · team and box · Kinari"
+  },
+  "S5e4.dc.html": {
+   "x": 9520,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5e-4 · SoulLink run · graveyard · Sumi"
+  },
+  "S5e4Kinari.dc.html": {
+   "x": 9520,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5e-4 · SoulLink run · graveyard · Kinari"
+  },
+  "S5e5.dc.html": {
+   "x": 10880,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5e-5 · SoulLink run · event log · Sumi"
+  },
+  "S5e5Kinari.dc.html": {
+   "x": 10880,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5e-5 · SoulLink run · event log · Kinari"
+  },
+  "S5f1.dc.html": {
+   "x": 12240,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5f-1 · SoulLink · corrections · Sumi"
+  },
+  "S5f1Kinari.dc.html": {
+   "x": 12240,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5f-1 · SoulLink · corrections · Kinari"
+  },
+  "S5g1.dc.html": {
+   "x": 13600,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5g-1 · SoulLink · stream view · Sumi"
+  },
+  "S5g1Kinari.dc.html": {
+   "x": 13600,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5g-1 · SoulLink · stream view · Kinari"
+  },
+  "S5i1.dc.html": {
+   "x": 14960,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5i-1 · Settings › This PC › Plugins › SoulLink & Nuzlocke · Sumi"
+  },
+  "S5i1Kinari.dc.html": {
+   "x": 14960,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "5i-1 · Settings › This PC › Plugins › SoulLink & Nuzlocke · Kinari"
+  },
+  "SAllIndex.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 2240,
+   "page": "b0",
+   "title": "Round 5 · All sheets · Index"
+  },
+  "S3g12.dc.html": {
+   "x": 14960,
+   "y": 4640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-12 · In game · People tab · Sumi"
+  },
+  "S3g12Kinari.dc.html": {
+   "x": 14960,
+   "y": 5800,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "3g-12 · In game · People tab · Kinari"
+  },
+  "S4d1.dc.html": {
+   "x": 0,
+   "y": 15200,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "4d-1 · Plugins · developer console · Sumi"
+  },
+  "S4d1Kinari.dc.html": {
+   "x": 0,
+   "y": 16360,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "4d-1 · Plugins · developer console · Kinari"
+  },
+  "S4d2.dc.html": {
+   "x": 1360,
+   "y": 15200,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "4d-2 · Developer console · states · Sumi"
+  },
+  "S4d2Kinari.dc.html": {
+   "x": 1360,
+   "y": 16360,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "4d-2 · Developer console · states · Kinari"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "S04A.dc.html",
+  "S04B.dc.html",
+  "S04C.dc.html",
+  "S04D.dc.html",
+  "S04E.dc.html",
+  "S04F.dc.html",
+  "S04G.dc.html",
+  "S04H.dc.html",
+  "S04DKinari.dc.html",
+  "S04EKinari.dc.html",
+  "S8a1.dc.html",
+  "S8a2.dc.html",
+  "S8a3.dc.html",
+  "S8a4.dc.html",
+  "S8a5.dc.html",
+  "S8a6.dc.html",
+  "S8a1Kinari.dc.html",
+  "S8a2Kinari.dc.html",
+  "S8a3Kinari.dc.html",
+  "S8a4Kinari.dc.html",
+  "S8a5Kinari.dc.html",
+  "S8a6Kinari.dc.html",
+  "S8b1.dc.html",
+  "S8b2.dc.html",
+  "S8b3.dc.html",
+  "S8b4.dc.html",
+  "S8b5.dc.html",
+  "S8b6.dc.html",
+  "S8b1Kinari.dc.html",
+  "S8b2Kinari.dc.html",
+  "S8b3Kinari.dc.html",
+  "S8b4Kinari.dc.html",
+  "S8b5Kinari.dc.html",
+  "S8b6Kinari.dc.html",
+  "S8c1.dc.html",
+  "S8c2.dc.html",
+  "S8c3.dc.html",
+  "S8c1Kinari.dc.html",
+  "S8c2Kinari.dc.html",
+  "S8c3Kinari.dc.html",
+  "S2Index.dc.html",
+  "S2Blocks.dc.html",
+  "S8d1.dc.html",
+  "S8d2.dc.html",
+  "S8d3.dc.html",
+  "S8d4.dc.html",
+  "S8d5.dc.html",
+  "S8d6.dc.html",
+  "S8d7.dc.html",
+  "S8d1Kinari.dc.html",
+  "S8d2Kinari.dc.html",
+  "S8d3Kinari.dc.html",
+  "S8d4Kinari.dc.html",
+  "S8d5Kinari.dc.html",
+  "S8d6Kinari.dc.html",
+  "S8d7Kinari.dc.html",
+  "S8e1.dc.html",
+  "S8e2.dc.html",
+  "S8e3.dc.html",
+  "S8e4.dc.html",
+  "S8e5.dc.html",
+  "S8f1.dc.html",
+  "S8f2.dc.html",
+  "S8f3.dc.html",
+  "S8g1.dc.html",
+  "S8e1Kinari.dc.html",
+  "S8e2Kinari.dc.html",
+  "S8e3Kinari.dc.html",
+  "S8e4Kinari.dc.html",
+  "S8e5Kinari.dc.html",
+  "S8f1Kinari.dc.html",
+  "S8f2Kinari.dc.html",
+  "S8f3Kinari.dc.html",
+  "S8g1Kinari.dc.html",
+  "S6f1.dc.html",
+  "S6f2.dc.html",
+  "S3j1.dc.html",
+  "S3j2.dc.html",
+  "S3j3.dc.html",
+  "S3s1.dc.html",
+  "S3s2.dc.html",
+  "S3s3.dc.html",
+  "S3s4.dc.html",
+  "S6f1Kinari.dc.html",
+  "S6f2Kinari.dc.html",
+  "S3j1Kinari.dc.html",
+  "S3j2Kinari.dc.html",
+  "S3j3Kinari.dc.html",
+  "S3s1Kinari.dc.html",
+  "S3s2Kinari.dc.html",
+  "S3s3Kinari.dc.html",
+  "S3s4Kinari.dc.html",
+  "S3n1.dc.html",
+  "S3n2.dc.html",
+  "S3n3.dc.html",
+  "S3m1.dc.html",
+  "S3m2.dc.html",
+  "S3l1.dc.html",
+  "S3l2.dc.html",
+  "S3l3.dc.html",
+  "S4i1.dc.html",
+  "S4i2.dc.html",
+  "S4i3.dc.html",
+  "S3n1Kinari.dc.html",
+  "S3n2Kinari.dc.html",
+  "S3n3Kinari.dc.html",
+  "S3m1Kinari.dc.html",
+  "S3m2Kinari.dc.html",
+  "S3l1Kinari.dc.html",
+  "S3l2Kinari.dc.html",
+  "S3l3Kinari.dc.html",
+  "S4i1Kinari.dc.html",
+  "S4i2Kinari.dc.html",
+  "S4i3Kinari.dc.html",
+  "S3q1.dc.html",
+  "S3q2.dc.html",
+  "S3q3.dc.html",
+  "S3q4.dc.html",
+  "S3q5.dc.html",
+  "S3q6.dc.html",
+  "S3q7.dc.html",
+  "S3q1Kinari.dc.html",
+  "S3q2Kinari.dc.html",
+  "S3q3Kinari.dc.html",
+  "S3q4Kinari.dc.html",
+  "S3q5Kinari.dc.html",
+  "S3q6Kinari.dc.html",
+  "S3q7Kinari.dc.html",
+  "S6d1.dc.html",
+  "S6d2.dc.html",
+  "S6a1.dc.html",
+  "S6a2.dc.html",
+  "S7a1.dc.html",
+  "S7a2.dc.html",
+  "S6d1Kinari.dc.html",
+  "S6d2Kinari.dc.html",
+  "S6a1Kinari.dc.html",
+  "S6a2Kinari.dc.html",
+  "S7a1Kinari.dc.html",
+  "S7a2Kinari.dc.html",
+  "S3Index.dc.html",
+  "S4j1.dc.html",
+  "S4j1Kinari.dc.html",
+  "S4j2.dc.html",
+  "S4j2Kinari.dc.html",
+  "S4j3.dc.html",
+  "S4j3Kinari.dc.html",
+  "S4j4.dc.html",
+  "S4j4Kinari.dc.html",
+  "S4j5.dc.html",
+  "S4j5Kinari.dc.html",
+  "S4j6.dc.html",
+  "S4j6Kinari.dc.html",
+  "S4j7.dc.html",
+  "S4j7Kinari.dc.html",
+  "S4jh1.dc.html",
+  "S4jh1Kinari.dc.html",
+  "S4jh2.dc.html",
+  "S4jh2Kinari.dc.html",
+  "S8h1.dc.html",
+  "S8h1Kinari.dc.html",
+  "S8h2.dc.html",
+  "S8h2Kinari.dc.html",
+  "S8h3.dc.html",
+  "S8h3Kinari.dc.html",
+  "S8h4.dc.html",
+  "S8h4Kinari.dc.html",
+  "S8k1.dc.html",
+  "S8k1Kinari.dc.html",
+  "S8k2.dc.html",
+  "S8k2Kinari.dc.html",
+  "S8j1.dc.html",
+  "S8j1Kinari.dc.html",
+  "S8j2.dc.html",
+  "S8j2Kinari.dc.html",
+  "S8j3.dc.html",
+  "S8j3Kinari.dc.html",
+  "S8j4.dc.html",
+  "S8j4Kinari.dc.html",
+  "S8i1.dc.html",
+  "S8i1Kinari.dc.html",
+  "S8i2.dc.html",
+  "S8i2Kinari.dc.html",
+  "S8i3.dc.html",
+  "S8i3Kinari.dc.html",
+  "S8i4.dc.html",
+  "S8i4Kinari.dc.html",
+  "S8i5.dc.html",
+  "S8i5Kinari.dc.html",
+  "S8i6.dc.html",
+  "S8i6Kinari.dc.html",
+  "S8l0.dc.html",
+  "S8l1.dc.html",
+  "S8l2.dc.html",
+  "S8l3.dc.html",
+  "S8m1.dc.html",
+  "S8m1Kinari.dc.html",
+  "S4Index.dc.html",
+  "S3c0.dc.html",
+  "S3c0Kinari.dc.html",
+  "S3c1.dc.html",
+  "S3c1Kinari.dc.html",
+  "S3c2.dc.html",
+  "S3c2Kinari.dc.html",
+  "S3c3.dc.html",
+  "S3c3Kinari.dc.html",
+  "S3c4.dc.html",
+  "S3c4Kinari.dc.html",
+  "S3g1.dc.html",
+  "S3g1Kinari.dc.html",
+  "S3g2.dc.html",
+  "S3g2Kinari.dc.html",
+  "S3g3.dc.html",
+  "S3g3Kinari.dc.html",
+  "S3g4.dc.html",
+  "S3g4Kinari.dc.html",
+  "S3g5.dc.html",
+  "S3g5Kinari.dc.html",
+  "S3g6.dc.html",
+  "S3g6Kinari.dc.html",
+  "S3g7.dc.html",
+  "S3g7Kinari.dc.html",
+  "S3g8.dc.html",
+  "S3g8Kinari.dc.html",
+  "S3g9.dc.html",
+  "S3g9Kinari.dc.html",
+  "S3g10.dc.html",
+  "S3g10Kinari.dc.html",
+  "S3g11.dc.html",
+  "S3g11Kinari.dc.html",
+  "S3r1.dc.html",
+  "S3r1Kinari.dc.html",
+  "S3r2.dc.html",
+  "S3r2Kinari.dc.html",
+  "S3r3.dc.html",
+  "S3r3Kinari.dc.html",
+  "S3r4.dc.html",
+  "S3r4Kinari.dc.html",
+  "S3r5.dc.html",
+  "S3r5Kinari.dc.html",
+  "S3e1.dc.html",
+  "S3e1Kinari.dc.html",
+  "S3e2.dc.html",
+  "S3e2Kinari.dc.html",
+  "S9a1.dc.html",
+  "S9a1Kinari.dc.html",
+  "S9a2.dc.html",
+  "S9a2Kinari.dc.html",
+  "S9b1.dc.html",
+  "S9b1Kinari.dc.html",
+  "S6g1.dc.html",
+  "S6g1Kinari.dc.html",
+  "S9c1.dc.html",
+  "S9c1Kinari.dc.html",
+  "S6l1.dc.html",
+  "S6l1Kinari.dc.html",
+  "S6w1.dc.html",
+  "S6w1Kinari.dc.html",
+  "S6w2.dc.html",
+  "S6w2Kinari.dc.html",
+  "S6r1.dc.html",
+  "S6r1Kinari.dc.html",
+  "S6r2.dc.html",
+  "S6r2Kinari.dc.html",
+  "S5a1.dc.html",
+  "S5a1Kinari.dc.html",
+  "S5a2.dc.html",
+  "S5a2Kinari.dc.html",
+  "S5b1.dc.html",
+  "S5b1Kinari.dc.html",
+  "S5b2.dc.html",
+  "S5b2Kinari.dc.html",
+  "S5e1.dc.html",
+  "S5e1Kinari.dc.html",
+  "S5e2.dc.html",
+  "S5e2Kinari.dc.html",
+  "S5e3.dc.html",
+  "S5e3Kinari.dc.html",
+  "S5e4.dc.html",
+  "S5e4Kinari.dc.html",
+  "S5e5.dc.html",
+  "S5e5Kinari.dc.html",
+  "S5f1.dc.html",
+  "S5f1Kinari.dc.html",
+  "S5g1.dc.html",
+  "S5g1Kinari.dc.html",
+  "S5i1.dc.html",
+  "S5i1Kinari.dc.html",
+  "SAllIndex.dc.html",
+  "S3g12.dc.html",
+  "S3g12Kinari.dc.html",
+  "S4d1.dc.html",
+  "S4d1Kinari.dc.html",
+  "S4d2.dc.html",
+  "S4d2Kinari.dc.html"
+ ],
+ "notes": {
+  "row04": {
+   "x": 0,
+   "y": 1380,
+   "text": "0-4 — Frame: mark, AppNav, patterns, library, settings, copy",
+   "kind": "title1",
+   "maxW": 10800
+  },
+  "row8a": {
+   "x": 0,
+   "y": 3780,
+   "text": "8a — First start · Play on this PC · Set up a server",
+   "kind": "title1",
+   "maxW": 8080
+  },
+  "row8b": {
+   "x": 0,
+   "y": 5940,
+   "text": "8b — Join a server",
+   "kind": "title1",
+   "maxW": 8080
+  },
+  "row8c": {
+   "x": 0,
+   "y": 8580,
+   "text": "8c — Invite link",
+   "kind": "title1",
+   "maxW": 4000
+  },
+  "b2r8d": {
+   "x": 0,
+   "y": 1740,
+   "page": "b2",
+   "text": "8d — Switch user on a shared PC",
+   "kind": "title1",
+   "maxW": 9440
+  },
+  "b2r8e": {
+   "x": 0,
+   "y": 4380,
+   "page": "b2",
+   "text": "8e My account · 8f Confirm it’s you · 8g Forgot password",
+   "kind": "title1",
+   "maxW": 12160
+  },
+  "b2r6f": {
+   "x": 0,
+   "y": 7020,
+   "page": "b2",
+   "text": "6f Server status · 3j Library with admin actions · 3s Saves, all users",
+   "kind": "title1",
+   "maxW": 12160
+  },
+  "b2r3n": {
+   "x": 0,
+   "y": 9660,
+   "page": "b2",
+   "text": "3n Users and invites · 3m Devices · 3l Systems & cores · 4i Plugins",
+   "kind": "title1",
+   "maxW": 14880
+  },
+  "b2r3q": {
+   "x": 0,
+   "y": 12300,
+   "page": "b2",
+   "text": "3q Server settings",
+   "kind": "title1",
+   "maxW": 9440
+  },
+  "b2r6d": {
+   "x": 0,
+   "y": 14940,
+   "page": "b2",
+   "text": "6d Reports · 6a What’s new · 7a Setup assistant",
+   "kind": "title1",
+   "maxW": 8080
+  },
+  "b3r4j": {
+   "x": 0,
+   "y": 1740,
+   "page": "b3",
+   "text": "4j Runs · 4jh Run board and recap",
+   "kind": "title1",
+   "maxW": 12160
+  },
+  "b3r8h": {
+   "x": 0,
+   "y": 4380,
+   "page": "b3",
+   "text": "8h What the server shows · 8k Server problems",
+   "kind": "title1",
+   "maxW": 8080
+  },
+  "b3r8i": {
+   "x": 0,
+   "y": 7020,
+   "page": "b3",
+   "text": "8j On this PC · 8i Share with others / Stop sharing",
+   "kind": "title1",
+   "maxW": 13520
+  },
+  "b3r8l": {
+   "x": 0,
+   "y": 9660,
+   "page": "b3",
+   "text": "8l Windows installer · 8m Linux note",
+   "kind": "title1",
+   "maxW": 6720
+  },
+  "b4r3c": {
+   "x": 0,
+   "y": 1740,
+   "page": "b4",
+   "text": "3c Library details and game page",
+   "kind": "title1",
+   "maxW": 6720
+  },
+  "b4r3g": {
+   "x": 0,
+   "y": 4380,
+   "page": "b4",
+   "text": "3g The running game",
+   "kind": "title1",
+   "maxW": 16240
+  },
+  "b4r3r": {
+   "x": 0,
+   "y": 7020,
+   "page": "b4",
+   "text": "3r Multiview",
+   "kind": "title1",
+   "maxW": 6720
+  },
+  "b4r9": {
+   "x": 0,
+   "y": 9660,
+   "page": "b4",
+   "text": "Emulation · Controllers · Settings › This PC",
+   "kind": "title1",
+   "maxW": 16240
+  },
+  "b4r5": {
+   "x": 0,
+   "y": 12300,
+   "page": "b4",
+   "text": "5 SoulLink & Nuzlocke",
+   "kind": "title1",
+   "maxW": 16240
+  },
+  "b4r4d": {
+   "x": 0,
+   "y": 14940,
+   "page": "b4",
+   "text": "4d Plugin developer console",
+   "kind": "title1",
+   "maxW": 2640
+  }
+ },
+ "designSystems": [
+  {
+   "title": "Uzume",
+   "namespace": "uzume",
+   "artifact": "https://claude.ai/code/artifact/f0a1c8be-0e62-487f-9399-5292c81ab37d",
+   "version": "1792678060-b200",
+   "copiedAt": "2026-10-22T17:40:00Z"
+  }
+ ]
+}

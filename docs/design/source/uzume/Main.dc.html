@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>1 Frame and first start · Index</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--accent-text);text-decoration:none}a:hover{color:var(--accent-hover);text-decoration:underline}
+</style>
+</helmet>
+<div class="uz" data-theme="sumi" style="width:1280px;height:1480px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">ROUND 5 · BATCH 1 OF 4</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px 40px 56px">
+    <div style="position:relative;padding:40px 24px 24px;display:flex;flex-direction:column;gap:32px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="15 SCREENS · SUMI AND KINARI · 1280 × 800">Index</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Frame and first start</h1>
+        <p style="margin:0;max-width:640px;font-size:14px;line-height:22px;color:var(--ink-2)">The FrameBeam Round 5 prototypes, rebuilt as Uzume in the Ma design system. Old files gave structure, copy, states and flows; every colour, type style, rule and component comes from Uzume. Each screen has a Sumi board and a Kinari board below it that imports the Sumi one, so edits apply to both.</p>
+      </div>
+
+      <div style="display:flex;flex-direction:column">
+        <div style="display:grid;grid-template-columns:120px 260px minmax(0,1fr);column-gap:16px;padding:0 12px 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>BOARDS</span><span>WHAT</span><span>RULES THAT MATTER IN BUILD</span></div>
+        <div style="display:grid;grid-template-columns:120px 260px minmax(0,1fr);column-gap:16px;padding:9px 12px;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:18px"><a href="S04A.dc.html" style="font:400 11px/18px var(--font-mono)">0-4 A–C</a><span style="font-weight:500">Mark, AppNav, server line, sign-in, blocks, density</span><span style="color:var(--muted)">Rise mark and Lockup; server glyph only for installer, tray and server About; navigation is text; one primary per view.</span></div>
+        <div style="display:grid;grid-template-columns:120px 260px minmax(0,1fr);column-gap:16px;padding:9px 12px;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:18px"><a href="S04D.dc.html" style="font:400 11px/18px var(--font-mono)">0-4 D–E</a><span style="font-weight:500">One library · Settings This PC / Server</span><span style="color:var(--muted)">Admin actions inline behind ⋯ and in a details section; Settings split by a Segmented switch for admins only.</span></div>
+        <div style="display:grid;grid-template-columns:120px 260px minmax(0,1fr);column-gap:16px;padding:9px 12px;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:18px"><a href="S04F.dc.html" style="font:400 11px/18px var(--font-mono)">0-4 F–H</a><span style="font-weight:500">Copy pass · tokens, hotkeys · Round 5 index</span><span style="color:var(--muted)">Say “server” only when the person must act on it. Commands are uzume-server …; env vars UZUME_*.</span></div>
+        <div style="display:grid;grid-template-columns:120px 260px minmax(0,1fr);column-gap:16px;padding:9px 12px;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:18px"><a href="S8a1.dc.html" style="font:400 11px/18px var(--font-mono)">8a-1 … 8a-6</a><span style="font-weight:500">First start, Play on this PC, Set up a server</span><span style="color:var(--muted)">No sidebar until a library exists. Three choices as numbered rows. Set up on another device: 4 steps with security code. Passwords ≥ 12.</span></div>
+        <div style="display:grid;grid-template-columns:120px 260px minmax(0,1fr);column-gap:16px;padding:9px 12px;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:18px"><a href="S8b1.dc.html" style="font:400 11px/18px var(--font-mono)">8b-1 … 8b-6</a><span style="font-weight:500">Join a server</span><span style="color:var(--muted)">Address or code → security code → invite or sign in. Nine sign-in states incl. approval for a new device. 8b-6 is the keyboard version.</span></div>
+        <div style="display:grid;grid-template-columns:120px 260px minmax(0,1fr);column-gap:16px;padding:9px 12px;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:18px"><a href="S8c1.dc.html" style="font:400 11px/18px var(--font-mono)">8c-1 … 8c-3</a><span style="font-weight:500">Invite link</span><span style="color:var(--muted)">uzume://join/&lt;server&gt;/&lt;invite&gt;#&lt;fingerprint&gt; carries the security code; adding a second server; six edge states.</span></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="22 ITEMS">Did not fit the design system</x-import>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:32px;border-top:1px solid var(--rule)">
+          <div style="display:flex;flex-direction:column">
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">01</span><span><b style="font-weight:500;color:var(--ink)">Cards, radii, shadows.</b> AuthCard, choice cards and code wells are gone. Forms sit on the ground; sections are split by space, a SectionLabel and hairlines.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">02</span><span><b style="font-weight:500;color:var(--ink)">Cyan and amber.</b> Signal Cyan became Yamabuki, and only on things you can act on. There is no amber: warnings are the Yamabuki “!” square, the offline amber card border is gone.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">03</span><span><b style="font-weight:500;color:var(--ink)">Tinted banners.</b> Warn, error and ok boxes became StatusIcon + sentence. The info tone has no equivalent: it is a plain ink-2 sentence.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">04</span><span><b style="font-weight:500;color:var(--ink)">Round gamepad pills.</b> Replaced by the system’s GamepadHint. R3 isn’t a GamepadHint key, so Show password is on X. Keyboard keys are the system Kbd since batch 3.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">05</span><span><b style="font-weight:500;color:var(--ink)">Server glyph in rows.</b> Old Join, Set up and sidebar rows used it. Uzume keeps it for installer, tray and server About, so rows are text plus StatusLine.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">06</span><span><b style="font-weight:500;color:var(--ink)">AppNav extras.</b> Resolved: the system AppNav now has member, THIS PC, ONLINE, bell, menus and compact. 0-4 B shows all four views; every app screen uses compact.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">07</span><span><b style="font-weight:500;color:var(--ink)">Toggle switch.</b> Resolved: on/off rows use the system Toggle (0-4 E).</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">08</span><span><b style="font-weight:500;color:var(--ink)">Select and open menus.</b> Resolved: “Who can join” (8a-5) is a Select, the ⋯ menu in 0-4 D is the system Menu. The ▾ on the sign-in name stays dropped.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">09</span><span><b style="font-weight:500;color:var(--ink)">SettingsRow.</b> Resolved: settings use the system SettingsRow and SettingsDisclosure (0-4 E, 3q-app).</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">10</span><span><b style="font-weight:500;color:var(--ink)">AppBlocks.</b> Metrics with bars, storage bar, lanes and card grids belong to Status (batch 2). The dashed empty box became StateBlock with the ensō.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">11</span><span><b style="font-weight:500;color:var(--ink)">Avatar colours.</b> The old hexes became person tokens in join order: Max wasurenagusa, Lena momo, Jonas moegi, Sam fuji.</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">12</span><span><b style="font-weight:500;color:var(--ink)">Code format.</b> Security codes were spaced (K7Q4 9WMP 2HXD); invite-code style is groups of four joined by hyphens: K7Q4-9WMP-2HXD.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">13</span><span><b style="font-weight:500;color:var(--ink)">Invite code prefix.</b> Decided: UZ-, e.g. UZ-8XK2-M4QD. The field accepts spaces, hyphens or none.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">14</span><span><b style="font-weight:500;color:var(--ink)">System codes.</b> “DS” and “Nintendo DS” became NDS. Only GB, GBC, GBA, NDS, 3DS.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">15</span><span><b style="font-weight:500;color:var(--ink)">Hosts.</b> lena.example.net became 192.0.2.20:8443 (documentation range, like 192.0.2.10). Home server stays server.example.com:8443.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">16</span><span><b style="font-weight:500;color:var(--ink)">Library details panel.</b> A 320 px panel would take the open column. Admin details are a numbered section under the table.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">17</span><span><b style="font-weight:500;color:var(--ink)">Settings second column.</b> The 300 px sub-page column isn’t a system component. It is drawn as text items with the Yamabuki leading marker, like the nav.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">18</span><span><b style="font-weight:500;color:var(--ink)">Sizes.</b> 8a-1 was 1440 × 900 and 8a-2 its 1280 version. Everything is 1280 × 800 now; 8a-2 is the keyboard version. State sheets 8b-5 and 0-4 C are 1040 high to stay legible.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">19</span><span><b style="font-weight:500;color:var(--ink)">Light check 8b-6.</b> Every screen now has a Kinari twin, so 8b-6 is the keyboard sign-in.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">20</span><span><b style="font-weight:500;color:var(--ink)">Tray states.</b> Cyan / grey / amber became Yamabuki lit (running), dim (stopped), “!” square (needs attention).</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">21</span><span><b style="font-weight:500;color:var(--ink)">Pixel logo sizes.</b> The 32 and 16 px marks are Pixel assets kept by id; this canvas draws the vector Mark from 20 px up.</span></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--ink-2)"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">22</span><span><b style="font-weight:500;color:var(--ink)">tokens.css.</b> Resolved: the local copy is gone; ds/uzume/tokens.css is now the system’s own file.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · ROUND 5 · BATCH 1" lines="{{ oc }}"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1480}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { zero: 0, n1: 1, n2: 2, oc: ['15 SCREENS', '41 BOARDS', 'SUMI · KINARI', 'DS UZUME · MA'] };
+  }
+}
+</script>
+</body>
+</html>

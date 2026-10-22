@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8f-3 Confirm it’s you · states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">CONFIRM IT’S YOU · STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 STATES">Confirm it’s you</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8F-3A · NEXT: RESTORE A BACKUP</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Confirm it’s you</span>
+        <x-import component-from-global-scope="Uzume.TextField" label="Password for Max" type="password" placeholder="Password" error="Wrong password. 2 tries left."></x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Confirm</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8F-3B · NEXT: UPDATE THE SERVER</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Confirm it’s you</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Too many wrong tries. Admin steps are locked on this PC for 5:00. Everything else keeps working.</x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm" disabled="{{ yes }}">Confirm</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Wait 5:00. Forgot it? See 8g.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8F-3C · NEXT: DELETE A GAME</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Confirm it’s you</span>
+        <x-import component-from-global-scope="Uzume.TextField" label="Password for Max" type="password" default-value="abcdefghijkl" disabled="{{ yes }}"></x-import>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm" disabled="{{ yes }}">Checking…</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8F-3D · NEXT: CHANGE NETWORK SHARING</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Can’t check right now</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Home server is unreachable, so it can’t confirm your password.</x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Try again</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;padding:20px 24px 0;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8F-3E · WHEN IT’S ASKED</span>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px">
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule-2)"><span>Delete a game</span><span style="color:var(--muted)">Library</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule-2)"><span>Turn off, remove, reset password</span><span style="color:var(--muted)">Users</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule-2)"><span>Delete a removed person’s saves</span><span style="color:var(--muted)">Saves</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule-2)"><span>Restore a backup</span><span style="color:var(--muted)">Backups</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule-2)"><span>Update or go back</span><span style="color:var(--muted)">Updates</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule-2)"><span>Who can join, sharing</span><span style="color:var(--muted)">Network</span></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8F-3F · NEXT: GO BACK TO 0.16.4</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Confirm it’s you again</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Your 5 minutes ran out. Nothing has changed yet.</span>
+        <x-import component-from-global-scope="Uzume.TextField" aria-label="Password for Max" type="password" placeholder="Password" state="focus"></x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Confirm</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme ?? 'sumi', n1: 1, yes: true }; }
+}
+</script>
+</body>
+</html>

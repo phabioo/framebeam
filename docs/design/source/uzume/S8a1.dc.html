@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8a-1 First start · gamepad</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--accent-text)}a:hover{color:var(--accent-hover)}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">FIRST START</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:40px 24px 24px;display:flex;flex-direction:column;gap:32px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="3 WAYS TO START">Welcome</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Welcome to Uzume</h1>
+        <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">How do you want to play? You can change this later in Settings › This PC › Servers.</p>
+      </div>
+      <div role="list" aria-label="How do you want to play?" style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+        <div role="listitem" style="display:grid;grid-template-columns:40px minmax(0,1fr) 200px;column-gap:24px;align-items:start;padding:20px 16px;border-bottom:1px solid var(--rule-2);background:var(--hover);box-shadow:var(--focus-ring);position:relative;z-index:1">
+          <span style="font:400 11px/28px var(--font-mono);color:var(--muted)">01</span>
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Play on this PC</span><span style="font-size:14px;line-height:22px;color:var(--ink-2);max-width:520px">Your games and saves stay on this computer. Nothing to set up, no account. You can share with friends later.</span></div>
+          <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted);text-align:right;padding-top:6px">NO ADMIN RIGHTS NEEDED</span>
+        </div>
+        <div role="listitem" style="display:grid;grid-template-columns:40px minmax(0,1fr) 200px;column-gap:24px;align-items:start;padding:20px 16px;border-bottom:1px solid var(--rule-2)">
+          <span style="font:400 11px/28px var(--font-mono);color:var(--dim)">02</span>
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Join a server</span><span style="font-size:14px;line-height:22px;color:var(--ink-2);max-width:520px">A friend runs Uzume for a group. You need their address or an invite code.</span></div>
+          <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);text-align:right;padding-top:6px">MOST PEOPLE IN A SOULLINK RUN START HERE</span>
+        </div>
+        <div role="listitem" style="display:grid;grid-template-columns:40px minmax(0,1fr) 200px;column-gap:24px;align-items:start;padding:20px 16px;border-bottom:1px solid var(--rule-2)">
+          <span style="font:400 11px/28px var(--font-mono);color:var(--dim)">03</span>
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Set up a server</span><span style="font-size:14px;line-height:22px;color:var(--ink-2);max-width:520px">Keep games and saves for friends at home or over the internet. Runs on this PC or on a Raspberry Pi, NAS or another PC.</span></div>
+          <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);text-align:right;padding-top:6px">YOU BECOME THE ADMIN</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;color:var(--muted)">Have an invite link? Paste it anywhere in this window, or press<x-import component-from-global-scope="Uzume.Kbd" keys="Ctrl+V"></x-import></div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · FIRST START" lines="{{ oc }}"></x-import>
+  </div>
+  <div style="height:44px;flex:none;border-top:1px solid var(--rule-2);display:flex;align-items:center;justify-content:flex-end;gap:24px;padding:0 56px">
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="A" label="Choose"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="B" label="Back"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, oc: ['GB · GBC · GBA · NDS · 3DS', 'VERSION 0.17.0', 'DESKTOP-LIVINGROOM'] };
+  }
+}
+</script>
+</body>
+</html>

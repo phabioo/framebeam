@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3s-app-1 Saves · all users · conflict</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Library" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="ALL USERS · 1 CONFLICT">Library</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Library</h1><div style="margin-left:auto"><x-import component-from-global-scope="Uzume.Segmented" items="{{ filter }}" active="All users" label="Show saves of"></x-import></div></div>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="Saves · 1" size="lg"></x-import>
+      </div>
+      <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+        <div role="row" style="display:grid;grid-template-columns:150px minmax(0,1fr) 72px 120px;column-gap:12px;padding:0 12px 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>PERSON</span><span>GAME</span><span>SLOT</span><span>LATEST</span></div>
+        <div role="row" aria-selected="true" style="display:grid;grid-template-columns:150px minmax(0,1fr) 72px 120px;column-gap:12px;align-items:center;min-height:40px;padding:0 12px;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start)"><span style="display:flex;align-items:center;gap:8px;font-weight:500"><x-import component-from-global-scope="Uzume.Avatar" name="Jonas" person="moegi" size="{{ s20 }}"></x-import>Jonas</span><span style="font-weight:500">Harbor Rally</span><span style="color:var(--muted)">Main</span><span><x-import component-from-global-scope="Uzume.Tag" tone="accent" variant="plane" icon="warn">Conflict</x-import></span></div>
+        <div role="row" style="display:grid;grid-template-columns:150px minmax(0,1fr) 72px 120px;column-gap:12px;align-items:center;min-height:40px;padding:0 12px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Lena" person="momo" size="{{ s20 }}"></x-import>Lena</span><span>Lumen Drift</span><span style="color:var(--muted)">Main</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">v8 · 2 h</span></div>
+        <div role="row" style="display:grid;grid-template-columns:150px minmax(0,1fr) 72px 120px;column-gap:12px;align-items:center;min-height:40px;padding:0 12px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Max" person="wasurenagusa" size="{{ s20 }}"></x-import>Max</span><span>Coral Saga: Ember</span><span style="color:var(--muted)">Slot 2</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">v22</span></div>
+        <div role="row" style="display:grid;grid-template-columns:150px minmax(0,1fr) 72px 120px;column-gap:12px;align-items:center;min-height:40px;padding:0 12px;border-bottom:1px solid var(--rule-2);opacity:.6"><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Sam" person="fuji" size="{{ s20 }}"></x-import>Sam</span><span>Paper Wizards</span><span style="color:var(--muted)">Main</span><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Tag">Removed</x-import><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">v3</span></span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="MAIN · SLOT 2 · SNAPSHOTS 3 · STATES 4">Jonas · Harbor Rally</x-import>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Two versions were made on two devices at nearly the same time. Pick the one to keep; the other stays in the history.</x-import>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);border-bottom:1px solid var(--rule-2)">
+          <div style="display:flex;flex-direction:column;gap:6px;padding:12px 16px 12px 12px;background:var(--selected);box-shadow:var(--marker-start)"><span style="font-size:14px;line-height:22px;font-weight:500">v15 · Jonas-Laptop</span><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)">TODAY 13:40 · GAME TIME 14:02</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Further in the game</span><div style="display:flex;padding-top:4px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Keep this</x-import></div></div>
+          <div style="display:flex;flex-direction:column;gap:6px;padding:12px 16px;border-left:1px solid var(--rule-2)"><span style="font-size:14px;line-height:22px">v15 · Desktop-LivingRoom</span><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">TODAY 13:38 · GAME TIME 13:51</span><span style="font-size:12px;line-height:18px;color:var(--muted)">&#8203;</span><div style="display:flex;padding-top:4px"><x-import component-from-global-scope="Uzume.Button" size="sm">Keep this</x-import></div></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · SAVES · HOME SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, three: 3, s20: 20, filter: ['Mine', 'All users'], tabs: ['Games', 'Saves · 1', 'Screenshots'], badges: { Users: 1, Reports: 2 },
+      online: [{ name: 'Lena', person: 'momo', playing: 'Lumen Drift' }, { name: 'Jonas', person: 'moegi', playing: 'Harbor Rally' }],
+      max: { name: 'Max', role: 'Admin', person: 'wasurenagusa' } };
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, help: [{ text: "Every save belongs to one person. Jonas gets a notification; nothing is deleted." }, { text: "Removed people keep their saves here, dimmed, until an admin deletes them (3s-4a)." }, { text: "History and Restore… are in the row ⋯; restoring for someone else asks you to confirm it’s you." }] });
+  }
+}
+</script>
+</body>
+</html>

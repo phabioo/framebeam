@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8g-1 Forgot password</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">FORGOT PASSWORD · NO EMAIL</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="MEMBER · ADMIN · SERVER ON THIS PC">Forgot password</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8G-1A · MEMBER</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Forgot your password?</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Ask an admin to reset it. Max sets a temporary password in Users; you choose a new one when you sign in.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Ask Max to reset it</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Back</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Max gets a notification. There is no email reset.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8G-1B · MEMBER · REQUEST SENT</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Max has been asked</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm">Request sent at 14:20. Max sees it in the bell and in Users.</x-import>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Back to sign in</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8G-1C · ADMIN · OTHER ADMINS</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Forgot your password?</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Another admin can reset it: Lena is also an admin on Home server.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Ask Lena to reset it</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">I have no other admin</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8G-1D · ADMIN · ONLY ADMIN</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Reset it on the server</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Open a terminal on pi-livingroom and run:</span>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)"><span style="flex:1;font:500 13px/20px var(--font-mono);color:var(--ink)">uzume-server reset-admin</span><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Copy</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Prints a one-time password for Max. Saves, users and games are not touched. Docker: <span style="font:400 11px/16px var(--font-mono);color:var(--ink-2)">docker exec -it uzume-server uzume-server reset-admin</span></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8G-1E · ADMIN · SERVER ON THIS PC</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Reset the admin password</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">The server runs on this PC. Open a terminal as administrator and run:</span>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)"><span style="flex:1;font:500 13px/20px var(--font-mono);color:var(--ink)">uzume-server reset-admin</span><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Copy command</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Then sign in with the one-time password it prints.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8G-1F · ADMIN RESETS A MEMBER</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Reset Lena’s password?</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">You get a temporary password to give to Lena. She picks a new one at next sign-in. Her devices stay signed in.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">Reset password</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Asks you to confirm it’s you first (8f).</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme ?? 'sumi', n1: 1 }; }
+}
+</script>
+</body>
+</html>

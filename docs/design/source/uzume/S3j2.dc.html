@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3j-app-2 Library · dialogs and results</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:1040px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">LIBRARY · ADMIN STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="9 STATES">Library admin actions</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:10px;padding:18px 24px 18px 0;border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3J-2A · DELETE GAME</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Delete Harbor Rally?</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">The file is removed from Home server for everyone. All saves are kept: 3 people, 41 versions.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">Delete game</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Asks you to confirm it’s you first. Undo: add the file again.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:18px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3J-2B · RESCAN RUNNING</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Rescanning folders…</span>
+        <div style="display:flex;flex-direction:column;gap:6px"><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">/ROMS/ · 1,204 OF ABOUT 1,900 FILES</span><x-import component-from-global-scope="Uzume.Progress" value="{{ scan }}" label="Rescan"></x-import></div>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm" disabled="{{ yes }}">Rescan folders</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Running. People can keep playing.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:18px 0 18px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3J-2C · RESCAN RESULT</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Rescan finished</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm">3 new games, 1 moved, 0 missing.</x-import>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">2 files not added: notes.txt, cover.png · not a .gb, .gbc, .gba, .nds or .3ds file.</span>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Show new games</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:18px 24px 18px 0;border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3J-2D · UPLOAD INTERRUPTED</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Upload paused</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Connection to Home server lost at 41 of 128 MB.</x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Resume</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel upload</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Resumes when the server is back. Nothing is added until the file is complete and its SHA-256 checked.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:18px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3J-2E · ALREADY IN THE LIBRARY</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Already in the library</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Same file as Lumen Drift (same SHA-256). Nothing was uploaded.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" size="sm">Open Lumen Drift</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">OK</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:18px 0 18px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3J-2F · NOT A GAME FILE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Can’t add backup.zip</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">It contains no .gb, .gbc, .gba, .nds or .3ds file.</x-import>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Pick other files</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:18px 24px 0 0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3J-2G · RENAME</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Rename game</span>
+        <x-import component-from-global-scope="Uzume.TextField" label="Name shown to everyone" default-value="Harbor Rally DS" state="focus" hint="The file on the server stays harbor-rally.nds."></x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Save</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:18px 24px 0;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3J-2H · ON THIS PC ONLY</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Copper Courier is only on this PC</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">It comes from your folder <span style="font:400 11px/16px var(--font-mono)">D:\Games\ROMs</span>. Others can’t see it.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Upload to Home server</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Keep local</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Its saves stay yours either way.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:18px 0 0 24px;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3J-2I · MEMBER UPLOADS OFF</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Add games</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Max adds games on Home server.</span>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm" disabled="{{ yes }}">Add games…</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Member uploads are off · Settings › Server › General.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme ?? 'sumi', n1: 1, yes: true, scan: 0.63 }; }
+}
+</script>
+</body>
+</html>

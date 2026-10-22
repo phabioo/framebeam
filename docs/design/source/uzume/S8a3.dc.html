@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8a-3 Play on this PC</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--accent-text)}a:hover{color:var(--accent-hover)}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">PLAY ON THIS PC · 1 OF 1</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:40px 24px 24px;display:grid;grid-template-columns:440px minmax(0,1fr);column-gap:64px;align-items:start;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:32px">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="NO ACCOUNT">Play on this PC</x-import>
+          <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Where are your games?</h1>
+          <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Pick the folder with your game files. Uzume looks inside sub-folders too and never changes the files.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-end;gap:8px">
+            <x-import component-from-global-scope="Uzume.TextField" label="Game folder" default-value="D:\Games\ROMs" state="focus" style="flex:1;min-width:0"></x-import>
+            <x-import component-from-global-scope="Uzume.Button">Browse…</x-import>
+          </div>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm">Found 214 games for 5 systems.</x-import>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">NDS and 3DS need firmware. You can add it later in Systems &amp; cores.</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <x-import component-from-global-scope="Uzume.Button" variant="primary">Start playing</x-import>
+          <x-import component-from-global-scope="Uzume.Button">Add later</x-import>
+        </div>
+        <p style="margin:0;padding-top:16px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">Saves are kept in your user folder and backed up every day. To share them with friends later: Settings › This PC › Servers › Share with others.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="SAME FIELD">Other states</x-import>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+          <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Scanning</span><span style="font-size:12px;line-height:18px;color:var(--muted)">The hint reads “Looking… 1,204 files checked” with a 2 px progress bar. Start playing waits.</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Nothing found</span><span style="font-size:12px;line-height:18px;color:var(--muted)">“No games in this folder. Uzume reads .gb, .gbc, .gba, .nds and .3ds.” Action: Pick another folder.</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">No access</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Error under the field: “Uzume can’t read this folder. Pick another one or check its permissions.”</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Add later</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Opens an empty Library. Its StateBlock (ensō) offers the same folder picker: Add a folder.</span></div>
+        </div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · FIRST START · THIS PC" lines="{{ oc }}"></x-import>
+  </div>
+  <div style="height:44px;flex:none;border-top:1px solid var(--rule-2);display:flex;align-items:center;justify-content:flex-end;gap:24px;padding:0 56px">
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="A" label="Choose"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="B" label="Back"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, oc: ['214 GAMES · 5 SYSTEMS', 'NDS · 3DS NEED FIRMWARE', 'BACKUP DAILY'] };
+  }
+}
+</script>
+</body>
+</html>

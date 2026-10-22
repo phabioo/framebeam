@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>9a-1 Controllers · mapping</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Controllers" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="width:232px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:14px">
+    <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim);padding:0 12px">Controllers</span>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Mapping is saved per controller on this PC.</span>
+    <nav aria-label="Controllers" style="display:flex;flex-direction:column"><a href="#xbox" aria-current="page" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);box-shadow:var(--marker-start);text-decoration:none">Xbox Wireless Controller<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">P1</span></a><a href="#kb" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Keyboard<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">P1</span></a><a href="#add" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Add a controller…</a></nav>
+  </div>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:48px;padding:0 48px">
+    <div style="position:relative;padding:48px 0px 24px;display:flex;flex-direction:column;gap:14px;min-width:0">
+      
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="CONNECTED · USB · PLAYER 1">Controllers</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Xbox Wireless Controller</h1>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ ctabs }}" active="Mapping" size="lg"></x-import>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-end"><x-import component-from-global-scope="Uzume.Select" label="Profile" options="{{ prof }}" default-value="Standard" style="width:200px"></x-import><x-import component-from-global-scope="Uzume.Select" label="System" options="{{ sysl }}" default-value="GBA" style="width:120px"></x-import><span style="margin-left:auto"><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Reset mapping</x-import></span></div>
+      <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+        <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);column-gap:12px;padding:0 12px 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>GAME BUTTON</span><span>GAMEPAD</span><span>KEYBOARD</span></div>
+        <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);column-gap:12px;align-items:center;min-height:40px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;color:var(--ink);font-weight:400">A</span><x-import component-from-global-scope="Uzume.GamepadHint" k="A"></x-import><x-import component-from-global-scope="Uzume.Kbd" keys="X"></x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);column-gap:12px;align-items:center;min-height:40px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;color:var(--ink);font-weight:400">B</span><x-import component-from-global-scope="Uzume.GamepadHint" k="B"></x-import><x-import component-from-global-scope="Uzume.Kbd" keys="Z"></x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);column-gap:12px;align-items:center;min-height:40px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;color:var(--ink);font-weight:400">L</span><x-import component-from-global-scope="Uzume.GamepadHint" k="L"></x-import><x-import component-from-global-scope="Uzume.Kbd" keys="A"></x-import></div>
+        <div role="row" aria-selected="true" style="display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);column-gap:12px;align-items:center;min-height:40px;padding:0 0;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start)"><span style="font-size:13px;line-height:18px;color:var(--ink);font-weight:500">R</span><span style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--accent-text)">Press a button… <x-import component-from-global-scope="Uzume.Kbd" keys="Esc" label="Cancel"></x-import></span><x-import component-from-global-scope="Uzume.Kbd" keys="S"></x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);column-gap:12px;align-items:center;min-height:40px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;color:var(--ink);font-weight:400">Start</span><x-import component-from-global-scope="Uzume.GamepadHint" k="Start"></x-import><x-import component-from-global-scope="Uzume.Kbd" keys="Enter"></x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);column-gap:12px;align-items:center;min-height:40px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;color:var(--ink);font-weight:400">Select</span><x-import component-from-global-scope="Uzume.GamepadHint" k="Select"></x-import><x-import component-from-global-scope="Uzume.Kbd" keys="Shift"></x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);column-gap:12px;align-items:center;min-height:40px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;color:var(--ink);font-weight:400">D-pad</span><span style="display:flex;gap:6px"><x-import component-from-global-scope="Uzume.GamepadHint" k="UpDown"></x-import><x-import component-from-global-scope="Uzume.GamepadHint" k="LeftRight"></x-import><span style="font:400 10px/16px var(--font-mono);color:var(--muted)">· LEFT STICK</span></span><x-import component-from-global-scope="Uzume.Kbd" keys="← → ↑ ↓"></x-import></div>
+      </div>
+      <span style="font-size:12px;line-height:18px;color:var(--muted)">Select is also the hotkey modifier: tapped alone it goes to the game; held, it opens the hotkeys.</span>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · CONTROLLERS · THIS PC" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "ctabs": ["Mapping", "Gamepad", "Test"], "prof": ["Standard", "Left-handed", "Custom 1"], "sysl": ["GB", "GBC", "GBA", "NDS", "3DS"]}, { noop: () => {}, help: [{ title: 'Press to map', text: 'Choose a row, then press the button or key. Esc or B cancels.' }, { text: 'Hotkeys live in Settings › This PC › Hotkeys.' }] });
+  }
+}
+</script>
+</body>
+</html>

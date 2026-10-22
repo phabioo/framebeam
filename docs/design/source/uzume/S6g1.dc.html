@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>6g-1 Settings › This PC › Audio & video</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Settings" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="width:232px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:14px">
+    <x-import component-from-global-scope="Uzume.Segmented" items="{{ scope }}" active="This PC" label="Settings for"></x-import>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Only affects this PC and your account.</span>
+    <nav aria-label="This PC" style="display:flex;flex-direction:column"><a href="#account" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">My account<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">MAX</span></a><a href="#appearance" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Appearance</a><a href="#av" aria-current="page" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);box-shadow:var(--marker-start);text-decoration:none">Audio &amp; video</a><a href="#hotkeys" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Hotkeys</a><a href="#folders" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Library folders<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">1</span></a><a href="#plugins" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Plugins<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">3</span></a><a href="#voice" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Voice</a><a href="#notifications" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Notifications</a><a href="#storage" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Storage<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">41 GB</span></a><a href="#servers" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Servers</a><a href="#updates" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Updates<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">0.17.0</span></a><a href="#diag" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Diagnostics</a></nav>
+  </div>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:48px;padding:0 48px">
+    <div style="position:relative;padding:48px 0px 24px;display:flex;flex-direction:column;gap:16px;min-width:0">
+      
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="THIS PC">This PC</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Audio &amp; video</h1>
+      </div>
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}">Audio</x-import>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.SettingsRow" label="Output" help="Where game, voice and plugin sounds play."><x-import component-from-global-scope="Uzume.Select" options="{{ out }}" default-value="Speakers (Realtek)" aria-label="Speakers (Realtek)" style="width:200px"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Mute when in the background" help="Your game goes quiet when another window has focus. Sessions you watch stay audible." changed="{{ yes }}" default-label="Off"><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Volume steps" help="+ and − and Select + ↑ ↓ change the volume by this much."><x-import component-from-global-scope="Uzume.Segmented" items="{{ steps }}" active="5 %" size="sm" label="Volume steps"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Show volume on screen" help="A short notice at the bottom left of the game."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}"></x-import></x-import></div>
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}">Video</x-import>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.SettingsRow" label="Fullscreen on" help="F11 opens the game on this monitor."><x-import component-from-global-scope="Uzume.Select" options="{{ mon }}" default-value="Monitor 1" aria-label="Monitor 1" style="width:160px"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Vertical sync" help="Smooth picture; adds a little delay."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}"></x-import></x-import></div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · SETTINGS · THIS PC" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "scope": ["This PC", "Server"], "out": ["Speakers (Realtek)", "Headset (USB)"], "steps": ["2 %", "5 %", "10 %"], "mon": ["Monitor 1", "Monitor 2"], "scale": ["Integer", "Fit window"]}, { noop: () => {}, help: [{ text: 'The mixer for tiles, voice and plugins is in the volume button in game.' }, { text: 'Per-system picture settings are in Emulation.' }] });
+  }
+}
+</script>
+</body>
+</html>

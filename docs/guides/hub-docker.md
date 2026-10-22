@@ -1,6 +1,6 @@
-# Run the Hub in Docker
+# Run the server in Docker
 
-The official image runs the FrameBeam Hub as a non-root container for `linux/amd64` and `linux/arm64` (Raspberry Pi 5 included). Decisions: [ADR 0029](../adr/0029-operations-and-safety.md) D1. For flags and environment variables see [hub-configuration.md](hub-configuration.md); for Players outside your LAN see [sessions-over-the-internet.md](sessions-over-the-internet.md). The Debian package ([hub-install.md](hub-install.md)) stays the recommended install on Debian; use the image when you already run Docker (NAS, home server).
+The official image runs the Uzume server as a non-root container for `linux/amd64` and `linux/arm64` (Raspberry Pi 5 included). Decisions: [ADR 0029](../adr/0029-operations-and-safety.md) D1. For flags and environment variables see [hub-configuration.md](hub-configuration.md); for apps outside your LAN see [sessions-over-the-internet.md](sessions-over-the-internet.md). The Debian package ([hub-install.md](hub-install.md)) stays the recommended install on Debian; use the image when you already run Docker (NAS, home server).
 
 ## Image
 
@@ -12,7 +12,7 @@ The official image runs the FrameBeam Hub as a non-root container for `linux/amd
 | `stable` and `latest` | The newest promoted release ("Promote to release", no rebuild). |
 | `beta` | The newest build of `main`. Not for production. |
 
-The image is `distroless/static` with the Hub binary only: no shell, no package manager. It runs as user `65532` and keeps all data in the volume `/data`. The image sets `FRAMEBEAM_DATA_DIR=/data`, `FRAMEBEAM_LISTEN=:8443` and `FRAMEBEAM_HUB_CONTAINER=1`.
+The image is `distroless/static` with the server binary only: no shell, no package manager. It runs as user `65532` and keeps all data in the volume `/data`. The image sets `FRAMEBEAM_DATA_DIR=/data`, `FRAMEBEAM_LISTEN=:8443` and `FRAMEBEAM_HUB_CONTAINER=1`.
 
 ## docker run
 
@@ -23,7 +23,7 @@ docker run -d --name framebeam-hub --restart unless-stopped \
   ghcr.io/phabioo/framebeam-hub:stable
 ```
 
-Open `https://<docker-host>:8443`. The Hub creates a self-signed certificate (accept it once; the Player pins it). A container is not "local" for the setup page, so create the admin account with the CLI instead (password as a single line from stdin):
+Open `https://<docker-host>:8443`. The server creates a self-signed certificate (accept it once; the app pins it). A container is not "local" for the setup page, so create the admin account with the CLI instead (password as a single line from stdin):
 
 ```sh
 printf '%s\n' 'a long password' | docker exec -i framebeam-hub framebeam-hub setup-admin -username alice
@@ -59,7 +59,7 @@ volumes:
   framebeam-data:
 ```
 
-Bridge networking is fine for the web port. For the TURN relay the Hub announces the address from `FRAMEBEAM_PUBLIC_HOST` (or `FRAMEBEAM_TURN_RELAY_IP`), so publish exactly the relay range you configured and forward the same ports on the router. If relaying is unreliable behind NAT, `network_mode: host` removes Docker's port translation (then drop the `ports` section).
+Bridge networking is fine for the web port. For the TURN relay the server announces the address from `FRAMEBEAM_PUBLIC_HOST` (or `FRAMEBEAM_TURN_RELAY_IP`), so publish exactly the relay range you configured and forward the same ports on the router. If relaying is unreliable behind NAT, `network_mode: host` removes Docker's port translation (then drop the `ports` section).
 
 ## Volumes and permissions
 
@@ -70,7 +70,7 @@ Bridge networking is fine for the web port. For the TURN relay the Hub announces
 
 ## Upgrade
 
-The Hub never updates itself inside a container (`FRAMEBEAM_HUB_CONTAINER=1`): Settings → Updates shows that a newer version exists and tells you to pull the image. Sessions end while the container restarts.
+The server never updates itself inside a container (`FRAMEBEAM_HUB_CONTAINER=1`): Settings → Updates shows that a newer version exists and tells you to pull the image. Sessions end while the container restarts.
 
 ```sh
 docker compose pull && docker compose up -d
@@ -78,7 +78,7 @@ docker compose pull && docker compose up -d
 # docker rm -f framebeam-hub and run it again with the same -v option
 ```
 
-The Hub migrates its database at start and keeps a copy of the old one in `/data/backups`. To go back, start the older `X.Y.Z` tag with a restored copy (the Hub refuses a database from a newer version, see [Data directory](hub-configuration.md#data-directory)).
+The server migrates its database at start and keeps a copy of the old one in `/data/backups`. To go back, start the older `X.Y.Z` tag with a restored copy (the server refuses a database from a newer version, see [Data directory](hub-configuration.md#data-directory)).
 
 ## Backup
 
@@ -90,7 +90,7 @@ docker run --rm -v framebeam-data:/data:ro -v "$PWD":/backup alpine tar czf /bac
 docker start framebeam-hub
 ```
 
-Restore into an empty volume with the same command in reverse (`tar xzf ... -C /data`, then `chown -R 65532:65532 /data`). Saves are never sent to another Hub; keep the archive private.
+Restore into an empty volume with the same command in reverse (`tar xzf ... -C /data`, then `chown -R 65532:65532 /data`). Saves are never sent to another server; keep the archive private.
 
 ## Build the image yourself
 

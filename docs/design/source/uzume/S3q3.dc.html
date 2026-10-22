@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3q-app-3 Server › Sign-in</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Settings" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="width:240px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:16px">
+    <x-import component-from-global-scope="Uzume.Segmented" items="{{ scope }}" active="Server" label="Settings for"></x-import>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Affects everyone on Home server.</span>
+    <nav aria-label="Server settings" style="display:flex;flex-direction:column">
+      <a href="#general" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">General</a>
+      <a href="#network" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Network &amp; sharing<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">INTERNET</span></a>
+      <a href="#signin" aria-current="page" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;box-shadow:var(--marker-start)">Sign-in<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">CHANGED</span></a>
+      <a href="#updates" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Updates<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">0.17.0</span></a>
+      <a href="#backups" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Backups<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">03:00</span></a>
+      <a href="#storage" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Storage<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">61 %</span></a>
+      <a href="#diag" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Diagnostics</a>
+    </nav>
+  </div>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:48px;padding:0 48px">
+    <div style="padding:48px 0 24px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="SERVER · HOME SERVER">Server</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Sign-in</h1>
+      </div>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Passwords" help="Admins always need one, 12 characters or more." changed="{{ yes }}" default-label="Optional for members"><x-import component-from-global-scope="Uzume.Select" options="{{ pw }}" default-value="Required for everyone" style="width:240px"></x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Show names on sign-in" help="A list of names on the sign-in screen. Only for connections from the home network."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ no }}"></x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Wrong tries before a wait" help="Per person and PC. 5 tries, then 5 minutes."><x-import component-from-global-scope="Uzume.Select" options="{{ tries }}" default-value="5 tries" style="width:160px"></x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Stay signed in" help="After this, a password or approval is needed again."><x-import component-from-global-scope="Uzume.Select" options="{{ stay }}" default-value="90 days" style="width:160px"></x-import></x-import>
+      </div>
+      <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Lena has no password and must set one at her next sign-in. Nobody is signed out.</x-import>
+      <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Save</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · SETTINGS · SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "three": 3, "yes": true, "no": false, "scope": ["This PC", "Server"], "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "pw": ["Required for everyone", "Optional for members"], "tries": ["3 tries", "5 tries", "10 tries"], "stay": ["30 days", "90 days", "1 year"]});
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, help: [{ text: "Password rules for people live here; each person’s password is in Users or their own My account." }, { text: "Saving asks “Confirm it’s you”." }] });
+  }
+}
+</script>
+</body>
+</html>

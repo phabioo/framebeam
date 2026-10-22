@@ -1,4 +1,4 @@
-# server/ – FrameBeam Hub (Go, SQLite)
+# Server/ – Uzume server (Go, SQLite)
 
 Details only when needed, from `docs/architecture/` (index: `docs/architecture/README.md`).
 

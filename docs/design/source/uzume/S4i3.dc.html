@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>4i-app-3 Plugins · dialogs and states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">PLUGINS · STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 STATES">Plugins</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:10px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">4I-3A · UPLOAD · NOT SIGNED</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Offer Run Notes 0.2.0 to everyone?</span>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Uzume hasn’t checked this file. Tick each permission you checked.</span>
+        <x-import component-from-global-scope="Uzume.Checkbox" label="Show panels in game" default-checked="{{ yes }}"></x-import>
+        <x-import component-from-global-scope="Uzume.Checkbox" label="Share run progress" default-checked="{{ yes }}"></x-import>
+        <x-import component-from-global-scope="Uzume.Checkbox" label="Read game memory" default-checked="{{ no }}" hint="Needed for this plugin to work."></x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm" disabled="{{ yes }}">Offer to everyone</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">4I-3B · USE PREVIOUS VERSION</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Go back to 0.3.1?</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Everyone gets 0.3.1 at their next game start. 0.3.2 stays in the list.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Use 0.3.1</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">4I-3C · INDEX UNREACHABLE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Can’t load the index</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Showing the last good copy from yesterday 21:04.</x-import>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Try again</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">4I-3D · NEEDS A NEWER SERVER</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Splits Timer 0.6 needs server 0.18+</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Home server runs 0.17.0.</span>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm" disabled="{{ yes }}">Add</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Update the server first · Settings › Server › Updates.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">4I-3E · MEMBER · SERVER PLUGINS</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Max manages plugins for Home server</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Your plugins and their settings are in Settings › This PC › Plugins.</span>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Open my plugins</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">4I-3F · REMOVE FROM SERVER</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Remove Item Helper?</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">People keep their copy until they uninstall it. Its run data stays.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">Remove</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme ?? 'sumi', n1: 1, yes: true, no: false }; }
+}
+</script>
+</body>
+</html>

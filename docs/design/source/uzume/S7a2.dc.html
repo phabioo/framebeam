@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>7a-app-2 Setup assistant · done</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">SETUP ASSISTANT · HOME SERVER</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:24px 24px 24px;display:flex;flex-direction:column;gap:28px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <ol aria-label="Setup steps" style="margin:0;padding:0;display:flex;gap:12px"><li style="list-style:none;flex:1;border-top:2px solid var(--ink);padding-top:10px;display:flex;align-items:center;gap:8px"><span style="font:400 10px/16px var(--font-mono);color:var(--dim)">01</span><span style="font-size:13px;line-height:18px;color:var(--muted);font-weight:400">Systems</span><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import></li><li style="list-style:none;flex:1;border-top:2px solid var(--ink);padding-top:10px;display:flex;align-items:center;gap:8px"><span style="font:400 10px/16px var(--font-mono);color:var(--dim)">02</span><span style="font-size:13px;line-height:18px;color:var(--muted);font-weight:400">Cores</span><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import></li><li style="list-style:none;flex:1;border-top:2px solid var(--ink);padding-top:10px;display:flex;align-items:center;gap:8px"><span style="font:400 10px/16px var(--font-mono);color:var(--dim)">03</span><span style="font-size:13px;line-height:18px;color:var(--muted);font-weight:400">ROM folders</span><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import></li><li style="list-style:none;flex:1;border-top:2px solid var(--ink);padding-top:10px;display:flex;align-items:center;gap:8px"><span style="font:400 10px/16px var(--font-mono);color:var(--dim)">04</span><span style="font-size:13px;line-height:18px;color:var(--muted);font-weight:400">Internet access</span><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import></li><li style="list-style:none;flex:1;border-top:2px solid var(--ink);padding-top:10px;display:flex;align-items:center;gap:8px"><span style="font:400 10px/16px var(--font-mono);color:var(--dim)">05</span><span style="font-size:13px;line-height:18px;color:var(--muted);font-weight:400">Backups</span><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import></li><li aria-current="step" style="list-style:none;flex:1;border-top:2px solid var(--ink);padding-top:10px;display:flex;align-items:center;gap:8px"><span style="font:400 10px/16px var(--font-mono);color:var(--dim)">06</span><span style="font-size:13px;line-height:18px;color:var(--ink);font-weight:500">Done</span></li></ol>
+      <div style="display:flex;flex-direction:column;gap:16px;max-width:880px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="DONE">Setup</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Home server is ready</h1>
+        <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Here is what was set up. Anything open also shows in Status.</p>
+      </div>
+      <div style="max-width:880px;border-top:1px solid var(--rule)"><div style="display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:16px;min-height:44px;align-items:center;border-bottom:1px solid var(--rule-2)"><span style="font-size:14px">Systems</span><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;color:var(--ink-2)"><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import>GB, GBC, GBA, NDS, 3DS</span></div><div style="display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:16px;min-height:44px;align-items:center;border-bottom:1px solid var(--rule-2)"><span style="font-size:14px">Cores</span><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;color:var(--ink-2)"><x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm"></x-import>4 of 5 · NDS has no core<span style="margin-left:auto"><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Set up</x-import></span></span></div><div style="display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:16px;min-height:44px;align-items:center;border-bottom:1px solid var(--rule-2)"><span style="font-size:14px">ROM folders</span><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;color:var(--ink-2)"><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import>/roms · 128 games</span></div><div style="display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:16px;min-height:44px;align-items:center;border-bottom:1px solid var(--rule-2)"><span style="font-size:14px">Internet access</span><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;color:var(--ink-2)"><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import>Prepared for the internet · test from another network</span></div><div style="display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:16px;min-height:44px;align-items:center;border-bottom:1px solid var(--rule-2)"><span style="font-size:14px">Backups</span><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;color:var(--ink-2)"><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import>Daily at 03:00 · keep 7</span></div></div>
+      <div style="margin-top:auto;max-width:880px;display:flex;align-items:center;gap:8px;padding-top:16px;border-top:1px solid var(--rule-2)"><span style="font-size:12px;line-height:18px;color:var(--muted)">Next: invite friends from Users › Invites.</span><span style="margin-left:auto;display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button">Create an invite</x-import><x-import component-from-global-scope="Uzume.Button" variant="primary">Open Library</x-import></span></div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · SETUP · HOME SERVER" items="{{ help }}"><div style="display:flex;flex-direction:column;gap:6px;padding-top:16px"><x-import component-from-global-scope="Uzume.GamepadHint" k="A" label="Open Library"></x-import></div></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "zero": 0, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}});
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, help: [{ text: "Run setup again from Settings › Server › General. Nothing is reset." }] });
+  }
+}
+</script>
+</body>
+</html>

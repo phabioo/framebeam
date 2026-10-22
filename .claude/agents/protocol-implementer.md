@@ -6,7 +6,7 @@ model: sonnet
 
 You implement subtasks in `protocol/`. Rules: `protocol/CLAUDE.md`.
 
-- OpenAPI under `protocol/openapi/`, JSON schemas (WSS, handshake) under `protocol/schemas/`; contract examples for Hub and Player.
+- OpenAPI under `protocol/openapi/`, JSON schemas (WSS, handshake) under `protocol/schemas/`; contract examples for server and app.
 - Handshake spec: `docs/architecture/02-protocols-and-rom-cache.md`.
 - Read only the files and architecture sections named in the brief; ask instead of searching broadly. Keep command output short.
 

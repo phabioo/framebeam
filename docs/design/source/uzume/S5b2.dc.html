@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>5b-2 SoulLink · panel states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">SOULLINK · IN GAME · STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 STATES">SoulLink in game</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">5B-2A · LOCATION</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Route status</span>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;width:120px">Route 104</span><x-import component-from-global-scope="Uzume.Tag">No encounter yet</x-import></div><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;width:120px">Route 104</span><x-import component-from-global-scope="Uzume.Tag" tone="accent" variant="plane">Encounter now</x-import></div><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;width:120px">Route 103</span><x-import component-from-global-scope="Uzume.Tag" tone="ok">Caught Mossling</x-import></div><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;width:120px">Route 102</span><x-import component-from-global-scope="Uzume.Tag">Missed</x-import></div><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;width:120px">Driftwood Town</span><x-import component-from-global-scope="Uzume.Tag">Not a route</x-import></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">5B-2B · PLUGIN PAUSED</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">SoulLink &amp; Nuzlocke was paused after an error</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">Your game keeps running. Encounters are not tracked until it restarts.</x-import><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Restart plugin</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Details</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">5C · HUD WIDGET</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Corner of the game</span>
+        <div style="display:inline-flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--rule)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--muted)">SL</span><span style="font-size:13px">Route 104</span><x-import component-from-global-scope="Uzume.Tag">No encounter yet</x-import></div><div style="display:inline-flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--rule)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--muted)">SL</span><span style="font-size:13px">Route 104</span><x-import component-from-global-scope="Uzume.Tag" tone="accent">Encounter now</x-import></div><span style="font-size:12px;line-height:18px;color:var(--muted)">Compact, or expanded with partners. A death expands it for 3 s; off with Reduce motion.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0;min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">5D · ON A FRIEND’S TILE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Jonas · Route 110</span>
+        <x-import component-from-global-scope="Uzume.MultiviewTile" name="Jonas" person="moegi" system="3DS" game="CORAL SAGA: EMBER" right="ROUTE 110 · 4 ALIVE" screen-width="{{ w200 }}" screen-height="{{ h90 }}"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">Selecting the tile shows Jonas’s team in the panel, read only.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 24px;border-left:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">5H · NOTICES</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Deaths, catches, routes</span>
+        <x-import component-from-global-scope="Uzume.Toast" kind="warning" action="Open run">Lena’s Tidepup fainted. Your linked Mossling is dead too.</x-import><x-import component-from-global-scope="Uzume.Toast" kind="done">Jonas caught Voltwing on Route 110.</x-import><x-import component-from-global-scope="Uzume.Toast" kind="done">New route: Route 104. No encounter yet.</x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">5B-2C · SCOPE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">What counts as plugin content</span>
+        <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Everything under “Drawn by SoulLink” comes from the plugin. Sprites come from your game file and are shown here as placeholders.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "w200": 200, "h90": 90}, { noop: () => {},  });
+  }
+}
+</script>
+</body>
+</html>

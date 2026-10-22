@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>0-4 C Server line, sign-in, blocks, density</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="uz" data-theme="sumi" style="width:1280px;height:1040px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">0-4 · C</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:64px;align-items:start">
+
+    <div style="display:flex;flex-direction:column;gap:40px;min-width:0">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="NAV FOOTER">Server line</x-import>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule-2)">
+          <x-import component-from-global-scope="Uzume.StatusLine" status="online" name="Home server" address="server.example.com:8443"></x-import>
+          <x-import component-from-global-scope="Uzume.StatusLine" status="offline" name="Home server" address="server.example.com:8443"></x-import>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <div style="display:grid;grid-template-columns:110px minmax(0,1fr);column-gap:16px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font-weight:500;color:var(--ink)">Online</span><span style="color:var(--muted)">ok square + ONLINE, address in Mono. Opens Settings › This PC › Servers (saved servers, Join, On this PC only).</span></div>
+          <div style="display:grid;grid-template-columns:110px minmax(0,1fr);column-gap:16px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font-weight:500;color:var(--ink)">Offline</span><span style="color:var(--muted)">Empty dim square + OFFLINE. Pages say “Games on this PC still run. Saves upload when it’s back.” No amber border.</span></div>
+          <div style="display:grid;grid-template-columns:110px minmax(0,1fr);column-gap:16px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font-weight:500;color:var(--ink)">On this PC</span><span style="color:var(--muted)">No server line (AppNav server={false}). Share with others lives in Settings › This PC › Servers.</span></div>
+          <div style="display:grid;grid-template-columns:110px minmax(0,1fr);column-gap:16px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font-weight:500;color:var(--ink)">Updating · too old</span><span style="color:var(--muted)">StatusLine has online and offline only. Updating and “needs update” go in a Toast with the warning square: “Home server needs an update to work with this version.”</span></div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="REPLACES AUTHCARD">Sign-in pattern</x-import>
+        <div style="display:grid;grid-template-columns:280px minmax(0,1fr);column-gap:32px;border-top:1px solid var(--rule);padding-top:20px">
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">HOME SERVER</span><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Sign in</span></div>
+            <x-import component-from-global-scope="Uzume.TextField" label="Name" default-value="Lena"></x-import>
+            <x-import component-from-global-scope="Uzume.TextField" label="Password" type="password" default-value="abcdef" error="Wrong name or password. 4 tries left."></x-import>
+            <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary">Sign in</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost">I have an invite</x-import></div>
+          </div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:grid;grid-template-columns:24px minmax(0,1fr);padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">1</span><span style="color:var(--ink-2)">Mono label naming the area or step, dim on ground.</span></div>
+            <div style="display:grid;grid-template-columns:24px minmax(0,1fr);padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">2</span><span style="color:var(--ink-2)">Title: Light 40 on a full screen, dialog-title 20 inside columns and dialogs.</span></div>
+            <div style="display:grid;grid-template-columns:24px minmax(0,1fr);padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">3</span><span style="color:var(--ink-2)">TextFields, 16 apart. Errors under the field: square + sentence that says what to do.</span></div>
+            <div style="display:grid;grid-template-columns:24px minmax(0,1fr);padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">4</span><span style="color:var(--ink-2)">One primary, then secondary or ghost. Disabled carries a reason line.</span></div>
+            <div style="display:grid;grid-template-columns:24px minmax(0,1fr);padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">5</span><span style="color:var(--ink-2)">Foot note in small muted above a rule-2 line. No card, no frame, no shadow.</span></div>
+            <div style="display:grid;grid-template-columns:24px minmax(0,1fr);padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:400 11px/18px var(--font-mono);color:var(--dim)">6</span><span style="color:var(--ink-2)">Over the app: Dialog (400, surface, rule frame). Full window: on the ground, 440–520 column.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:40px;min-width:0">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="REPLACES APPBLOCKS">Blocks</x-import>
+        <div style="display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid var(--rule)">
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Backup disk is 92 % full. Tonight’s backup may not fit.</x-import>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">Upload failed · Lumen Drift. Nothing was changed.</x-import>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm">All of Jonas’s saves are uploaded.</x-import>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Info tone has no icon: a plain ink-2 sentence.</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <x-import component-from-global-scope="Uzume.Progress" value="{{ p }}" label="Upload"></x-import>
+          <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">UPLOAD · 2.1 MB · 60 %</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+          <x-import component-from-global-scope="Uzume.StateBlock" kind="empty" title="No games yet" text="Add a folder with your game files." action="Add a folder"></x-import>
+          <x-import component-from-global-scope="Uzume.StateBlock" kind="loading" title="Looking…" text="1,204 files checked"></x-import>
+          <x-import component-from-global-scope="Uzume.StateBlock" kind="error" title="Can’t reach Home server" text="Games on this PC still run." action="Try again"></x-import>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <x-import component-from-global-scope="Uzume.Toast" kind="done" action="Undo">Saved · Harbor Rally v15</x-import>
+          <x-import component-from-global-scope="Uzume.Toast" kind="warning" action="Open Storage">Backup disk is 92 % full.</x-import>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n4 }}" meta="8 PX BASELINE">Density</x-import>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+          <div style="display:grid;grid-template-columns:140px minmax(0,1fr);column-gap:16px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">ROWS 32 · 44 · 48</span><span style="color:var(--muted)">Nav items and small buttons · tables, toasts, server rows · runner rows, run tabs.</span></div>
+          <div style="display:grid;grid-template-columns:140px minmax(0,1fr);column-gap:16px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">FIELDS · BUTTONS 36</span><span style="color:var(--muted)">32 (sm) in state sheets and toolbars. Gamepad screens keep 36; focus ring always on.</span></div>
+          <div style="display:grid;grid-template-columns:140px minmax(0,1fr);column-gap:16px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">MARGINS 56</span><span style="color:var(--muted)">Top bar 84 with the lockup at 32 / 28. Register marks on the content area. Open column 152, 56 from content.</span></div>
+          <div style="display:grid;grid-template-columns:140px minmax(0,1fr);column-gap:16px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">COLUMNS</span><span style="color:var(--muted)">Forms 400–520. Sidebar 232, side panel 320, dialog 400. Sections 32 apart, labelled, never boxed.</span></div>
+          <div style="display:grid;grid-template-columns:140px minmax(0,1fr);column-gap:16px;padding:8px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">HINT ROW 44</span><span style="color:var(--muted)">Bottom, rule-2 above. Square 20 px key frames, Mono 600 10. Follows the last input: pad or keys.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { n1: 1, n2: 2, n3: 3, n4: 4, p: 0.6 };
+  }
+}
+</script>
+</body>
+</html>

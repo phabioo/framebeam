@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8b-6 Sign in · keyboard</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">JOIN A SERVER · 3 OF 3</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:40px 24px 24px;display:grid;grid-template-columns:400px minmax(0,1fr);column-gap:64px;align-items:start;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:28px">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="KEYBOARD AND MOUSE">Home server</x-import>
+          <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Sign in</h1>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <x-import component-from-global-scope="Uzume.TextField" label="Name" default-value="Lena"></x-import>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <x-import component-from-global-scope="Uzume.TextField" label="Password" type="password" default-value="abcdefgh" state="focus"></x-import>
+            <a href="#forgot" style="align-self:flex-start;font-size:12px;line-height:18px;color:var(--accent-text);text-decoration:none">Forgot password?</a>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <x-import component-from-global-scope="Uzume.Button" variant="primary">Sign in</x-import>
+          <x-import component-from-global-scope="Uzume.Button">I have an invite</x-import>
+        </div>
+        <p style="margin:0;padding-top:16px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">No password yet? Sign in with your name only and Max approves this PC.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}">Keyboard</x-import>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+          <div style="display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:16px;padding:12px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span><x-import component-from-global-scope="Uzume.Kbd" keys="Tab"></x-import></span><span style="color:var(--muted)">Name → Password → Sign in → I have an invite → Forgot password?</span></div>
+          <div style="display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:16px;padding:12px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span><x-import component-from-global-scope="Uzume.Kbd" keys="Enter"></x-import></span><span style="color:var(--muted)">Submits from either field.</span></div>
+          <div style="display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:16px;padding:12px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span><x-import component-from-global-scope="Uzume.Kbd" keys="Esc"></x-import></span><span style="color:var(--muted)">Back to the security check (8b-2).</span></div>
+          <div style="display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:16px;padding:12px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span><x-import component-from-global-scope="Uzume.Kbd" keys="Ctrl+V"></x-import></span><span style="color:var(--muted)">An uzume:// link pasted anywhere opens the invite (8c-1).</span></div>
+          <div style="display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:16px;padding:12px 0;border-bottom:1px solid var(--rule-2);font-size:12px;line-height:18px"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">FOCUS</span><span style="color:var(--muted)">The focus ring is always visible. The hint row follows the last input: gamepad glyphs or keys.</span></div>
+        </div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · SIGN IN · HOME SERVER" lines="{{ oc }}"></x-import>
+  </div>
+  <div style="height:44px;flex:none;border-top:1px solid var(--rule-2);display:flex;align-items:center;justify-content:flex-end;gap:24px;padding:0 56px">
+    <x-import component-from-global-scope="Uzume.Kbd" keys="Tab" label="Next"></x-import>
+    <x-import component-from-global-scope="Uzume.Kbd" keys="Enter" label="Sign in"></x-import>
+    <x-import component-from-global-scope="Uzume.Kbd" keys="Esc" label="Back"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, oc: ['HOME SERVER', 'KEYBOARD · MOUSE', 'PASSWORD ≥ 12'] };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3l-app-3 Systems &amp; cores · states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">SYSTEMS &amp; CORES · STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 STATES">Systems &amp; cores</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3L-3A · BUILDBOT UNREACHABLE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Can’t load the core list</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">buildbot.libretro.com didn’t answer. Installed cores keep working.</x-import>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Try again</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3L-3B · CORE DOWNLOAD FAILED</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">melonDS DS didn’t download</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">Stopped at 2.1 of 4.2 MB.</x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Try again</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Pick another</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3L-3C · SWITCH CORE · GBA</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Switch from mGBA?</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Saves keep working. States made with mGBA won’t load with the new core.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Switch</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3L-3D · FIRMWARE DOESN’T MATCH</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">bios9.bin isn’t a known version</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Some games may not start. The file was kept.</x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" size="sm">Replace…</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Keep anyway</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3L-3E · MEMBER · FROM A LINK</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Systems &amp; cores is for admins</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Your display, controls and core options are in Emulation.</span>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Open Emulation</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3L-3F · CORE UPDATE READY</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">melonDS DS 1.2 is available</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Installs tonight with automatic updates, or now.</span>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Update now</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">States from 1.1 may not load after the update.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme ?? 'sumi', n1: 1 }; }
+}
+</script>
+</body>
+</html>

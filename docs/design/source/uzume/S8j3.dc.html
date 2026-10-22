@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8j-3 On this PC · Runs</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" server="{{ no }}" active="Runs" user="{{ local }}"></x-import>
+  
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="ON THIS PC · ONLY YOU">Runs</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Runs</h1><div style="margin-left:auto;display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary">New run…</x-import></div></div>
+      </div>
+      <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1.3fr) 108px 56px 88px;column-gap:12px;padding:0 12px 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>RUN</span><span>RULES</span><span>PLAY</span><span>STATUS</span></div>
+        <div role="row" aria-selected="true" style="display:grid;grid-template-columns:minmax(0,1.3fr) 108px 56px 88px;column-gap:12px;align-items:center;min-height:52px;padding:0 12px;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start)"><span style="display:flex;flex-direction:column;min-width:0"><span style="font-weight:500">100 % Lumen Drift</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Lumen Drift</span></span><span style="font-size:12px;line-height:18px;color:var(--muted)">—</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">14 h</span><span><x-import component-from-global-scope="Uzume.Tag" tone="ok">Active</x-import></span></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1.3fr) 108px 56px 88px;column-gap:12px;align-items:center;min-height:52px;padding:0 12px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;flex-direction:column;min-width:0"><span style="">Solo Nuzlocke</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Coral Saga: Ember</span></span><span><x-import component-from-global-scope="Uzume.Tag">Nuzlocke</x-import></span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">9 h</span><span><x-import component-from-global-scope="Uzume.Tag" tone="ok">Active</x-import></span></div>
+      </div>
+      <span style="font-size:12px;line-height:18px;color:var(--muted)">Runs work the same with one person: own save slot, rules, recap. Chat and people need a server.</span>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · RUNS · THIS PC" lines="{{ oc }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "oc": ["2 RUNS", "ONLY YOU"]}, { noop: () => {},  });
+  }
+}
+</script>
+</body>
+</html>

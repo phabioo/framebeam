@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8a-5 Set up a server · step 4</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--accent-text)}a:hover{color:var(--accent-hover)}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">SET UP A SERVER · 4 OF 4</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:40px 24px 24px;display:flex;flex-direction:column;gap:28px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="PI-LIVINGROOM · 192.0.2.10">Set up a server</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Your admin account</h1>
+      </div>
+      <div style="display:grid;grid-template-columns:440px minmax(0,1fr);border-top:1px solid var(--rule);flex:1;min-height:0">
+        <div style="display:flex;flex-direction:column;gap:20px;padding:20px 40px 0 0">
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">STEP 4 OF 4 · YOUR ADMIN ACCOUNT</span><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Set up Home server</span></div>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px">
+              <x-import component-from-global-scope="Uzume.TextField" label="Server name" default-value="Home server"></x-import>
+              <x-import component-from-global-scope="Uzume.TextField" label="Your name" default-value="Max"></x-import>
+            </div>
+            <x-import component-from-global-scope="Uzume.TextField" label="Password" type="password" default-value="abcdefghijkl" state="focus" hint="Required for admins. At least 12 characters."></x-import>
+            <x-import component-from-global-scope="Uzume.Select" label="Who can join" options="{{ join }}" default-value="Home network and internet" gamepad="{{ yes }}" hint="Home network only is safest. Change it later in Settings › Server › Network &amp; sharing."></x-import>
+          </div>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary">Create server</x-import><x-import component-from-global-scope="Uzume.Button">Back</x-import></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:20px;padding:20px 0 0 40px;border-left:1px solid var(--rule-2)">
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">STEP 4 OF 4 · SETTING UP</span><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Setting up…</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <x-import component-from-global-scope="Uzume.Progress" value="{{ p }}" label="Setting up Home server"></x-import>
+            <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">3 OF 4 · ABOUT 1 MIN</span>
+          </div>
+          <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule-2)">
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);align-items:start;padding:12px 0;border-bottom:1px solid var(--rule-2)"><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import><div style="display:flex;flex-direction:column"><span style="font-size:14px;line-height:22px;color:var(--ink)">Server installed</span><span style="font:400 11px/16px var(--font-mono);color:var(--dim)">pi-livingroom</span></div></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);align-items:start;padding:12px 0;border-bottom:1px solid var(--rule-2)"><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import><div style="display:flex;flex-direction:column"><span style="font-size:14px;line-height:22px;color:var(--ink)">Admin account Max</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Password set</span></div></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);align-items:start;padding:12px 0;border-bottom:1px solid var(--rule-2)"><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm"></x-import><div style="display:flex;flex-direction:column"><span style="font-size:14px;line-height:22px;color:var(--ink)">Internet</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Prepared: public address and relay set</span></div></div>
+            <div style="display:grid;grid-template-columns:28px minmax(0,1fr);align-items:start;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/22px var(--font-mono);color:var(--dim)">—</span><div style="display:flex;flex-direction:column"><span style="font-size:14px;line-height:22px;color:var(--muted)">Add games</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Next: upload or pick a folder on the server</span></div></div>
+          </div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">The server can’t test itself from outside. Run Connection check on a PC in another network to be sure.</span>
+        </div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · SET UP A SERVER" lines="{{ oc }}"></x-import>
+  </div>
+  <div style="height:44px;flex:none;border-top:1px solid var(--rule-2);display:flex;align-items:center;justify-content:flex-end;gap:24px;padding:0 56px">
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="A" label="Choose"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="Y" label="Keyboard"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="B" label="Back"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, p: 0.75, yes: true, join: ['Home network only', 'Home network and internet'], oc: ['ADMIN PASSWORD ≥ 12', 'JOINING · INVITE ONLY', 'PORT 8443'] };
+  }
+}
+</script>
+</body>
+</html>

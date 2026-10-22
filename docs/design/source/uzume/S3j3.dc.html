@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3j-app-3 Library · member</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" role="member" active="Library" notifications="{{ zero }}" online="{{ online }}" user="{{ lena }}"></x-import>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:24px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="128 GAMES">Library</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Library</h1><div style="margin-left:auto"><x-import component-from-global-scope="Uzume.SearchField"></x-import></div></div>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="Games" size="lg"></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="LAST PLAYED FIRST">All games</x-import>
+        <div class="uz-table" style="position:relative">
+          <x-import component-from-global-scope="Uzume.TableHead"></x-import>
+          <x-import component-from-global-scope="Uzume.TableRow" no="01" title="Harbor Rally" system="NDS" played="14 h" last="Yesterday" state="selected"></x-import>
+          <x-import component-from-global-scope="Uzume.TableRow" no="02" title="Lumen Drift" system="GBA" played="6 h" last="2 days ago"></x-import>
+          <x-import component-from-global-scope="Uzume.TableRow" no="03" title="Paper Wizards" system="GBC" played="—" last="—"></x-import>
+          <x-import component-from-global-scope="Uzume.TableRow" no="04" title="Coral Saga: Ember" system="3DS" played="22 h" last="Last week"></x-import>
+          <x-import component-from-global-scope="Uzume.TableRow" no="05" title="Pocket Comet" system="GB" played="40 min" last="Sep 2026"></x-import>
+          <div style="position:absolute;top:32px;right:-8px;z-index:4"><x-import component-from-global-scope="Uzume.Menu" label="Harbor Rally actions" open="{{ yes }}" active-index="{{ zero }}" align="end" width="{{ menuW }}" items="{{ menu }}"></x-import></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="NDS · 64 MB">Harbor Rally</x-import>
+        <div style="display:grid;grid-template-columns:86px minmax(0,1fr) 86px minmax(0,1fr);column-gap:16px;border-top:1px solid var(--rule);font-size:12px;line-height:18px">
+          <span style="padding:8px 0;border-bottom:1px solid var(--rule-2);color:var(--muted)">Play time</span><span style="padding:8px 0;border-bottom:1px solid var(--rule-2)">14 h</span>
+          <span style="padding:8px 0;border-bottom:1px solid var(--rule-2);color:var(--muted)">Your saves</span><span style="padding:8px 0;border-bottom:1px solid var(--rule-2)">Main v9 · Slot 2 v2</span>
+        </div>
+        <div style="display:flex;padding-top:4px"><x-import component-from-global-scope="Uzume.Button" variant="primary">Play</x-import></div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · LIBRARY · HOME SERVER" lines="{{ oc }}"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, n3: 3, yes: true, menuW: 220, tabs: ['Games', 'Saves', 'Screenshots'],
+      menu: [{ label: 'Play' }, { label: 'Open saves' }, { label: 'Add to collection' }, { separator: true }, { label: 'Settings for this game' }],
+      online: [{ name: 'Max', person: 'wasurenagusa', playing: 'Coral Saga: Ember' }, { name: 'Jonas', person: 'moegi', playing: 'Lumen Drift' }],
+      lena: { name: 'Lena', role: 'Member', person: 'momo' }, oc: ['5 SYSTEMS', '128 GAMES', 'MAX ADDS GAMES'] };
+  }
+}
+</script>
+</body>
+</html>

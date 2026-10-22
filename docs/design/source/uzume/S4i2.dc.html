@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>4i-app-2 Settings › This PC › Plugins</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" role="member" active="Settings" notifications="{{ zero }}" online="{{ online }}" user="{{ lena }}"></x-import>
+  <div style="width:240px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:16px">
+    <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim);padding:0 12px">THIS PC</span>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Only affects this PC and your account.</span>
+    <nav aria-label="This PC settings" style="display:flex;flex-direction:column">
+      <a href="#account" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">My account<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">LENA</span></a>
+      <a href="#appearance" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Appearance</a>
+      <a href="#folders" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Library folders</a>
+      <a href="#plugins" aria-current="page" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;box-shadow:var(--marker-start)">Plugins<span style="font:400 11px/16px var(--font-mono);color:var(--dim)">3</span></a>
+      <a href="#voice" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Voice</a>
+      <a href="#notifications" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Notifications</a>
+      <a href="#servers" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Servers</a>
+      <a href="#updates" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Updates</a>
+      <a href="#diag" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Diagnostics</a>
+    </nav>
+  </div>
+  <div style="flex:1;min-width:0;padding:48px 56px 24px;display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="THIS PC · FROM HOME SERVER">Plugins</x-import>
+      <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Plugins</h1>
+    </div>
+    <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+      <x-import component-from-global-scope="Uzume.SettingsRow" label="SoulLink &amp; Nuzlocke" help="1.4.0 · Official. Run board and panel in game. Hotkey Ctrl+H."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}"></x-import></x-import>
+      <x-import component-from-global-scope="Uzume.SettingsRow" label="Item Helper" help="0.3.2 · not signed. Panel in game. Reads game memory."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}"></x-import></x-import>
+      <x-import component-from-global-scope="Uzume.SettingsRow" label="Run Notes" help="Turned off on Home server. Offered once Max turns it on." disabled="{{ yes }}"><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ no }}" disabled="{{ yes }}"></x-import></x-import>
+      <x-import component-from-global-scope="Uzume.SettingsRow" label="Plugin panel position" help="Where plugin panels open in game." changed="{{ yes }}" default-label="Right"><x-import component-from-global-scope="Uzume.Select" options="{{ side }}" default-value="Left" aria-label="Panel position" style="width:160px"></x-import></x-import>
+      <x-import component-from-global-scope="Uzume.SettingsDisclosure" open="{{ no }}" count="{{ one }}"></x-import>
+    </div>
+    <span style="font-size:12px;line-height:18px;color:var(--muted)">Plugins come from Home server. Removing one here uninstalls it from this PC only.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', n1: 1, zero: 0, one: 1, yes: true, no: false, side: ['Right', 'Left'],
+      online: [{ name: 'Max', person: 'wasurenagusa', playing: 'Coral Saga: Ember' }],
+      lena: { name: 'Lena', role: 'Member', person: 'momo' } };
+  }
+}
+</script>
+</body>
+</html>
