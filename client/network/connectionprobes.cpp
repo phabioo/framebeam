@@ -218,7 +218,7 @@ class HubJob : public Job<HubProbeResult> {
     if (!url.isValid() || url.host().isEmpty() || !HubHttp::isSchemeAllowed(url, t.allowHttp)) {
       HubProbeResult r;
       r.errorKind = QStringLiteral("other");
-      r.error = QStringLiteral("not a usable Hub address");
+      r.error = QStringLiteral("not a usable Server address");
       QTimer::singleShot(0, this, [this, r]() { finish(r); });
       return;
     }
@@ -270,7 +270,7 @@ class HubJob : public Job<HubProbeResult> {
       out.error = r.errorString;
     } else if (r.status != 200 || !parseHubInfo(r.json())) {
       out.errorKind = QStringLiteral("http");
-      out.error = QStringLiteral("HTTP %1, not a Hub info document").arg(r.status);
+      out.error = QStringLiteral("HTTP %1, not a server info document").arg(r.status);
     } else {
       out.ok = true;
     }

@@ -57,7 +57,7 @@ ColumnLayout {
         lineHeight: 1.35
         font.pixelSize: Theme.fontSmall
         color: Theme.textMuted
-        text: qsTr("The Player finds games in these folders and starts them from there. It tells the Hub which games you have; the files stay on this device.")
+        text: qsTr("Uzume finds games in these folders and starts them from there. It tells the server which games you have; the files stay on this device.")
     }
 
     Repeater {

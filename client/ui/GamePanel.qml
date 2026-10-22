@@ -25,7 +25,7 @@ Rectangle {
     // Diagnostics are docked as a panel tab while they are open (3h-3); fullscreen uses the floating overlay (the panel is hidden then).
     readonly property bool diagTab: diag.open
     readonly property bool diagTabOpen: diagTab && panelTab === "diag"
-    readonly property string hubWord: qsTr("this Hub")
+    readonly property string hubWord: qsTr("this server")
     readonly property bool quitting: player.quitting
     readonly property string shareText: ctl.shared ? qsTr("Shared · %1 watching").arg(ctl.viewerCount) : qsTr("Not shared")
     // "Manage saves" opens the saves view (SavesView, the one of the Library) inside the panel; the game keeps running.
@@ -475,8 +475,8 @@ Rectangle {
                         wrapMode: Text.WordWrap
                         font.pixelSize: 12
                         color: Theme.gameAccent
-                        text: root.ctl.shared ? qsTr("Hub not reachable · reconnecting. The running Session continues until the Hub ends it.")
-                                              : qsTr("Hub not reachable · reconnecting. Sharing needs a Hub connection.")
+                        text: root.ctl.shared ? qsTr("Server not reachable · reconnecting. The running Session continues until the server ends it.")
+                                              : qsTr("Server not reachable · reconnecting. Sharing needs a server connection.")
                     }
                 }
                 Rectangle {
@@ -547,7 +547,7 @@ Rectangle {
                         current: root.ctl.visibility
                         options: [
                             { value: "private", label: qsTr("Private"), name: "visPrivate" },
-                            { value: "hub_users", label: qsTr("Hub users"), name: "visHubUsers" },
+                            { value: "hub_users", label: qsTr("Everyone here"), name: "visHubUsers" },
                             { value: "invite_only", label: qsTr("Invite only"), name: "visInviteOnly" }
                         ]
                         onPicked: (v) => root.ctl.setVisibility(v)
@@ -564,8 +564,8 @@ Rectangle {
                             if (root.ctl.shared)
                                 return v === "invite_only" ? qsTr("Only invited users can watch. They send no input and cannot invite others.")
                                                            : qsTr("Everyone on %1 can watch. Viewers send no input.").arg(root.hubWord)
-                            if (v === "private") return qsTr("Only you can see this game. Choose Hub users or Invite only, then share.")
-                            return v === "hub_users" ? qsTr("Not shared yet. Share to let Hub users watch.") : qsTr("Not shared yet. Share to let invited users watch.")
+                            if (v === "private") return qsTr("Only you can see this game. Choose Everyone here or Invite only, then share.")
+                            return v === "hub_users" ? qsTr("Not shared yet. Share to let everyone here watch.") : qsTr("Not shared yet. Share to let invited users watch.")
                         }
                     }
                     UzButton {
@@ -746,7 +746,7 @@ Rectangle {
                             implicitHeight: 34
                             font.family: Qt.application.font.family
                             color: Theme.gameText
-                            placeholderText: qsTr("+ Invite a Hub user…")
+                            placeholderText: qsTr("+ Invite someone…")
                             background: Rectangle {
                                 radius: 0
                                 color: "transparent"
@@ -866,7 +866,7 @@ Rectangle {
                         UzLabel {
                             Layout.minimumWidth: 0
                             elide: Text.ElideRight
-                            text: qsTr("✓ synced to Hub")
+                            text: qsTr("✓ Saved")
                             font.pixelSize: 12
                             color: Theme.gameOk
                         }

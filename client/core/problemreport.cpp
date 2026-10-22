@@ -74,7 +74,7 @@ ProblemReport ProblemReport::collect(const Sources& s) {
   Attachment settings;
   settings.id = QStringLiteral("settings");
   settings.label = QStringLiteral("Settings");
-  settings.detail = QStringLiteral("no passwords, no Hub token");
+  settings.detail = QStringLiteral("no passwords, no server token");
   settings.fileName = QStringLiteral("settings.json");
   settings.data = redactedSettings(s.dataDir);
   settings.included = true;

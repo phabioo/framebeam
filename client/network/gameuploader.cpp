@@ -291,7 +291,7 @@ void GameUploader::sendChunk() {
   if (offset_ < 0 || offset_ >= size_) {
     UploadResult r;
     r.errorCode = QStringLiteral("invalid_response");
-    r.errorMessage = QStringLiteral("The Hub reported an unexpected upload offset");
+    r.errorMessage = QStringLiteral("The server reported an unexpected upload offset");
     finishWith(r);
     return;
   }
@@ -401,7 +401,7 @@ bool GameUploader::uploadLegacy(const QString& filePath, const QString& title) {
   QNetworkReply* reply = conn_ ? conn_->authorizedSendStream("POST", path, file) : nullptr;
   if (reply == nullptr) {
     delete file;
-    failLater(fileName_, QStringLiteral("not_connected"), QStringLiteral("Not connected to a Hub"));
+    failLater(fileName_, QStringLiteral("not_connected"), QStringLiteral("Not connected to a server"));
     return true;
   }
   file->setParent(reply);  // lives exactly as long as the request

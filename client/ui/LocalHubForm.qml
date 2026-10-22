@@ -15,14 +15,14 @@ ColumnLayout {
 
     UzLabel {
         Layout.fillWidth: true
-        text: root.setup ? qsTr("Create the Hub admin") : qsTr("Sign in as a Hub admin")
+        text: root.setup ? qsTr("Create the server admin") : qsTr("Sign in as a server admin")
         font.pixelSize: Theme.fontBody
         font.weight: Font.Medium
     }
     UzLabel {
         Layout.fillWidth: true
-        text: root.setup ? qsTr("This Hub has no admin yet. The admin manages games, users and settings on the Hub.")
-                         : qsTr("Use the user name and password of an admin of the Hub on this PC. This Player is approved right away.")
+        text: root.setup ? qsTr("This server has no admin yet. The admin manages games, users and settings on the server.")
+                         : qsTr("Use the user name and password of an admin of the server on this PC. This PC is approved right away.")
         color: Theme.textMuted
         font.pixelSize: Theme.fontMeta
         wrapMode: Text.WordWrap

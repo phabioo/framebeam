@@ -67,7 +67,7 @@ Rectangle {
             anchors.fill: parent
             spacing: 0
 
-            Sidebar {
+            UzAppNav {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 232
                 player: root.player
@@ -202,7 +202,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: 0
                                     elide: Text.ElideRight
-                                    text: root.hotkeysTab ? qsTr("Player hotkeys · saved on this device only") : qsTr("Saved on this device only")
+                                    text: root.hotkeysTab ? qsTr("Uzume hotkeys · saved on this device only") : qsTr("Saved on this device only")
                                     color: Theme.textMuted
                                     font.pixelSize: Theme.fontMeta
                                 }
@@ -371,7 +371,7 @@ Rectangle {
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
                             Layout.bottomMargin: Theme.space12
-                            text: qsTr("Player hotkeys work on the keyboard and on a gamepad (hold the hotkey button, then press another one) and are never sent to the game.")
+                            text: qsTr("Uzume hotkeys work on the keyboard and on a gamepad (hold the hotkey button, then press another one) and are never sent to the game.")
                             color: Theme.textMuted
                             font.pixelSize: Theme.fontMeta
                             wrapMode: Text.WordWrap

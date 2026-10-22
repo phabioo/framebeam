@@ -134,6 +134,7 @@ QtObject {
     readonly property int header56: 56
     readonly property int sidebar: 232
     readonly property int openColumn: 152
+    readonly property int navInset: 28       // AppNav: left edge of the lockup, item text and group heads
     readonly property int sidePanel: 320
     readonly property int dialog: 400
     readonly property int dialogLg: 560

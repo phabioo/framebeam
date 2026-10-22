@@ -41,7 +41,7 @@ HubSocket::HubSocket(HubConnection* connection, QObject* parent) : QObject(paren
   connect(&reconnectTimer_, &QTimer::timeout, this, &HubSocket::connectNow);
   connect(&pingTimer_, &QTimer::timeout, this, &HubSocket::onPingTimer);
   connect(&helloTimer_, &QTimer::timeout, this, [this]() {
-    emit connectionError(QStringLiteral("hello_timeout"), QStringLiteral("No hello_ack from the Hub"));
+    emit connectionError(QStringLiteral("hello_timeout"), QStringLiteral("No hello_ack from the server"));
     teardown();
     scheduleReconnect();
   });

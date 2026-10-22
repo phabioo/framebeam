@@ -132,7 +132,7 @@ class ConnectionCheckUiTest : public QObject {
     // Copy result (button and Ctrl+C) puts the plain text on the clipboard.
     QGuiApplication::clipboard()->clear();
     QVERIFY(h.click("connectionCheckCopy"));
-    QVERIFY(QGuiApplication::clipboard()->text().contains(QStringLiteral("1. Hub reachable")));
+    QVERIFY(QGuiApplication::clipboard()->text().contains(QStringLiteral("1. Server reachable")));
     QGuiApplication::clipboard()->clear();
     QTest::keyClick(h.window, Qt::Key_C, Qt::ControlModifier);
     QVERIFY(QGuiApplication::clipboard()->text().contains(QStringLiteral("Your network allows direct connections")));

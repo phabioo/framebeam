@@ -350,7 +350,7 @@ void RomDownloader::onFinished(Job* job) {
     job->file.close();
     cache_->discardPart(sha, job->ext);
     finishJob(sha, makeStatus(RomState::Failed, total, 0, QStringLiteral("too_large"),
-                              QStringLiteral("The Hub sent more data than the ROM size")));
+                              QStringLiteral("The server sent more data than the ROM size")));
     return;
   }
   if (status == 200 || status == 206 || status == 0) {

@@ -213,7 +213,7 @@ Popup {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: root.info && root.info.origin === "unverified"
-                              ? qsTr("Not checked by Uzume. Turn it on only if you trust the admin of your Hub.")
+                              ? qsTr("Not checked by Uzume. Turn it on only if you trust the admin of your server.")
                               : qsTr("Loaded from a file on this device. It is not checked by Uzume.")
                         wrapMode: Text.WordWrap
                         color: Theme.pluginWarnText
@@ -293,7 +293,7 @@ Popup {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: root.info && root.info.devLinked ? qsTr("Remove the link? The folder itself is kept.")
-                                                               : qsTr("Remove this plugin from this device? Run data stays on the Hub.")
+                                                               : qsTr("Remove this plugin from this device? Run data stays on the server.")
                         wrapMode: Text.WordWrap
                         font.pixelSize: Theme.fontSmall
                     }

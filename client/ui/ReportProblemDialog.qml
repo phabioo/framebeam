@@ -239,7 +239,7 @@ Popup {
                         objectName: "reportNever"
                         Layout.fillWidth: true
                         Layout.topMargin: 8
-                        text: qsTr("Never included: passwords, the Hub pairing token, ROMs, saves.")
+                        text: qsTr("Never included: passwords, the server pairing token, ROMs, saves.")
                         color: Theme.textFaint
                         font.pixelSize: Theme.fontMeta
                         wrapMode: Text.WordWrap
@@ -294,9 +294,9 @@ Popup {
                         wrapMode: Text.WordWrap
                         color: Theme.textMuted
                         font.pixelSize: Theme.fontSmall
-                        text: root.st === "sending" ? qsTr("%1. You can keep using the Player.").arg(root.ctl.progressText)
+                        text: root.st === "sending" ? qsTr("%1. You can keep using Uzume.").arg(root.ctl.progressText)
                             : root.st === "sent" ? qsTr("The admins of %1 see it under Reports. Nothing else to do.").arg(root.ctl.hubName)
-                            : root.st === "offline" ? qsTr("Save the report as a file and send it later, or keep the dialog open; it sends when the Hub is back.")
+                            : root.st === "offline" ? qsTr("Save the report as a file and send it later, or keep the dialog open; it sends when the server is back.")
                             : root.ctl.errorText
                     }
                     Rectangle {

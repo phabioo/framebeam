@@ -192,8 +192,8 @@ Rectangle {
                         ] : root.game.localFile === true ? [
                             // A game that starts from a library folder (3c-7): the file, the core and how it relates to the Hub.
                             { label: qsTr("File"), text: root.game.localPath || "", tone: "neutral", hint: "", objName: "detailLocalPath", mono: true },
-                            { label: root.game.onHub ? qsTr("Matches") : qsTr("On the Hub"),
-                              text: root.game.onHub ? qsTr("Hub ROM %1").arg(root.game.hubMatchText || "") : qsTr("Not uploaded"), tone: "neutral", hint: "" },
+                            { label: root.game.onHub ? qsTr("Matches") : qsTr("On the server"),
+                              text: root.game.onHub ? qsTr("Server ROM %1").arg(root.game.hubMatchText || "") : qsTr("Not uploaded"), tone: "neutral", hint: "" },
                             { label: qsTr("Core"), text: root.game.coreText, tone: root.game.coreTone, hint: root.game.coreHint }
                         ] : [
                             { label: qsTr("ROM"), text: root.game.romText, tone: root.game.romTone, hint: "" },
@@ -310,8 +310,8 @@ Rectangle {
                         color: Theme.textMeta
                         font.pixelSize: Theme.fontMeta
                         text: root.game.localFile === true
-                              ? qsTr("Only you see this game. Its file stays on this device until you upload it to the Hub.")
-                              : qsTr("Only you see this game. Its file is not on this device and not on the Hub.")
+                              ? qsTr("Only you see this game. Its file stays on this device until you upload it to the server.")
+                              : qsTr("Only you see this game. Its file is not on this device and not on the server.")
                     }
                     UzLabel {
                         objectName: "localUploadStatus"
@@ -476,7 +476,7 @@ Rectangle {
                 hPadding: 16
                 font.pixelSize: Theme.fontSmall
                 text: secondaryRow.offlineError ? qsTr("Retry connection")
-                      : (root.game.onHub ? qsTr("Play and share") : qsTr("Upload to Hub"))
+                      : (root.game.onHub ? qsTr("Play and share") : qsTr("Upload to server"))
                 enabled: secondaryRow.offlineError ? true
                          : (root.game.onHub ? (root.game.canPlay === true && !root.confirming && root.player.sessions.available)
                                             : (root.player.canUpload && root.game.localFile === true && !root.player.upload.active))
@@ -492,7 +492,7 @@ Rectangle {
                 implicitWidth: 0
                 hPadding: 16
                 font.pixelSize: Theme.fontSmall
-                text: secondaryRow.offlineError ? qsTr("Hub settings") : qsTr("Remove from library")
+                text: secondaryRow.offlineError ? qsTr("Server settings") : qsTr("Remove from library")
                 enabled: secondaryRow.offlineError ? true : !root.player.upload.active
                 onClicked: secondaryRow.offlineError ? root.player.showSettings() : root.player.removeFromLibrary(root.game.id)
             }
@@ -516,7 +516,7 @@ Rectangle {
             wrapMode: Text.Wrap
             color: Theme.textFaint
             font.pixelSize: Theme.fontMeta
-            text: root.player.quitting ? qsTr("Saving and syncing…") : qsTr("Quit saves and syncs to the Hub first")
+            text: root.player.quitting ? qsTr("Saving and syncing…") : qsTr("Quit saves and syncs to the server first")
         }
         UzLabel {
             objectName: "shareVisibilityHint"
@@ -527,7 +527,7 @@ Rectangle {
             font.pixelSize: Theme.fontMeta
             text: qsTr("Visibility: %1 · change it in the Session panel")
                   .arg(root.player.sessions.visibility === "private" ? qsTr("Private")
-                       : root.player.sessions.visibility === "invite_only" ? qsTr("Invite only") : qsTr("Hub users"))
+                       : root.player.sessions.visibility === "invite_only" ? qsTr("Invite only") : qsTr("Everyone here"))
         }
     }
 }

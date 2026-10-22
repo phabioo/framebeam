@@ -36,7 +36,7 @@ ColumnLayout {
         for (const p of list) if (p.id === root.confirmEnableId) return p
         return null
     }
-    readonly property string hubLabel: hubName !== "" ? hubName : qsTr("your Hub")
+    readonly property string hubLabel: hubName !== "" ? hubName : qsTr("your server")
     Connections {
         target: root.ctl
         function onHubPluginsChanged() { if (root.ctl.hubStatus === "ready") root.checkedAt = new Date().toISOString() }
@@ -725,7 +725,7 @@ ColumnLayout {
                 objectName: "pluginUnverifiedWarning"
                 visible: root.confirmEnablePlugin !== null && root.confirmEnablePlugin.needsConfirm
                 Layout.fillWidth: true
-                text: qsTr("Uzume has not checked this plugin. Turn it on only if you trust the admin of your Hub and where the file came from.")
+                text: qsTr("Uzume has not checked this plugin. Turn it on only if you trust the admin of your server and where the file came from.")
                 color: Theme.pluginWarnText
                 font.pixelSize: Theme.fontSmall
                 wrapMode: Text.WordWrap

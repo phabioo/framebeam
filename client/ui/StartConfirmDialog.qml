@@ -116,7 +116,7 @@ Item {
                     Repeater {
                         model: [
                             qsTr("%1 is saved").arg(root.request.runningTitle || ""),
-                            qsTr("Syncing to the Hub"),
+                            qsTr("Syncing to the server"),
                             qsTr("Starting %1").arg(root.request.newTitle || "")
                         ]
                         delegate: RowLayout {

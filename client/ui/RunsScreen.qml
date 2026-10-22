@@ -86,7 +86,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        Sidebar {
+        UzAppNav {
             Layout.fillHeight: true
             Layout.preferredWidth: Theme.sidebarWidth
             player: root.player
@@ -240,7 +240,7 @@ Rectangle {
                         objectName: "runsEmpty"
                         visible: root.runs.loaded && root.runs.invites.count === 0 && root.runs.active.count === 0 && root.runs.finished.count === 0
                         Layout.fillWidth: true
-                        text: qsTr("No runs yet. Start one with the plugins of your Hub, or wait for an invite.")
+                        text: qsTr("No runs yet. Start one with the plugins of your server, or wait for an invite.")
                         color: Theme.textMuted
                         wrapMode: Text.WordWrap
                     }

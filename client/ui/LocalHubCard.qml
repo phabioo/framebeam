@@ -39,7 +39,7 @@ Rectangle {
         anchors.margins: 14
         spacing: Theme.space10
 
-        UzLabel { text: qsTr("This PC's Hub"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
+        UzLabel { text: qsTr("This PC's server"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
 
         UzToggle {
             objectName: "localNetworkSharingToggle"
@@ -51,7 +51,7 @@ Rectangle {
         }
         UzLabel {
             Layout.fillWidth: true
-            text: qsTr("Off: only this PC can reach the Hub. On: other devices in your network can connect too (Windows may ask to allow it in the firewall).")
+            text: qsTr("Off: only this PC can reach the server. On: other devices in your network can connect too (Windows may ask to allow it in the firewall).")
             color: Theme.textMuted
             font.pixelSize: Theme.fontMeta
             wrapMode: Text.WordWrap
@@ -116,7 +116,7 @@ Rectangle {
         }
         UzButton {
             kind: "link"
-            text: qsTr("Open the Hub web page")
+            text: qsTr("Open the server web page")
             onClicked: root.local.openHubWebUi()
         }
     }

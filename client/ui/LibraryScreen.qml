@@ -31,7 +31,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        Sidebar {
+        UzAppNav {
             Layout.fillHeight: true
             Layout.preferredWidth: 232
             player: root.player
@@ -379,8 +379,8 @@ Rectangle {
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     verticalAlignment: Text.AlignVCenter
-                    text: root.player.hubLink === "connecting" ? qsTr("Connecting to the Hub for Sessions…")
-                          : qsTr("▲ Hub connection for Sessions lost · reconnecting…")
+                    text: root.player.hubLink === "connecting" ? qsTr("Connecting to the server for Sessions…")
+                          : qsTr("▲ Server connection for Sessions lost · reconnecting…")
                     color: parent.lost ? Theme.pluginWarn : Theme.warn
                     font.pixelSize: Theme.fontSmall
                     elide: Text.ElideRight
@@ -512,7 +512,7 @@ Rectangle {
                         readonly property string chip: root.player.library.filter
                         text: root.player.libraryState === "loading" ? qsTr("Loading Library…")
                               : root.player.libraryState === "error" ? qsTr("Could not load Library: %1").arg(root.player.libraryError)
-                              : root.player.library.totalCount === 0 ? qsTr("This Hub has no games yet.")
+                              : root.player.library.totalCount === 0 ? qsTr("No games yet.")
                               : needle !== "" ? (chip === "ready" ? qsTr("No ready games match “%1”").arg(needle)
                                                  : chip === "attention" ? qsTr("No games needing attention match “%1”").arg(needle)
                                                  : chip === "download" ? qsTr("No games not downloaded match “%1”").arg(needle)

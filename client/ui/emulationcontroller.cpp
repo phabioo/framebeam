@@ -495,7 +495,7 @@ void EmulationController::rebuild() {
       }
       groups.append(QVariantMap{{QStringLiteral("id"), QStringLiteral("uzume")},
                                 {QStringLiteral("title"), tr("Uzume")},
-                                {QStringLiteral("subtitle"), tr("Presentation in the Player")},
+                                {QStringLiteral("subtitle"), tr("Presentation in Uzume")},
                                 {QStringLiteral("note"), QString()},
                                 {QStringLiteral("options"), collect(fb)}});
     }
@@ -537,7 +537,7 @@ void EmulationController::rebuild() {
         coreNote_.clear();  // the page shows the loading row instead
       } else if (probe == nullptr || probe->options.isEmpty()) {
         coreNote_ = tr("The core has not reported its options yet. They appear after the core was loaded once; "
-                       "the Player does that when it can (not while a game is running).");
+                       "Uzume does that when it can (not while a game is running).");
       }
       QString groupNote = coreNote_;
       if (man->experimental) {
@@ -558,7 +558,7 @@ void EmulationController::rebuild() {
       QList<emu::CoreOptionValue> coreValues;
       if (knownOption(QString::fromLatin1(kCoreKey), &coreValues)) {
         QVariantMap r = row(QString::fromLatin1(kCoreKey), tr("Core"),
-                            tr("The core that runs games of this system. The Hub offers the cores listed here; the change applies the next time a game starts."),
+                            tr("The core that runs games of this system. The server offers the cores listed here; the change applies the next time a game starts."),
                             QString(), coreValues, QString(), card.value(QStringLiteral("defaultCoreId")).toString(), true);
         const QString effective = card.value(QStringLiteral("coreId")).toString();
         if (!card.value(QStringLiteral("coreNotice")).toString().isEmpty() && !effective.isEmpty()) {
@@ -580,10 +580,10 @@ void EmulationController::rebuild() {
           r.insert(QStringLiteral("valueLabel"), tr("Choose a core"));
           r.insert(QStringLiteral("origin"), tr("No core chosen yet"));
           r.insert(QStringLiteral("description"),
-                   tr("No core chosen yet. The Hub offers the cores listed here; until you choose, the Player uses %1.")
+                   tr("No core chosen yet. The server offers the cores listed here; until you choose, Uzume uses %1.")
                        .arg(card.value(QStringLiteral("fallbackCoreName")).toString()));
         } else if (!r.value(QStringLiteral("isSet")).toBool()) {
-          r.insert(QStringLiteral("origin"), tr("Hub default"));
+          r.insert(QStringLiteral("origin"), tr("Server default"));
         }
         if (gameLvl) {
           // Per game: "Use system default" when the game has no choice of its own; the stored id is shown even when the Hub
@@ -608,7 +608,7 @@ void EmulationController::rebuild() {
       }
       groups.prepend(QVariantMap{{QStringLiteral("id"), QStringLiteral("uzume")},
                                 {QStringLiteral("title"), tr("Uzume")},
-                                {QStringLiteral("subtitle"), gameLvl ? tr("Core and speed-up for this game") : tr("Core and speed-up in the Player")},
+                                {QStringLiteral("subtitle"), gameLvl ? tr("Core and speed-up for this game") : tr("Core and speed-up in Uzume")},
                                 {QStringLiteral("note"), gameLvl ? QString() : card.value(QStringLiteral("coreNotice")).toString()},
                                 {QStringLiteral("options"), collect(fb)}});
     }

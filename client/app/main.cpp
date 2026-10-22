@@ -171,7 +171,7 @@ int main(int argc, char* argv[]) {
           "  --collect-logs <out.zip>  Write the diagnostics bundle (logs, system info; no passwords or tokens) and exit.\n"
           "  --data-dir <path>    Data directory (profiles, cache, saves) instead of the default.\n"
           "  --dev-allow-http     Development only: also allow HTTP hubs outside localhost.\n"
-          "  --setup-local-hub    Continue \"Set up a Hub on this PC\" (the installer starts the Player with it).\n");
+          "  --setup-local-hub    Continue \"Set up a server on this PC\" (the installer starts the app with it).\n");
       return 0;
     }
   }
@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
   const QCommandLineOption devHttp(QStringLiteral("dev-allow-http"),
                                    QStringLiteral("Development only: also allow HTTP hubs outside localhost."));
   const QCommandLineOption setupLocalHub(QStringLiteral("setup-local-hub"),
-                                         QStringLiteral("Continue \"Set up a Hub on this PC\" after the Hub was installed."));
+                                         QStringLiteral("Continue \"Set up a server on this PC\" after the server was installed."));
   parser.addOption(setupLocalHub);
   parser.addOption(smoke);
   parser.addOption(dataDir);

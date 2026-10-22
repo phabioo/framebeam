@@ -235,7 +235,7 @@ FocusScope {
                 opacity: enabled ? 1 : 0.6
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Refresh from Hub")
+                Accessible.name: qsTr("Refresh from server")
                 Text {
                     id: refreshGlyph
                     anchors.centerIn: parent
@@ -249,7 +249,7 @@ FocusScope {
                 Keys.onPressed: (event) => { if (refresh.enabled && (event.key === Qt.Key_Space || event.key === Qt.Key_Return)) { root.hist.refresh(); event.accepted = true } }
                 ToolTip.visible: refreshHover.hovered
                 ToolTip.delay: 500
-                ToolTip.text: qsTr("Refresh from Hub")
+                ToolTip.text: qsTr("Refresh from server")
             }
         }
 
@@ -675,9 +675,9 @@ FocusScope {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: root.hist.slotDeleteRequest.onHub === true
-                                  ? qsTr("The slot is deleted for good on the Hub with its whole history (%1 versions), and the copy on this device is removed. This cannot be undone. If the save changed since this page was shown, nothing is deleted.").arg(root.hist.slotDeleteRequest.versionCount || 0)
+                                  ? qsTr("The slot is deleted for good on the server with its whole history (%1 versions), and the copy on this device is removed. This cannot be undone. If the save changed since this page was shown, nothing is deleted.").arg(root.hist.slotDeleteRequest.versionCount || 0)
                                   : (root.hist.slotDeleteRequest.isMain === true
-                                     ? qsTr("The main slot has no save on the Hub. Its local save is removed. This cannot be undone.")
+                                     ? qsTr("The main slot has no save on the server. Its local save is removed. This cannot be undone.")
                                      : qsTr("This slot exists only on this device. Its local save is removed. This cannot be undone."))
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
@@ -726,8 +726,8 @@ FocusScope {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: root.hist.lastSynced !== ""
-                                  ? qsTr("Hub offline · read-only. Showing the history from the last sync, %1. Restore, snapshots and uploads need the Hub.").arg(root.hist.lastSynced)
-                                  : qsTr("Hub offline · read-only. Restore, snapshots and uploads need the Hub.")
+                                  ? qsTr("Server offline · read-only. Showing the history from the last sync, %1. Restore, snapshots and uploads need the server.").arg(root.hist.lastSynced)
+                                  : qsTr("Server offline · read-only. Restore, snapshots and uploads need the server.")
                             color: Theme.warn
                             font.pixelSize: Theme.fontMeta
                         }
@@ -833,7 +833,7 @@ FocusScope {
                             visible: !root.hist.conflictLoading
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: qsTr("This device and the Hub both changed “%1”. Choose which save becomes the current one. Nothing is deleted.").arg(root.hist.slotLabel)
+                            text: qsTr("This device and the server both changed “%1”. Choose which save becomes the current one. Nothing is deleted.").arg(root.hist.slotLabel)
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
@@ -846,7 +846,7 @@ FocusScope {
                         ConflictSide {
                             objectName: "conflictHub"
                             visible: !root.hist.conflictLoading
-                            title: qsTr("Hub")
+                            title: qsTr("Server")
                             info: root.hist.conflictInfo.hub || ({})
                         }
                         UzLabel {
@@ -854,8 +854,8 @@ FocusScope {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: root.inGame
-                                  ? qsTr("“Use the Hub save” saves this device's copy as a local backup first and restarts the game from the Hub save. “Keep this device's save” uploads it as the new current version; the game keeps running.")
-                                  : qsTr("“Use the Hub save” saves this device's copy as a local backup first. “Keep this device's save” uploads it as the new current version. The game does not start.")
+                                  ? qsTr("“Use the server save” saves this device's copy as a local backup first and restarts the game from the server save. “Keep this device's save” uploads it as the new current version; the game keeps running.")
+                                  : qsTr("“Use the server save” saves this device's copy as a local backup first. “Keep this device's save” uploads it as the new current version. The game does not start.")
                             color: Theme.textSecondary
                             font.pixelSize: Theme.fontMeta
                         }
@@ -877,7 +877,7 @@ FocusScope {
                                 objectName: "conflictUseHub"
                                 implicitHeight: 32
                                 font.pixelSize: Theme.fontSmall
-                                text: qsTr("Use the Hub save")
+                                text: qsTr("Use the server save")
                                 enabled: !root.hist.conflictLoading && !root.hist.conflictBusy
                                 onClicked: root.hist.resolveConflict("use_hub")
                             }
@@ -1311,7 +1311,7 @@ FocusScope {
                     visible: !root.historyAvailable
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: qsTr("This Hub keeps no version history. Update the Hub to restore versions or create snapshots.")
+                    text: qsTr("This server keeps no version history. Update the server to restore versions or create snapshots.")
                     color: Theme.textMeta
                     font.pixelSize: Theme.fontMeta
                 }

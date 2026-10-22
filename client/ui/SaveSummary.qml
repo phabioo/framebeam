@@ -100,7 +100,7 @@ Rectangle {
             UzLabel {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: qsTr("The Hub and this device have different saves for “%1”. Nothing is overwritten until you decide.").arg(root.hist.slotLabel)
+                text: qsTr("The server and this device have different saves for “%1”. Nothing is overwritten until you decide.").arg(root.hist.slotLabel)
                 color: Theme.textSecondary
                 font.pixelSize: Theme.fontSmall
             }
@@ -223,7 +223,7 @@ Rectangle {
             visible: root.offline && !root.unsupported
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: qsTr("You can play. The save syncs when the Hub is back.")
+            text: qsTr("You can play. The save syncs when the server is back.")
             color: Theme.textMeta
             font.pixelSize: Theme.fontMeta
         }

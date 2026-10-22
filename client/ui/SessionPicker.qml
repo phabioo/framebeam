@@ -66,7 +66,7 @@ ColumnLayout {
             UzLabel { Layout.fillWidth: true; text: qsTr("No other sessions right now"); font.pixelSize: 13; color: Theme.gameBadgeText; wrapMode: Text.WordWrap }
             UzLabel {
                 Layout.fillWidth: true
-                text: qsTr("Sessions appear here when someone on %1 shares a game with Hub users or invites you.").arg(root.player.hubAddress || qsTr("your Hub"))
+                text: qsTr("Sessions appear here when someone on %1 shares a game with everyone here or invites you.").arg(root.player.hubAddress || qsTr("your server"))
                 font.pixelSize: 12
                 color: Theme.gameMeta
                 wrapMode: Text.WordWrap

@@ -450,11 +450,11 @@ InstallResult PluginManager::installHubCopy(const QByteArray& fbplugin, const QS
   const QString nv = normVersion(version);
   const QString pin = sha256.toLower();
   if (!validPluginId(pluginId) || nv.isEmpty()) {
-    r.error = QStringLiteral("invalid plugin id or version from the Hub");
+    r.error = QStringLiteral("invalid plugin id or version from the server");
     return r;
   }
   if (QString::fromLatin1(QCryptographicHash::hash(fbplugin, QCryptographicHash::Sha256).toHex()) != pin) {
-    r.error = QStringLiteral("the downloaded file does not match the SHA-256 the Hub announced");
+    r.error = QStringLiteral("the downloaded file does not match the SHA-256 the server announced");
     return r;
   }
   const FbPluginResult pr = readFbPlugin(fbplugin, m_keys);
@@ -567,7 +567,7 @@ GameResolution PluginManager::resolveForRun(const QList<RunPluginPin>& pins) con
   for (const RunPluginPin& pin : pins) {
     const QString dir = hubCopyDir(pin.id, pin.version, pin.sha256);
     if (dir.isEmpty()) {
-      res.problems[pin.id] << QStringLiteral("the Hub copy %1 of this run is not on this device").arg(pin.version);
+      res.problems[pin.id] << QStringLiteral("the server copy %1 of this run is not on this device").arg(pin.version);
       continue;
     }
     PluginInfo i = m_hub.value(pin.id).value(normVersion(pin.version)).info;

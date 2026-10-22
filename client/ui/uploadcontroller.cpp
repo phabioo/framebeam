@@ -100,7 +100,7 @@ void UploadController::onFinished(const UploadResult& r) {
   bool isError = true;
   switch (r.kind) {
     case K::Created:
-      message = tr("Uploaded “%1” to the Hub.").arg(r.game.title);
+      message = tr("Uploaded “%1” to the server.").arg(r.game.title);
       isError = false;
       break;
     case K::Duplicate:
@@ -108,14 +108,14 @@ void UploadController::onFinished(const UploadResult& r) {
       isError = false;
       break;
     case K::Forbidden:
-      message = tr("Uploads are not allowed for your user on this Hub.");
+      message = tr("Uploads are not allowed for your user on this server.");
       break;
     case K::TooLarge:
-      message = tr("The file is too large for this Hub.");
+      message = tr("The file is too large for this server.");
       break;
     case K::Rejected:
-      message = r.errorMessage.isEmpty() ? tr("The Hub rejected this file (unsupported type?).")
-                                         : tr("The Hub rejected this file: %1").arg(r.errorMessage);
+      message = r.errorMessage.isEmpty() ? tr("The server rejected this file (unsupported type?).")
+                                         : tr("The server rejected this file: %1").arg(r.errorMessage);
       break;
     case K::Failed:
       if (r.errorCode == QLatin1String("file_unreadable")) {
@@ -123,7 +123,7 @@ void UploadController::onFinished(const UploadResult& r) {
       } else if (r.errorCode == QLatin1String("cancelled")) {
         message = tr("Upload cancelled.");
       } else if (r.errorCode == QLatin1String("not_connected")) {
-        message = tr("Not connected to a Hub.");
+        message = tr("Not connected to a server.");
       } else {
         message = tr("Upload failed: %1").arg(r.errorMessage.isEmpty() ? r.errorCode : r.errorMessage);
       }

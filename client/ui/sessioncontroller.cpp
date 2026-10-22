@@ -176,7 +176,7 @@ void SessionController::presence() { socket_.sendPresence(hasLocalGame() ? QStri
 QString SessionController::visibilityLabel(const QString& v) {
   if (v == QLatin1String("private")) return tr("Private");
   if (v == QLatin1String("invite_only")) return tr("Invite only");
-  return tr("Hub users");
+  return tr("Everyone here");
 }
 
 QVariantList SessionController::sessions() const {
@@ -245,7 +245,7 @@ void SessionController::onSessionEnded(const SessionEnded& e) {
   if (shared_ && e.sessionId == own_.sessionId) {
     QString note = tr("The Session ended.");
     if (e.reason == QLatin1String("replaced")) note = tr("The Session was replaced by a newer one.");
-    else if (e.reason == QLatin1String("owner_disconnected")) note = tr("The Session ended because the Hub lost this device.");
+    else if (e.reason == QLatin1String("owner_disconnected")) note = tr("The Session ended because the server lost this device.");
     else if (e.reason == QLatin1String("device_revoked")) note = tr("The Session ended: this device was revoked.");
     closeShare(note);
     return;
@@ -345,7 +345,7 @@ QString SessionController::errorText(const SessionApiResult& r, const QString& w
     case K::NotFound:
     case K::Ended: return tr("The Session has ended.");
     case K::CapabilityMissing: return tr("%1: this device has no usable H.264 codec.").arg(what);
-    case K::Offline: return tr("%1: the Hub is not reachable.").arg(what);
+    case K::Offline: return tr("%1: the server is not reachable.").arg(what);
     default: return tr("%1 failed (%2).").arg(what, r.errorCode.isEmpty() ? QString::number(r.status) : r.errorCode);
   }
 }
@@ -353,7 +353,7 @@ QString SessionController::errorText(const SessionApiResult& r, const QString& w
 void SessionController::shareSession() {
   if (shared_ || shareBusy_ || !hasLocalGame() || !socket_.isOpen()) {
     if (!socket_.isOpen()) {
-      say(tr("The Hub is not reachable, so the Session cannot be shared yet."), true);
+      say(tr("The server is not reachable, so the Session cannot be shared yet."), true);
     }
     return;
   }
@@ -527,7 +527,7 @@ void SessionController::searchUsers(const QString& text) {
         }
       }
       if (userResults_.isEmpty() && usersLoaded_) {
-        userHint_ = others ? tr("No matching users") : tr("No other users on this Hub yet");
+        userHint_ = others ? tr("No matching users") : tr("Nobody else is here yet");
       }
     }
     emit userResultsChanged();
@@ -682,7 +682,7 @@ void SessionController::watch(const QString& sessionId) {
     return;
   }
   if (!socket_.isOpen()) {
-    say(tr("The Hub is not reachable, so the Session cannot be joined yet."), true);
+    say(tr("The server is not reachable, so the Session cannot be joined yet."), true);
     return;
   }
   joinInfo_ = sessions_.value(sessionId);
@@ -1087,9 +1087,9 @@ void SessionController::updateLinks() {
   }
   QString hint;
   if (relayed.size() == 1) {
-    hint = tr("%1 is relayed via the Hub (TURN) · may lag slightly.").arg(relayed.first());
+    hint = tr("%1 is relayed via the server (TURN) · may lag slightly.").arg(relayed.first());
   } else if (relayed.size() > 1) {
-    hint = tr("%1 are relayed via the Hub (TURN) · may lag slightly.").arg(relayed.join(QStringLiteral(", ")));
+    hint = tr("%1 are relayed via the server (TURN) · may lag slightly.").arg(relayed.join(QStringLiteral(", ")));
   }
   if (byViewer != linkByViewer_ || hint != relayHint_) {
     linkByViewer_ = byViewer;
@@ -1166,7 +1166,7 @@ void SessionController::refreshDiagnostics() {
       tiles.append(QVariantMap{{QStringLiteral("surface"), id}, {QStringLiteral("index"), tileNo},
                                {QStringLiteral("title"), title}, {QStringLiteral("sub"), tr("tile %1 · remote").arg(tileNo)},
                                {QStringLiteral("local"), false}, {QStringLiteral("emulation"), QVariantMap()},
-                               {QStringLiteral("note"), tr("Emulation runs on %1's Player · not measured here").arg(who)}});
+                               {QStringLiteral("note"), tr("Emulation runs on %1's PC · not measured here").arg(who)}});
       const SessionStats st = override_ && overrideRemotes_.contains(id) ? overrideRemotes_.value(id) : r->viewer->stats();
       const std::optional<double> loss = st.packetLossPercent;
       groups.append(QVariantMap{

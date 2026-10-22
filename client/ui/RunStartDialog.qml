@@ -94,7 +94,7 @@ Popup {
                 UzLabel {
                     visible: !root.inviting && root.runs.startPlugins.count === 0
                     Layout.fillWidth: true
-                    text: qsTr("Your Hub offers no plugin for runs yet.")
+                    text: qsTr("Your server offers no plugin for runs yet.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap
@@ -216,7 +216,7 @@ Popup {
                 UzLabel {
                     visible: !root.runs.startUsersLoading && root.runs.startUsers.count === 0
                     Layout.fillWidth: true
-                    text: qsTr("There is nobody else to invite on this Hub.")
+                    text: qsTr("There is nobody else to invite yet.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap

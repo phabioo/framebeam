@@ -57,7 +57,7 @@ Rectangle {
                 UzLabel {
                     objectName: "pairingTitle"
                     // A known Hub that lost its pairing says "Pair again" (P2); a new address is "Add hub".
-                    text: root.localForm ? qsTr("Hub on this PC") : (root.pairAgain ? qsTr("Pair again") : qsTr("Add Hub"))
+                    text: root.localForm ? qsTr("Server on this PC") : (root.pairAgain ? qsTr("Pair again") : qsTr("Add server"))
                     font.pixelSize: Theme.fontHero
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
@@ -71,7 +71,7 @@ Rectangle {
                     font.pixelSize: Theme.fontBody
                     lineHeight: 1.4
                     text: qsTr("%1 no longer knows this device. Its admin may have revoked it. Pair again to get a new approval; your local saves are kept.")
-                              .arg(root.info.hubName || qsTr("The Hub"))
+                              .arg(root.info.hubName || qsTr("The server"))
                 }
                 UzMono { text: root.info.address; color: Theme.textMuted; font.pixelSize: 13 }
             }
@@ -80,7 +80,7 @@ Rectangle {
             StepCard {
                 Layout.fillWidth: true
                 objectName: "stepHub"
-                title: root.info.hubKnown ? qsTr("Hub detected") : qsTr("Searching for Hub…")
+                title: root.info.hubKnown ? qsTr("Server detected") : qsTr("Searching for server…")
                 stage: root.info.hubKnown ? "done" : "active"
                 UzMono {
                     visible: root.info.hubKnown
@@ -113,7 +113,7 @@ Rectangle {
                 UzLabel {
                     visible: root.phase === "trust"
                     Layout.fillWidth: true
-                    text: qsTr("SHA-256 fingerprint of the Hub certificate. Compare it with the one shown in the Hub and trust it only if both match. If the certificate changes later, the connection is blocked.")
+                    text: qsTr("SHA-256 fingerprint of the server certificate. Compare it with the one shown in the server and trust it only if both match. If the certificate changes later, the connection is blocked.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
@@ -139,7 +139,7 @@ Rectangle {
                     visible: root.phase !== "trust" && root.info.hubKnown
                     Layout.fillWidth: true
                     text: root.info.tls ? qsTr("Saved. If the certificate changes later, the connection is blocked.")
-                                        : qsTr("Development only: this Hub is contacted without TLS, so there is no fingerprint.")
+                                        : qsTr("Development only: this server is contacted without TLS, so there is no fingerprint.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
@@ -195,13 +195,13 @@ Rectangle {
                         Layout.fillWidth: true
                         maximumLength: 32
                         font.family: Qt.application.font.family
-                        placeholderText: qsTr("How others see you on this Hub")
+                        placeholderText: qsTr("How others see you on this server")
                         enabled: !root.info.inviteBusy
                         onAccepted: redeemButton.clicked()
                     }
                     UzLabel {
                         Layout.fillWidth: true
-                        text: qsTr("The invite code comes from the Hub admin and works once. Your user is created on this Hub with the name above.")
+                        text: qsTr("The invite code comes from the server admin and works once. Your user is created on this server with the name above.")
                         color: Theme.textMuted
                         font.pixelSize: Theme.fontMeta
                         wrapMode: Text.WordWrap
@@ -226,7 +226,7 @@ Rectangle {
                         }
                         UzLabel {
                             visible: root.phase === "awaiting"
-                            text: qsTr("The request appears in the Hub under Clients.")
+                            text: qsTr("The request appears in the server under Clients.")
                             color: Theme.textMuted
                             font.pixelSize: Theme.fontMeta
                         }
@@ -236,7 +236,7 @@ Rectangle {
                 UzLabel {
                     visible: root.phase === "needsPairing" && !root.inviteMode && !root.localForm
                     Layout.fillWidth: true
-                    text: qsTr("This device is not yet approved on the Hub. The Hub admin must confirm the request.")
+                    text: qsTr("This device is not yet approved on the server. The server admin must confirm the request.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap
@@ -278,7 +278,7 @@ Rectangle {
                     UzMono { text: root.info.deviceName; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight }
                     Eyebrow { text: qsTr("Platform"); Layout.preferredWidth: 130 }
                     UzMono { text: root.info.platform; color: Theme.text; Layout.fillWidth: true }
-                    Eyebrow { text: qsTr("Player version"); Layout.preferredWidth: 130 }
+                    Eyebrow { text: qsTr("Uzume version"); Layout.preferredWidth: 130 }
                     UzMono { text: root.info.playerVersion; color: Theme.text; Layout.fillWidth: true }
                 }
 

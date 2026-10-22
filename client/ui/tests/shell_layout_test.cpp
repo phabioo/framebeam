@@ -133,7 +133,7 @@ class ShellLayoutTest : public QObject {
     h.window->resize(1280, 800);
     pairWithUploadsAndUser(h, hub);
     QTest::qWait(200);
-    checkUserBlock(h, "no Hub user");
+    checkUserBlock(h, "no server user");
     QCOMPARE(h.item("userDevice")->property("text").toString(), QStringLiteral("This device"));
   }
 };

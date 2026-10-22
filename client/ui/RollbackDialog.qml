@@ -69,7 +69,7 @@ Item {
                 UzLabel {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    text: qsTr("The Player closes, installs %1 and starts again. About 30 s.").arg(root.version)
+                    text: qsTr("Uzume closes, installs %1 and starts again. About 30 s.").arg(root.version)
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontBody
                     wrapMode: Text.WordWrap
@@ -102,7 +102,7 @@ Item {
                         { name: "Settings", title: qsTr("Settings"),
                           text: qsTr("Kept. Newer settings are ignored and come back after the update.") },
                         { name: "Saves", title: qsTr("Saves and states"),
-                          text: qsTr("Not touched. They are on your Hub.") },
+                          text: qsTr("Not touched. They are on your server.") },
                         { name: "Plugins", title: qsTr("Plugins"),
                           text: root.info.pluginLines && root.info.pluginLines.length > 0
                                 ? root.info.pluginLines.join("\n") : qsTr("All keep working."),

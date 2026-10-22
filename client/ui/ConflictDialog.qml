@@ -63,7 +63,7 @@ Item {
                     }
                     UzLabel {
                         Layout.fillWidth: true
-                        text: qsTr("The Hub and this device have different saves")
+                        text: qsTr("The server and this device have different saves")
                         font.pixelSize: Theme.fontDialog
                         font.weight: Font.DemiBold
                         wrapMode: Text.WordWrap
@@ -84,7 +84,7 @@ Item {
                     rowSpacing: 12
                     Repeater {
                         model: [
-                            { objectName: "hubSide", eyebrow: qsTr("On the Hub"), side: root.conflict.hub },
+                            { objectName: "hubSide", eyebrow: qsTr("On the server"), side: root.conflict.hub },
                             { objectName: "localSide", eyebrow: qsTr("On this device"), side: root.conflict.local }
                         ]
                         delegate: Rectangle {
@@ -159,7 +159,7 @@ Item {
                             objectName: "useHubButton"
                             Layout.preferredWidth: 340
                             implicitHeight: 46
-                            text: qsTr("Use Hub version")
+                            text: qsTr("Use server version")
                             enabled: !root.conflict.busy
                             busyOnClick: true
                             activeFocusOnTab: true
@@ -244,7 +244,7 @@ Item {
 
                 UzLabel {
                     Layout.fillWidth: true
-                    text: qsTr("Decide later: the conflict stays visible on the game and on the Saves page in the Hub.")
+                    text: qsTr("Decide later: the conflict stays visible on the game and on the Saves page in the server.")
                     color: Theme.textFaint
                     font.pixelSize: Theme.fontMeta
                     wrapMode: Text.WordWrap

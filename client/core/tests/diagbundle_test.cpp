@@ -30,7 +30,7 @@ class DiagBundleTest : public QObject {
     const QByteArray in =
         "2026-10-11T10:00:00 [I] hub: connect https://192.168.1.5:8443 password=S3cretPassw0rd\n"
         "Authorization: Bearer abc.def.ghijklmn\n"
-        "{\"device_token\":\"tok-ABCDEF123456\",\"name\":\"Hub\"}\n"
+        "{\"device_token\":\"tok-ABCDEF123456\",\"name\":\"server\"}\n"
         "turn:turnuser-xyz:turncred-9876543210@turn.example.org:3478\n"
         "ice username=turnuser-xyz credential=turncred-9876543210\n"
         "redeem invite code=FB-ABCD-EFGH at https://hub.lan/invite#FB-ABCD-EFGH\n"

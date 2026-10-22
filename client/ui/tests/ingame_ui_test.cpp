@@ -1181,7 +1181,7 @@ class InGameUiTest : public QObject {
       QQuickItem* strip = visibleItem(h, "nowRunningStrip");
       QVERIFY2(strip != nullptr, page);
       QQuickItem* sidebar = strip->parentItem();
-      for (; sidebar != nullptr && QString::fromLatin1(sidebar->metaObject()->className()).left(7) != QLatin1String("Sidebar"); sidebar = sidebar->parentItem()) {}
+      for (; sidebar != nullptr && QString::fromLatin1(sidebar->metaObject()->className()).left(8) != QLatin1String("UzAppNav"); sidebar = sidebar->parentItem()) {}
       QVERIFY2(sidebar != nullptr, page);
       const QRectF sr = sceneRect(strip), br = sceneRect(sidebar);
       QVERIFY2(sr.left() >= br.left() && sr.right() <= br.right() && sr.bottom() <= br.bottom(), qPrintable(QLatin1String(page) + chain(strip)));

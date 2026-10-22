@@ -14,7 +14,7 @@ Rectangle {
         { header: qsTr("Name"), items: [
             { value: "name_asc", label: qsTr("A–Z"), short: qsTr("Name A–Z") },
             { value: "name_desc", label: qsTr("Z–A"), short: qsTr("Name Z–A") } ] },
-        { header: qsTr("Date added to Hub"), items: [
+        { header: qsTr("Date added to server"), items: [
             { value: "added_desc", label: qsTr("Newest first"), short: qsTr("Date added, newest") },
             { value: "added_asc", label: qsTr("Oldest first"), short: qsTr("Date added, oldest") } ] },
         { header: qsTr("More"), items: [

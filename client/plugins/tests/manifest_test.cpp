@@ -54,7 +54,7 @@ class ManifestTest : public QObject {
     QCOMPARE(r.manifest.type, QString("script"));
   }
   void apiVersion() {
-    QCOMPARE(errOf(R"({"api":2})"), QString("Tracker needs plugin API 2; this Player supports API 1"));
+    QCOMPARE(errOf(R"({"api":2})"), QString("Tracker needs plugin API 2; this app supports API 1"));
     QVERIFY(errOf(R"({"api":null})").contains("'api' is required"));
   }
   void typeTool() {

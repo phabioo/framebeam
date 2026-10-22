@@ -69,7 +69,7 @@ bool RunsController::available() const {
 }
 
 QString RunsController::unverifiedWarning() const {
-  return tr("Uzume has not checked this plugin. Turn it on only if you trust the admin of your Hub and where the file came from.");
+  return tr("Uzume has not checked this plugin. Turn it on only if you trust the admin of your server and where the file came from.");
 }
 
 bool RunsController::startUnverified() const {
@@ -127,7 +127,7 @@ QString RunsController::timeText(const QString& iso) const {
 }
 
 QString RunsController::errorText(const RunResult& r, const QString& what) const {
-  if (r.networkError) return tr("%1: the Hub is not reachable.").arg(what);
+  if (r.networkError) return tr("%1: the server is not reachable.").arg(what);
   if (r.status == 403) return tr("%1: you are not allowed to do that.").arg(what);
   if (r.status == 404) return tr("%1: this run does not exist (any more).").arg(what);
   if (r.status == 409) return tr("%1: the run changed in the meantime. Its current state is shown.").arg(what);
@@ -365,7 +365,7 @@ void RunsController::syncRunView() {
     return;
   }
   viewFetching_ = true;
-  setRunViewState(QStringLiteral("loading"), tr("Getting the plugins of this run from the Hub…"));
+  setRunViewState(QStringLiteral("loading"), tr("Getting the plugins of this run from the server…"));
   ensureCopies(*run, [this, gen, start](bool ok, const QString& error) {
     if (gen != viewGen_) return;
     setBusy(false);
@@ -389,12 +389,12 @@ void RunsController::rebuildEvents() {
       QString source;
       QString text = e.text;
       if (e.source == QLatin1String("hub")) {
-        author = tr("Hub");
-        source = tr("Hub");
+        author = tr("server");
+        source = tr("server");
         text = hubEventText(e);
       } else {
         author = e.userName.isEmpty() ? tr("Someone") : e.userName;
-        source = (e.source == QLatin1String("automatic") ? tr("automatic · %1's Player") : tr("manual · %1")).arg(author);
+        source = (e.source == QLatin1String("automatic") ? tr("automatic · %1's app") : tr("manual · %1")).arg(author);
         if (text.isEmpty()) text = fallbackEventText(e);
       }
       rows.append({{QStringLiteral("seq"), e.seq},
@@ -563,8 +563,8 @@ int RunsController::prepareGames(const QString& runId) {
                {QStringLiteral("name"), pluginName(ref.pluginId)},
                {QStringLiteral("version"), ref.version},
                {QStringLiteral("origin"), QStringLiteral("unverified")},
-               {QStringLiteral("originText"), tr("Hub upload · unverified")},
-               {QStringLiteral("permissionsText"), tr("Share run progress with your Hub")}};
+               {QStringLiteral("originText"), tr("Server upload · unverified")},
+               {QStringLiteral("permissionsText"), tr("Share run progress with your server")}};
       }
       if (row.value(QStringLiteral("origin")).toString() == QLatin1String("unverified")) unverified = true;
       pluginRows.append(row);
@@ -622,7 +622,7 @@ void RunsController::setRunStatus(const QString& runId, const QString& status) {
 
 void RunsController::ensureCopies(const RunInfo& run, std::function<void(bool, const QString&)> done) {
   if (plugins_->delivery() == nullptr) {
-    done(false, tr("This Hub does not offer plugins."));
+    done(false, tr("This server does not offer plugins."));
     return;
   }
   auto pending = std::make_shared<QList<RunPluginRef>>(run.plugins);
@@ -633,7 +633,7 @@ void RunsController::ensureCopies(const RunInfo& run, std::function<void(bool, c
       return;
     }
     const RunPluginRef ref = pending->takeFirst();
-    setBusy(true, tr("Getting %1 %2 from the Hub…").arg(pluginName(ref.pluginId), ref.version));
+    setBusy(true, tr("Getting %1 %2 from the server…").arg(pluginName(ref.pluginId), ref.version));
     plugins_->delivery()->ensureHubCopy(ref.pluginId, ref.version, ref.sha256, [this, pending, step, done, ref](const plugins::DeliveryResult& res) {
       if (!res.ok) {
         setBusy(false);
@@ -666,7 +666,7 @@ void RunsController::playRun(const QString& runId) {
     return;
   }
   if (plugins_->delivery() == nullptr || !plugins_->hubSupported()) {
-    setMessage(tr("The Hub does not offer the plugins of this run."), true);
+    setMessage(tr("The server does not offer the plugins of this run."), true);
     return;
   }
   const quint64 gen = ++playGen_;
@@ -769,7 +769,7 @@ StartResolution resolveStartPlugins(const QList<HubPluginInfo>& offered, const Q
         if (conflict != nullptr)
           return fail(QObject::tr("%1 needs %2 %3, but %4 needs %2 %5. No version satisfies both.")
                           .arg(nameOf(list.first().byId), nameOf(dep), list.first().rangeText, nameOf(conflict->byId), conflict->rangeText));
-        return fail(QObject::tr("%1 needs %2 %3, which this Hub does not offer.").arg(nameOf(list.first().byId), nameOf(dep), list.first().rangeText));
+        return fail(QObject::tr("%1 needs %2 %3, which this server does not offer.").arg(nameOf(list.first().byId), nameOf(dep), list.first().rangeText));
       }
       if (!chosen.contains(dep)) next.insert(dep, found);
     }

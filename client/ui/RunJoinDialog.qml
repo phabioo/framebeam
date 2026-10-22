@@ -114,7 +114,7 @@ Popup {
             objectName: "runJoinWhy"
             visible: root.noGame
             Layout.fillWidth: true
-            text: qsTr("Join is off until you have the game. Ask a Hub admin to upload it, or add a library folder that contains it.")
+            text: qsTr("Join is off until you have the game. Ask a server admin to upload it, or add a library folder that contains it.")
             color: Theme.pluginWarn
             wrapMode: Text.WordWrap
             font.pixelSize: Theme.fontSmall

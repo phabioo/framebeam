@@ -281,19 +281,12 @@ class PluginSlotsUiTest : public QObject {
     pc()->setDeveloperMode(true);
     QTRY_COMPARE_WITH_TIMEOUT(pc()->sidebarEntries().size(), 1, 10000);
     h_.controller->showLibrary();
-    QTRY_VERIFY(h_.item("navPlugin_net.test.runs") != nullptr && h_.item("navPlugin_net.test.runs")->isVisible());
-    QTRY_VERIFY(visibleItem("navPluginBadge") != nullptr);
-    QCOMPARE(textOf(visibleItem("navPluginBadge")), QStringLiteral("2"));
-    // The entry sits between Library and Emulation, indented.
-    QQuickItem* lib = visibleItem("navLibrary");
-    QQuickItem* ent = visibleItem("navPlugin_net.test.runs");
-    QQuickItem* emu = visibleItem("navEmulation");
-    QVERIFY(lib != nullptr && ent != nullptr && emu != nullptr);
+    // The sidebar no longer lists plugin pages (they open from the plugin's own entry points).
     QQuickTest::qWaitForPolish(h_.window);
-    QTRY_VERIFY(lib->mapToScene(QPointF(0, 0)).y() < ent->mapToScene(QPointF(0, 0)).y());
-    QTRY_VERIFY(ent->mapToScene(QPointF(0, 0)).y() < emu->mapToScene(QPointF(0, 0)).y());
+    QVERIFY(h_.item("navPlugin_net.test.runs") == nullptr);
+    QVERIFY(visibleItem("navPluginBadge") == nullptr);
 
-    QVERIFY(h_.click("navPlugin_net.test.runs"));
+    h_.controller->showPluginScreen(QStringLiteral("net.test.runs"));
     QTRY_COMPARE(h_.controller->screen(), QStringLiteral("plugin"));
     QCOMPARE(h_.controller->pluginPageId(), QStringLiteral("net.test.runs"));
     QTRY_VERIFY(h_.item("plugin_btnInc") != nullptr && h_.item("plugin_btnInc")->isVisible());
@@ -319,7 +312,7 @@ class PluginSlotsUiTest : public QObject {
     QTRY_VERIFY(visibleItem("pluginRowHighlight") != nullptr);
 
     // Turning the plugin off removes the entry; the plugin page falls back to the Library.
-    QVERIFY(h_.click("navPlugin_net.test.runs"));
+    h_.controller->showPluginScreen(QStringLiteral("net.test.runs"));
     QTRY_COMPARE(h_.controller->screen(), QStringLiteral("plugin"));
     pc()->setPluginEnabled(QStringLiteral("net.test.runs"), false);
     QTRY_COMPARE_WITH_TIMEOUT(pc()->sidebarEntries().size(), 0, 10000);

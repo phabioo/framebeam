@@ -119,7 +119,7 @@ Rectangle {
                 Layout.preferredWidth: 1
                 Layout.alignment: Qt.AlignTop
                 spacing: 4
-                Eyebrow { text: qsTr("Presented by the Hub now (SHA-256)") }
+                Eyebrow { text: qsTr("Presented by the server now (SHA-256)") }
                 UzMono { objectName: "certObservedFingerprint"; Layout.fillWidth: true; text: card.hub.observedFingerprint || ""; color: Theme.error; wrapMode: Text.WrapAnywhere }
             }
         }
@@ -128,8 +128,8 @@ Rectangle {
             objectName: "certHint"
             Layout.fillWidth: true
             visible: card.status === "certChanged"
-            text: qsTr("Open the Hub's web Settings page and compare its certificate fingerprint with the one presented now. "
-                       + "A Hub renews its certificate automatically before it expires.")
+            text: qsTr("Open the server's web Settings page and compare its certificate fingerprint with the one presented now. "
+                       + "A server renews its certificate automatically before it expires.")
             font.pixelSize: Theme.fontSmall
             color: Theme.textMuted
             wrapMode: Text.WordWrap
@@ -149,7 +149,7 @@ Rectangle {
                 spacing: 10
                 UzLabel {
                     Layout.fillWidth: true
-                    text: qsTr("Trust this certificate only if both fingerprints match the Hub's Settings page. "
+                    text: qsTr("Trust this certificate only if both fingerprints match the server's Settings page. "
                                + "Your saved sign-in is kept and used for the new certificate.")
                     font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap

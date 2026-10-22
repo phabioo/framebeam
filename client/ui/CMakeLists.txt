@@ -65,7 +65,9 @@ qt_add_qml_module(uzume_ui
     StepCard.qml
     ConnectionScreen.qml
     PairingScreen.qml
-    Sidebar.qml
+    UzAppNav.qml
+    UzNavItem.qml
+    UzNavGroupHead.qml
     GameTile.qml
     DetailPane.qml
     LibraryScreen.qml

@@ -279,7 +279,7 @@ class PluginsUiTest : public QObject {
   void dependencyDialogsAndDetail() {
     FakeHub hub(QStringLiteral("a"));
     hub.hubId = QStringLiteral("hub-dep");
-    hub.name = QStringLiteral("Home Hub");
+    hub.name = QStringLiteral("Home server");
     hub.decision = FakeHub::Decision::Approve;
     hub.features = {QStringLiteral("saves_v1"), QStringLiteral("plugins_v1")};
     const auto offer = [&hub](const FbSpec& spec) {
@@ -314,7 +314,7 @@ class PluginsUiTest : public QObject {
     gotoPlugins(h);
     QTRY_VERIFY(h.item("hubPluginRow_net.example.soullink") != nullptr);
     QCOMPARE(h.item("pluginsEmptyText")->property("text").toString(),
-             QStringLiteral("Home Hub offers 2 plugins. They are listed below under Available on Home Hub."));
+             QStringLiteral("Home server offers 2 plugins. They are listed below under Available on Home server."));
     shot(h, QStringLiteral("4a-3-plugins-available"));
 
     // SoulLink needs SoulLink Core: the Hub row says so and Install offers both.
@@ -389,7 +389,7 @@ class PluginsUiTest : public QObject {
     QTRY_VERIFY(h.item("pluginDetailSheet") != nullptr && h.item("pluginDetailSheet")->isVisible());
     QCOMPARE(h.item("pluginDetailName")->property("text").toString(), QStringLiteral("SoulLink & Nuzlocke"));
     QVERIFY(h.item("pluginDetailVersion")->property("text").toString().startsWith(QStringLiteral("0.3.2 · up to date")));
-    QCOMPARE(h.item("pluginDetailOrigin")->property("text").toString(), QStringLiteral("Hub upload · unverified"));
+    QCOMPARE(h.item("pluginDetailOrigin")->property("text").toString(), QStringLiteral("Server upload · unverified"));
     QVERIFY(qAbs(h.item("pluginDetailSheet")->width() - 460) < 1.0);
     shot(h, QStringLiteral("4a-4-plugin-detail"));
     h.controller->setAppearance(QStringLiteral("light"));
@@ -449,7 +449,7 @@ class PluginsUiTest : public QObject {
     QStringList pills;
     for (QQuickItem* i : h.items("hubPluginOrigin")) pills << i->property("text").toString();
     QVERIFY(pills.contains(QStringLiteral("✓ Official")));
-    QVERIFY(pills.contains(QStringLiteral("Hub upload · unverified")));
+    QVERIFY(pills.contains(QStringLiteral("Server upload · unverified")));
     shot(h, QStringLiteral("4a-plugins-hub-browse"));
     h.controller->setAppearance(QStringLiteral("light"));
     shot(h, QStringLiteral("4a-plugins-hub-browse-light"));
@@ -460,7 +460,7 @@ class PluginsUiTest : public QObject {
     QVERIFY(h.click("hubPluginInstall"));
     QTRY_VERIFY_WITH_TIMEOUT(pc->plugins().size() == 1, 8000);
     QVERIFY2(!pc->messageIsError(), qPrintable(pc->message()));
-    QVERIFY(pc->message().startsWith(QStringLiteral("Installed Official Tracker 1.0.0 from your Hub")));
+    QVERIFY(pc->message().startsWith(QStringLiteral("Installed Official Tracker 1.0.0 from your server")));
     QVariantMap row = pc->plugins().value(0).toMap();
     QCOMPARE(row.value("origin").toString(), QStringLiteral("official"));
     QCOMPARE(row.value("originText").toString(), QStringLiteral("✓ Official"));
@@ -484,10 +484,10 @@ class PluginsUiTest : public QObject {
     QVERIFY(pc->message().contains(QStringLiteral("Uzume has not checked this plugin")));
     row = pc->plugins().value(0).toMap();
     QCOMPARE(row.value("origin").toString(), QStringLiteral("unverified"));
-    QCOMPARE(row.value("originText").toString(), QStringLiteral("Hub upload · unverified"));
+    QCOMPARE(row.value("originText").toString(), QStringLiteral("Server upload · unverified"));
     QVERIFY(row.value("needsConfirm").toBool());
     QVERIFY(row.value("problemsText").toString().isEmpty());
-    QCOMPARE(row.value("permissionsText").toString(), QStringLiteral("Read game memory · Share run progress with your Hub"));
+    QCOMPARE(row.value("permissionsText").toString(), QStringLiteral("Read game memory · Share run progress with your server"));
     QTRY_VERIFY(h.item("pluginToggle") != nullptr && h.item("pluginToggle")->isVisible());
     QVERIFY(h.click("pluginToggle"));
     QTRY_VERIFY(h.item("pluginEnableConfirm")->isVisible());

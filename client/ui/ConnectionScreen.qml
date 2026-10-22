@@ -39,7 +39,7 @@ Rectangle {
                 }
                 UzLabel {
                     objectName: "connectTitle"
-                    text: qsTr("Connect to a Hub")
+                    text: qsTr("Welcome to Uzume")
                     font.pixelSize: Theme.fontHero
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
@@ -51,7 +51,7 @@ Rectangle {
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontBody
                     lineHeight: 1.4
-                    text: qsTr("Enter the address of your Uzume server. You find it in the Hub under Settings → General.")
+                    text: qsTr("Enter the address of your Uzume server. You find it in the server under Settings → General.")
                 }
             }
 
@@ -81,7 +81,7 @@ Rectangle {
                 }
                 UzLabel {
                     visible: root.player.hubs.length === 0
-                    text: qsTr("No Hub saved yet.")
+                    text: qsTr("No server saved yet.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap
@@ -92,7 +92,7 @@ Rectangle {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                UzLabel { text: qsTr("Hub address"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
+                UzLabel { text: qsTr("Server address"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
@@ -155,10 +155,10 @@ Rectangle {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            UzLabel { text: qsTr("Set up a Hub on this PC"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
+                            UzLabel { text: qsTr("Set up a server on this PC"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
                             UzLabel {
                                 Layout.fillWidth: true
-                                text: localCard.local.present ? qsTr("Connect to the Hub on this PC and sign in as its admin.")
+                                text: localCard.local.present ? qsTr("Connect to the server on this PC and sign in as its admin.")
                                                               : qsTr("Install the Uzume server on this PC to keep your games and saves here.")
                                 color: Theme.textMuted
                                 font.pixelSize: Theme.fontSmall

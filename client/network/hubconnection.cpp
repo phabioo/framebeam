@@ -606,7 +606,7 @@ bool HubConnection::handleUserDisabled(const HttpResult& r) {
   accessToken_.clear();
   // The credential stays: an admin can enable the user again. No automatic retry; retry() is a user action.
   fail(State::UserDisabled, QStringLiteral("user_disabled"),
-       r.apiErrorMessage.isEmpty() ? QStringLiteral("This user is disabled on the Hub") : r.apiErrorMessage);
+       r.apiErrorMessage.isEmpty() ? QStringLiteral("This user is disabled on the server") : r.apiErrorMessage);
   return true;
 }
 
@@ -707,6 +707,7 @@ void HubConnection::doHandshake() {
     HubProfile p = profile_.value_or(HubProfile());
     p.lastConnected = QDateTime::currentDateTimeUtc();
     p.userDisplayName = res->userDisplayName;  // cleared when an older Hub omits `user`
+    p.userRole = res->userRole;
     profiles_->upsertProfile(p);
     profiles_->setLastHubId(p.hubId);
     profile_ = p;

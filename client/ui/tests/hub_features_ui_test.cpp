@@ -151,7 +151,7 @@ class HubFeaturesUiTest : public QObject {
       if (v.toMap().value(QStringLiteral("hubId")).toString() == hub.hubId) card = v.toMap();
     }
     QCOMPARE(card.value(QStringLiteral("status")).toString(), QStringLiteral("userDisabled"));
-    QVERIFY(card.value(QStringLiteral("message")).toString().contains(QStringLiteral("This user is disabled on the Hub")));
+    QVERIFY(card.value(QStringLiteral("message")).toString().contains(QStringLiteral("This user is disabled on the server")));
     QCOMPARE(card.value(QStringLiteral("tone")).toString(), QStringLiteral("error"));
     const int tokens = hub.tokenRequests();
     QTest::qWait(500);
@@ -259,7 +259,7 @@ class HubFeaturesUiTest : public QObject {
                                                                  fwFile(QStringLiteral("firmware"), QStringLiteral("DS Firmware"), true, fw)});
     h.controller->recheckFirmware();
     QTRY_VERIFY_WITH_TIMEOUT(game(h).value(QStringLiteral("canPlay")).toBool(), 8000);
-    QVERIFY(game(h).value(QStringLiteral("firmwareText")).toString().startsWith(QStringLiteral("From Hub")));
+    QVERIFY(game(h).value(QStringLiteral("firmwareText")).toString().startsWith(QStringLiteral("From server")));
     qunsetenv("UZUME_MELONDS_DS_CORE");
   }
 
@@ -378,6 +378,14 @@ class HubFeaturesUiTest : public QObject {
       QCOMPARE(h.item("userName")->property("text").toString(), QStringLiteral("lena"));
       QCOMPARE(h.item("userDevice")->property("text").toString(), h.controller->deviceName());
       QCOMPARE(h.item("userAvatarInitial")->property("text").toString(), QStringLiteral("L"));
+      // Admins get the "Settings for" switch; "Server" shows who it affects and the short empty state.
+      QVERIFY(h.controller->isAdmin());
+      h.controller->showSettings();
+      QTRY_VERIFY(h.item("settingsScopeRow") != nullptr && h.item("settingsScopeRow")->isVisible());
+      QVERIFY(h.click("scopeServer"));
+      QTRY_VERIFY(h.item("settingsServerEmpty") != nullptr && h.item("settingsServerEmpty")->isVisible());
+      QVERIFY(h.click("scopePc"));
+      QTRY_VERIFY(h.item("settingsServerEmpty") == nullptr || !h.item("settingsServerEmpty")->isVisible());
     }
     {
       FakeHub hub(QStringLiteral("a"));
@@ -390,6 +398,11 @@ class HubFeaturesUiTest : public QObject {
       // Both lines stay present (P9): the device name takes the top line, "This device" the second.
       QCOMPARE(h.item("userName")->property("text").toString(), h.controller->deviceName());
       QCOMPARE(h.item("userDevice")->property("text").toString(), QStringLiteral("This device"));
+      // No role from an older server: no admin switch in Settings.
+      QVERIFY(!h.controller->isAdmin());
+      h.controller->showSettings();
+      QTest::qWait(100);
+      QVERIFY(h.item("settingsScopeRow") == nullptr || !h.item("settingsScopeRow")->isVisible());
     }
   }
 
@@ -688,10 +701,10 @@ class HubFeaturesUiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(local->networkSharing() && !local->settingsBusy(), 8000);
     QCOMPARE(hub.lastLocalSettings.value(QStringLiteral("network_sharing")).toBool(), true);
 
-    hub.localImportDirError = QStringLiteral("The Hub cannot read this folder.");
+    hub.localImportDirError = QStringLiteral("The server cannot read this folder.");
     local->chooseFolder(QStringLiteral("/nonexistent/roms"));
     QTRY_VERIFY_WITH_TIMEOUT(!local->settingsBusy(), 8000);
-    QCOMPARE(local->settingsError(), QStringLiteral("The Hub cannot read this folder."));
+    QCOMPARE(local->settingsError(), QStringLiteral("The server cannot read this folder."));
     hub.localImportDirError.clear();
     local->chooseFolder(QStringLiteral("/tmp"));
     QTRY_VERIFY_WITH_TIMEOUT(!local->settingsBusy() && local->settingsError().isEmpty(), 8000);

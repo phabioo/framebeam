@@ -345,7 +345,7 @@ Item {
                         objectName: "connectionCheckEditHub"
                         visible: root.check.canEditHubAddress
                         implicitHeight: 34
-                        text: qsTr("Edit Hub address…")
+                        text: qsTr("Edit server address…")
                         onClicked: root.check.editHubAddress()
                     }
                     UzButton {

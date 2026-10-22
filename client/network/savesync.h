@@ -180,7 +180,7 @@ class SaveSync : public QObject {
   static QString localOnlyNote() {
     return QObject::tr("Save sync is not available for this system yet. Saves stay on this device.");
   }
-  static QString unsupportedNote() { return QObject::tr("Hub does not support save sync"); }
+  static QString unsupportedNote() { return QObject::tr("Server does not support save sync"); }
   static QString kindName(Kind k);
 
   // Test hook: replaces the local backup before overwriting (returns the backup path, empty = failed).

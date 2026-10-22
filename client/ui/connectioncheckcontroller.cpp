@@ -97,7 +97,7 @@ QString ConnectionCheckController::progressText() const {
 QString ConnectionCheckController::subtitle() const {
   const ConnectionTarget t = targetProvider_ ? targetProvider_() : ConnectionTarget{};
   return QStringLiteral("This device · %1 · to %2")
-      .arg(t.deviceName.isEmpty() ? QStringLiteral("this Player") : t.deviceName, t.hubName.isEmpty() ? QStringLiteral("the Hub") : t.hubName);
+      .arg(t.deviceName.isEmpty() ? QStringLiteral("this PC") : t.deviceName, t.hubName.isEmpty() ? QStringLiteral("the server") : t.hubName);
 }
 
 QVariantList ConnectionCheckController::steps() const {

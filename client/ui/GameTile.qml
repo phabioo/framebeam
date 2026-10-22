@@ -111,7 +111,7 @@ Item {
             Text {
                 id: localText
                 anchors.centerIn: parent
-                text: tile.onHub ? qsTr("Local · on Hub") : qsTr("Local")
+                text: tile.onHub ? qsTr("Local · on server") : qsTr("Local")
                 font.pixelSize: Theme.fontMono
                 font.weight: Font.DemiBold
                 color: tile.onHub ? Theme.accentText : Theme.textMuted

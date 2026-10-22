@@ -13,6 +13,9 @@ Rectangle {
     property string collectMessage: ""
     property string collectedPath: ""
     property string editingHubId: ""
+    // Admins can switch between this PC and the server ("Settings for"); members and users without a server see this PC only.
+    readonly property bool canSwitchScope: root.player.isAdmin && root.player.hubAddress !== ""
+    property string scope: "pc"   // pc | server
     color: Theme.bg
 
     readonly property var savedHubs: root.player.hubs.filter(function (h) { return h.saved })
@@ -33,6 +36,15 @@ Rectangle {
                 root.jumpTo("plugins")
                 secPlugins.highlightId = pluginId
             })
+        }
+    }
+
+    onCanSwitchScopeChanged: if (!canSwitchScope) scope = "pc"
+    Connections {
+        target: root.player
+        function onSettingsSectionRequested(section: string) {
+            root.scope = "pc"
+            Qt.callLater(function () { root.jumpTo(section) })
         }
     }
 
@@ -108,7 +120,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        Sidebar {
+        UzAppNav {
             Layout.fillHeight: true
             Layout.preferredWidth: Theme.sidebarWidth
             player: root.player
@@ -120,9 +132,9 @@ Rectangle {
             title: qsTr("Settings")
 
             Repeater {
-                model: [
+                model: root.scope !== "pc" ? [] : [
                     { id: "updates", name: qsTr("Updates") },
-                    { id: "hubs", name: qsTr("Hubs") },
+                    { id: "hubs", name: qsTr("Servers") },
                     { id: "appearance", name: qsTr("Appearance") },
                     { id: "library", name: qsTr("Library folders") },
                     { id: "storage", name: qsTr("ROM cache") },
@@ -189,15 +201,43 @@ Rectangle {
                     UzLabel {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: qsTr("Saved on this device only")
+                        text: root.scope === "server" ? qsTr("Affects everyone on %1.").arg(root.player.hubName) : qsTr("Saved on this device only")
                         color: Theme.textMuted
                         font.pixelSize: Theme.fontSmall
                     }
                 }
 
+                // Settings for: This PC / Server (admins only).
+                RowLayout {
+                    objectName: "settingsScopeRow"
+                    visible: root.canSwitchScope
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: Theme.space2
+                    Eyebrow { text: qsTr("Settings for") }
+                    UzSegmented {
+                        objectName: "settingsScope"
+                        options: [{ value: "pc", label: qsTr("This PC"), name: "scopePc" }, { value: "server", label: qsTr("Server"), name: "scopeServer" }]
+                        current: root.scope
+                        onPicked: (value) => root.scope = value
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                // The server-wide settings arrive with the admin area; nothing of them exists in the app yet.
+                UzStateBlock {
+                    objectName: "settingsServerEmpty"
+                    visible: root.scope === "server"
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 520
+                    kind: "empty"
+                    title: qsTr("Nothing to set here yet")
+                    text: qsTr("Server settings arrive with the admin area.")
+                }
+
                 // ------------------------------------------------------------------ UPDATES
                 ColumnLayout {
                     id: secUpdates
+                    visible: root.scope === "pc"
                     objectName: "updatesSection"
                     Layout.fillWidth: true
                     spacing: Theme.space14
@@ -295,7 +335,7 @@ Rectangle {
                                     text: root.updates.updateAvailable ? qsTr("▲ Update available")
                                           : (root.updates.state === "checking" ? qsTr("Checking for updates…")
                                              : root.updates.effectiveChannel === "off" ? qsTr("Updates are off")
-                                             : qsTr("Player %1 is up to date").arg(root.updates.currentVersion))
+                                             : qsTr("Uzume %1 is up to date").arg(root.updates.currentVersion))
                                     font.pixelSize: Theme.fontSection
                                     font.weight: Font.DemiBold
                                     color: root.updates.updateAvailable ? Theme.warn : Theme.text
@@ -447,7 +487,7 @@ Rectangle {
                         Eyebrow { text: qsTr("Earlier versions · %1").arg(root.updates.earlierCount) }
                         UzLabel {
                             Layout.fillWidth: true
-                            text: qsTr("Go back if something stopped working after an update. Settings stay; saves and states are on your Hub and are not touched. The list shows the last %1 releases.").arg(5)
+                            text: qsTr("Go back if something stopped working after an update. Settings stay; saves and states are on your server and are not touched. The list shows the last %1 releases.").arg(5)
                             wrapMode: Text.WordWrap
                             font.pixelSize: Theme.fontSmall
                             color: Theme.textSecondary
@@ -531,6 +571,7 @@ Rectangle {
                 // ------------------------------------------------------------------ HUBS
                 ColumnLayout {
                     id: secHubs
+                    visible: root.scope === "pc"
                     objectName: "hubsSection"
                     Layout.fillWidth: true
                     spacing: Theme.space12
@@ -539,11 +580,11 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         Layout.rightMargin: content.wide ? Theme.settingsResetWidth - 8 : 0   // "+ Add hub" ends where the controls end (P1)
-                        Eyebrow { objectName: "hubsEyebrow"; text: qsTr("Hubs · %1").arg(root.savedHubs.length); Layout.fillWidth: true }
+                        Eyebrow { objectName: "hubsEyebrow"; text: qsTr("Servers · %1").arg(root.savedHubs.length); Layout.fillWidth: true }
                         UzButton {
                             objectName: "settingsAddHubButton"
                             kind: "link"
-                            text: qsTr("+ Add Hub")
+                            text: qsTr("+ Add server")
                             onClicked: root.player.switchHub()
                         }
                     }
@@ -556,7 +597,7 @@ Rectangle {
                         Layout.leftMargin: Theme.settingsDotSlot
                         Layout.minimumWidth: 0
                         kind: "link"
-                        text: qsTr("Set up a Hub on this PC")
+                        text: qsTr("Set up a server on this PC")
                         onClicked: { root.player.switchHub(); root.player.localHub.start() }
                     }
 
@@ -711,7 +752,7 @@ Rectangle {
                                         MoreMenu {
                                             objectName: "hubMenu_" + hubRow.modelData.hubId
                                             tooltip: qsTr("More actions for %1").arg(hubRow.modelData.name)
-                                            items: [{ name: "remove", label: qsTr("Remove Hub…"), danger: true, divider: false }]
+                                            items: [{ name: "remove", label: qsTr("Remove server…"), danger: true, divider: false }]
                                             onActivated: name => { if (name === "remove") hubRow.confirmRemove = true }
                                         }
                                     }
@@ -733,7 +774,7 @@ Rectangle {
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 2
                                         UzLabel { text: qsTr("Connect automatically on startup"); font.pixelSize: Theme.fontBody; Layout.fillWidth: true }
-                                        UzLabel { text: qsTr("Uses this Hub when the Player starts."); color: Theme.textMuted; font.pixelSize: Theme.fontMeta; Layout.fillWidth: true }
+                                        UzLabel { text: qsTr("Uses this server when Uzume starts."); color: Theme.textMuted; font.pixelSize: Theme.fontMeta; Layout.fillWidth: true }
                                     }
                                     UzToggle {
                                         id: autoToggle
@@ -805,7 +846,7 @@ Rectangle {
                                                     hubEditError.extra = ""
                                                     root.editingHubId = ""
                                                 } else {
-                                                    hubEditError.extra = qsTr("Another saved Hub already uses this address")
+                                                    hubEditError.extra = qsTr("Another saved server already uses this address")
                                                 }
                                             }
                                         }
@@ -827,7 +868,7 @@ Rectangle {
                                         wrapMode: Text.WordWrap
                                         font.pixelSize: Theme.fontMeta
                                         color: Theme.textMuted
-                                        text: qsTr("host:port, without https://. If the Hub shows a different certificate, the Player asks you to compare it.")
+                                        text: qsTr("host:port, without https://. If the server shows a different certificate, Uzume asks you to compare it.")
                                     }
                                 }
 
@@ -843,8 +884,8 @@ Rectangle {
                                         font.pixelSize: Theme.fontMeta
                                         color: Theme.text
                                         text: hubRow.modelData.connected
-                                              ? qsTr("Remove %1 from the Player? Running Sessions end and you return to the connection screen. Saves on the Hub are not deleted.").arg(hubRow.modelData.name)
-                                              : qsTr("Remove %1 from the Player? Saves on the Hub are not deleted.").arg(hubRow.modelData.name)
+                                              ? qsTr("Remove %1 from Uzume? Running Sessions end and you return to the connection screen. Saves on the server are not deleted.").arg(hubRow.modelData.name)
+                                              : qsTr("Remove %1 from Uzume? Saves on the server are not deleted.").arg(hubRow.modelData.name)
                                     }
                                     UzButton {
                                         objectName: "hubRemoveCancel_" + hubRow.modelData.hubId
@@ -869,7 +910,7 @@ Rectangle {
                         objectName: "hubsEmpty"
                         visible: root.player.hubs.length === 0
                         Layout.fillWidth: true
-                        text: qsTr("No Hub saved yet.")
+                        text: qsTr("No server saved yet.")
                         color: Theme.textMuted
                         font.pixelSize: Theme.fontSmall
                     }
@@ -878,6 +919,7 @@ Rectangle {
                 // ------------------------------------------------------------------ APPEARANCE
                 ColumnLayout {
                     id: secAppearance
+                    visible: root.scope === "pc"
                     objectName: "appearanceSection"
                     Layout.fillWidth: true
                     spacing: Theme.space12
@@ -904,6 +946,7 @@ Rectangle {
                 // ------------------------------------------------------------------ LIBRARY FOLDERS
                 LibraryFoldersSection {
                     id: secLibrary
+                    visible: root.scope === "pc"
                     objectName: "libraryFoldersSection"
                     Layout.fillWidth: true
                     player: root.player
@@ -912,6 +955,7 @@ Rectangle {
                 // ------------------------------------------------------------------ ROM CACHE
                 ColumnLayout {
                     id: secStorage
+                    visible: root.scope === "pc"
                     objectName: "storageSection"
                     Layout.fillWidth: true
                     spacing: Theme.space12
@@ -983,6 +1027,7 @@ Rectangle {
                 // ------------------------------------------------------------------ PLUGINS
                 PluginsSection {
                     id: secPlugins
+                    visible: root.scope === "pc"
                     objectName: "pluginsSection"
                     Layout.fillWidth: true
                     player: root.player
@@ -992,6 +1037,7 @@ Rectangle {
                 // ------------------------------------------------------------------ DIAGNOSTICS
                 ColumnLayout {
                     id: secDiagnostics
+                    visible: root.scope === "pc"
                     objectName: "diagnosticsSection"
                     Layout.fillWidth: true
                     spacing: Theme.space12
@@ -1054,8 +1100,8 @@ Rectangle {
                         resetMode: "none"
                         label: qsTr("Connection check")
                         description: root.player.connectionCheck.available
-                            ? qsTr("Tests whether Sessions can run directly between Players or only through the relay of %1.").arg(root.activeHubName !== "" ? root.activeHubName : qsTr("the Hub"))
-                            : qsTr("Connect to a Hub first.")
+                            ? qsTr("Tests whether Sessions can run directly between PCs or only through the relay of %1.").arg(root.activeHubName !== "" ? root.activeHubName : qsTr("the server"))
+                            : qsTr("Connect to a server first.")
                         ctrl: "buttons"
                         buttons: [
                             { name: "connectionCheck", text: qsTr("Run check…"), visible: root.player.connectionCheck.available }
@@ -1068,7 +1114,7 @@ Rectangle {
                         Layout.minimumWidth: 0
                         resetMode: "none"
                         label: qsTr("Report a problem")
-                        description: qsTr("Sends a short description with logs and settings to the admins of your Hub. You see what is included before it goes out.")
+                        description: qsTr("Sends a short description with logs and settings to the admins of your server. You see what is included before it goes out.")
                         ctrl: "buttons"
                         buttons: [{ name: "report", text: qsTr("Report a problem…") }]
                         onButtonClicked: name => { if (name === "report") root.player.report.show() }
