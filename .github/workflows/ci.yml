@@ -312,6 +312,8 @@ jobs:
     needs: [version, changes]
     runs-on: ubuntu-24.04
     timeout-minutes: 150
+    outputs:
+      flaky: ${{ steps.flaky.outputs.flaky }}
     env:
       UZUME_VERSION: ${{ needs.version.outputs.version }}
       UZUME_CHANNEL: ${{ needs.version.outputs.channel }}
@@ -384,6 +386,9 @@ jobs:
       - name: Check Player
         timeout-minutes: 60
         env:
+          # A failed test is retried once (scripts/check.sh); one that passes on the retry is a flaky-test warning, not a failure.
+          UZUME_CTEST_RETRY: "1"
+          UZUME_FLAKY_FILE: ${{ runner.temp }}/flaky-tests.txt
           # Merge CI uses the in-repo test core (ADR 0020 update 2026-10-11): no real core is fetched or built; the real-core
           # tests skip. A skipped *_testcore test fails the check; real cores are covered by cores-nightly.yml.
           UZUME_SKIP_CORES: "1"
@@ -391,6 +396,16 @@ jobs:
           CMAKE_C_COMPILER_LAUNCHER: ccache
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: xvfb-run -a make check-client
+      - name: Collect flaky tests
+        id: flaky
+        if: always()
+        env:
+          FLAKY_FILE: ${{ runner.temp }}/flaky-tests.txt
+        run: |
+          if [ -s "$FLAKY_FILE" ]; then
+            echo "flaky=$(sort -u "$FLAKY_FILE" | paste -sd, -)" >> "$GITHUB_OUTPUT"
+            { echo "### Flaky tests (Linux)"; sort -u "$FLAKY_FILE" | sed 's/^/- /'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: ccache statistics
         if: always()
         run: ccache -s | head -n 12 || true
@@ -421,6 +436,8 @@ jobs:
     needs: [version, changes]
     runs-on: windows-2025-vs2026
     timeout-minutes: 300
+    outputs:
+      flaky: ${{ steps.test.outputs.flaky }}
     env:
       UZUME_VERSION: ${{ needs.version.outputs.version }}
       UZUME_CHANNEL: ${{ needs.version.outputs.channel }}
@@ -580,6 +597,7 @@ jobs:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ steps.cache-ccache.outputs.cache-primary-key }}
       - name: Test
+        id: test
         timeout-minutes: 30
         working-directory: client
         shell: pwsh
@@ -597,6 +615,9 @@ jobs:
             $failed = Select-String -Path ctest.log -Pattern '^\s*\d+/\d+ Test\s+#\d+: (\S+) \.+\*{3}(Failed|Exception|Timeout)' |
               ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique
             $logDir = $env:UZUME_TEST_LOG_DIR
+            # The direct rerun is the retry: a test that passes now is flaky (warning), any other outcome keeps the job red.
+            $flaky = @()
+            $stillFailing = @()
             foreach ($t in $failed) {
               $first = Join-Path $logDir "test_$t.txt"
               if (Test-Path $first) {
@@ -606,7 +627,7 @@ jobs:
                 Write-Host "::endgroup::"
               }
               $exe = Get-ChildItem -Recurse -Filter "test_$t.exe" | Select-Object -First 1
-              if (-not $exe) { Write-Host "::warning::no exe for $t"; continue }
+              if (-not $exe) { Write-Host "::warning::no exe for $t"; $stillFailing += $t; continue }
               Write-Host "::group::rerun $t ($($exe.FullName))"
               # Same environment as under ctest (core path, test ROM, offscreen): read from the test properties.
               $props = (ctest --preset windows-msvc-release -R "^$t$" --show-only=json-v1 | ConvertFrom-Json).tests[0].properties
@@ -624,6 +645,7 @@ jobs:
               $code = $LASTEXITCODE
               Pop-Location
               Write-Host "exit code of ${t}: $code (0x$('{0:X}' -f $code))"
+              if ($code -eq 0) { $flaky += $t } else { $stillFailing += $t }
               # QtTest result file, unfiltered tail, then the interesting lines of it (and of the console output).
               if (Test-Path $txt) {
                 Write-Host "--- $t.txt (last 80 lines) ---"
@@ -637,7 +659,11 @@ jobs:
               $out | Select-String -Pattern 'FAIL!|QFATAL|Totals|\[fbtest\]|\[uitest\]|\[loopback\]' | Out-Host
               Write-Host "::endgroup::"
             }
-            throw "ctest failed"
+            if ($failed.Count -eq 0 -or $stillFailing.Count -gt 0) { throw "ctest failed" }
+            foreach ($t in $flaky) { Write-Host "::warning title=Flaky test::$t failed once and passed on retry" }
+            "flaky=$($flaky -join ',')" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            "### Flaky tests (Windows)`n$(($flaky | ForEach-Object { "- $_" }) -join "`n")" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            # Skip check below still reads ctest.log of the first run; the flaky tests passed on the retry, not skipped.
           }
           # Allowed skips: the real-core tests (no cores in merge CI) and the GL/GPU tests (no GL 3.3 context, ADR 0013 D6);
           # emulation_core_gl_testcore may skip only for lack of GL. Any other skip, e.g. emulation_test_core or another *_testcore
@@ -841,3 +867,39 @@ jobs:
           path: dist/msi/uzume-*-windows-x64.msi
           if-no-files-found: error
           retention-days: 7
+
+  # Reports tests that failed once and passed on the retry (client-linux, client-windows) as one issue on main, so a flake
+  # stays visible although the job is green. Never closes the issue: whoever fixes the flake closes it.
+  flaky-report:
+    name: Flaky test report
+    needs: [client-linux, client-windows]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      LINUX_FLAKY: ${{ needs.client-linux.outputs.flaky }}
+      WINDOWS_FLAKY: ${{ needs.client-windows.outputs.flaky }}
+      COMMIT: ${{ github.sha }}
+      ISSUE_TITLE: Flaky tests
+      ISSUE_LABEL: flaky-tests
+    steps:
+      - name: Open or update the issue
+        run: |
+          set -euo pipefail
+          [ -n "$LINUX_FLAKY" ] || [ -n "$WINDOWS_FLAKY" ] || exit 0
+          gh label create "$ISSUE_LABEL" --description "Tests that failed once and passed on retry (ci.yml)" --color fbca04 2>/dev/null || true
+          existing="$(gh issue list --label "$ISSUE_LABEL" --state open --json number --jq '.[0].number // empty')"
+          body="Failed once and passed on retry in $COMMIT: $RUN_URL"
+          [ -z "$LINUX_FLAKY" ] || body="$body"$'\n'"Linux: $LINUX_FLAKY"
+          [ -z "$WINDOWS_FLAKY" ] || body="$body"$'\n'"Windows: $WINDOWS_FLAKY"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$ISSUE_TITLE" --label "$ISSUE_LABEL" --body "$body"
+          fi
