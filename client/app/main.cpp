@@ -10,6 +10,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
+#include <QWindow>
 #include <QtQuickControls2/QQuickStyle>
 #include <atomic>
 #include <cstdio>
@@ -27,6 +28,7 @@
 #endif
 
 #include "diagbundle.h"
+#include "linkhandler.h"
 #include "filelog.h"
 #include "pluginimageprovider.h"
 #include "profilestore.h"
@@ -164,7 +166,7 @@ int main(int argc, char* argv[]) {
     }
     if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0 || std::strcmp(argv[i], "-?") == 0) {
       printToStdout(
-          "Usage: uzume [options]\n"
+          "Usage: uzume [options] [uzume://join/<server>/<invite>#<security code>]\n"
           "  --version            Print the version and exit.\n"
           "  --version-json       Print version, channel, commit and protocol versions as JSON and exit.\n"
           "  --smoke-test         Load QML and exit with code 0 (code 1 on QML warnings).\n"
@@ -209,8 +211,19 @@ int main(int argc, char* argv[]) {
   parser.addOption(smoke);
   parser.addOption(dataDir);
   parser.addOption(devHttp);
+  parser.addPositionalArgument(QStringLiteral("link"), QStringLiteral("An uzume:// invite link to open."), QStringLiteral("[link]"));
   parser.process(app);
   const bool smokeMode = parser.isSet(smoke);
+  const QString startLink = uzume::app::findLinkArgument(parser.positionalArguments());
+  // One running app per user and data directory: a second start hands its link over and exits. Not in smoke mode.
+  uzume::app::SingleInstance instance(uzume::app::instanceServerName(
+      QString::fromLocal8Bit(qgetenv("USERNAME").isEmpty() ? qgetenv("USER") : qgetenv("USERNAME")), parser.value(dataDir)));
+  if (!smokeMode) {
+    if (!instance.acquire(startLink)) {
+      return 0;
+    }
+    uzume::app::ensureSchemeRegistered(QCoreApplication::applicationFilePath());  // Windows only; no-op elsewhere
+  }
 #ifdef Q_OS_WIN
   if (!smokeMode) {
     holdInstanceMutex();
@@ -261,6 +274,19 @@ int main(int argc, char* argv[]) {
     return g_qmlWarnings.load() > 0 ? 1 : rc;
   }
   controller.startup();
+  QObject::connect(&instance, &uzume::app::SingleInstance::activateRequested, &app, [] {
+    for (QWindow* w : QGuiApplication::topLevelWindows()) {
+      if (w->windowStates() & Qt::WindowMinimized) w->showNormal();
+      w->raise();
+      w->requestActivate();
+    }
+  });
+  QObject::connect(&instance, &uzume::app::SingleInstance::linkReceived, &app, [&controller](const QString& link) {
+    if (!link.isEmpty()) controller.onboarding()->openLink(link);
+  });
+  if (!startLink.isEmpty()) {
+    QTimer::singleShot(0, &app, [&controller, startLink] { controller.onboarding()->openLink(startLink); });
+  }
   if (parser.isSet(setupLocalHub)) {
     controller.localHub()->startAfterInstall();  // after the MSI installed the Hub: connect, create the admin, pair
   }

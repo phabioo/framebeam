@@ -88,6 +88,29 @@ class FakeHub : public QTcpServer {
   QStringList takenNames;                                // display names -> 409 display_name_taken (case-insensitive)
   bool rateLimitInvites = false;
   QJsonObject lastInviteBody;
+  // Accounts (accounts_v1) and set-up with a code (setup_code_v1). The caller of the account endpoints is the person the
+  // device of the last token request signed in as (deviceUsers); the handshake reports that person as `user`.
+  struct FakeAccount {
+    QString userId, username, displayName, role = QStringLiteral("user"), password;
+    bool passwordRequired = false;
+  };
+  bool setupRequired = false;                  // `setup_required` of the info endpoint
+  QString setupCode = QStringLiteral("7H4K2Q");  // the one valid setup code (normalized)
+  bool setupCodeExpired = false;               // the right code answers 410 setup_code_expired
+  bool rateLimitSetup = false;
+  bool rateLimitSignIn = false;
+  int rateLimitRetryAfter = 0;                 // `retry_after` of the rate limit answers (0 = none)
+  bool signInUnsupported = false;              // POST /auth/sign-in answers 404 (server before accounts_v1)
+  bool holdSignIn = false;                     // sign-in and set-up requests stay unanswered
+  QStringList conflictDevices;                 // device IDs that get 409 conflict at sign-in once
+  QStringList disabledUsers;                   // user names whose correct password answers 401 user_disabled
+  QMap<QString, FakeAccount> accountsByUser;   // user_id -> account (seed with addAccount())
+  QMap<QString, QString> deviceUsers;          // device_id -> user_id, set by sign-in and set-up (not by pairing or invites)
+  QList<QJsonObject> signInBodies, setupBodies;
+  QList<QJsonObject> accountDevices;           // AccountDevice objects as served; "status":"revoked" after a sign-out
+  bool requirePasswords = false;               // members cannot remove their password
+  void addAccount(const QString& username, const QString& password, const QString& role = QStringLiteral("user"));
+
   // Local setup (local_setup_v1): /local/status, /local/setup, /local/pair, PUT /local/settings
   bool localAdminExists = false;
   bool localNetworkSharing = false;
@@ -243,6 +266,11 @@ class FakeHub : public QTcpServer {
   void respondError(QSslSocket* sock, int status, const QString& code);
   void handleSaves(QSslSocket* sock, const FakeRequest& req);
   bool handleLocalRoms(QSslSocket* sock, const FakeRequest& req);
+  bool handleSignInAndSetup(QSslSocket* sock, const FakeRequest& req);
+  void handleAccount(QSslSocket* sock, const FakeRequest& req);
+  QJsonObject accountJson(const FakeAccount& a) const;
+  void respondRateLimited(QSslSocket* sock);
+  FakeAccount* callerAccount();
   void handleSessions(QSslSocket* sock, const FakeRequest& req);
   void handleRuns(QSslSocket* sock, const FakeRequest& req);
   void sendRunCatchUp(QSslSocket* sock, const QJsonObject& hello);

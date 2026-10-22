@@ -1,6 +1,6 @@
 # uzume_core: Player core without GUI (core/ + network/). Add sources here and in ../network.
 add_library(uzume_core STATIC version.cpp credentialstore.cpp profilestore.cpp romcache.cpp savestore.cpp playersettings.cpp firmwarecache.cpp corecache.cpp dsvsave.cpp sdtree.cpp emulationsettings.cpp controllerprofiles.cpp
-  filelog.cpp diagbundle.cpp problemreport.cpp semver.cpp updateindex.cpp updaterollback.cpp updatesig.cpp installroot.cpp updater.cpp localhub.cpp hubsetup.cpp fsutil.cpp localromindex.cpp)
+  filelog.cpp diagbundle.cpp problemreport.cpp semver.cpp updateindex.cpp updaterollback.cpp updatesig.cpp installroot.cpp updater.cpp localhub.cpp hubsetup.cpp fsutil.cpp localromindex.cpp securitycode.cpp joinlink.cpp localpin.cpp)
 target_include_directories(uzume_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(uzume_core PUBLIC cxx_std_20)
 target_link_libraries(uzume_core PUBLIC Qt6::Core Qt6::Concurrent Qt6::Network OpenSSL::Crypto)
@@ -31,6 +31,9 @@ uzume_add_test(core_update tests/update_test.cpp LIBS uzume_core)
 uzume_add_test(core_localhub tests/localhub_test.cpp LIBS uzume_core)
 uzume_add_test(core_localromindex tests/localromindex_test.cpp LIBS uzume_core)
 uzume_add_test(core_fsutil tests/fsutil_test.cpp LIBS uzume_core)
+uzume_add_test(core_securitycode tests/securitycode_test.cpp LIBS uzume_core)
+uzume_add_test(core_joinlink tests/joinlink_test.cpp LIBS uzume_core)
+uzume_add_test(core_localpin tests/localpin_test.cpp LIBS uzume_core)
 if(WIN32)
   # Writes/reads/deletes a dummy value in the Windows Credential Manager (Windows CI only).
   uzume_add_test(core_windows_credential_store tests/windows_credential_store_test.cpp LIBS uzume_core)

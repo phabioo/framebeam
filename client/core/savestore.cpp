@@ -153,6 +153,25 @@ bool SaveStore::exceedsLegacyPathLimit(const QString& dir, int longestNameChars,
   return QDir::toNativeSeparators(QDir(dir).absolutePath()).size() + 1 + longestNameChars > limit;
 }
 
+int SaveStore::pendingSlotCount(const ProfileStore& profiles, const QString& hubId, const QString& userId) {
+  const QString base = userSavesDir(profiles, hubId, userId);
+  if (base.isEmpty()) {
+    return 0;
+  }
+  int count = 0;
+  const QDir saves(base);
+  for (const QString& game : saves.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+    const QString gameDir = saves.filePath(game);
+    for (const QString& slot : localSlots(gameDir)) {
+      const SyncState st = loadState(slotDirIn(gameDir, slot));
+      if (st.pending || !st.conflictId.isEmpty()) {
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+
 QStringList SaveStore::localSlots(const QString& gameDir) {
   QStringList out;
   if (gameDir.isEmpty()) {

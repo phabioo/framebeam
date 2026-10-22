@@ -20,6 +20,7 @@ struct HubInfo {
   int protocolVersion = 0;
   int minProtocolVersion = 0;
   QString apiBase;
+  bool setupRequired = false;  // `setup_required`: no admin yet, the server waits for setupWithCode; servers before 0.18 omit it
 };
 std::optional<HubInfo> parseHubInfo(const QJsonObject& obj);
 

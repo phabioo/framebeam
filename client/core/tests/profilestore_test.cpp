@@ -318,6 +318,186 @@ class ProfileStoreTest : public QObject {
     QVERIFY(!s.updateHubAddress(QStringLiteral("hub-6"), QStringLiteral("hub2.example.com"), 9443));
     QCOMPARE(s.profile(QStringLiteral("hub-6"))->address, QStringLiteral("https://[::1]:8443"));
   }
+
+  // ---- Several accounts per server (0.18 package 7) ----
+
+  void oldProfileLoadsAsOneAccount() {
+    QTemporaryDir dir;
+    {
+      QFile f(dir.filePath(QStringLiteral("profiles.json")));
+      QVERIFY(f.open(QIODevice::WriteOnly));
+      f.write("{\"version\":1,\"settings\":{},\"profiles\":[{\"hub_id\":\"hub-1\",\"name\":\"Home\",\"address\":\"https://192.0.2.10:8443\","
+              "\"hub_user_id\":\"u_max\",\"user_display_name\":\"Max\",\"user_role\":\"admin\",\"device_id\":\"dev-1\",\"credential_ref\":\"Uzume/hub-1/dev-1\","
+              "\"pinned_fingerprint\":\"AA:BB\",\"last_connected\":\"2026-10-20T10:00:00Z\",\"allow_http\":false},"
+              "{\"hub_id\":\"hub-2\",\"name\":\"Unpaired\",\"address\":\"https://192.0.2.11:8443\",\"device_id\":\"dev-1\"}]}");
+    }
+    ProfileStore s(dir.path());
+    const auto p = s.profile(QStringLiteral("hub-1"));
+    QVERIFY(p.has_value());
+    QCOMPARE(p->accounts.size(), 1);
+    QCOMPARE(p->activeUserId, QStringLiteral("u_max"));
+    const HubAccount a = p->accounts.first();
+    QCOMPARE(a.hubUserId, QStringLiteral("u_max"));
+    QCOMPARE(a.displayName, QStringLiteral("Max"));
+    QCOMPARE(a.role, QStringLiteral("admin"));
+    QCOMPARE(a.deviceId, QStringLiteral("dev-1"));
+    QCOMPARE(a.credentialRef, QStringLiteral("Uzume/hub-1/dev-1"));
+    QVERIFY(!a.hasPin);
+    QCOMPARE(a.pinFailures, 0);
+    QCOMPARE(p->hubUserId, QStringLiteral("u_max"));  // the flat fields stay the active account
+    QVERIFY(s.profile(QStringLiteral("hub-2"))->accounts.isEmpty());
+    QVERIFY(s.profile(QStringLiteral("hub-2"))->activeUserId.isEmpty());
+  }
+
+  void accountsStayInSyncWithTheFlatFields() {
+    QTemporaryDir dir;
+    QString install;
+    {
+      ProfileStore s(dir.path());
+      install = s.installId();
+      QCOMPARE(s.deviceId(), install);
+      HubProfile p;
+      p.hubId = QStringLiteral("hub-1");
+      p.address = QStringLiteral("https://192.0.2.10:8443");
+      QVERIFY(s.upsertProfile(p));
+      QVERIFY(s.accounts(p.hubId).isEmpty());
+      QCOMPARE(s.newAccountDeviceId(p.hubId), install);  // the first account uses the install ID
+
+      // Pairing as Max: the flat fields describe him, the account follows.
+      p.hubUserId = QStringLiteral("u_max");
+      p.userDisplayName = QStringLiteral("Max");
+      p.userRole = QStringLiteral("admin");
+      p.deviceId = install;
+      p.credentialRef = credentialTarget(p.hubId, install);
+      QVERIFY(s.upsertProfile(p));
+      QCOMPARE(s.accounts(p.hubId).size(), 1);
+      QCOMPARE(s.profile(p.hubId)->activeUserId, QStringLiteral("u_max"));
+      QVERIFY(s.newAccountDeviceId(p.hubId) != install);  // a further account gets a fresh one
+      QVERIFY(!QUuid::fromString(s.newAccountDeviceId(p.hubId)).isNull());
+
+      // A stale copy of the profile (with the old accounts list) does not overwrite the accounts.
+      HubProfile stale = *s.profile(p.hubId);
+      HubAccount lena;
+      lena.hubUserId = QStringLiteral("u_lena");
+      lena.displayName = QStringLiteral("Lena");
+      lena.role = QStringLiteral("user");
+      lena.deviceId = QStringLiteral("dev-lena");
+      lena.credentialRef = credentialTarget(p.hubId, lena.deviceId);
+      lena.hasPin = true;
+      QVERIFY(s.upsertAccount(p.hubId, lena));
+      QCOMPARE(s.accounts(p.hubId).size(), 2);
+      QCOMPARE(s.profile(p.hubId)->activeUserId, QStringLiteral("u_max"));  // adding does not switch
+      stale.lastConnected = QDateTime::currentDateTimeUtc();
+      QVERIFY(s.upsertProfile(stale));
+      QCOMPARE(s.accounts(p.hubId).size(), 2);
+      QVERIFY(s.account(p.hubId, QStringLiteral("u_max"))->lastUsed.isValid());  // the flat last-connected time went to Max
+
+      // Switching copies Lena into the flat fields.
+      QVERIFY(s.setActiveAccount(p.hubId, QStringLiteral("u_lena")));
+      HubProfile now = *s.profile(p.hubId);
+      QCOMPARE(now.hubUserId, QStringLiteral("u_lena"));
+      QCOMPARE(now.userDisplayName, QStringLiteral("Lena"));
+      QCOMPARE(now.userRole, QStringLiteral("user"));
+      QCOMPARE(now.deviceId, QStringLiteral("dev-lena"));
+      QCOMPARE(now.credentialRef, lena.credentialRef);
+      QCOMPARE(now.activeUserId, QStringLiteral("u_lena"));
+      QVERIFY(!s.setActiveAccount(p.hubId, QStringLiteral("u_nobody")));
+      QVERIFY(!s.setActiveAccount(QStringLiteral("hub-x"), QStringLiteral("u_lena")));
+
+      // The handshake renames the active account through the profile; the PIN facts survive an upsert of the profile.
+      now.userDisplayName = QStringLiteral("Lena K.");
+      QVERIFY(s.upsertProfile(now));
+      QCOMPARE(s.account(p.hubId, QStringLiteral("u_lena"))->displayName, QStringLiteral("Lena K."));
+      QVERIFY(s.account(p.hubId, QStringLiteral("u_lena"))->hasPin);
+      // An older server sends no name: the known one stays in the account.
+      now.userDisplayName.clear();
+      QVERIFY(s.upsertProfile(now));
+      QCOMPARE(s.account(p.hubId, QStringLiteral("u_lena"))->displayName, QStringLiteral("Lena K."));
+
+      // upsertAccount on the active account moves the flat fields too.
+      HubAccount changed = *s.account(p.hubId, QStringLiteral("u_lena"));
+      changed.pinFailures = 2;
+      changed.displayName = QStringLiteral("Lena");
+      QVERIFY(s.upsertAccount(p.hubId, changed));
+      QCOMPARE(s.profile(p.hubId)->userDisplayName, QStringLiteral("Lena"));
+      QVERIFY(!s.upsertAccount(p.hubId, HubAccount()));
+      QVERIFY(!s.upsertAccount(QStringLiteral("hub-x"), changed));
+    }
+    // Round trip through the file.
+    ProfileStore again(dir.path());
+    const auto p = again.profile(QStringLiteral("hub-1"));
+    QCOMPARE(p->accounts.size(), 2);
+    QCOMPARE(p->activeUserId, QStringLiteral("u_lena"));
+    QCOMPARE(again.account(p->hubId, QStringLiteral("u_lena"))->pinFailures, 2);
+    QVERIFY(again.account(p->hubId, QStringLiteral("u_lena"))->hasPin);
+    QCOMPARE(again.account(p->hubId, QStringLiteral("u_max"))->role, QStringLiteral("admin"));
+    QCOMPARE(again.account(p->hubId, QStringLiteral("u_max"))->deviceId, install);
+  }
+
+  void lostCredentialKeepsThePersonInTheList() {
+    QTemporaryDir dir;
+    ProfileStore s(dir.path());
+    HubProfile p;
+    p.hubId = QStringLiteral("hub-1");
+    p.address = QStringLiteral("https://192.0.2.10:8443");
+    p.hubUserId = QStringLiteral("u_max");
+    p.userDisplayName = QStringLiteral("Max");
+    p.deviceId = s.installId();
+    p.credentialRef = credentialTarget(p.hubId, p.deviceId);
+    QVERIFY(s.upsertProfile(p));
+    // HubConnection::onCredentialInvalid: credential and user ID of the flat fields are cleared.
+    HubProfile lost = *s.profile(p.hubId);
+    lost.credentialRef.clear();
+    lost.hubUserId.clear();
+    QVERIFY(s.upsertProfile(lost));
+    const auto after = s.profile(p.hubId);
+    QVERIFY(after->hubUserId.isEmpty());
+    QVERIFY(after->activeUserId.isEmpty());
+    QCOMPARE(after->accounts.size(), 1);
+    QVERIFY(after->accounts.first().credentialRef.isEmpty());
+    QCOMPARE(after->accounts.first().displayName, QStringLiteral("Max"));
+    QCOMPARE(after->accounts.first().deviceId, s.installId());
+  }
+
+  void removingAccounts() {
+    QTemporaryDir dir;
+    ProfileStore s(dir.path());
+    HubProfile p;
+    p.hubId = QStringLiteral("hub-1");
+    p.address = QStringLiteral("https://192.0.2.10:8443");
+    p.hubUserId = QStringLiteral("u_max");
+    p.userDisplayName = QStringLiteral("Max");
+    p.deviceId = s.installId();
+    p.credentialRef = credentialTarget(p.hubId, p.deviceId);
+    QVERIFY(s.upsertProfile(p));
+    HubAccount lena;
+    lena.hubUserId = QStringLiteral("u_lena");
+    lena.deviceId = QStringLiteral("dev-lena");
+    lena.credentialRef = credentialTarget(p.hubId, lena.deviceId);
+    QVERIFY(s.upsertAccount(p.hubId, lena));
+
+    // A person who is not the active one: the flat fields stay.
+    QVERIFY(s.removeAccount(p.hubId, QStringLiteral("u_lena")));
+    QCOMPARE(s.accounts(p.hubId).size(), 1);
+    QCOMPARE(s.profile(p.hubId)->hubUserId, QStringLiteral("u_max"));
+    QVERIFY(s.removeAccount(p.hubId, QStringLiteral("u_lena")));  // already gone: fine
+    QVERIFY(!s.removeAccount(QStringLiteral("hub-x"), QStringLiteral("u_max")));
+
+    // The active one: the flat user fields are cleared; the last account leaves the install ID for the next first account.
+    QVERIFY(s.upsertAccount(p.hubId, lena));
+    QVERIFY(s.removeAccount(p.hubId, QStringLiteral("u_max")));
+    HubProfile after = *s.profile(p.hubId);
+    QVERIFY(after.hubUserId.isEmpty());
+    QVERIFY(after.credentialRef.isEmpty());
+    QVERIFY(after.activeUserId.isEmpty());
+    QVERIFY(after.userDisplayName.isEmpty());
+    QCOMPARE(after.accounts.size(), 1);
+    QVERIFY(after.deviceId != s.installId());  // somebody else is still there: a fresh device ID for the next person
+    QVERIFY(s.setActiveAccount(p.hubId, QStringLiteral("u_lena")));
+    QVERIFY(s.removeAccount(p.hubId, QStringLiteral("u_lena")));
+    QVERIFY(s.profile(p.hubId)->accounts.isEmpty());
+    QCOMPARE(s.profile(p.hubId)->deviceId, s.installId());
+  }
 };
 
 QTEST_GUILESS_MAIN(ProfileStoreTest)

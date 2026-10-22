@@ -17,6 +17,7 @@ std::optional<HubInfo> parseHubInfo(const QJsonObject& obj) {
   i.protocolVersion = obj.value(QStringLiteral("protocol_version")).toInt(0);
   i.minProtocolVersion = obj.value(QStringLiteral("min_protocol_version")).toInt(0);
   i.apiBase = obj.value(QStringLiteral("api_base")).toString();
+  i.setupRequired = obj.value(QStringLiteral("setup_required")).toBool(false);
   if (i.hubId.isEmpty() || i.protocolVersion < 1 || i.minProtocolVersion < 1) {
     return std::nullopt;
   }

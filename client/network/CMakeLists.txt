@@ -24,6 +24,7 @@ target_sources(uzume_core PRIVATE
   connectioncheck.cpp
   connectionprobes.cpp
   reportuploader.cpp
+  accountapi.cpp
 )
 target_link_libraries(uzume_core PUBLIC Qt6::WebSockets)
 target_include_directories(uzume_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -48,11 +49,12 @@ uzume_add_test(network_pluginhub tests/pluginhub_test.cpp ${FB_FAKEHUB} LIBS uzu
 uzume_add_test(network_runs tests/runclient_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
 uzume_add_test(network_report_upload tests/report_upload_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
 uzume_add_test(network_local_roms tests/local_roms_test.cpp ${FB_FAKEHUB} LIBS uzume_core uzume_emulation)
+uzume_add_test(network_accounts tests/accounts_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
 uzume_add_test(network_corechoice tests/corechoice_test.cpp LIBS uzume_core)
 uzume_add_test(network_connectioncheck tests/connectioncheck_test.cpp LIBS uzume_core)
 uzume_add_test(network_connectionprobes tests/connectionprobes_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
 if(BUILD_TESTING)
-  foreach(t network_hub_flow network_library_rom network_savesync network_sessions network_hub_features network_coreprovisioner network_coreupdater network_pluginhub network_runs network_local_roms network_report_upload network_connectionprobes)
+  foreach(t network_hub_flow network_library_rom network_savesync network_sessions network_hub_features network_coreprovisioner network_coreupdater network_pluginhub network_runs network_local_roms network_report_upload network_connectionprobes network_accounts)
     target_compile_definitions(test_${t} PRIVATE FB_TEST_DATA_DIR="${FB_TESTDATA_DIR}")
   endforeach()
   # The longest test (about 110 s on Windows CI) starts first under ctest -j: a fresh CI build has no cost data.

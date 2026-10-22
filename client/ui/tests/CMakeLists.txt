@@ -259,3 +259,10 @@ if(NOT WIN32)
     set_tests_properties(${t}_widefont PROPERTIES ENVIRONMENT "${core_env};UZUME_TEST_WIDE_FONT=16")
   endforeach()
 endif()
+
+# First start, join and set-up flow and the people on this PC (OnboardingController, AccountsController) against the fake
+# server; no window.
+uzume_add_test(ui_start_accounts start_accounts_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_start_accounts PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_start_accounts PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")

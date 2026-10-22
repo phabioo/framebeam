@@ -42,6 +42,8 @@ qt_add_qml_module(uzume_ui
     keyedrowsmodel.h keyedrowsmodel.cpp
     runscontroller.h runscontroller.cpp
     connectioncheckcontroller.h connectioncheckcontroller.cpp
+    onboardingcontroller.h onboardingcontroller.cpp
+    accountscontroller.h accountscontroller.cpp
     pluginimageprovider.h pluginimageprovider.cpp
   QML_FILES
     Main.qml

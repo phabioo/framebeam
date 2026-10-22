@@ -2,8 +2,15 @@
 
 #include <QLoggingCategory>
 #include <QSslConfiguration>
+#include <QUuid>
 #include <algorithm>
+#include <memory>
 #include <utility>
+
+#include "joinlink.h"
+#include "localpin.h"
+#include "savestore.h"
+#include "securitycode.h"
 
 namespace uzume {
 
@@ -75,6 +82,7 @@ void HubConnection::fail(State s, const QString& code, const QString& message) {
   errorCode_ = code;
   errorMessage_ = message;
   qCWarning(lcHub) << "error" << code << message;
+  errorRetryAfter_ = 0;
   setState(s);
   emit errorOccurred(code, message);
 }
@@ -106,13 +114,50 @@ void HubConnection::reset() {
   incompatible_ = IncompatibleReason::None;
   errorCode_.clear();
   errorMessage_.clear();
+  errorRetryAfter_ = 0;
   observedFp_.clear();
   pin_.clear();
+  expectedFp_.clear();
+  linkTrusted_ = false;
+  mode_ = IdentifyMode::Normal;
+  modeUserId_.clear();
+  signInName_.clear();
 }
 
 void HubConnection::disconnectFromHub() {
   reset();
+  nextExpectedFp_.clear();
   setState(State::Disconnected);
+}
+
+QString HubConnection::securityCode() const { return securityCodeFromFingerprint(observedFp_); }
+
+void HubConnection::setExpectedFingerprint(const QString& fingerprint) {
+  nextExpectedFp_ = normalizeFingerprint(fingerprint);
+}
+
+QString HubConnection::pairingDeviceId() const {
+  return profile_ && !profile_->deviceId.isEmpty() ? profile_->deviceId : profiles_->installId();
+}
+
+// Fields every request that registers this device carries. `versionKey`: sign-in calls the app version `app_version`, the
+// other requests `player_version`.
+QJsonObject HubConnection::deviceFields(const QString& versionKey) const {
+  return QJsonObject{{QStringLiteral("device_id"), pairingDeviceId()},
+                     {QStringLiteral("device_name"), profiles_->deviceName()},
+                     {QStringLiteral("platform"), handshake_.platform},
+                     {QStringLiteral("arch"), handshake_.arch},
+                     {versionKey, handshake_.playerVersion},
+                     {QStringLiteral("protocol_version"), handshake_.protocolVersion},
+                     {QStringLiteral("install_id"), profiles_->installId()}};
+}
+
+// An error of an action that keeps the state (the form stays open): reported through errorOccurred only.
+void HubConnection::reportError(const QString& code, const QString& message, int retryAfterSec) {
+  errorCode_ = code;
+  errorMessage_ = message;
+  errorRetryAfter_ = retryAfterSec;
+  emit errorOccurred(code, message);
 }
 
 void HubConnection::track(QNetworkReply* reply, Handler handler) {
@@ -134,10 +179,6 @@ QString HubConnection::apiPath(const QString& rel) const {
 
 // ---------------------------------------------------------------- Identification
 
-namespace {
-constexpr int kDefaultHubPort = 8443;
-}  // namespace
-
 void HubConnection::connectToAddress(const QString& address, bool allowHttp) {
   startIdentify(address, allowHttp, std::nullopt);
 }
@@ -152,12 +193,46 @@ void HubConnection::connectToProfile(const QString& hubId) {
   startIdentify(p->address, p->allowHttp, p);
 }
 
-void HubConnection::startIdentify(const QString& addressInput, bool allowHttp, std::optional<HubProfile> existing) {
+void HubConnection::connectToProfileAs(const QString& hubId, const QString& userId) {
+  if (!profiles_->account(hubId, userId) || !profiles_->setActiveAccount(hubId, userId)) {
+    disconnectFromHub();
+    fail(State::Disconnected, QStringLiteral("unknown_account"), QStringLiteral("Unknown account"));
+    return;
+  }
+  connectToProfile(hubId);
+}
+
+void HubConnection::beginAddAccount(const QString& hubId) {
+  const auto p = profiles_->profile(hubId);
+  if (!p) {
+    disconnectFromHub();
+    fail(State::Disconnected, QStringLiteral("unknown_profile"), QStringLiteral("Unknown hub profile"));
+    return;
+  }
+  startIdentify(p->address, p->allowHttp, p, IdentifyMode::AddAccount);
+}
+
+void HubConnection::beginSignInAs(const QString& hubId, const QString& userId) {
+  const auto p = profiles_->profile(hubId);
+  if (!p || !profiles_->account(hubId, userId)) {
+    disconnectFromHub();
+    fail(State::Disconnected, QStringLiteral("unknown_account"), QStringLiteral("Unknown account"));
+    return;
+  }
+  startIdentify(p->address, p->allowHttp, p, IdentifyMode::SignInAs, userId);
+}
+
+void HubConnection::startIdentify(const QString& addressInput, bool allowHttp, std::optional<HubProfile> existing,
+                                  IdentifyMode mode, const QString& userId) {
+  const QString expected = std::exchange(nextExpectedFp_, QString());
   if (state_ != State::Disconnected) {
     disconnectFromHub();  // disconnect the old connection first
   } else {
     reset();
   }
+  expectedFp_ = expected;
+  mode_ = mode;
+  modeUserId_ = userId;
   QString text = addressInput.trimmed();
   if (!text.contains(QLatin1String("://"))) {
     text.prepend(QStringLiteral("https://"));
@@ -256,6 +331,17 @@ void HubConnection::onIdentified(const HttpResult& r) {
     }
   }
 
+  // Invite link: the link carries the security code of the server's certificate, so there is nothing to compare by eye. A
+  // different certificate is a hard stop; nothing has been sent but the info request.
+  if (tls && !expectedFp_.isEmpty()) {
+    if (!HubHttp::fingerprintsEqual(observedFp_, expectedFp_)) {
+      fail(State::Disconnected, QStringLiteral("security_code_mismatch"),
+           QStringLiteral("The server's security code differs from the one in the link"));
+      return;
+    }
+    linkTrusted_ = true;
+  }
+
   if (info->minProtocolVersion > handshake_.protocolVersion) {
     incompatible_ = IncompatibleReason::PlayerTooOld;
     fail(State::Incompatible, QStringLiteral("player_too_old"), QStringLiteral("The Uzume app is too old for this server"));
@@ -270,6 +356,12 @@ void HubConnection::onIdentified(const HttpResult& r) {
   if (tls && pin_.isEmpty()) {
     if (observedFp_.isEmpty()) {
       fail(State::Unreachable, QStringLiteral("no_certificate"), QStringLiteral("The hub did not provide a certificate"));
+      return;
+    }
+    if (linkTrusted_) {
+      pin_ = observedFp_;  // the link vouches for exactly this certificate
+      http_->setPinnedFingerprint(pin_);
+      trusted();
       return;
     }
     setState(State::NeedsTrustConfirmation);
@@ -317,11 +409,25 @@ void HubConnection::trusted() {
   p.address = address_;
   p.pinnedFingerprint = pin_;
   p.allowHttp = allowHttp_;
-  p.deviceId = profiles_->deviceId();
+  if (p.deviceId.isEmpty()) {
+    p.deviceId = profiles_->newAccountDeviceId(p.hubId);  // install ID for the first account on this server
+  }
   if (!profiles_->upsertProfile(p)) {
     qCWarning(lcHub) << "profiles.json could not be written";
   }
-  profile_ = p;
+  profile_ = profiles_->profile(p.hubId).value_or(p);
+  if (mode_ != IdentifyMode::Normal) {
+    // Nothing of the stored accounts changes until the sign-in succeeded: the in-memory profile describes the request.
+    const auto account = mode_ == IdentifyMode::SignInAs ? profiles_->account(p.hubId, modeUserId_) : std::nullopt;
+    profile_->hubUserId = account ? account->hubUserId : QString();
+    profile_->userDisplayName = account ? account->displayName : QString();
+    profile_->userRole = account ? account->role : QString();
+    profile_->credentialRef.clear();
+    profile_->activeUserId.clear();
+    profile_->deviceId = account ? account->deviceId : QUuid::createUuid().toString(QUuid::WithoutBraces);
+    setState(State::NeedsPairing);
+    return;
+  }
   if (!p.credentialRef.isEmpty() && readCredential(*credentials_, p.credentialRef).has_value()) {
     authenticate();
   } else {
@@ -335,12 +441,8 @@ void HubConnection::requestPairing() {
   if (state_ != State::NeedsPairing && state_ != State::Denied && state_ != State::Expired) {
     return;
   }
-  const QJsonObject body{{QStringLiteral("device_id"), profiles_->deviceId()},
-                         {QStringLiteral("device_name"), profiles_->deviceName()},
-                         {QStringLiteral("platform"), handshake_.platform},
-                         {QStringLiteral("arch"), handshake_.arch},
-                         {QStringLiteral("player_version"), handshake_.playerVersion},
-                         {QStringLiteral("protocol_version"), handshake_.protocolVersion}};
+  signInName_.clear();
+  const QJsonObject body = deviceFields(QStringLiteral("player_version"));
   QNetworkReply* reply = http_->postJson(apiPath(QStringLiteral("/pairing/requests")), body);
   track(reply, [this](const HttpResult& r) {
     if (handleCommonFailure(r)) {
@@ -370,27 +472,27 @@ void HubConnection::onPairingAccepted(const QJsonObject& o) {
   pollTimer_.start(pollIntervalMs_);
 }
 
-void HubConnection::redeemInvite(const QString& code, const QString& displayName) {
+void HubConnection::redeemInvite(const QString& code, const QString& displayName, const QString& password) {
   if (state_ != State::NeedsPairing && state_ != State::Denied && state_ != State::Expired) {
     return;
   }
   const QString name = displayName.trimmed();
-  const QString normalized = code.trimmed().toUpper();
+  const QString invite = normalizeInviteCode(code);
+  const QString normalized = invite.isEmpty() ? code.trimmed().toUpper() : invite;
   if (normalized.isEmpty() || name.isEmpty() || name.size() > 32) {
     errorCode_ = QStringLiteral("invalid_input");
     errorMessage_.clear();
     emit errorOccurred(errorCode_, errorMessage_);
     return;
   }
-  const QJsonObject body{{QStringLiteral("code"), normalized},
-                         {QStringLiteral("display_name"), name},
-                         {QStringLiteral("device_id"), profiles_->deviceId()},
-                         {QStringLiteral("device_name"), profiles_->deviceName()},
-                         {QStringLiteral("platform"), handshake_.platform},
-                         {QStringLiteral("arch"), handshake_.arch},
-                         {QStringLiteral("player_version"), handshake_.playerVersion},
-                         {QStringLiteral("protocol_version"), handshake_.protocolVersion}};
-  // The code is a secret until redeemed: it is never logged.
+  signInName_.clear();
+  QJsonObject body = deviceFields(QStringLiteral("player_version"));
+  body.insert(QStringLiteral("code"), normalized);
+  body.insert(QStringLiteral("display_name"), name);
+  if (!password.isEmpty()) {
+    body.insert(QStringLiteral("password"), password);
+  }
+  // The code and the password are secrets: they are never logged.
   QNetworkReply* reply = http_->postJson(apiPath(QStringLiteral("/invites/redeem")), body);
   track(reply, [this](const HttpResult& r) {
     if (handleCommonFailure(r)) {
@@ -398,7 +500,7 @@ void HubConnection::redeemInvite(const QString& code, const QString& displayName
     }
     const QJsonObject o = r.json();
     if (r.status == 200 && o.value(QStringLiteral("status")).toString() == QLatin1String("approved")) {
-      onPairingApproved(o);  // credential delivered once; stored like a normal pairing, then token + handshake
+      onPairingApproved(o, /*passwordProof=*/true);  // credential delivered once; stored like a normal pairing, then token + handshake
       return;
     }
     if (r.status == 202) {
@@ -456,14 +558,10 @@ void HubConnection::localPairingRequest(const QString& path, const QString& user
     emit errorOccurred(errorCode_, errorMessage_);
     return;
   }
-  const QJsonObject body{{QStringLiteral("username"), username.trimmed()},
-                         {QStringLiteral("password"), password},
-                         {QStringLiteral("device_id"), profiles_->deviceId()},
-                         {QStringLiteral("device_name"), profiles_->deviceName()},
-                         {QStringLiteral("platform"), handshake_.platform},
-                         {QStringLiteral("arch"), handshake_.arch},
-                         {QStringLiteral("player_version"), handshake_.playerVersion},
-                         {QStringLiteral("protocol_version"), handshake_.protocolVersion}};
+  signInName_.clear();
+  QJsonObject body = deviceFields(QStringLiteral("player_version"));
+  body.insert(QStringLiteral("username"), username.trimmed());
+  body.insert(QStringLiteral("password"), password);
   // The password is a secret: it is never logged.
   QNetworkReply* reply = http_->postJson(apiPath(path), body);
   track(reply, [this](const HttpResult& r) {
@@ -471,7 +569,7 @@ void HubConnection::localPairingRequest(const QString& path, const QString& user
       return;
     }
     if (r.status == 200 || r.status == 201) {
-      onPairingApproved(r.json());  // same payload as an approved pairing: credential stored once, token + handshake
+      onPairingApproved(r.json(), /*passwordProof=*/true);  // same payload as an approved pairing: credential stored once, token + handshake
       return;
     }
     const QString code = r.apiErrorCode.isEmpty() ? QStringLiteral("local_setup_failed") : r.apiErrorCode;
@@ -535,7 +633,7 @@ void HubConnection::pollPairing() {
   });
 }
 
-void HubConnection::onPairingApproved(const QJsonObject& obj) {
+void HubConnection::onPairingApproved(const QJsonObject& obj, bool passwordProof) {
   pollToken_.clear();
   const QString hubId = obj.value(QStringLiteral("hub_id")).toString();
   const QString userId = obj.value(QStringLiteral("user_id")).toString();
@@ -544,16 +642,22 @@ void HubConnection::onPairingApproved(const QJsonObject& obj) {
     fail(State::NeedsPairing, QStringLiteral("pairing_invalid_response"), QStringLiteral("Invalid approval response from the hub"));
     return;
   }
-  const QString target = credentialTarget(hubInfo_.hubId, profiles_->deviceId());
+  const QString deviceId = pairingDeviceId();
+  const QString target = credentialTarget(hubInfo_.hubId, deviceId);
   if (!credentials_->write(target, credential)) {
     // The hub delivers the credential only once; pairing must be repeated.
     fail(State::NeedsPairing, QStringLiteral("credential_store_failed"),
          QStringLiteral("The device credential could not be saved to the credential store"));
     return;
   }
+  // The same person may already be on this PC (signed out, or another device): the new credential replaces the old one.
+  const std::optional<HubAccount> previous = profiles_->account(hubInfo_.hubId, userId);
+  const QString signInName = std::exchange(signInName_, QString());
   HubProfile p = profile_.value_or(HubProfile());
   p.hubUserId = userId;
-  p.deviceId = profiles_->deviceId();
+  p.userDisplayName = previous ? previous->displayName : QString();  // the handshake fills in the name of a new person
+  p.userRole = previous ? previous->role : QString();
+  p.deviceId = deviceId;
   p.credentialRef = target;
   if (!profiles_->upsertProfile(p)) {
     // Without the profile the credential would be orphaned (no credentialRef) and the next start would need a new pairing.
@@ -562,7 +666,34 @@ void HubConnection::onPairingApproved(const QJsonObject& obj) {
          QStringLiteral("The pairing could not be saved to the profile file"));
     return;
   }
-  profile_ = p;
+  if (previous && !previous->credentialRef.isEmpty() && previous->credentialRef != target) {
+    removeCredential(*credentials_, previous->credentialRef);
+    LocalPin::removeStored(*credentials_, hubInfo_.hubId, previous->deviceId);
+    if (previous->hasPin) {
+      // The PIN was bound to the old device ID: it is gone with it (set a new one in My account).
+      HubAccount a = *profiles_->account(hubInfo_.hubId, userId);
+      a.hasPin = false;
+      a.pinFailures = 0;
+      profiles_->upsertAccount(hubInfo_.hubId, a);
+    }
+  }
+  if (auto a = profiles_->account(hubInfo_.hubId, userId)) {
+    bool changed = false;
+    if (!signInName.isEmpty() && a->username != signInName) {
+      a->username = signInName;  // remembered as the hint for "password once"
+      changed = true;
+    }
+    if (passwordProof && a->pinFailures != 0) {
+      a->pinFailures = 0;  // a password sign-in or an invite unlocks a PIN that was locked by wrong tries
+      changed = true;
+    }
+    if (changed) {
+      profiles_->upsertAccount(hubInfo_.hubId, *a);
+    }
+  }
+  mode_ = IdentifyMode::Normal;
+  hubInfo_.setupRequired = false;
+  profile_ = profiles_->profile(hubInfo_.hubId).value_or(p);
   authenticate();
 }
 
@@ -710,7 +841,7 @@ void HubConnection::doHandshake() {
     p.userRole = res->userRole;
     profiles_->upsertProfile(p);
     profiles_->setLastHubId(p.hubId);
-    profile_ = p;
+    profile_ = profiles_->profile(p.hubId).value_or(p);
     setState(State::Connected);
   });
 }
@@ -724,8 +855,8 @@ void HubConnection::onCredentialInvalid(const QString& code, const QString& mess
     HubProfile p = *profile_;
     p.credentialRef.clear();
     p.hubUserId.clear();
-    profiles_->upsertProfile(p);
-    profile_ = p;
+    profiles_->upsertProfile(p);  // the person stays in the list of this PC and needs the password once
+    profile_ = profiles_->profile(p.hubId).value_or(p);
   }
   fail(State::NeedsPairing, code, message);
 }
@@ -754,8 +885,153 @@ void HubConnection::removeProfile(const QString& hubId) {
     if (!p->credentialRef.isEmpty()) {
       removeCredential(*credentials_, p->credentialRef);
     }
+    for (const HubAccount& a : p->accounts) {
+      if (!a.credentialRef.isEmpty()) {
+        removeCredential(*credentials_, a.credentialRef);
+      }
+      LocalPin::removeStored(*credentials_, hubId, a.deviceId);
+    }
   }
   profiles_->removeProfile(hubId);
+}
+
+// ---------------------------------------------------------------- Sign-in, set-up, people on this PC
+
+void HubConnection::signIn(const QString& username, const QString& password) {
+  if (state_ != State::NeedsPairing && state_ != State::Denied && state_ != State::Expired) {
+    return;
+  }
+  const QString name = username.trimmed();
+  if (name.isEmpty() || password.isEmpty()) {
+    reportError(QStringLiteral("invalid_input"), QString());
+    return;
+  }
+  // The password is a secret: it is never logged.
+  QJsonObject fields{{QStringLiteral("username"), name}, {QStringLiteral("password"), password}};
+  signInName_ = name;
+  sendDeviceRequest(QStringLiteral("/auth/sign-in"), fields, QStringLiteral("app_version"), QStringLiteral("sign_in_failed"),
+                    /*retryOnConflict=*/true);
+}
+
+void HubConnection::setupWithCode(const QString& setupCode, const QString& username, const QString& password) {
+  if (state_ != State::NeedsPairing && state_ != State::Denied && state_ != State::Expired) {
+    return;
+  }
+  if (!hubInfo_.setupRequired) {
+    reportError(QStringLiteral("already_set_up"), QStringLiteral("This server is already set up"));
+    return;
+  }
+  const QString code = normalizeCode(setupCode);
+  const QString name = username.trimmed();
+  if (code.isEmpty() || name.isEmpty() || password.isEmpty()) {
+    reportError(QStringLiteral("invalid_input"), QString());
+    return;
+  }
+  // The setup code and the password are secrets: they are never logged.
+  QJsonObject fields{{QStringLiteral("setup_code"), code}, {QStringLiteral("username"), name}, {QStringLiteral("password"), password}};
+  signInName_ = name;
+  sendDeviceRequest(QStringLiteral("/setup"), fields, QStringLiteral("player_version"), QStringLiteral("setup_failed"),
+                    /*retryOnConflict=*/false);
+}
+
+// POST of a request that registers this device with a password (sign-in, set-up). The answer is an approved pairing.
+// Errors keep the state; a missing answer after requestTimeoutMs_ is "unreachable".
+void HubConnection::sendDeviceRequest(const QString& path, const QJsonObject& fields, const QString& versionKey,
+                                      const QString& fallbackCode, bool retryOnConflict) {
+  if (http_ == nullptr) {
+    return;
+  }
+  errorRetryAfter_ = 0;
+  QJsonObject body = deviceFields(versionKey);
+  for (auto it = fields.begin(); it != fields.end(); ++it) {
+    body.insert(it.key(), it.value());
+  }
+  QNetworkReply* reply = http_->postJson(apiPath(path), body);
+  auto timedOut = std::make_shared<bool>(false);
+  QTimer::singleShot(requestTimeoutMs_, reply, [reply, timedOut]() {
+    if (reply->isRunning()) {
+      *timedOut = true;
+      reply->abort();
+    }
+  });
+  track(reply, [this, path, fields, versionKey, fallbackCode, retryOnConflict, timedOut](const HttpResult& r) {
+    if (r.certMismatch) {
+      handleCommonFailure(r);
+      return;
+    }
+    if (r.networkError) {
+      reportError(QStringLiteral("unreachable"),
+                  *timedOut ? QStringLiteral("No answer from the server after %1 seconds").arg(requestTimeoutMs_ / 1000)
+                            : r.errorString);
+      return;
+    }
+    const QJsonObject o = r.json();
+    if ((r.status == 200 || r.status == 201) && !o.value(QStringLiteral("device_credential")).toString().isEmpty()) {
+      onPairingApproved(o, /*passwordProof=*/true);
+      return;
+    }
+    if (r.status == 202) {
+      onPairingAccepted(o);
+      return;
+    }
+    if (r.status == 409 && r.apiErrorCode == QLatin1String("conflict") && retryOnConflict && profile_) {
+      // The device ID belongs to another person's device: take a fresh one and try again once.
+      profile_->deviceId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+      sendDeviceRequest(path, fields, versionKey, fallbackCode, /*retryOnConflict=*/false);
+      return;
+    }
+    if (r.status == 404 || r.status == 405) {
+      reportError(QStringLiteral("hub_too_old"), r.apiErrorMessage);  // a server before accounts_v1 has no such endpoint
+      return;
+    }
+    reportError(r.apiErrorCode.isEmpty() ? fallbackCode : r.apiErrorCode, r.apiErrorMessage, r.retryAfterSec);
+  });
+}
+
+int HubConnection::pendingSaves(const QString& hubId, const QString& userId) const {
+  return SaveStore::pendingSlotCount(*profiles_, hubId, userId);
+}
+
+void HubConnection::forgetAccountLocally(const QString& hubId, const HubAccount& account) {
+  if (!account.credentialRef.isEmpty()) {
+    removeCredential(*credentials_, account.credentialRef);
+  }
+  LocalPin::removeStored(*credentials_, hubId, account.deviceId);
+  profiles_->removeAccount(hubId, account.hubUserId);
+  emit accountRemoved(hubId, account.hubUserId);
+}
+
+HubConnection::RemoveResult HubConnection::removeAccountFromThisPc(const QString& hubId, const QString& userId, bool force) {
+  const auto account = profiles_->account(hubId, userId);
+  if (!account) {
+    return RemoveResult::Unknown;
+  }
+  if (!force && pendingSaves(hubId, userId) > 0) {
+    return RemoveResult::PendingSaves;
+  }
+  const bool connectedAsIt = state_ == State::Connected && http_ != nullptr && profile_ && profile_->hubId == hubId &&
+                             profile_->hubUserId == userId && !accessToken_.isEmpty();
+  if (!connectedAsIt) {
+    forgetAccountLocally(hubId, *account);
+    if (profile_ && profile_->hubId == hubId) {
+      profile_ = profiles_->profile(hubId);  // the active account may have changed
+    }
+    return RemoveResult::Removed;
+  }
+  // The connected person: the device revokes itself on the server (best effort, the answer does not matter), then the
+  // connection ends and the person is forgotten here. The request carries its own copy of the token.
+  QNetworkReply* reply = http_->postJson(apiPath(QStringLiteral("/auth/revoke")), {}, accessToken_);
+  track(reply, [](const HttpResult& r) {
+    if (r.status != 204 && r.status != 401) {
+      qCWarning(lcHub) << "Device revoke on removal answered" << r.status;
+    }
+  });
+  refreshTimer_.stop();
+  accessToken_.clear();
+  forgetAccountLocally(hubId, *account);
+  profile_ = profiles_->profile(hubId);
+  setState(State::NeedsPairing);
+  return RemoveResult::Revoking;
 }
 
 QNetworkReply* HubConnection::authorizedGet(const QString& apiRelPath, const HttpHeaders& headers) {

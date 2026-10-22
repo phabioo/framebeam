@@ -466,6 +466,28 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     // Paired with the Hub on this PC: show Settings, where its card (network sharing, ROM folder) is.
     connect(localHub_.get(), &LocalHubController::setupCompleted, this, &PlayerController::showSettings);
   }
+  {
+    OnboardingController::Deps od;
+    od.conn = conn_.get();
+    od.profiles = profiles_.get();
+    od.credentials = credentials_.get();
+    od.settings = settings_.get();
+    od.allowHttp = options_.allowHttp;
+    od.gameRunning = [this]() { return sessionBusy(); };
+    od.endRunningWork = [this]() { endRunningWork(); };
+    od.addLibraryFolder = [this](const QString& path) { addLibraryFolder(path); };
+    od.startLocalHub = [this]() { localHub_->start(); };
+    onboarding_ = std::make_unique<OnboardingController>(od);
+    AccountsController::Deps ad;
+    ad.conn = conn_.get();
+    ad.profiles = profiles_.get();
+    ad.credentials = credentials_.get();
+    ad.gameRunning = od.gameRunning;
+    ad.endRunningWork = od.endRunningWork;
+    accounts_ = std::make_unique<AccountsController>(ad);
+    connect(onboarding_.get(), &OnboardingController::changed, this, &PlayerController::updateScreen);
+    connect(accounts_.get(), &AccountsController::changed, this, &PlayerController::updateScreen);
+  }
   connect(sessions_.get(), &SessionController::watchChanged, this, [this]() {
     // Watching a Session from the Library while a game is in the background shows the game view again (multiview with
     // the paused game); the game stays paused until the user resumes it.
@@ -883,6 +905,8 @@ void PlayerController::updateScreen() {
   const S s = conn_->state();
   if ((gameActive_ && !background_) || (sessions_ && sessions_->watching())) {
     next = QStringLiteral("game");
+  } else if ((onboarding_ && onboarding_->takesScreen()) || (accounts_ && accounts_->takesScreen())) {
+    next = QStringLiteral("start");
   } else if (s == S::Connected) {
     next = page_;
   } else if (s == S::NeedsTrustConfirmation || s == S::NeedsPairing || s == S::AwaitingApproval || s == S::Denied ||
@@ -2032,6 +2056,7 @@ void PlayerController::quitGame() {
   finishRunStart();
   updateScreen();
   emit selectedGameChanged();
+  if (onboarding_) onboarding_->gameEnded();
 }
 
 // ---------------------------------------------------------------- Runs

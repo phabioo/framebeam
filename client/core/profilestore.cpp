@@ -38,6 +38,64 @@ bool writeJsonFile(const QString& path, const QJsonObject& obj) {
   return f.commit();
 }
 
+QJsonObject toJson(const HubAccount& a) {
+  QJsonObject o;
+  o.insert(QStringLiteral("hub_user_id"), a.hubUserId);
+  o.insert(QStringLiteral("display_name"), a.displayName);
+  o.insert(QStringLiteral("username"), a.username);
+  o.insert(QStringLiteral("role"), a.role);
+  o.insert(QStringLiteral("device_id"), a.deviceId);
+  o.insert(QStringLiteral("credential_ref"), a.credentialRef);
+  o.insert(QStringLiteral("last_used"), a.lastUsed.isValid() ? a.lastUsed.toUTC().toString(Qt::ISODate) : QString());
+  o.insert(QStringLiteral("has_pin"), a.hasPin);
+  o.insert(QStringLiteral("pin_failures"), a.pinFailures);
+  return o;
+}
+
+HubAccount accountFromJson(const QJsonObject& o) {
+  HubAccount a;
+  a.hubUserId = o.value(QStringLiteral("hub_user_id")).toString();
+  a.displayName = o.value(QStringLiteral("display_name")).toString();
+  a.username = o.value(QStringLiteral("username")).toString();
+  a.role = o.value(QStringLiteral("role")).toString();
+  a.deviceId = o.value(QStringLiteral("device_id")).toString();
+  a.credentialRef = o.value(QStringLiteral("credential_ref")).toString();
+  a.lastUsed = QDateTime::fromString(o.value(QStringLiteral("last_used")).toString(), Qt::ISODate);
+  a.hasPin = o.value(QStringLiteral("has_pin")).toBool(false);
+  a.pinFailures = o.value(QStringLiteral("pin_failures")).toInt(0);
+  return a;
+}
+
+// The account the flat fields of a profile describe.
+HubAccount accountFromFlat(const HubProfile& p) {
+  HubAccount a;
+  a.hubUserId = p.hubUserId;
+  a.displayName = p.userDisplayName;
+  a.role = p.userRole;
+  a.deviceId = p.deviceId;
+  a.credentialRef = p.credentialRef;
+  a.lastUsed = p.lastConnected;
+  return a;
+}
+
+void copyAccountToFlat(HubProfile& p, const HubAccount& a) {
+  p.hubUserId = a.hubUserId;
+  p.userDisplayName = a.displayName;
+  p.userRole = a.role;
+  p.deviceId = a.deviceId;
+  p.credentialRef = a.credentialRef;
+  p.activeUserId = a.hubUserId;
+}
+
+qsizetype accountIndex(const QList<HubAccount>& list, const QString& userId) {
+  for (qsizetype i = 0; i < list.size(); ++i) {
+    if (list.at(i).hubUserId == userId) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 QJsonObject toJson(const HubProfile& p) {
   QJsonObject o;
   o.insert(QStringLiteral("hub_id"), p.hubId);
@@ -52,6 +110,12 @@ QJsonObject toJson(const HubProfile& p) {
   o.insert(QStringLiteral("last_connected"),
            p.lastConnected.isValid() ? p.lastConnected.toUTC().toString(Qt::ISODate) : QString());
   o.insert(QStringLiteral("allow_http"), p.allowHttp);
+  QJsonArray accounts;
+  for (const HubAccount& a : p.accounts) {
+    accounts.append(toJson(a));
+  }
+  o.insert(QStringLiteral("accounts"), accounts);
+  o.insert(QStringLiteral("active_user_id"), p.activeUserId);
   return o;
 }
 
@@ -68,6 +132,24 @@ HubProfile fromJson(const QJsonObject& o) {
   p.pinnedFingerprint = o.value(QStringLiteral("pinned_fingerprint")).toString();
   p.lastConnected = QDateTime::fromString(o.value(QStringLiteral("last_connected")).toString(), Qt::ISODate);
   p.allowHttp = o.value(QStringLiteral("allow_http")).toBool(false);
+  if (o.contains(QStringLiteral("accounts"))) {
+    for (const QJsonValue& v : o.value(QStringLiteral("accounts")).toArray()) {
+      const HubAccount a = accountFromJson(v.toObject());
+      if (!a.hubUserId.isEmpty() && accountIndex(p.accounts, a.hubUserId) < 0) {
+        p.accounts.append(a);
+      }
+    }
+    p.activeUserId = o.value(QStringLiteral("active_user_id")).toString();
+    if (const qsizetype i = accountIndex(p.accounts, p.activeUserId); i >= 0) {
+      copyAccountToFlat(p, p.accounts.at(i));  // the flat fields are the active account
+    } else {
+      p.activeUserId.clear();
+    }
+  } else if (!p.hubUserId.isEmpty()) {
+    // Profile of an older version: the one paired person is the one account.
+    p.accounts.append(accountFromFlat(p));
+    p.activeUserId = p.hubUserId;
+  }
   return p;
 }
 
@@ -323,18 +405,133 @@ bool ProfileStore::upsertProfile(const HubProfile& profile) {
   if (!isValidHubId(profile.hubId)) {
     return false;
   }
-  bool found = false;
   for (HubProfile& p : profiles_) {
-    if (p.hubId == profile.hubId) {
-      p = profile;
-      found = true;
-      break;
+    if (p.hubId != profile.hubId) {
+      continue;
+    }
+    HubProfile next = profile;
+    next.accounts = p.accounts;  // changed through the account functions only
+    next.activeUserId = p.activeUserId;
+    if (!next.hubUserId.isEmpty()) {
+      // The flat fields are the active account.
+      HubAccount a = accountFromFlat(next);
+      const qsizetype i = accountIndex(next.accounts, a.hubUserId);
+      if (i >= 0) {
+        const HubAccount& old = next.accounts.at(i);
+        if (a.displayName.isEmpty()) a.displayName = old.displayName;  // an older server sends no user
+        if (a.role.isEmpty()) a.role = old.role;
+        if (a.username.isEmpty()) a.username = old.username;
+        if (!a.lastUsed.isValid() || (old.lastUsed.isValid() && old.lastUsed > a.lastUsed)) a.lastUsed = old.lastUsed;
+        a.hasPin = old.hasPin;
+        a.pinFailures = old.pinFailures;
+        next.accounts[i] = a;
+      } else {
+        next.accounts.append(a);
+      }
+      next.activeUserId = a.hubUserId;
+    } else if (!next.activeUserId.isEmpty()) {
+      // Credential lost (revoked, expired): the person stays in the list and needs the password once.
+      if (const qsizetype i = accountIndex(next.accounts, next.activeUserId); i >= 0 && next.credentialRef.isEmpty()) {
+        next.accounts[i].credentialRef.clear();
+      }
+      next.activeUserId.clear();
+    }
+    p = next;
+    return save();
+  }
+  HubProfile added = profile;
+  if (!added.hubUserId.isEmpty()) {
+    if (const qsizetype i = accountIndex(added.accounts, added.hubUserId); i >= 0) {
+      added.accounts[i] = accountFromFlat(added);
+    } else {
+      added.accounts.append(accountFromFlat(added));
+    }
+    added.activeUserId = added.hubUserId;
+  }
+  profiles_.append(added);
+  return save();
+}
+
+QList<HubAccount> ProfileStore::accounts(const QString& hubId) const {
+  const auto p = profile(hubId);
+  return p ? p->accounts : QList<HubAccount>();
+}
+
+std::optional<HubAccount> ProfileStore::account(const QString& hubId, const QString& userId) const {
+  const auto p = profile(hubId);
+  if (p) {
+    if (const qsizetype i = accountIndex(p->accounts, userId); i >= 0) {
+      return p->accounts.at(i);
     }
   }
-  if (!found) {
-    profiles_.append(profile);
+  return std::nullopt;
+}
+
+bool ProfileStore::upsertAccount(const QString& hubId, const HubAccount& account) {
+  if (account.hubUserId.isEmpty()) {
+    return false;
   }
-  return save();
+  for (HubProfile& p : profiles_) {
+    if (p.hubId != hubId) {
+      continue;
+    }
+    if (const qsizetype i = accountIndex(p.accounts, account.hubUserId); i >= 0) {
+      p.accounts[i] = account;
+    } else {
+      p.accounts.append(account);
+    }
+    if (p.activeUserId == account.hubUserId) {
+      copyAccountToFlat(p, account);
+    }
+    return save();
+  }
+  return false;
+}
+
+bool ProfileStore::removeAccount(const QString& hubId, const QString& userId) {
+  for (HubProfile& p : profiles_) {
+    if (p.hubId != hubId) {
+      continue;
+    }
+    const qsizetype i = accountIndex(p.accounts, userId);
+    if (i < 0) {
+      return true;
+    }
+    p.accounts.removeAt(i);
+    if (p.activeUserId == userId) {
+      p.activeUserId.clear();
+      p.hubUserId.clear();
+      p.userDisplayName.clear();
+      p.userRole.clear();
+      p.credentialRef.clear();
+      p.deviceId = p.accounts.isEmpty() ? deviceId_ : QUuid::createUuid().toString(QUuid::WithoutBraces);
+    }
+    return save();
+  }
+  return false;
+}
+
+bool ProfileStore::setActiveAccount(const QString& hubId, const QString& userId) {
+  for (HubProfile& p : profiles_) {
+    if (p.hubId != hubId) {
+      continue;
+    }
+    const qsizetype i = accountIndex(p.accounts, userId);
+    if (i < 0) {
+      return false;
+    }
+    copyAccountToFlat(p, p.accounts.at(i));
+    return save();
+  }
+  return false;
+}
+
+QString ProfileStore::newAccountDeviceId(const QString& hubId) const {
+  const auto p = profile(hubId);
+  if (!p || p->accounts.isEmpty()) {
+    return deviceId_;
+  }
+  return QUuid::createUuid().toString(QUuid::WithoutBraces);
 }
 
 QStringList ProfileStore::validateHubAddress(const QString& host, const QString& port) {
