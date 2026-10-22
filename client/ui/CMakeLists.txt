@@ -35,6 +35,7 @@ qt_add_qml_module(uzume_ui
     remoteview.h remoteview.cpp
     updatescontroller.h updatescontroller.cpp
     reportcontroller.h reportcontroller.cpp
+    admincontroller.h admincontroller.cpp
     savehistorycontroller.h savehistorycontroller.cpp
     localhubcontroller.h localhubcontroller.cpp
     pluginruntime.h pluginruntime.cpp
@@ -192,6 +193,14 @@ qt_add_qml_module(uzume_ui
     UzMenu.qml
     UzMenuList.qml
     UzMenuItem.qml
+    UzConfirmDialog.qml
+    UzTable.qml
+    UzTableRow.qml
+    UzMetric.qml
+    AdminPage.qml
+    AdminSaveDialog.qml
+    ServerScreen.qml
+    ServerStatusPage.qml
   RESOURCES
     fonts/IBMPlexSans-Light.ttf
     fonts/IBMPlexSans-Regular.ttf

@@ -152,6 +152,27 @@ class FakeHub : public QTcpServer {
   int reportUnauthorizedNext = 0;    // next N report POSTs answer 401
   int reportRequests() const { return count(QStringLiteral("/api/v1/reports"), "POST"); }
 
+  // Admin area (admin_v1, accounts_v1): `adminUser` makes the handshake report role "admin" and advertise both features.
+  // GET /admin/status serves `adminStatus` (a sample when empty); /admin/status/log serves `adminLog`; every other
+  // /admin/... route answers {"ok":true} and is counted in `adminCalls` (method + " " + path, without the query). Paths in
+  // `confirmRequiredPaths` answer 403 confirmation_required until POST /account/confirm succeeded with `accountPassword`
+  // (300 s); 3 wrong passwords lock confirming for `confirmLockSeconds` (429 rate_limited with retry_after).
+  bool adminUser = false;
+  QJsonObject adminStatus;
+  bool adminStatusDown = false;           // GET /admin/status answers 503
+  int adminStatusRequests = 0;
+  QByteArray adminLog = "line 1\nline 2\n";
+  QStringList confirmRequiredPaths;       // exact paths, e.g. "/api/v1/admin/users/u_2/disable"
+  QString accountPassword = QStringLiteral("correct horse battery");
+  bool accountHasPassword = true;
+  int confirmLockSeconds = 300;
+  int confirmPosts = 0;                   // POST /account/confirm received
+  int confirmDeletes = 0;
+  bool confirmed() const;
+  QMap<QString, int> adminCalls;
+  QByteArray lastAdminBody;
+  static QJsonObject sampleAdminStatus();
+
   // Saves (saves_v1)
   QStringList features{QStringLiteral("saves_v1")};  // handshake features
   // game_id -> slot "default"; other slots under the key "<game_id>/<slot>" (slotKey()).
@@ -242,6 +263,7 @@ class FakeHub : public QTcpServer {
                const QList<QPair<QByteArray, QByteArray>>& extra = {}, qint64 truncateAt = -1);
   void respondError(QSslSocket* sock, int status, const QString& code);
   void handleSaves(QSslSocket* sock, const FakeRequest& req);
+  void handleAdmin(QSslSocket* sock, const FakeRequest& req);
   bool handleLocalRoms(QSslSocket* sock, const FakeRequest& req);
   void handleSessions(QSslSocket* sock, const FakeRequest& req);
   void handleRuns(QSslSocket* sock, const FakeRequest& req);
@@ -270,6 +292,9 @@ class FakeHub : public QTcpServer {
   QSslCertificate cert_;
   QSslKey key_;
   bool approvedDelivered_ = false;
+  QDateTime confirmedUntil_;
+  QDateTime confirmLockedUntil_;
+  int confirmWrong_ = 0;
   int tokenRequests_ = 0;
   bool truncated_ = false;
 };

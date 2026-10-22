@@ -65,6 +65,7 @@ Rectangle {
             color: Theme.muted
         }
         UzButton {
+            objectName: "stateBlockAction"
             visible: root.action !== ""
             Layout.alignment: Qt.AlignHCenter
             kind: root.kind === "empty" ? "primary" : "outline"

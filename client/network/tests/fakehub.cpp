@@ -162,6 +162,127 @@ void FakeHub::respondError(QSslSocket* sock, int status, const QString& code) {
               .toJson(QJsonDocument::Compact));
 }
 
+bool FakeHub::confirmed() const { return confirmedUntil_.isValid() && confirmedUntil_ > QDateTime::currentDateTimeUtc(); }
+
+QJsonObject FakeHub::sampleAdminStatus() {
+  const QDateTime now = QDateTime::currentDateTimeUtc();
+  return QJsonObject{
+      {QStringLiteral("hub_name"), QStringLiteral("Home server")},
+      {QStringLiteral("hub_version"), QStringLiteral("0.18.0")},
+      {QStringLiteral("uptime_seconds"), 12 * 86400 + 4 * 3600 + 120},
+      {QStringLiteral("public_address"), QStringLiteral("server.example.com:8443")},
+      {QStringLiteral("time"), now.toString(Qt::ISODate)},
+      {QStringLiteral("problems"),
+       QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("backup_disk")},
+                              {QStringLiteral("title"), QStringLiteral("Backup disk 92 %")},
+                              {QStringLiteral("detail"), QStringLiteral("Backup disk is 92 % full. Tonight's backup may not fit.")},
+                              {QStringLiteral("severity"), QStringLiteral("warn")}}}},
+      {QStringLiteral("cpu_percent"), 18.4},
+      {QStringLiteral("memory"), QJsonObject{{QStringLiteral("process_bytes"), 80LL * 1024 * 1024},
+                                             {QStringLiteral("system_total_bytes"), 4LL * 1024 * 1024 * 1024},
+                                             {QStringLiteral("system_used_bytes"), 1288490188LL}}},
+      {QStringLiteral("disk"), QJsonObject{{QStringLiteral("total_bytes"), 100LL * 1000 * 1000 * 1000},
+                                           {QStringLiteral("free_bytes"), 39LL * 1000 * 1000 * 1000}}},
+      {QStringLiteral("backup_disk"), QJsonObject{{QStringLiteral("folder"), QStringLiteral("/mnt/backup")},
+                                                  {QStringLiteral("total_bytes"), 50LL * 1000 * 1000 * 1000},
+                                                  {QStringLiteral("free_bytes"), 4LL * 1000 * 1000 * 1000}}},
+      {QStringLiteral("sessions"),
+       QJsonArray{QJsonObject{{QStringLiteral("game_title"), QStringLiteral("Harbor Rally")},
+                              {QStringLiteral("owner"), QStringLiteral("Max")},
+                              {QStringLiteral("device_name"), QStringLiteral("Desktop-LivingRoom")},
+                              {QStringLiteral("visibility"), QStringLiteral("hub_users")},
+                              {QStringLiteral("started_at"), now.addSecs(-1500).toString(Qt::ISODate)},
+                              {QStringLiteral("viewers"), 2}}}},
+      {QStringLiteral("viewers"), 2},
+      {QStringLiteral("turn"), QJsonObject{{QStringLiteral("allocations"), 3}, {QStringLiteral("relay_ports"), 100}}},
+      {QStringLiteral("players"),
+       QJsonArray{QJsonObject{{QStringLiteral("device_name"), QStringLiteral("Desktop-LivingRoom")},
+                              {QStringLiteral("user"), QStringLiteral("Max")},
+                              {QStringLiteral("version"), QStringLiteral("0.18.0")},
+                              {QStringLiteral("state"), QStringLiteral("in_session")},
+                              {QStringLiteral("outdated"), false}},
+                  QJsonObject{{QStringLiteral("device_name"), QStringLiteral("Laptop-Jonas")},
+                              {QStringLiteral("user"), QStringLiteral("Jonas")},
+                              {QStringLiteral("version"), QStringLiteral("0.16.2")},
+                              {QStringLiteral("state"), QStringLiteral("idle")},
+                              {QStringLiteral("outdated"), true}}}},
+      {QStringLiteral("errors"),
+       QJsonArray{QJsonObject{{QStringLiteral("time"), now.addSecs(-600).toString(Qt::ISODate)},
+                              {QStringLiteral("level"), QStringLiteral("warn")},
+                              {QStringLiteral("message"), QStringLiteral("backup folder is almost full")}}}},
+      {QStringLiteral("metrics_enabled"), false}};
+}
+
+void FakeHub::handleAdmin(QSslSocket* sock, const FakeRequest& req) {
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  const auto errorWith = [&](int status, const QString& code, const QString& message, int retryAfter = 0) {
+    QJsonObject e{{QStringLiteral("code"), code}, {QStringLiteral("message"), message}};
+    if (retryAfter > 0) e.insert(QStringLiteral("retry_after"), retryAfter);
+    respond(sock, status, json({{QStringLiteral("error"), e}}));
+  };
+  const QString path = req.path.section(QLatin1Char('?'), 0, 0);
+  const QJsonObject body = QJsonDocument::fromJson(req.body).object();
+
+  if (path == QLatin1String("/api/v1/account/confirm")) {
+    if (req.method == "DELETE") {
+      ++confirmDeletes;
+      confirmedUntil_ = QDateTime();
+      respond(sock, 204, {});
+      return;
+    }
+    ++confirmPosts;
+    if (!accountHasPassword) {
+      errorWith(409, QStringLiteral("password_not_set"), QStringLiteral("This account has no password"));
+      return;
+    }
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    if (confirmLockedUntil_.isValid() && confirmLockedUntil_ > now) {
+      errorWith(429, QStringLiteral("rate_limited"), QStringLiteral("Too many tries"), static_cast<int>(now.secsTo(confirmLockedUntil_)));
+      return;
+    }
+    if (body.value(QStringLiteral("password")).toString() != accountPassword) {
+      if (++confirmWrong_ >= 3) {
+        confirmWrong_ = 0;
+        confirmLockedUntil_ = now.addSecs(confirmLockSeconds);
+        errorWith(429, QStringLiteral("rate_limited"), QStringLiteral("Too many tries"), confirmLockSeconds);
+      } else {
+        errorWith(401, QStringLiteral("invalid_credentials"), QStringLiteral("Invalid credentials"));
+      }
+      return;
+    }
+    confirmWrong_ = 0;
+    confirmedUntil_ = now.addSecs(body.value(QStringLiteral("duration_seconds")).toInt(300));
+    respond(sock, 200, json({{QStringLiteral("confirmed_until"), confirmedUntil_.toString(Qt::ISODate)}}));
+    return;
+  }
+  if (!adminUser) {
+    errorWith(403, QStringLiteral("forbidden"), QStringLiteral("Admins only"));
+    return;
+  }
+  if (confirmRequiredPaths.contains(path) && !confirmed()) {
+    errorWith(403, QStringLiteral("confirmation_required"), QStringLiteral("Confirm it's you first"));
+    return;
+  }
+  if (path == QLatin1String("/api/v1/admin/status") && req.method == "GET") {
+    ++adminStatusRequests;
+    if (adminStatusDown) {
+      errorWith(503, QStringLiteral("internal"), QStringLiteral("down"));
+      return;
+    }
+    respond(sock, 200, json(adminStatus.isEmpty() ? sampleAdminStatus() : adminStatus));
+    return;
+  }
+  if (path == QLatin1String("/api/v1/admin/status/log") && req.method == "GET") {
+    ++adminCalls[QStringLiteral("GET ") + path];
+    respond(sock, 200, adminLog, "text/plain",
+            {{"Content-Disposition", "attachment; filename=\"uzume-server-log-20261022-081500.txt\""}});
+    return;
+  }
+  ++adminCalls[QString::fromLatin1(req.method) + QLatin1Char(' ') + path];
+  lastAdminBody = req.body;
+  respond(sock, 200, json({{QStringLiteral("ok"), true}, {QStringLiteral("path"), path}}));
+}
+
 void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
   const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
   const QJsonObject body = QJsonDocument::fromJson(req.body).object();
@@ -278,6 +399,8 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     respond(sock, 204, {});
   } else if (!bearerIs(req, "fba_")) {
     respondError(sock, 401, QStringLiteral("unauthorized"));
+  } else if (req.path.startsWith(QLatin1String("/api/v1/admin/")) || req.path.startsWith(QLatin1String("/api/v1/account/"))) {
+    handleAdmin(sock, req);
   } else if (req.method == "PUT" && req.path == QLatin1String("/api/v1/local/settings")) {
     lastLocalSettings = body;
     if (body.contains(QStringLiteral("import_dir")) && !localImportDirError.isEmpty()) {
@@ -301,6 +424,14 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     QJsonArray feats;
     for (const QString& f : features) {
       feats.append(f);
+    }
+    if (adminUser) {
+      for (const QString& f : {QStringLiteral("admin_v1"), QStringLiteral("accounts_v1")}) {
+        if (!features.contains(f)) feats.append(f);
+      }
+      res.insert(QStringLiteral("user"), QJsonObject{{QStringLiteral("id"), QStringLiteral("u_test_1")},
+                                                      {QStringLiteral("display_name"), QStringLiteral("Tester")},
+                                                      {QStringLiteral("role"), QStringLiteral("admin")}});
     }
     res.insert(QStringLiteral("features"), feats);
     for (auto it = handshakeExtra.begin(); it != handshakeExtra.end(); ++it) {

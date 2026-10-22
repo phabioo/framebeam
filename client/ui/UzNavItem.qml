@@ -2,7 +2,8 @@ import QtQuick
 import QtQuick.Layouts
 
 // AppNav item (frame.md "0-4 G"): 32 px row (28 px compact), Plex Sans 14 muted, `hover` fill, active = ink 500 and the 2 px
-// Yamabuki start marker. `badge` shows a count (square on the selected plane), `dot` a 6 px Yamabuki square (update available).
+// Yamabuki start marker. `badge` shows a count (square on the selected plane), `dot` a 6 px Yamabuki square (update available),
+// `warnText` a Yamabuki plane with a word ("!").
 // Tab reaches it, Enter and Space activate it. `leading` takes an icon for nested plugin entries (`indent` moves the text).
 Item {
     id: root
@@ -13,6 +14,8 @@ Item {
     property int badge: 0
     property string badgeName: ""
     property bool dot: false
+    property string warnText: ""      // Yamabuki square with a short word ("!"): a warning on the destination (server status)
+    property string warnName: ""
     property string dotName: ""
     default property alias leading: leadRow.data
     signal activated()
@@ -66,6 +69,24 @@ Item {
             Layout.preferredHeight: 6
             radius: 0
             color: Theme.accent
+        }
+        Rectangle {
+            objectName: root.warnName
+            visible: root.warnText !== ""
+            Layout.preferredWidth: Math.max(18, warnLabel.implicitWidth + 10)
+            Layout.preferredHeight: 18
+            radius: 0
+            color: Theme.accent
+            Text {
+                id: warnLabel
+                anchors.centerIn: parent
+                text: root.warnText
+                textFormat: Text.PlainText
+                font.family: Theme.mono
+                font.pixelSize: 10
+                font.weight: Font.DemiBold
+                color: Theme.inkOnAccent
+            }
         }
         Rectangle {
             objectName: root.badgeName
