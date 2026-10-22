@@ -37,7 +37,7 @@ func (f *updFeed) url() string { return updates.FileURL(filepath.Join(f.dir, "up
 // add publishes a hub release with a dummy .deb for linux-amd64 and re-signs the index.
 func (f *updFeed) add(t *testing.T, channel, version string, minProto int) {
 	t.Helper()
-	f.addFor(t, channel, version, minProto, "linux-amd64", "deb", "framebeam-hub_"+version+"_amd64.deb")
+	f.addFor(t, channel, version, minProto, "linux-amd64", "deb", "uzume-server_"+version+"_amd64.deb")
 }
 
 // addFor is add for another platform, artifact kind and file name.

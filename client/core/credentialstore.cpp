@@ -86,35 +86,12 @@ bool WindowsCredentialStore::remove(const QString& target) {
 }
 #endif
 
-namespace {
-const QString kNewPrefix = QStringLiteral("Uzume/");
-const QString kOldPrefix = QStringLiteral("FrameBeam/");
-}  // namespace
-
 std::optional<QString> readCredential(CredentialStore& store, const QString& ref) {
   if (ref.isEmpty()) return std::nullopt;
-  QString rest;
-  if (ref.startsWith(kNewPrefix)) rest = ref.mid(kNewPrefix.size());
-  else if (ref.startsWith(kOldPrefix)) rest = ref.mid(kOldPrefix.size());
-  else return store.read(ref);
-  const QString newTarget = kNewPrefix + rest;
-  if (const auto v = store.read(newTarget)) return v;
-  const auto old = store.read(kOldPrefix + rest);
-  if (old && store.write(newTarget, *old)) {
-    qCInfo(lcCred) << "Credential copied to the new target name (the old entry is kept)";
-  }
-  return old;
+  return store.read(ref);
 }
 
-bool removeCredential(CredentialStore& store, const QString& ref) {
-  QString rest;
-  if (ref.startsWith(kNewPrefix)) rest = ref.mid(kNewPrefix.size());
-  else if (ref.startsWith(kOldPrefix)) rest = ref.mid(kOldPrefix.size());
-  else return store.remove(ref);
-  const bool a = store.remove(kNewPrefix + rest);
-  const bool b = store.remove(kOldPrefix + rest);
-  return a && b;
-}
+bool removeCredential(CredentialStore& store, const QString& ref) { return store.remove(ref); }
 
 std::unique_ptr<CredentialStore> createDefaultCredentialStore() {
 #ifdef Q_OS_WIN

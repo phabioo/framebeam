@@ -226,83 +226,14 @@ class ProfileStoreTest : public QObject {
   void credentialTargetUsesTheNewName() {
     QCOMPARE(credentialTarget(QStringLiteral("hub-1"), QStringLiteral("dev")), QStringLiteral("Uzume/hub-1/dev"));
   }
-  void credentialReadPrefersTheNewTarget() {
+  void credentialReadAndRemove() {
     MemoryCredentialStore c;
-    c.write(QStringLiteral("Uzume/h/d"), QStringLiteral("new"));
-    c.write(QStringLiteral("FrameBeam/h/d"), QStringLiteral("old"));
-    QCOMPARE(readCredential(c, QStringLiteral("Uzume/h/d")).value(), QStringLiteral("new"));
-    QCOMPARE(readCredential(c, QStringLiteral("FrameBeam/h/d")).value(), QStringLiteral("new"));  // stored old ref, new entry wins
-  }
-  void credentialOldEntryIsCopiedAndKept() {
-    MemoryCredentialStore c;
-    c.write(QStringLiteral("FrameBeam/h/d"), QStringLiteral("secret"));
-    // A profile that still holds the old reference finds the secret and the store gets the new name as well.
-    QCOMPARE(readCredential(c, QStringLiteral("FrameBeam/h/d")).value(), QStringLiteral("secret"));
-    QCOMPARE(c.read(QStringLiteral("Uzume/h/d")).value(), QStringLiteral("secret"));
-    QCOMPARE(c.read(QStringLiteral("FrameBeam/h/d")).value(), QStringLiteral("secret"));  // kept for a rollback
+    c.write(QStringLiteral("Uzume/h/d"), QStringLiteral("secret"));
+    QCOMPARE(readCredential(c, QStringLiteral("Uzume/h/d")).value(), QStringLiteral("secret"));
     QVERIFY(!readCredential(c, QStringLiteral("Uzume/other/d")).has_value());
     QVERIFY(!readCredential(c, QString()).has_value());
-    QCOMPARE(readCredential(c, QStringLiteral("plain-ref")).has_value(), false);
-  }
-  void credentialRemoveClearsBothNames() {
-    MemoryCredentialStore c;
-    c.write(QStringLiteral("FrameBeam/h/d"), QStringLiteral("secret"));
-    c.write(QStringLiteral("Uzume/h/d"), QStringLiteral("secret"));
-    QVERIFY(removeCredential(c, QStringLiteral("FrameBeam/h/d")));
+    QVERIFY(removeCredential(c, QStringLiteral("Uzume/h/d")));
     QVERIFY(!c.read(QStringLiteral("Uzume/h/d")).has_value());
-    QVERIFY(!c.read(QStringLiteral("FrameBeam/h/d")).has_value());
-  }
-  void oldAppDataFolderIsCopiedOnceWhenTheNewOneIsEmpty() {
-    QTemporaryDir oldDir, newDir;
-    QDir(oldDir.path()).mkpath(QStringLiteral("hubs/h1"));
-    {
-      QFile f(oldDir.filePath(QStringLiteral("device.json")));
-      QVERIFY(f.open(QIODevice::WriteOnly));
-      f.write("{\"device_id\": \"11111111-1111-1111-1111-111111111111\", \"device_name\": \"x\"}");
-    }
-    {
-      QFile f(oldDir.filePath(QStringLiteral("hubs/h1/saves.json")));
-      QVERIFY(f.open(QIODevice::WriteOnly));
-      f.write("{}");
-    }
-    QDir(oldDir.path()).mkpath(QStringLiteral("cache/roms"));
-    {
-      QFile f(oldDir.filePath(QStringLiteral("cache/roms/big.bin")));
-      QVERIFY(f.open(QIODevice::WriteOnly));
-      f.write("rom cache");
-    }
-    const QStringList olds{QDir(oldDir.path()).filePath(QStringLiteral("missing")), oldDir.path()};
-    QCOMPARE(ProfileStore::migrateOldAppData(olds, newDir.path()), 2);
-    QVERIFY(QFileInfo::exists(newDir.filePath(QStringLiteral("device.json"))));
-    QVERIFY(QFileInfo::exists(newDir.filePath(QStringLiteral("hubs/h1/saves.json"))));
-    QVERIFY(!QFileInfo::exists(newDir.filePath(QStringLiteral("cache"))));  // the ROM cache is not copied
-    QVERIFY(QFileInfo::exists(oldDir.filePath(QStringLiteral("device.json"))));  // the old folder stays
-    QCOMPARE(ProfileStore(newDir.path()).deviceId(), QStringLiteral("11111111-1111-1111-1111-111111111111"));
-    QCOMPARE(ProfileStore::migrateOldAppData(olds, newDir.path()), 0);  // once
-  }
-  void oldAppDataFolderIsIgnoredWhenTheNewOneIsInUse() {
-    QTemporaryDir oldDir, newDir;
-    {
-      QFile f(oldDir.filePath(QStringLiteral("device.json")));
-      QVERIFY(f.open(QIODevice::WriteOnly));
-      f.write("{\"device_id\": \"11111111-1111-1111-1111-111111111111\"}");
-    }
-    const QString keep = ProfileStore(newDir.path()).deviceId();  // creates device.json in the new folder
-    QCOMPARE(ProfileStore::migrateOldAppData({oldDir.path()}, newDir.path()), 0);
-    QCOMPARE(ProfileStore(newDir.path()).deviceId(), keep);
-  }
-  void legacyAppDataDirsUseTheOldNamesAndRestoreTheCurrentOnes() {
-    const QString org = QCoreApplication::organizationName();
-    const QString app = QCoreApplication::applicationName();
-    QCoreApplication::setOrganizationName(QStringLiteral("Uzume"));
-    QCoreApplication::setApplicationName(QStringLiteral("Uzume"));
-    const QStringList dirs = ProfileStore::legacyAppDataDirs();
-    QVERIFY(!dirs.isEmpty());
-    for (const QString& d : dirs) QVERIFY2(d.contains(QStringLiteral("FrameBeam Player")), qPrintable(d));
-    QCOMPARE(QCoreApplication::organizationName(), QStringLiteral("Uzume"));
-    QCOMPARE(QCoreApplication::applicationName(), QStringLiteral("Uzume"));
-    QCoreApplication::setOrganizationName(org);
-    QCoreApplication::setApplicationName(app);
   }
   void hubAddressValidatorMessages() {
     const auto msgs = [](const char* host, const char* port) { return ProfileStore::validateHubAddress(QString::fromUtf8(host), QString::fromUtf8(port)); };

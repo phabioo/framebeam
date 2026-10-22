@@ -211,7 +211,7 @@ jobs:
           ls -l server/dist
       - name: E2E Hub install and update (systemd)
         timeout-minutes: 15
-        # Real install on the runner: install-hub.sh, .deb migration, signed update round trip (uses sudo).
+        # Real install on the runner: install-server.sh, .deb install, signed update round trip (uses sudo).
         run: scripts/e2e-hub-update.sh
       - uses: actions/upload-artifact@v7
         with:
@@ -219,7 +219,7 @@ jobs:
           path: |
             server/dist/uzume-server-linux-amd64
             server/dist/uzume-server-linux-arm64
-            server/dist/framebeam-hub_*.deb
+            server/dist/uzume-server_*.deb
             server/dist/hub-release-info.json
             server/dist/LICENSE
             server/dist/THIRD-PARTY-NOTICES.txt
@@ -342,13 +342,13 @@ jobs:
         id: cache-ddc
         uses: actions/cache/restore@v6
         with:
-          path: ~/.cache/framebeam/deps/libdatachannel
+          path: ~/.cache/uzume/deps/libdatachannel
           key: libdatachannel-linux-${{ steps.week.outputs.image }}-${{ hashFiles('scripts/libdatachannel.pin', 'scripts/fetch-libdatachannel.sh') }}
       - name: Restore SDL3
         id: cache-sdl3
         uses: actions/cache/restore@v6
         with:
-          path: ~/.cache/framebeam/deps/sdl3
+          path: ~/.cache/uzume/deps/sdl3
           key: sdl3-linux-${{ steps.week.outputs.image }}-${{ hashFiles('scripts/sdl3.pin', 'scripts/fetch-sdl3.sh') }}
       - name: Restore ccache
         id: cache-ccache
@@ -372,7 +372,7 @@ jobs:
         if: steps.cache-ddc.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: ~/.cache/framebeam/deps/libdatachannel
+          path: ~/.cache/uzume/deps/libdatachannel
           key: ${{ steps.cache-ddc.outputs.cache-primary-key }}
       - name: Build SDL3
         timeout-minutes: 45
@@ -381,7 +381,7 @@ jobs:
         if: steps.cache-sdl3.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: ~/.cache/framebeam/deps/sdl3
+          path: ~/.cache/uzume/deps/sdl3
           key: ${{ steps.cache-sdl3.outputs.cache-primary-key }}
       - name: Check Player
         timeout-minutes: 60
@@ -858,7 +858,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: uzume-msi-test-logs
-          path: ${{ runner.temp }}/fb-msi-test-*/*.log
+          path: ${{ runner.temp }}/uzume-msi-test-*/*.log
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v7

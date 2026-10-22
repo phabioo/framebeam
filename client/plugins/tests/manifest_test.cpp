@@ -30,13 +30,13 @@ class ManifestTest : public QObject {
  private slots:
   void validFull() {
     const ManifestResult r = parseManifest(R"({
-      "id": "net.framebeam.example", "name": "Example", "version": "1.0.0", "api": 1, "type": "script",
-      "requires": { "net.framebeam.example-core": "^1.0" }, "provides": ["example.team"],
+      "id": "net.uzume.example", "name": "Example", "version": "1.0.0", "api": 1, "type": "script",
+      "requires": { "net.uzume.example-core": "^1.0" }, "provides": ["example.team"],
       "games": [{ "system": "nds", "codes": ["ABC*"] }],
       "permissions": ["memory.read", "rom.read", "ui", "run.state", "video.capture"], "entry": "main.lua",
       "assets": ["icons/", "i18n/"], "settings": { "a": 1 } })");
     QVERIFY2(r.ok, qPrintable(r.error));
-    QCOMPARE(r.manifest.id, QString("net.framebeam.example"));
+    QCOMPARE(r.manifest.id, QString("net.uzume.example"));
     QCOMPARE(r.manifest.dependencies.size(), 1);
     QCOMPARE(r.manifest.provides, QStringList{"example.team"});
     QCOMPARE(r.manifest.permissions.size(), 5);

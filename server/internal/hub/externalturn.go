@@ -36,7 +36,7 @@ const (
 //     TTL like the embedded TURN) and re-sends them by ice_update before they expire.
 //
 // Two sources, the same precedence as the other server settings: the list saved in the web interface (Settings,
-// Network) wins; without a saved list the servers from the flags/hub.env (-turn-external) apply. Secrets of
+// Network) wins; without a saved list the servers from the flags/server.env (-turn-external) apply. Secrets of
 // flag-configured servers only exist in memory (read from the environment or a file); secrets saved in the web
 // interface live in the settings table like the embedded TURN secret. Neither is ever logged or part of
 // ExternalTURNStatus.
@@ -392,7 +392,7 @@ func (s *Service) DeleteExternalTURN(ctx context.Context, name string) error {
 	return s.saveExternal(ctx, out)
 }
 
-// ResetExternalTURN drops the saved list: the flags/hub.env list applies again.
+// ResetExternalTURN drops the saved list: the flags/server.env list applies again.
 func (s *Service) ResetExternalTURN(ctx context.Context) error {
 	s.ext.edit.Lock()
 	defer s.ext.edit.Unlock()

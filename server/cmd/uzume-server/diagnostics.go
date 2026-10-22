@@ -15,7 +15,7 @@ import (
 
 // runDiagnostics writes the diagnostics bundle to a file without starting the server, for a server whose web interface
 // does not come up. It never opens the database (a running server is not disturbed), so the bundle holds the logs and
-// the configuration from hub.env/flags only, not counts, cores or apps.
+// the configuration from server.env/flags only, not counts, cores or apps.
 func runDiagnostics(args []string, out io.Writer) error {
 	// The output file may come before or after the flags.
 	path := ""

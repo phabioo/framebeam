@@ -457,7 +457,7 @@ void PluginsController::refreshPlugins() {
     if (!hasProblems && p.enabled) ++on;
     const bool isLocal = p.origin == QLatin1String("local");
     if (!hasProblems && isLocal && !manager_->developerMode()) problems << tr("Runs only while Developer mode is on");
-    // "needs net.framebeam.pokemon-core, not installed" -> "needs SoulLink Core, not installed" (the Hub's name when it offers it).
+    // "needs net.uzume.pokemon-core, not installed" -> "needs SoulLink Core, not installed" (the Hub's name when it offers it).
     for (QString& pr : problems) {
       // "Needs Player 0.16.4" (manifest field min_player, e.g. after going back to an older Player).
       static const QRegularExpression needsPlayer(QStringLiteral("^Needs Player (\\S+)$"));

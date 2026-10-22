@@ -4,7 +4,7 @@ name: Promote to release
 # the stable release is exactly the beta prerelease vX.Y.Z (same commit, same files, same sha256). The workflow takes the
 # index descriptions that release.yml stored on the prerelease (index-hub.json, index-player.json), sets channel "stable"
 # and published_at to now, adds them to the signed updates index and only then turns the prerelease into the latest
-# release. The signing seed is the secret FRAMEBEAM_SIGNING_KEY of the environment `release` (deployment branch: main only, so this workflow must be dispatched from main); it is only in the environment of the signing step.
+# release. The signing seed is the signing-key secret of the environment `release` (deployment branch: main only, so this workflow must be dispatched from main); it is only in the environment of the signing step.
 # Re-running for a version that is already released fails with a clear error; re-running after a failure in the middle is
 # harmless (the index entry is replaced, the release is still a prerelease until the last step).
 
@@ -164,17 +164,14 @@ jobs:
       - name: Tag the server image as stable and latest (no rebuild)
         run: |
           set -euo pipefail
-          # uzume-server is the image; framebeam-hub is the same image under its old name (still pushed by release.yml).
-          for name in uzume-server framebeam-hub; do
-            image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$name"
-            if docker buildx imagetools inspect "$image:$VERSION" >/dev/null 2>&1; then
-              docker buildx imagetools create -t "$image:stable" -t "$image:latest" "$image:$VERSION"
-              docker buildx imagetools inspect "$image:stable"
-            else
-              # Betas built before the image existed have none; the release itself is already published.
-              echo "::warning title=No server image::$image:$VERSION does not exist, :stable and :latest are not moved"
-            fi
-          done
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/uzume-server"
+          if docker buildx imagetools inspect "$image:$VERSION" >/dev/null 2>&1; then
+            docker buildx imagetools create -t "$image:stable" -t "$image:latest" "$image:$VERSION"
+            docker buildx imagetools inspect "$image:stable"
+          else
+            # Betas built before the image existed have none; the release itself is already published.
+            echo "::warning title=No server image::$image:$VERSION does not exist, :stable and :latest are not moved"
+          fi
       - name: Archive the notes in CHANGELOG.md (pull request, not fatal)
         id: changelog
         continue-on-error: true

@@ -30,7 +30,7 @@ The official plugins live in their own repositories under github.com/phabioo: [`
 **1. Install the server** (Debian / Raspberry Pi OS, amd64 or arm64). Download the `.deb` from the [releases](https://github.com/phabioo/uzume/releases):
 
 ```sh
-sudo apt install ./framebeam-hub_<version>_arm64.deb
+sudo apt install ./uzume-server_<version>_arm64.deb
 ```
 
 Create the admin account and open `https://<hub-address>:8443/`. Other Linux systems, ports and options: [Server installation](docs/guides/hub-install.md), [Server configuration](docs/guides/hub-configuration.md).

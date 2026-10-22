@@ -176,98 +176,8 @@ int ProfileStore::migrateLegacyData(const QString& legacyDir, const QString& new
   return copied;
 }
 
-QStringList ProfileStore::portableMigrationSources(const QString& localAppData, const QString& programFiles) {
-  QStringList out;
-  if (!localAppData.isEmpty()) out << QDir(localAppData).filePath(QStringLiteral("Programs/FrameBeam Player/data"));
-  if (!programFiles.isEmpty()) out << QDir(programFiles).filePath(QStringLiteral("FrameBeam Player/data"));
-  return out;
-}
-
-namespace {
-
-// Copies the first source folder that holds app data (profiles.json, device.json or hubs/) into newDir once: never
-// overwrites an existing file, skips cache/, never touches the source. The marker file in newDir is written only after
-// every copy succeeded; an incomplete run is retried on the next start.
-int copyFirstSourceOnce(const QStringList& sourceDirs, const QString& newDir, const QString& markerName, const char* what) {
-  if (newDir.isEmpty()) return 0;
-  const QString marker = QDir(newDir).filePath(markerName);
-  if (QFileInfo::exists(marker)) return 0;
-  for (const QString& legacyDir : sourceDirs) {
-    if (legacyDir.isEmpty() || !QFileInfo(legacyDir).isDir() ||
-        QFileInfo(legacyDir).absoluteFilePath() == QFileInfo(newDir).absoluteFilePath()) {
-      continue;
-    }
-    const QDir src(legacyDir);
-    if (!src.exists(QStringLiteral("profiles.json")) && !src.exists(QStringLiteral("device.json")) &&
-        !src.exists(QStringLiteral("hubs"))) {
-      continue;
-    }
-    if (!QDir().mkpath(newDir)) {
-      qCWarning(lcProfiles) << what << "migration: target folder not creatable";
-      return 0;
-    }
-    int copied = 0;
-    bool ok = true;
-    QDirIterator it(legacyDir, QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks, QDirIterator::Subdirectories);
-    while (it.hasNext()) {
-      const QString from = it.next();
-      const QString rel = src.relativeFilePath(from);
-      if (rel.startsWith(QStringLiteral("cache/"))) continue;  // ROM cache is re-downloaded
-      const QString to = QDir(newDir).filePath(rel);
-      if (QFileInfo::exists(to)) continue;  // never overwrite anything existing
-      if (!QDir().mkpath(QFileInfo(to).absolutePath()) || !QFile::copy(from, to)) {
-        qCWarning(lcProfiles) << what << "migration: file not copied:" << rel;
-        ok = false;
-        continue;
-      }
-      ++copied;
-    }
-    if (ok) {
-      QFile m(marker);
-      if (!m.open(QIODevice::WriteOnly)) qCWarning(lcProfiles) << what << "migration: marker not written, will retry";
-    } else {
-      qCWarning(lcProfiles) << what << "migration incomplete, will retry on next start";
-    }
-    return copied;  // only the first folder with app data: its device identity and credentials belong together
-  }
-  return 0;
-}
-
-}  // namespace
-
-int ProfileStore::migratePortableData(const QStringList& sourceDirs, const QString& newDir) {
-  return copyFirstSourceOnce(sourceDirs, newDir, QStringLiteral(".migrated-from-portable"), "Portable");
-}
-
-QStringList ProfileStore::legacyAppDataDirs() {
-  // Before the rename (0.18) the app set the application name "FrameBeam Player" (the CLI also the organization
-  // "FrameBeam"). QStandardPaths composes the folder from the current names, so ask with the old ones and restore.
-  const QString org = QCoreApplication::organizationName();
-  const QString app = QCoreApplication::applicationName();
-  QStringList out;
-  for (const QString& oldOrg : {QString(), QStringLiteral("FrameBeam")}) {
-    QCoreApplication::setOrganizationName(oldOrg);
-    QCoreApplication::setApplicationName(QStringLiteral("FrameBeam Player"));
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (!dir.isEmpty() && !out.contains(dir)) out << dir;
-  }
-  QCoreApplication::setOrganizationName(org);
-  QCoreApplication::setApplicationName(app);
-  return out;
-}
-
-int ProfileStore::migrateOldAppData(const QStringList& oldDirs, const QString& newDir) {
-  if (newDir.isEmpty()) return 0;
-  const QDir dst(newDir);
-  if (dst.exists(QStringLiteral("profiles.json")) || dst.exists(QStringLiteral("device.json")) ||
-      dst.exists(QStringLiteral("hubs"))) {
-    return 0;  // the new location is already in use: nothing to take over
-  }
-  return copyFirstSourceOnce(oldDirs, newDir, QStringLiteral(".migrated-from-old-appdata"), "AppData");
-}
-
 QString ProfileStore::defaultBaseDir() {
-  const QString dir = fsutil::envPath(uzume::env::name("UZUME_DATA_DIR").constData());
+  const QString dir = fsutil::envPath("UZUME_DATA_DIR");
   if (!dir.isEmpty()) {
     qCInfo(lcProfiles) << "Data directory (UZUME_DATA_DIR):" << dir;
     return dir;
@@ -278,30 +188,13 @@ QString ProfileStore::defaultBaseDir() {
                              ? update::installRootFor(QCoreApplication::applicationDirPath())
                              : QString();
   const BaseDirChoice c = chooseBaseDir(appDir, appData);
-  const QStringList oldAppData = legacyAppDataDirs();
   if (!c.portable) {
-    // Renamed application (FrameBeam Player -> Uzume): the AppData folder moved; copy the old one once (it stays).
-    const int renamed = migrateOldAppData(oldAppData, c.path);
-    if (renamed > 0) {
-      qCInfo(lcProfiles) << "Data from the old AppData folder taken over (" << renamed << "files, source unchanged, ROM cache not migrated)";
-    }
-#ifdef Q_OS_WIN
-    // Per-machine install (Program Files): take over the data of the old portable per-user / all-users install.
-    const int moved = renamed > 0 ? 0 : migratePortableData(
-        portableMigrationSources(fsutil::envPath("LOCALAPPDATA"), fsutil::envPath("ProgramFiles")),
-        c.path);
-    if (moved > 0) qCInfo(lcProfiles) << "Portable data taken over (" << moved << "files, source unchanged, ROM cache not migrated)";
-#endif
     qCInfo(lcProfiles) << "Data directory (fallback AppData, program directory not writable or unknown):"
                        << c.path;
     return c.path;
   }
   qCInfo(lcProfiles) << "Data directory (portable):" << c.path;
-  int n = migrateLegacyData(appData, c.path);
-  for (const QString& old : oldAppData) {
-    if (n > 0) break;
-    n = migrateLegacyData(old, c.path);  // renamed application: the folder of the old names
-  }
+  const int n = migrateLegacyData(appData, c.path);
   if (n > 0) {
     qCInfo(lcProfiles) << "Data from AppData to" << c.path << "copied (" << n
                        << "files, source unchanged, ROM cache not migrated)";

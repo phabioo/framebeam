@@ -21,12 +21,9 @@ const (
 	LastResultName   = "last-result.json"
 	RequestFileName  = "update-request"
 	// DefaultRequestDir is where the request file lives (systemd RuntimeDirectory of the server service).
-	DefaultRequestDir = "/run/framebeam"
+	DefaultRequestDir = "/run/uzume"
 	// PackagedExecutable is the path of the server binary of a .deb install.
 	PackagedExecutable = "/usr/bin/uzume-server"
-	// LegacyPackagedExecutable is the binary name of installs made by versions before the rename (the new .deb keeps
-	// it as a compatibility symlink); it still counts as a packaged install.
-	LegacyPackagedExecutable = "/usr/bin/framebeam-hub"
 )
 
 // Staged is the content of staged.json.

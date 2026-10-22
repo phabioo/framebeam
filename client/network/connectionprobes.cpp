@@ -223,7 +223,7 @@ class HubJob : public Job<HubProbeResult> {
       return;
     }
     http_ = new HubHttp(url, t.pinnedFingerprint, this);
-    reply_ = http_->get(QStringLiteral("/.well-known/framebeam"), {}, {}, /*allowUnpinned=*/t.pinnedFingerprint.isEmpty());
+    reply_ = http_->get(QStringLiteral("/.well-known/uzume"), {}, {}, /*allowUnpinned=*/t.pinnedFingerprint.isEmpty());
     connect(reply_, &QNetworkReply::finished, this, [this]() { onFinished(); });
     timer_.setSingleShot(true);
     connect(&timer_, &QTimer::timeout, this, [this]() {

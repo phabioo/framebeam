@@ -8,7 +8,7 @@ import (
 )
 
 // hubServiceAccount is the virtual account the server service runs as on Windows (MSI, contract 0.9).
-const hubServiceAccount = `NT SERVICE\FrameBeamHub`
+const hubServiceAccount = `NT SERVICE\UzumeServer`
 
 // errGrantUnsupported: grant-folder exists on Windows only; main exits with status 2.
 var errGrantUnsupported = errors.New("not supported")

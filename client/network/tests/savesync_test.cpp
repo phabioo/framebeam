@@ -62,7 +62,7 @@ class SaveSyncTest : public QObject {
   QByteArray lastPutReason() const {
     for (int i = hub_->requests.size() - 1; i >= 0; --i) {
       if (hub_->requests.at(i).method == "PUT") {
-        return hub_->requests.at(i).headers.value(QStringLiteral("x-framebeam-sync-reason"));
+        return hub_->requests.at(i).headers.value(QStringLiteral("x-uzume-sync-reason"));
       }
     }
     return {};
@@ -283,7 +283,7 @@ class SaveSyncTest : public QObject {
     QCOMPARE(puts(), 1);
     QCOMPARE(hub_->saves.value(kGame).revision, 1);
     QCOMPARE(hub_->saves.value(kGame).content, QByteArray("local-1"));
-    QCOMPARE(hub_->requests.last().headers.value(QStringLiteral("x-framebeam-base-revision")), QByteArray("0"));
+    QCOMPARE(hub_->requests.last().headers.value(QStringLiteral("x-uzume-base-revision")), QByteArray("0"));
     const SyncState st = SaveStore::loadState(gdir());
     QCOMPARE(st.baseRevision, 1);
     QVERIFY(!st.pending);
@@ -524,7 +524,7 @@ class SaveSyncTest : public QObject {
     QCOMPARE(readFile(saveFile()), QByteArray("legacy-save"));
     QVERIFY(QFileInfo::exists(legacy));  // old file stays
     QCOMPARE(hub_->saves.value(kGame).content, QByteArray("legacy-save"));
-    QCOMPARE(hub_->requests.last().headers.value(QStringLiteral("x-framebeam-base-revision")), QByteArray("0"));
+    QCOMPARE(hub_->requests.last().headers.value(QStringLiteral("x-uzume-base-revision")), QByteArray("0"));
   }
 
   void hubWithoutSavesFeatureDisablesSync() {

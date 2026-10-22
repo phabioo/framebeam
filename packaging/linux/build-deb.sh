@@ -28,30 +28,26 @@ case "$ARCH" in amd64|arm64) ;; *) die "--arch must be amd64 or arm64" ;; esac
 command -v dpkg-deb >/dev/null 2>&1 || die "dpkg-deb not found"
 
 DEBVER="${VERSION//-/\~}"
-DEB="$OUT/framebeam-hub_${VERSION}_${ARCH}.deb"
+DEB="$OUT/uzume-server_${VERSION}_${ARCH}.deb"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 chmod 0755 "$STAGE"
 
-DOCDIR="$STAGE/usr/share/doc/framebeam-hub"
+DOCDIR="$STAGE/usr/share/doc/uzume-server"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [ -f "$REPO_ROOT/server/THIRD-PARTY-NOTICES.txt" ] || die "server/THIRD-PARTY-NOTICES.txt missing (make notices)"
 install -d -m 0755 "$STAGE/usr/bin" "$STAGE/lib/systemd/system" "$STAGE/DEBIAN" "$DOCDIR" "$OUT"
 install -m 0755 "$BINARY" "$STAGE/usr/bin/uzume-server"
-# Compat symlink: servers installed before the rename run "framebeam-hub update apply-staged" (and may verify the new
-# binary under that name) while dpkg installs this package. Units run /usr/bin/uzume-server.
-ln -s uzume-server "$STAGE/usr/bin/framebeam-hub"
-
 # The script-install unit points at /usr/local/bin; the package unit runs /usr/bin and gets a runtime dir for the
 # update request file (kept across server restarts so a request made right before a restart is not lost).
-unit="$STAGE/lib/systemd/system/framebeam-hub.service"
+unit="$STAGE/lib/systemd/system/uzume-server.service"
 sed -e 's#^ExecStart=/usr/local/bin/uzume-server$#ExecStart=/usr/bin/uzume-server#' \
-    -e 's#^RestartSec=5$#RestartSec=5\nRuntimeDirectory=framebeam\nRuntimeDirectoryPreserve=yes#' \
-    "$SCRIPT_DIR/framebeam-hub.service" >"$unit"
-grep -qx 'ExecStart=/usr/bin/uzume-server' "$unit" || die "could not rewrite ExecStart in framebeam-hub.service"
-grep -qx 'RuntimeDirectory=framebeam' "$unit" || die "could not add RuntimeDirectory to framebeam-hub.service"
+    -e 's#^RestartSec=5$#RestartSec=5\nRuntimeDirectory=uzume\nRuntimeDirectoryPreserve=yes#' \
+    "$SCRIPT_DIR/uzume-server.service" >"$unit"
+grep -qx 'ExecStart=/usr/bin/uzume-server' "$unit" || die "could not rewrite ExecStart in uzume-server.service"
+grep -qx 'RuntimeDirectory=uzume' "$unit" || die "could not add RuntimeDirectory to uzume-server.service"
 chmod 0644 "$unit"
-install -m 0644 "$SCRIPT_DIR/framebeam-hub-update.path" "$SCRIPT_DIR/framebeam-hub-update.service" \
+install -m 0644 "$SCRIPT_DIR/uzume-server-update.path" "$SCRIPT_DIR/uzume-server-update.service" \
   "$STAGE/lib/systemd/system/"
 
 # Debian machine-readable copyright (format 1.0); the third-party Go module licenses ship next to it.
@@ -80,7 +76,7 @@ License: GPL-3+
  License version 3 can be found in /usr/share/common-licenses/GPL-3.
  .
  The licenses of the third-party Go modules compiled into the binary are
- listed in /usr/share/doc/framebeam-hub/THIRD-PARTY-NOTICES.txt.
+ listed in /usr/share/doc/uzume-server/THIRD-PARTY-NOTICES.txt.
 COPYRIGHT
 chmod 0644 "$DOCDIR/copyright"
 
@@ -88,19 +84,19 @@ for s in postinst prerm postrm; do install -m 0755 "$SCRIPT_DIR/deb/$s" "$STAGE/
 
 size_kb="$(du -sk "$STAGE/usr" "$STAGE/lib" | awk '{s+=$1} END {print s}')"
 cat >"$STAGE/DEBIAN/control" <<CONTROL
-Package: framebeam-hub
+Package: uzume-server
 Version: $DEBVER
 Section: net
 Priority: optional
 Architecture: $ARCH
-Maintainer: Uzume <framebeam@users.noreply.github.com>
+Maintainer: Uzume <uzume@users.noreply.github.com>
 Installed-Size: $size_kb
 Depends: systemd
 Homepage: https://github.com/phabioo/uzume
 Description: Uzume server - self-hosted retro gaming library and session server
  Central ROM library, versioned saves and session coordination for Uzume
- apps. Runs as the systemd service framebeam-hub; configuration in
- /etc/framebeam/hub.env, data in /var/lib/framebeam (never removed by the
+ apps. Runs as the systemd service uzume-server; configuration in
+ /etc/uzume/server.env, data in /var/lib/uzume (never removed by the
  package).
 CONTROL
 

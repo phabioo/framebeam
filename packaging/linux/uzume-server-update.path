@@ -1,0 +1,11 @@
+[Unit]
+Description=Uzume server update request
+Documentation=https://github.com/phabioo/uzume
+
+[Path]
+# The server (user uzume) creates this file after it has staged a verified update.
+PathExists=/run/uzume/update-request
+Unit=uzume-server-update.service
+
+[Install]
+WantedBy=multi-user.target

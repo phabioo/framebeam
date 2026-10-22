@@ -42,7 +42,7 @@ const (
 )
 
 // SignaturePrefix starts the signed message (see SignedMessage).
-const SignaturePrefix = "framebeam-plugin-v1\n"
+const SignaturePrefix = "uzume-plugin-v1\n"
 
 // APIVersion is the only plugin API version this server knows.
 const APIVersion = 1
@@ -475,7 +475,7 @@ type SignatureFile struct {
 	Signature string            `json:"signature"`
 }
 
-// SignedMessage is the byte string that is signed: "framebeam-plugin-v1\n" and, for each file sorted by path (byte
+// SignedMessage is the byte string that is signed: "uzume-plugin-v1\n" and, for each file sorted by path (byte
 // order), "<sha256>  <path>\n" (two spaces).
 func SignedMessage(files map[string]string) []byte {
 	names := make([]string, 0, len(files))

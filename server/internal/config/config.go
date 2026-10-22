@@ -16,7 +16,6 @@ import (
 
 	"github.com/phabioo/uzume/server/internal/clientip"
 	"github.com/phabioo/uzume/server/internal/corepkg"
-	"github.com/phabioo/uzume/server/internal/envcompat"
 	"github.com/phabioo/uzume/server/internal/updates"
 )
 
@@ -60,7 +59,7 @@ type Config struct {
 	// PluginIndexURL is the signed plugin index (default updates.DefaultPluginIndexURL; https or file://); "none" or
 	// empty = no index (offline servers). Use PluginIndex for the effective value.
 	PluginIndexURL string
-	// UpdateRequestDir is where the update request file is created (default /run/framebeam; Windows <data-dir>\update-request).
+	// UpdateRequestDir is where the update request file is created (default /run/uzume; Windows <data-dir>\update-request).
 	UpdateRequestDir string
 	// SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly are the save history retention rules (ADR 0012 D7):
 	// newest versions kept, days and weeks of which the newest version is kept. 0 = unlimited for that rule.
@@ -122,7 +121,6 @@ func parseICE(s string) []string {
 // CloudflareTURNToken returns the Cloudflare TURN API token: the environment variable
 // UZUME_CLOUDFLARE_TURN_API_TOKEN wins over the token file. Errors never contain the token.
 func (c *Config) CloudflareTURNToken(getenv func(string) string) (string, error) {
-	getenv = envcompat.Wrap(getenv)
 	if v := strings.TrimSpace(getenv("UZUME_CLOUDFLARE_TURN_API_TOKEN")); v != "" {
 		return v, nil
 	}
@@ -206,23 +204,23 @@ func splitCSV(s string) []string {
 }
 
 // DefaultDataDir is the built-in data directory: /data in the container image (UZUME_SERVER_CONTAINER=1, the image sets
-// no data-dir variable, so an explicit UZUME_DATA_DIR or FRAMEBEAM_DATA_DIR still wins), else /var/lib/framebeam, on
-// Windows %ProgramData%\FrameBeam\Hub.
+// no data-dir variable, so an explicit UZUME_DATA_DIR still wins), else /var/lib/uzume, on
+// Windows %ProgramData%\Uzume\Server.
 func DefaultDataDir(goos string, getenv func(string) string) string {
-	if envcompat.Wrap(getenv)("UZUME_SERVER_CONTAINER") == "1" {
+	if getenv("UZUME_SERVER_CONTAINER") == "1" {
 		return "/data"
 	}
 	if goos != "windows" {
-		return "/var/lib/framebeam"
+		return "/var/lib/uzume"
 	}
 	pd := getenv("ProgramData")
 	if pd == "" {
 		pd = `C:\ProgramData`
 	}
-	return filepath.Join(pd, "FrameBeam", "Hub")
+	return filepath.Join(pd, "Uzume", "Server")
 }
 
-// DefaultUpdateRequestDir is the built-in update request directory: /run/framebeam (systemd RuntimeDirectory), on
+// DefaultUpdateRequestDir is the built-in update request directory: /run/uzume (systemd RuntimeDirectory), on
 // Windows the directory <data>\update-request that the installer creates (writable for the server service account,
 // readable for the updater service).
 func DefaultUpdateRequestDir(goos, dataDir string) string {
@@ -247,15 +245,13 @@ func (t trackedString) String() string {
 
 func (t trackedString) Set(s string) error { *t.p, *t.set = s, true; return nil }
 
-// Register registers the configuration flags on fs. Defaults come from the environment (UZUME_*; the old FRAMEBEAM_* names
-// still work and are reported by envcompat.WarnUsed), otherwise built-in defaults.
+// Register registers the configuration flags on fs. Defaults come from the environment (UZUME_*), otherwise built-in defaults.
 // An explicitly set flag overrides the environment.
 func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 	return register(fs, getenv, runtime.GOOS)
 }
 
 func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config {
-	getenv = envcompat.Wrap(getenv) // UZUME_ names, old FRAMEBEAM_ names as a deprecated fallback
 	c := &Config{goos: goos}
 	env := func(key, def string) string {
 		if v := getenv("UZUME_" + key); v != "" {

@@ -22,7 +22,7 @@ inline constexpr qint64 kFbPluginMaxUnpackedBytes = 64ll * 1024 * 1024;
 inline constexpr int kFbPluginMaxEntries = 2000;
 inline constexpr int kFbPluginMaxNameBytes = 255;
 inline constexpr const char* kFbPluginSignatureFile = "SIGNATURE.json";
-inline constexpr const char* kFbPluginSignaturePrefix = "framebeam-plugin-v1\n";
+inline constexpr const char* kFbPluginSignaturePrefix = "uzume-plugin-v1\n";
 
 enum class SignatureState {
   None,     // no SIGNATURE.json
@@ -52,7 +52,7 @@ FbPluginResult readFbPlugin(const QByteArray& file, const QList<QByteArray>& tru
 
 // Signature part on its own. `files` = all non-directory entries. Returns Valid / Invalid / None, *error says why Invalid.
 SignatureState verifyPluginSignature(const QMap<QString, QByteArray>& files, const QList<QByteArray>& trustedKeys, QString* error = nullptr);
-// The signed message: "framebeam-plugin-v1\n" then per file sorted by path (UTF-8 byte order) "<sha256>  <path>\n".
+// The signed message: "uzume-plugin-v1\n" then per file sorted by path (UTF-8 byte order) "<sha256>  <path>\n".
 QByteArray pluginSignatureMessage(const QMap<QString, QString>& sha256ByPath);
 
 // Writes every file of `pkg` below `destDir` (created; must not contain anything yet). false + *error on failure.

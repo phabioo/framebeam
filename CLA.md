@@ -1,8 +1,8 @@
-# FrameBeam Individual Contributor License Agreement
+# Uzume Individual Contributor License Agreement
 
 Version 1.0, 2026-10-08
 
-Thank you for contributing to FrameBeam. This agreement is between you ("Contributor") and Fabio, the project owner, together with any successors in that role ("Owner"). It applies to every contribution you submit to the FrameBeam repository ("Contribution"): code, documentation or other material, in any form. It is modeled on the Apache Individual Contributor License Agreement. It is not legal advice.
+Thank you for contributing to Uzume. This agreement is between you ("Contributor") and Fabio, the project owner, together with any successors in that role ("Owner"). It applies to every contribution you submit to the Uzume repository ("Contribution"): code, documentation or other material, in any form. It is modeled on the Apache Individual Contributor License Agreement. It is not legal advice.
 
 1. **You keep your copyright.** You remain the owner of your Contributions. This agreement only grants the licenses below.
 2. **Copyright license.** You grant the Owner a perpetual, worldwide, non-exclusive, royalty-free, irrevocable license to use, reproduce, modify, prepare derivative works of, publicly display, publicly perform, sublicense and distribute your Contributions and derivative works, in source or binary form. This explicitly includes the right to sublicense and to distribute Contributions under licenses other than the GPL, including proprietary or commercial terms.

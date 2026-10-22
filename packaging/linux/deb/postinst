@@ -1,14 +1,13 @@
 #!/bin/sh
-# framebeam-hub postinst (the package name is unchanged by the Uzume rename): user, directories, hub.env (created only
-# when missing, never overwritten; an existing file keeps its FRAMEBEAM_* names, which the server still reads), migration
-# of an install-hub.sh install, units. Data (/var/lib/framebeam or a custom data dir) is never touched beyond creating
+# uzume-server postinst: user, directories, server.env (created only when missing, never overwritten), migration of an
+# install-server.sh install, units. Data (/var/lib/uzume or a custom data dir) is never touched beyond creating
 # the default.
 set -e
 
-SVC_USER=framebeam
-ENV_DIR=/etc/framebeam
-ENV_FILE=$ENV_DIR/hub.env
-DATA_DIR=/var/lib/framebeam
+SVC_USER=uzume
+ENV_DIR=/etc/uzume
+ENV_FILE=$ENV_DIR/server.env
+DATA_DIR=/var/lib/uzume
 
 case "$1" in
   configure)
@@ -20,7 +19,7 @@ case "$1" in
     if [ ! -f "$ENV_FILE" ]; then
       ( umask 027
         {
-          echo "# Uzume server configuration (read by systemd, see framebeam-hub.service)."
+          echo "# Uzume server configuration (read by systemd, see uzume-server.service)."
           echo "# UZUME_NAME is only used on the first start."
           echo "UZUME_LISTEN=:8443"
           echo "UZUME_DATA_DIR=$DATA_DIR"
@@ -36,24 +35,24 @@ case "$1" in
       install -d -m 0750 -o "$SVC_USER" -g "$SVC_USER" "$DATA_DIR"
     fi
 
-    # Migration from install-hub.sh: its unit in /etc/systemd/system would shadow the packaged one. Keep it
-    # for reference; drop-ins in framebeam-hub.service.d/ stay and keep applying.
-    OLD_UNIT=/etc/systemd/system/framebeam-hub.service
-    if [ -f "$OLD_UNIT" ] && grep -qE '/usr/local/bin/(framebeam-hub|uzume-server)' "$OLD_UNIT"; then
-      mv -f "$OLD_UNIT" "$ENV_DIR/framebeam-hub.service.pre-deb"
-      rm -f /usr/local/bin/framebeam-hub /usr/local/bin/uzume-server
-      echo "framebeam-hub: migrated a script install (old unit kept as $ENV_DIR/framebeam-hub.service.pre-deb)"
+    # Migration from install-server.sh: its unit in /etc/systemd/system would shadow the packaged one. Keep it
+    # for reference; drop-ins in uzume-server.service.d/ stay and keep applying.
+    OLD_UNIT=/etc/systemd/system/uzume-server.service
+    if [ -f "$OLD_UNIT" ] && grep -qE '/usr/local/bin/uzume-server' "$OLD_UNIT"; then
+      mv -f "$OLD_UNIT" "$ENV_DIR/uzume-server.service.pre-deb"
+      rm -f /usr/local/bin/uzume-server
+      echo "uzume-server: migrated a script install (old unit kept as $ENV_DIR/uzume-server.service.pre-deb)"
     fi
 
     if [ -d /run/systemd/system ]; then
       systemctl daemon-reload || true
-      systemctl enable framebeam-hub.service framebeam-hub-update.path >/dev/null 2>&1 || true
-      if systemctl is-active --quiet framebeam-hub.service; then
-        systemctl restart framebeam-hub.service || true
+      systemctl enable uzume-server.service uzume-server-update.path >/dev/null 2>&1 || true
+      if systemctl is-active --quiet uzume-server.service; then
+        systemctl restart uzume-server.service || true
       else
-        systemctl start framebeam-hub.service || true
+        systemctl start uzume-server.service || true
       fi
-      systemctl start framebeam-hub-update.path || true
+      systemctl start uzume-server-update.path || true
     fi
     ;;
   abort-upgrade|abort-remove|abort-deconfigure)

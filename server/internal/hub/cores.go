@@ -28,7 +28,7 @@ const (
 // Origins of a core package.
 const (
 	OriginBuildbot = "libretro-buildbot"
-	OriginLegacy   = "framebeam" // packages of the retired signed Uzume source
+	OriginLegacy   = "legacy-mirror" // packages of the retired signed Uzume source
 )
 
 // Defaults of the core source (ADR 0020 D1).

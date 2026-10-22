@@ -138,7 +138,7 @@ func TestReportsLifecycle(t *testing.T) {
 	if rec.Body.String() != "token=raw-bytes-stay-as-sent" {
 		t.Fatalf("bin %q", rec.Body.String())
 	}
-	wantStatus(t, e.do("GET", fmt.Sprintf("/api/v1/admin/reports/%d/files/..%%2F..%%2Fframebeam.db", id), nil, opt{token: admin, raw: true}), 404, "")
+	wantStatus(t, e.do("GET", fmt.Sprintf("/api/v1/admin/reports/%d/files/..%%2F..%%2Fuzume.db", id), nil, opt{token: admin, raw: true}), 404, "")
 	wantStatus(t, e.do("GET", fmt.Sprintf("/api/v1/admin/reports/%d/files/nope.txt", id), nil, opt{token: admin}), 404, "not_found")
 
 	// The archive holds report.txt and all files.

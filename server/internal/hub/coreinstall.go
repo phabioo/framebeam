@@ -745,7 +745,7 @@ func (s *Service) SetDefaultCore(ctx context.Context, systemID, coreID string) (
 	return internal2(err)
 }
 
-// removeLegacyCores deletes every core of the retired signed Uzume source (origin framebeam, ADR 0020): installed
+// removeLegacyCores deletes every core of the retired signed Uzume source (origin legacy-mirror, ADR 0020): installed
 // rows, package rows and the stored files. A removed default core is replaced by another installed core of the system
 // (profiled first) or cleared. Idempotent; saves are never touched.
 func (s *Service) removeLegacyCores(ctx context.Context) error {

@@ -72,9 +72,6 @@ func TestIsPackagedMarker(t *testing.T) {
 	if IsPackaged("windows-amd64", exe, filepath.Join(req, "missing")) || IsPackaged("windows-amd64", "", req) {
 		t.Fatal("request dir must be writable")
 	}
-	if !IsPackaged("linux-amd64", LegacyPackagedExecutable, req) {
-		t.Fatal("an install made before the rename (/usr/bin/framebeam-hub) must count as packaged")
-	}
 	if IsPackaged("linux-amd64", exe, req) || !IsPackaged("linux-amd64", PackagedExecutable, req) {
 		t.Fatal("linux detection uses the .deb paths only")
 	}
@@ -87,7 +84,7 @@ func TestDefaultPrivateDir(t *testing.T) {
 		}
 		return ""
 	}
-	if DefaultPrivateDir("windows", get) != filepath.Join("PD", "FrameBeam", "HubUpdater") || DefaultPrivateDir("linux", get) != "" {
+	if DefaultPrivateDir("windows", get) != filepath.Join("PD", "Uzume", "ServerUpdater") || DefaultPrivateDir("linux", get) != "" {
 		t.Fatal("DefaultPrivateDir")
 	}
 }

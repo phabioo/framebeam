@@ -10,7 +10,7 @@ import (
 	"github.com/phabioo/uzume/server/internal/web"
 )
 
-// Network settings saved on the web interface win over hub.env and flags (ADR 0015). The pieces below build the
+// Network settings saved on the web interface win over server.env and flags (ADR 0015). The pieces below build the
 // effective configuration at startup and implement the restart the web interface can request.
 
 // restartCh carries the restart request from the web interface to runServer.
@@ -28,7 +28,7 @@ func requestRestart() {
 }
 
 // effectiveConfig applies the saved network settings to a copy of base. A value that cannot be read is skipped
-// (the hub.env value stays) and reported as an issue; if the result is contradictory the whole base is used.
+// (the server.env value stays) and reported as an issue; if the result is contradictory the whole base is used.
 func effectiveConfig(base *config.Config, stored map[string]string, log *slog.Logger) (config.Config, []web.NetIssue) {
 	eff := *base
 	eff.ICEServers = config.CloneICE(base.ICEServers)
@@ -36,12 +36,12 @@ func effectiveConfig(base *config.Config, stored map[string]string, log *slog.Lo
 	for k, err := range eff.ApplyNet(stored) {
 		log.Error("saved network setting ignored", "setting", k, "err", err)
 		issues = append(issues, web.NetIssue{Key: k, Value: stored[k],
-			Message: fmt.Sprintf("The saved value of %q could not be read (%v). The value from hub.env is used.", config.NetLabel(k), err)})
+			Message: fmt.Sprintf("The saved value of %q could not be read (%v). The value from server.env is used.", config.NetLabel(k), err)})
 	}
 	if err := eff.Validate(); err != nil {
-		log.Error("saved network settings are contradictory; using hub.env and flags only", "err", err)
+		log.Error("saved network settings are contradictory; using server.env and flags only", "err", err)
 		issues = append(issues, web.NetIssue{Key: "", Value: "",
-			Message: fmt.Sprintf("The saved network settings are contradictory (%v). The server uses the values from hub.env until you change them.", err)})
+			Message: fmt.Sprintf("The saved network settings are contradictory (%v). The server uses the values from server.env until you change them.", err)})
 		eff = *base
 		eff.ICEServers = config.CloneICE(base.ICEServers)
 	}
@@ -71,7 +71,7 @@ func (l *listenIssue) issue(eff config.Config, fallback string) web.NetIssue {
 }
 
 // chooseListen binds the effective listen address. If that fails and differs from the address given by
-// hub.env/flags (so a saved port is involved), it binds the fallback instead and returns what went wrong.
+// server.env/flags (so a saved port is involved), it binds the fallback instead and returns what went wrong.
 // Without a differing fallback the error is returned as is.
 func chooseListen(effective, fallback string, listen func(addr string) (net.Listener, error)) (net.Listener, *listenIssue, error) {
 	ln, err := listen(effective)

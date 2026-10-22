@@ -104,9 +104,9 @@ func TestReleaseAddKeepPruneAndDeterminism(t *testing.T) {
 	relFile := filepath.Join(dir, "release.json")
 	mk := func(product, channel, version string) {
 		t.Helper()
-		plat, kind, name := "linux-amd64", "deb", "framebeam-hub_"+version+"_amd64.deb"
+		plat, kind, name := "linux-amd64", "deb", "uzume-server_"+version+"_amd64.deb"
 		if product == "player" {
-			plat, kind, name = "windows-x64", "installer", "framebeam-player-"+version+"-windows-x64-setup.exe"
+			plat, kind, name = "windows-x64", "installer", "uzume-app-"+version+"-windows-x64-setup.exe"
 		}
 		b, _ := json.Marshal(updates.Release{Product: product, Channel: channel, Version: version, Commit: strings.Repeat("a", 40),
 			PublishedAt: fixed, ProtocolVersion: 1, MinProtocolVersion: 1,
@@ -270,7 +270,7 @@ func TestReleaseAddDropsInvalidExistingReleases(t *testing.T) {
 	dir := t.TempDir()
 	idxPath := filepath.Join(dir, "updates-index.json")
 	mkRel := func(channel, version string) updates.Release {
-		name := "framebeam-hub_" + version + "_amd64.deb"
+		name := "uzume-server_" + version + "_amd64.deb"
 		return updates.Release{Product: "hub", Channel: channel, Version: version, Commit: strings.Repeat("a", 40),
 			PublishedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), ProtocolVersion: 1, MinProtocolVersion: 1,
 			Artifacts: []updates.Artifact{{Platform: "linux-amd64", Kind: "deb", Name: name, Size: 5, SHA256: strings.Repeat("ab", 32), URL: "https://example.org/" + name}}}
@@ -378,7 +378,7 @@ func TestReleaseAddKeepsNotes(t *testing.T) {
 	now := func() time.Time { return time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC) }
 	notes := "### Added\n- Something new ü\n\n### Fixed\n- Something old"
 	write := func(n string) {
-		name := "framebeam-hub_0.3.0_amd64.deb"
+		name := "uzume-server_0.3.0_amd64.deb"
 		b, _ := json.Marshal(updates.Release{Product: "hub", Channel: "stable", Version: "0.3.0", Commit: strings.Repeat("a", 40),
 			PublishedAt: now(), Notes: n, ProtocolVersion: 1, MinProtocolVersion: 1,
 			Artifacts: []updates.Artifact{{Platform: "linux-amd64", Kind: "deb", Name: name, Size: 5, SHA256: strings.Repeat("ab", 32), URL: "https://example.org/" + name}}})

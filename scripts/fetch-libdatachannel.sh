@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds libdatachannel (pinned tag, from source via git clone with submodules) with media ON and
-# its own WebSocket OFF (OpenSSL) and installs it to $HOME/.cache/framebeam/deps/libdatachannel/<tag>;
+# its own WebSocket OFF (OpenSSL) and installs it to $HOME/.cache/uzume/deps/libdatachannel/<tag>;
 # prints the install prefix (stdout). Idempotent: already installed = done immediately.
 # All messages go to stderr. Parallelism: CMAKE_BUILD_PARALLEL_LEVEL (default 3).
 set -euo pipefail
@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 . "$ROOT/scripts/libdatachannel.pin"
-CACHE="${UZUME_CACHE_DIR:-$HOME/.cache/framebeam}"
+CACHE="${UZUME_CACHE_DIR:-$HOME/.cache/uzume}"
 PREFIX="$CACHE/deps/libdatachannel/$LIBDATACHANNEL_TAG-$(uname -m)"
 
 if [ -f "$PREFIX/.complete" ]; then echo "$PREFIX"; exit 0; fi

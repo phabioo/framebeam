@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	hubServiceName     = "FrameBeamHub"
-	updaterServiceName = "FrameBeamHubUpdater"
+	hubServiceName     = "UzumeServer"
+	updaterServiceName = "UzumeServerUpdater"
 )
 
 func isWindowsService() bool { return false }

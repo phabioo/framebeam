@@ -56,7 +56,7 @@ func buildVector(t *testing.T) (vector, []byte) {
 		t.Fatal("vector plugin is not official")
 	}
 	v := vector{
-		Description: "Ed25519 over the signed message; the seed is public test data, never a real key. Message = 'framebeam-plugin-v1\\n' + for each file sorted by path (byte order) '<sha256>  <path>\\n'.",
+		Description: "Ed25519 over the signed message; the seed is public test data, never a real key. Message = 'uzume-plugin-v1\\n' + for each file sorted by path (byte order) '<sha256>  <path>\\n'.",
 		SeedBase64:  base64.StdEncoding.EncodeToString(seed),
 		PublicKey:   base64.StdEncoding.EncodeToString(keys[0]),
 		Plugin:      "vector.fbplugin",

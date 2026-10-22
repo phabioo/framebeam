@@ -5,13 +5,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"github.com/phabioo/uzume/server/internal/envcompat"
 )
 
 // MSIMarkerName is a file next to the server executable that the MSI installer creates. Its presence marks an install
 // by the MSI (the Windows counterpart of /usr/bin/uzume-server for the .deb).
-const MSIMarkerName = "framebeam-hub.msi-installed"
+const MSIMarkerName = "uzume-server.msi-installed"
 
 // MSILogName is the msiexec log, copied to <data>/updates after the installation.
 const MSILogName = "msiexec.log"
@@ -21,7 +19,7 @@ const MSILogName = "msiexec.log"
 const ContainerEnv = "UZUME_SERVER_CONTAINER"
 
 // InContainer reports whether the server runs in the official container image.
-func InContainer() bool { return envcompat.Wrap(os.Getenv)(ContainerEnv) == "1" }
+func InContainer() bool { return os.Getenv(ContainerEnv) == "1" }
 
 // Platform is the platform string of this binary, e.g. linux-amd64 or windows-amd64 (server naming; the app's
 // Windows platform in the index is windows-x64).
@@ -54,7 +52,7 @@ func IsPackaged(platform, executable, requestDir string) bool {
 		}
 		return RequestDirWritable(requestDir)
 	}
-	return (executable == PackagedExecutable || executable == LegacyPackagedExecutable) && RequestDirWritable(requestDir)
+	return executable == PackagedExecutable && RequestDirWritable(requestDir)
 }
 
 // InstallCommand is the privileged install command for the (private, verified) package copy.
@@ -66,7 +64,7 @@ func InstallCommand(platform, pkgPath, logPath string) (name string, args []stri
 }
 
 // DefaultPrivateDir is the parent of the updater's private temp directory: on Windows
-// %ProgramData%\FrameBeam\HubUpdater (the installer restricts its ACL to SYSTEM and Administrators), else "" (system
+// %ProgramData%\Uzume\ServerUpdater (the installer restricts its ACL to SYSTEM and Administrators), else "" (system
 // temp, which is private to root on Linux through the 0700 MkdirTemp).
 func DefaultPrivateDir(goos string, getenv func(string) string) string {
 	if goos != "windows" {
@@ -76,5 +74,5 @@ func DefaultPrivateDir(goos string, getenv func(string) string) string {
 	if pd == "" {
 		pd = `C:\ProgramData`
 	}
-	return filepath.Join(pd, "FrameBeam", "HubUpdater")
+	return filepath.Join(pd, "Uzume", "ServerUpdater")
 }

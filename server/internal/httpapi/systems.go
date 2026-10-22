@@ -106,5 +106,5 @@ func coreOrigin(o string) api.CoreOrigin {
 	if o == hub.OriginBuildbot {
 		return api.LibretroBuildbot
 	}
-	return api.Framebeam
+	return api.LegacyMirror
 }

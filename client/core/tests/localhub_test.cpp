@@ -64,17 +64,17 @@ class LocalHubTest : public QObject {
   }
   void markersAndSelfUpdate() {
     QTemporaryDir t;
-    const QString root = t.filePath("FrameBeam/Player");
+    const QString root = t.filePath("Uzume/App");
     QVERIFY(QDir().mkpath(root));
     QVERIFY(!canSelfUpdate(root));
     QVERIFY(put(root + "/unins000.exe", "x"));
     QVERIFY(!canSelfUpdate(root));  // only the MSI marker counts
     QVERIFY(QFile::remove(root + "/unins000.exe"));
-    QVERIFY(put(root + "/framebeam-player.msi-installed", ""));
+    QVERIFY(put(root + "/uzume-app.msi-installed", ""));
     QVERIFY(hasMsiMarker(root));
     QVERIFY(canSelfUpdate(root));
     QVERIFY(!hubInstalledNear(root));
-    QVERIFY(put(t.filePath("FrameBeam/Hub/framebeam-hub.msi-installed"), ""));
+    QVERIFY(put(t.filePath("Uzume/Server/uzume-server.msi-installed"), ""));
     QVERIFY(hubInstalledNear(root));
     QVERIFY(isMsiFile("a/B.MSI"));
     QVERIFY(!isMsiFile("a/setup.exe"));
@@ -101,18 +101,7 @@ class LocalHubTest : public QObject {
     QCOMPARE(w.args[1], QStringLiteral("C:\\Users\\a\\data\\x.msi"));
     QCOMPARE(w.args[3], QStringLiteral("C:\\Users\\a\\P\\Uzume.exe"));
     QCOMPARE(msiexecArguments("C:/a/x.msi", MsiScope::Machine)[1], QStringLiteral("C:\\a\\x.msi"));
-    QVERIFY(perMachinePlayerExe("C:/Program Files").endsWith("FrameBeam/Player/Uzume.exe"));
-  }
-  void legacyLauncherNameIsAccepted() {
-    QTemporaryDir t;
-    QVERIFY(launcherFileName(t.filePath("root")).isEmpty());
-    QVERIFY(put(t.filePath("root/framebeam_player.exe"), "old launcher"));
-    QCOMPARE(launcherFileName(t.filePath("root")), QStringLiteral("framebeam_player.exe"));
-    const QString copy = copyLauncherToTemp(t.filePath("root"), t.filePath("tmp"));
-    QVERIFY(copy.endsWith("framebeam_player.exe"));
-    QCOMPARE(get(copy), QByteArray("old launcher"));
-    QVERIFY(put(t.filePath("root/Uzume.exe"), "launcher"));  // both present: the new name wins
-    QCOMPARE(launcherFileName(t.filePath("root")), QStringLiteral("Uzume.exe"));
+    QVERIFY(perMachinePlayerExe("C:/Program Files").endsWith("Uzume/App/Uzume.exe"));
   }
   void msiSelectionAndTolerantParsing() {
     // An index that still lists a legacy "installer" artifact next to the MSI parses; only the MSI is selected.
@@ -135,40 +124,6 @@ class LocalHubTest : public QObject {
     QVERIFY(!findOwnMsi(pr.index, "0.9.2").has_value());  // only the Player's own version
     const auto noMsi = parseIndex(indexWith({art("installer", "setup.exe")}, "0.9.1"));
     QVERIFY(!findOwnMsi(noMsi.index, "0.9.1").has_value());
-  }
-  void portableMigration() {
-    QTemporaryDir t;
-    const QString user = t.filePath("Local/Programs/FrameBeam Player/data");
-    const QString nw = t.filePath("appdata");
-    QCOMPARE(ProfileStore::portableMigrationSources(t.filePath("Local"), t.filePath("PF")),
-             (QStringList{user, t.filePath("PF/FrameBeam Player/data")}));
-    QVERIFY(put(user + "/device.json", "{\"device_id\":\"old\"}"));
-    QVERIFY(put(user + "/profiles.json", "{\"profiles\":[]}"));
-    QVERIFY(put(user + "/hubs/h1/x.json", "1"));
-    QVERIFY(put(user + "/cache/roms/big.bin", "ROMCACHE"));
-    QVERIFY(put(nw + "/profiles.json", "existing"));  // never overwritten
-    const QStringList src = {user, t.filePath("PF/FrameBeam Player/data")};
-    QCOMPARE(ProfileStore::migratePortableData(src, nw), 2);
-    QCOMPARE(get(nw + "/profiles.json"), QByteArray("existing"));
-    QCOMPARE(get(nw + "/device.json"), QByteArray("{\"device_id\":\"old\"}"));
-    QVERIFY(QFileInfo::exists(nw + "/hubs/h1/x.json"));
-    QVERIFY(!QFileInfo::exists(nw + "/cache"));
-    QVERIFY(QFileInfo::exists(nw + "/.migrated-from-portable"));
-    QVERIFY(QFileInfo::exists(user + "/device.json"));  // source untouched
-    QCOMPARE(ProfileStore::migratePortableData(src, nw), 0);  // marker: once
-  }
-  void migrationSkipsEmptyAndSameSources() {
-    QTemporaryDir t;
-    QVERIFY(QDir().mkpath(t.filePath("empty")));
-    QCOMPARE(ProfileStore::migratePortableData({t.filePath("empty"), t.filePath("missing"), t.filePath("n")}, t.filePath("n")), 0);
-    QVERIFY(!QFileInfo::exists(t.filePath("n/.migrated-from-portable")));
-    // first folder with data wins (second is ignored)
-    QVERIFY(put(t.filePath("a/device.json"), "A"));
-    QVERIFY(put(t.filePath("b/device.json"), "B"));
-    QVERIFY(put(t.filePath("b/extra.json"), "E"));
-    QCOMPARE(ProfileStore::migratePortableData({t.filePath("a"), t.filePath("b")}, t.filePath("n2")), 1);
-    QCOMPARE(get(t.filePath("n2/device.json")), QByteArray("A"));
-    QVERIFY(!QFileInfo::exists(t.filePath("n2/extra.json")));
   }
   void detectionViaEnvironment() {
     qunsetenv("UZUME_LOCAL_SERVER_PORT");
@@ -199,23 +154,17 @@ class LocalHubTest : public QObject {
     const auto c = localhub::grantFolderCommand("C:/Hub", "D:/ROMs");
     QCOMPARE(c.args, (QStringList{"grant-folder", "D:/ROMs"}));
     QVERIFY(c.program.endsWith("uzume-server.exe"));
-    // An install from before the rename has only framebeam-hub.exe; with both files the new name wins.
-    QTemporaryDir t;
-    QVERIFY(put(t.filePath("old/framebeam-hub.exe"), "x"));
-    QVERIFY(localhub::grantFolderCommand(t.filePath("old"), "D:/ROMs").program.endsWith("framebeam-hub.exe"));
-    QVERIFY(put(t.filePath("old/uzume-server.exe"), "x"));
-    QVERIFY(localhub::grantFolderCommand(t.filePath("old"), "D:/ROMs").program.endsWith("uzume-server.exe"));
   }
 
   void staleSetupFoldersAreRemovedButFreshOnesStay() {
     QTemporaryDir t;
-    QVERIFY(put(t.filePath("framebeam-hub-setup-a/Uzume.msi"), "dummy"));
+    QVERIFY(put(t.filePath("uzume-server-setup-a/Uzume.msi"), "dummy"));
     QVERIFY(put(t.filePath("uzume-server-setup-b/Uzume.msi"), "dummy"));
     QVERIFY(put(t.filePath("other-folder/keep.txt"), "dummy"));
     QCOMPARE(HubSetupInstaller::cleanStaleTempDirs(t.path(), 24 * 3600), 0);  // just created: not older than a day
-    QVERIFY(QFileInfo::exists(t.filePath("framebeam-hub-setup-a/Uzume.msi")));
+    QVERIFY(QFileInfo::exists(t.filePath("uzume-server-setup-a/Uzume.msi")));
     QCOMPARE(HubSetupInstaller::cleanStaleTempDirs(t.path(), -60), 2);  // everything counts as stale
-    QVERIFY(!QFileInfo::exists(t.filePath("framebeam-hub-setup-a")));
+    QVERIFY(!QFileInfo::exists(t.filePath("uzume-server-setup-a")));
     QVERIFY(!QFileInfo::exists(t.filePath("uzume-server-setup-b")));
     QVERIFY(QFileInfo::exists(t.filePath("other-folder/keep.txt")));  // only our own folders
   }

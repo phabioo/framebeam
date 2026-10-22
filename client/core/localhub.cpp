@@ -29,7 +29,7 @@ Info detect() {
     return info;
   }
 #ifdef Q_OS_WIN
-  QSettings reg(QStringLiteral("HKEY_LOCAL_MACHINE\\Software\\FrameBeam\\Hub"), QSettings::Registry64Format);
+  QSettings reg(QStringLiteral("HKEY_LOCAL_MACHINE\\Software\\Uzume\\Server"), QSettings::Registry64Format);
   if (const auto p = parsePort(reg.value(QStringLiteral("Port")).toString())) info.port = *p;
   info.installDir = reg.value(QStringLiteral("InstallDir")).toString();
 #endif
@@ -55,12 +55,7 @@ bool isLocalHubAddress(const QString& address, int port) {
 
 QString hubExe(const QString& installDir) {
   if (installDir.isEmpty()) return QString();
-  // uzume-server.exe; an install from before the rename (and the MSI until its own transition) has framebeam-hub.exe.
-  const QDir d(installDir);
-  if (!d.exists(QStringLiteral("uzume-server.exe")) && d.exists(QStringLiteral("framebeam-hub.exe"))) {
-    return d.filePath(QStringLiteral("framebeam-hub.exe"));
-  }
-  return d.filePath(QStringLiteral("uzume-server.exe"));
+  return QDir(installDir).filePath(QStringLiteral("uzume-server.exe"));
 }
 
 Command grantFolderCommand(const QString& installDir, const QString& folder) {

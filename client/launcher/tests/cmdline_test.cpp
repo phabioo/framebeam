@@ -53,13 +53,13 @@ class CmdlineTest : public QObject {
   }
   void noArguments() {
     QVERIFY(argumentsOf(L"Uzume.exe").empty());
-    QVERIFY(argumentsOf(L"\"C:\\Program Files\\FrameBeam\\Uzume.exe\"").empty());
+    QVERIFY(argumentsOf(L"\"C:\\Program Files\\Uzume\\Uzume.exe\"").empty());
     QVERIFY(argumentsOf(L"\"C:\\x y\\p.exe\"   ").empty());
     QVERIFY(childCommandLine(L"C:\\a\\bin\\p.exe", L"p.exe") == L"\"C:\\a\\bin\\p.exe\"");
     QVERIFY(argumentsOf(L"").empty());
   }
   void quotedProgramName() {
-    QVERIFY(argumentsOf(L"\"C:\\Program Files\\FrameBeam\\Uzume.exe\" --data-dir \"D:\\my data\"") ==
+    QVERIFY(argumentsOf(L"\"C:\\Program Files\\Uzume\\Uzume.exe\" --data-dir \"D:\\my data\"") ==
             L"--data-dir \"D:\\my data\"");
     QVERIFY(argumentsOf(L"\"C:\\p.exe\"--x") == L"--x");  // no blank after the closing quote
   }
@@ -67,12 +67,12 @@ class CmdlineTest : public QObject {
   void argumentsSurviveVerbatim() {
     const std::wstring args =
         L"--data-dir \"C:\\path with spaces\" \"a \\\"quoted\\\" word\" back\\\\slash \"trail\\\\\" \"\" x";
-    const std::wstring original = L"\"C:\\Program Files\\FrameBeam\\Uzume.exe\" " + args;
-    const std::wstring child = childCommandLine(L"C:\\Program Files\\FrameBeam\\bin\\Uzume.exe", original);
+    const std::wstring original = L"\"C:\\Program Files\\Uzume\\Uzume.exe\" " + args;
+    const std::wstring child = childCommandLine(L"C:\\Program Files\\Uzume\\bin\\Uzume.exe", original);
     auto a = argvOf(original);
     auto b = argvOf(child);
     QVERIFY(!a.empty() && !b.empty());
-    QVERIFY(b[0] == L"C:\\Program Files\\FrameBeam\\bin\\Uzume.exe");
+    QVERIFY(b[0] == L"C:\\Program Files\\Uzume\\bin\\Uzume.exe");
     a.erase(a.begin());
     b.erase(b.begin());
     QVERIFY(a == b);

@@ -14,7 +14,7 @@ import (
 func (s *sessEnv) putSave(d dev, slot string, base int, data []byte, reason string) *httptest.ResponseRecorder {
 	s.t.Helper()
 	return s.do("PUT", "/api/v1/games/"+s.game.ID+"/saves/"+slot, nil, opt{token: d.tok, data: data, ctype: "application/octet-stream",
-		header: map[string]string{"X-FrameBeam-Base-Revision": fmt.Sprint(base), "X-FrameBeam-Content-SHA256": hexSHA(data), "X-FrameBeam-Sync-Reason": reason}})
+		header: map[string]string{"X-Uzume-Base-Revision": fmt.Sprint(base), "X-Uzume-Content-SHA256": hexSHA(data), "X-Uzume-Sync-Reason": reason}})
 }
 
 func (s *sessEnv) savePath(slot, rest string) string {

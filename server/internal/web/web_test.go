@@ -173,7 +173,7 @@ func TestRedirectToSetupWithoutAdmin(t *testing.T) {
 		}
 	}
 	// API stays untouched
-	status(t, c.get("/.well-known/framebeam", nil), 200)
+	status(t, c.get("/.well-known/uzume", nil), 200)
 	status(t, c.get("/api/v1/games", nil), 401)
 	status(t, c.get("/api/v1/does-not-exist", nil), 404)
 }

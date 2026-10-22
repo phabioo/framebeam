@@ -120,8 +120,8 @@ class ShellScreenshotsTest : public QObject {
     QTest::qWait(150);
     shot(h, QStringLiteral("3e-emulation-system"));
     QVERIFY(h.click("defaultsCard"));
-    QTRY_VERIFY(h.item("optionToggle_framebeam.fullscreen_on_start") != nullptr);
-    QVERIFY(h.click("optionToggle_framebeam.fullscreen_on_start"));
+    QTRY_VERIFY(h.item("optionToggle_uzume.fullscreen_on_start") != nullptr);
+    QVERIFY(h.click("optionToggle_uzume.fullscreen_on_start"));
     shot(h, QStringLiteral("3e-emulation-defaults"));
     // A system's core options (Nintendo DS): the list uses the full window width.
     h.controller->showEmulation();

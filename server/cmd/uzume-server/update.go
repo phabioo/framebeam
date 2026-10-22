@@ -137,7 +137,7 @@ func runUpdateCheck(args []string, out io.Writer, stage bool) error {
 	if ch == "" {
 		ch = updates.NormalizeChannel(version.Channel) // without a server database the build channel applies
 	}
-	if _, serr := os.Stat(filepath.Join(cfg.DataDir, "framebeam.db")); *channel == "" && serr == nil {
+	if _, serr := os.Stat(filepath.Join(cfg.DataDir, "uzume.db")); *channel == "" && serr == nil {
 		ctx := context.Background()
 		svc, closeFn, err := openService(ctx, cfg, false)
 		if err != nil {

@@ -4,7 +4,7 @@ name: Index refresh
 # expiry (ADR 0016 amendment 2026-10-19): Hubs and Players refuse an expired index, so a replayed old index cannot hide
 # new releases for ever. Releases re-sign the index anyway; this keeps it valid through quiet weeks (validity: 60 days).
 # Same queue as release.yml and promote.yml (scripts/wait-index-turn.sh): the index is read-modify-write.
-# The signing seed is the secret FRAMEBEAM_SIGNING_KEY of the environment `release` (main only); it is only in the
+# The signing seed is the signing-key secret of the environment `release` (main only); it is only in the
 # environment of the signing step. The plugin index is refreshed by "Publish plugin" (plugin-index.yml, also weekly).
 
 on:

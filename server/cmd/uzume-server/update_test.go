@@ -77,7 +77,7 @@ func newCLIFeed(t *testing.T, ver string) *cliFeed {
 	pub, _ := corepkg.PublicFromSeed(seed)
 	f := &cliFeed{dir: t.TempDir(), pubB64: base64.StdEncoding.EncodeToString(pub), data: []byte("dummy deb " + ver)}
 	kind := updates.KindFor(updates.Platform()) // deb on Linux, msi on Windows
-	f.name = "framebeam-hub_" + strings.ReplaceAll(ver, "-", "~") + "_" + runtime.GOARCH + "." + kind
+	f.name = "uzume-server_" + strings.ReplaceAll(ver, "-", "~") + "_" + runtime.GOARCH + "." + kind
 	os.WriteFile(filepath.Join(f.dir, f.name), f.data, 0o644)
 	sum := sha256.Sum256(f.data)
 	idx, err := updates.Marshal(updates.Index{Schema: 1, GeneratedAt: time.Now().UTC(), Releases: []updates.Release{{

@@ -344,7 +344,7 @@ class EmulationControllersTest : public QObject {
 
     // The system shows the core's visible, non-locked options; nothing else, and no Uzume options (those are Defaults).
     QVERIFY(visible(h, "optionGroup_core"));
-    QVERIFY(h.item("optionSelect_framebeam.default_multiview") == nullptr);  // display options are global only (speed-up options are offered per system)
+    QVERIFY(h.item("optionSelect_uzume.default_multiview") == nullptr);  // display options are global only (speed-up options are offered per system)
     QVERIFY(h.item("optionRow_melonds_audio_interpolation") != nullptr);
     QVERIFY(h.item("optionRow_melonds_boot_mode") != nullptr);
     for (const char* hidden : {"optionRow_melonds_screen_layout1", "optionRow_melonds_sysfile_mode",
@@ -694,11 +694,11 @@ class EmulationControllersTest : public QObject {
     QVERIFY(h.item("optionGroup_core") == nullptr);
     QVERIFY(visible(h, "globalCoreHint"));
     QVERIFY(visible(h, "optionGroup_uzume"));
-    QVERIFY(h.item("optionToggle_framebeam.fullscreen_on_start") != nullptr);  // off/on = toggle
-    QCOMPARE(text(h, "optionOrigin_framebeam.fullscreen_on_start"), QStringLiteral("Default"));
+    QVERIFY(h.item("optionToggle_uzume.fullscreen_on_start") != nullptr);  // off/on = toggle
+    QCOMPARE(text(h, "optionOrigin_uzume.fullscreen_on_start"), QStringLiteral("Default"));
     QVERIFY(!h.controller->fullscreenOnStart());
-    QVERIFY(h.click("optionToggle_framebeam.fullscreen_on_start"));
-    QVERIFY(visible(h, "changedDot_framebeam.fullscreen_on_start"));
+    QVERIFY(h.click("optionToggle_uzume.fullscreen_on_start"));
+    QVERIFY(visible(h, "changedDot_uzume.fullscreen_on_start"));
     QVERIFY(h.controller->fullscreenOnStart());  // wired: the game view goes fullscreen on start
     QCOMPARE(emu->defaultsChangedCount(), 1);
     QCOMPARE(text(h, "defaultsChanged"), QStringLiteral("1 changed"));
@@ -708,25 +708,25 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(emu->level(), QStringLiteral("system"));
     QVERIFY(h.controller->fullscreenOnStart());
     QVERIFY(h.click("defaultsCard"));
-    QVERIFY(h.click("optionReset_framebeam.fullscreen_on_start"));
+    QVERIFY(h.click("optionReset_uzume.fullscreen_on_start"));
     QVERIFY(!h.controller->fullscreenOnStart());
 
     // Default Multiview offers Picture-in-Picture, Side-by-Side and Grid 2x2; it is applied to the Session view.
     QCOMPARE(h.controller->sessions()->multiviewMode(), QStringLiteral("pip"));
-    QVERIFY(h.item("optionSelect_framebeam.default_multiview") != nullptr);
+    QVERIFY(h.item("optionSelect_uzume.default_multiview") != nullptr);
     QStringList values;
     for (const QVariant& g : emu->groups()) {
       for (const QVariant& o : g.toMap().value(QStringLiteral("options")).toList()) {
-        if (o.toMap().value(QStringLiteral("key")).toString() == QStringLiteral("framebeam.default_multiview")) {
+        if (o.toMap().value(QStringLiteral("key")).toString() == QStringLiteral("uzume.default_multiview")) {
           for (const QVariant& v : o.toMap().value(QStringLiteral("values")).toList()) values.append(v.toMap().value(QStringLiteral("value")).toString());
         }
       }
     }
     QCOMPARE(values, (QStringList{QStringLiteral("pip"), QStringLiteral("row"), QStringLiteral("grid")}));
-    pick(h, "optionSelect_framebeam.default_multiview", QStringLiteral("row"));
+    pick(h, "optionSelect_uzume.default_multiview", QStringLiteral("row"));
     QCOMPARE(h.controller->sessions()->multiviewMode(), QStringLiteral("row"));
-    pick(h, "optionSelect_framebeam.default_multiview", QStringLiteral("grid"));
-    QCOMPARE(emu->uzumeValue(QStringLiteral("framebeam.default_multiview"), QStringLiteral("nds")), QStringLiteral("grid"));
+    pick(h, "optionSelect_uzume.default_multiview", QStringLiteral("grid"));
+    QCOMPARE(emu->uzumeValue(QStringLiteral("uzume.default_multiview"), QStringLiteral("nds")), QStringLiteral("grid"));
 
     // A core option set globally in the file (keys stay assigned to the core) is still inherited by the system.
     emu->settings()->setValue(L::Global, QString(), QStringLiteral("melonds_boot_mode"), QStringLiteral("native"));
@@ -797,7 +797,7 @@ class EmulationControllersTest : public QObject {
     h.controller->showEmulation();
     EmulationController* emu = h.controller->emulation();
     QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("melondsds"));
-    QVERIFY(h.item("optionSelect_framebeam.core") != nullptr);
+    QVERIFY(h.item("optionSelect_uzume.core") != nullptr);
     const QVariantList cores = emu->system().value(QStringLiteral("cores")).toList();
     QCOMPARE(cores.size(), 3);
     const QString melon = cores.at(0).toMap().value(QStringLiteral("label")).toString();
@@ -807,19 +807,19 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(h.controller->selectedGame().value(QStringLiteral("coreExperimental")).toBool(), false);
 
     // Choose DeSmuME for the system: stored locally, effective at once.
-    pick(h, "optionSelect_framebeam.core", QStringLiteral("desmume"));
+    pick(h, "optionSelect_uzume.core", QStringLiteral("desmume"));
     const QString key = QString::fromLatin1(EmulationSettings::kCoreKey);
     QCOMPARE(emu->settings()->value(EmulationSettings::Level::System, QStringLiteral("nds"), key), QStringLiteral("desmume"));
     QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("desmume"));
     QVERIFY(!emu->system().value(QStringLiteral("coreExperimental")).toBool());
-    QVERIFY(visible(h, "changedDot_framebeam.core"));
+    QVERIFY(visible(h, "changedDot_uzume.core"));
     // Choosing the Hub default again stores nothing.
-    pick(h, "optionSelect_framebeam.core", QStringLiteral("melondsds"));
+    pick(h, "optionSelect_uzume.core", QStringLiteral("melondsds"));
     QVERIFY(!emu->settings()->hasValue(EmulationSettings::Level::System, QStringLiteral("nds"), key));
     QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("melondsds"));
 
     // A core without profile is experimental: marked everywhere, no option defaults.
-    pick(h, "optionSelect_framebeam.core", QStringLiteral("noods"));
+    pick(h, "optionSelect_uzume.core", QStringLiteral("noods"));
     QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("noods"));
     QVERIFY(emu->system().value(QStringLiteral("coreExperimental")).toBool());
     QVERIFY(emu->system().value(QStringLiteral("coreName")).toString().contains(QStringLiteral("Experimental")));
@@ -888,7 +888,7 @@ class EmulationControllersTest : public QObject {
     pick(h, "gameSelect", QStringLiteral("g1"));
     QCOMPARE(emu->selectedGame(), QStringLiteral("g1"));
     QVERIFY(!visible(h, "gamePickerHint"));
-    QVERIFY(h.item("optionSelect_framebeam.core") != nullptr);
+    QVERIFY(h.item("optionSelect_uzume.core") != nullptr);
     QVariantMap coreRow;
     for (const QVariant& g : emu->groups()) {
       for (const QVariant& o : g.toMap().value(QStringLiteral("options")).toList()) {
@@ -900,18 +900,18 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(coreRow.value(QStringLiteral("values")).toList().size(), 3);  // default + two cores
 
     // Choose DeSmuME for this game only: stored at game level, not for the system.
-    pick(h, "optionSelect_framebeam.core", QStringLiteral("desmume"));
+    pick(h, "optionSelect_uzume.core", QStringLiteral("desmume"));
     QCOMPARE(emu->settings()->value(L::Game, QStringLiteral("g1"), key), QStringLiteral("desmume"));
     QVERIFY(!emu->settings()->hasValue(L::System, QStringLiteral("nds"), key));
     QCOMPARE(emu->system().value(QStringLiteral("coreId")).toString(), QStringLiteral("melondsds"));  // the system is unchanged
     QCOMPARE(emu->game().value(QStringLiteral("changedCount")).toInt(), 1);
     QCOMPARE(emu->gameOverrideCount(), 1);
     QCOMPARE(emu->changedCount(), 1);
-    QVERIFY(visible(h, "changedDot_framebeam.core"));
+    QVERIFY(visible(h, "changedDot_uzume.core"));
 
     // A per-game Uzume option (speed-up) overrides system and global for this game only.
     const QString ratio = QString::fromLatin1(EmulationController::kSpeedUpRatioKey);
-    pick(h, "optionSelect_framebeam.speedup_ratio", QStringLiteral("4"));
+    pick(h, "optionSelect_uzume.speedup_ratio", QStringLiteral("4"));
     QCOMPARE(emu->uzumeValue(ratio, QStringLiteral("nds"), QStringLiteral("g1")), QStringLiteral("4"));
     QCOMPARE(emu->uzumeValue(ratio, QStringLiteral("nds"), QString()), QStringLiteral("2"));
     QCOMPARE(emu->changedCount(), 2);
@@ -925,8 +925,8 @@ class EmulationControllersTest : public QObject {
     QVERIFY(emu->settings()->values(L::Game, QStringLiteral("g1")).isEmpty());
     QCOMPARE(emu->gameOverrideCount(), 0);
     // Choosing "Use system default" stores nothing.
-    pick(h, "optionSelect_framebeam.core", QStringLiteral("desmume"));
-    pick(h, "optionSelect_framebeam.core", QString());
+    pick(h, "optionSelect_uzume.core", QStringLiteral("desmume"));
+    pick(h, "optionSelect_uzume.core", QString());
     QVERIFY(!emu->settings()->hasValue(L::Game, QStringLiteral("g1"), key));
 
     // Back on a system: the game section stays out of the way.

@@ -84,8 +84,6 @@ class MsiUpdateTest : public QObject {
     r.scope = L"setup-hub";
     r.msi = L"C:\\Users\\a\\AppData\\Local\\Temp\\uzume-server-setup-0123abcd\\Uzume.msi";
     QVERIFY(setupDirToRemove(r) == L"C:\\Users\\a\\AppData\\Local\\Temp\\uzume-server-setup-0123abcd");
-    r.msi = L"C:\\Users\\a\\AppData\\Local\\Temp\\framebeam-hub-setup-0123abcd\\Uzume.msi";  // folder of an older app
-    QVERIFY(setupDirToRemove(r) == L"C:\\Users\\a\\AppData\\Local\\Temp\\framebeam-hub-setup-0123abcd");
     r.scope = L"machine";  // a staged update MSI stays in the Player's cache
     QVERIFY(setupDirToRemove(r).empty());
     r.scope = L"setup-hub";

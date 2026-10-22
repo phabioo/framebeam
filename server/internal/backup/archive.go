@@ -29,7 +29,7 @@ const FormatVersion = 1
 const ManifestName = "manifest.json"
 
 // DBMember is the name of the database snapshot member.
-const DBMember = "database/framebeam.db"
+const DBMember = "database/uzume.db"
 
 // Groups of an archive, in the order they are written.
 const (
@@ -114,10 +114,7 @@ func (m *Manifest) ContentsText() string {
 
 // ---- names ----
 
-// nameRe also accepts the framebeam-hub- prefix that versions before the rename to Uzume gave their archives, so
-// those stay listed, pruned and restorable.
-
-var nameRe = regexp.MustCompile(`^(?:uzume-server|framebeam-hub)-([a-z0-9][a-z0-9-]*)-(\d{8}T\d{6}Z)(-safety)?\.tar$`)
+var nameRe = regexp.MustCompile(`^uzume-server-([a-z0-9][a-z0-9-]*)-(\d{8}T\d{6}Z)(-safety)?\.tar$`)
 
 const tsLayout = "20060102T150405Z"
 
@@ -347,7 +344,7 @@ func Create(ctx context.Context, opt Options) (res Result, err error) {
 		return res, err
 	}
 	defer os.RemoveAll(dbTmp)
-	dbFile := filepath.Join(dbTmp, "framebeam.db")
+	dbFile := filepath.Join(dbTmp, "uzume.db")
 
 	unlock := func() {}
 	if opt.Lock != nil {
@@ -693,7 +690,7 @@ func stageRel(name string) (string, bool) {
 	}
 	switch {
 	case name == DBMember:
-		return "framebeam.db", true
+		return "uzume.db", true
 	case strings.HasPrefix(name, "data/"):
 		rest := name[len("data/"):]
 		top, _, _ := strings.Cut(rest, "/")
@@ -870,7 +867,7 @@ func extract(ctx context.Context, file, staging string, m *Manifest, opt Extract
 	if opt.VerifyOnly {
 		return nil, nil
 	}
-	if _, err := os.Stat(filepath.Join(staging, "framebeam.db")); err != nil {
+	if _, err := os.Stat(filepath.Join(staging, "uzume.db")); err != nil {
 		return nil, &DamagedError{"database missing"}
 	}
 	ents, err := os.ReadDir(staging)

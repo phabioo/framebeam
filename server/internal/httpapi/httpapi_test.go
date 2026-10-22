@@ -225,7 +225,7 @@ func handshakeBody(proto, minProto int) map[string]any {
 
 func TestInfoEndpoint(t *testing.T) {
 	e := newEnv(t, nil)
-	rec := e.do("GET", "/.well-known/framebeam", nil, opt{})
+	rec := e.do("GET", "/.well-known/uzume", nil, opt{})
 	wantStatus(t, rec, 200, "")
 	i := decode[map[string]any](t, rec)
 	if _, err := uuid.Parse(i["hub_id"].(string)); err != nil || i["name"] != "Test-Hub" || i["api_base"] != "/api/v1" ||

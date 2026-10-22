@@ -290,12 +290,12 @@ func TestRedeemFailureCapSparesCleanSources(t *testing.T) {
 	}
 	for i := 0; i < hub.MaxRedeemFailuresPerMinute/hub.MaxRedeemPerIPPerMinute+2; i++ { // exceeds the global cap
 		for j := 0; j < hub.MaxRedeemPerIPPerMinute; j++ {
-			in := redeemIn("FB-AAAA-AAAA", "x")
+			in := redeemIn("UZ-AAAA-AAAA", "x")
 			in.RemoteAddr = fmt.Sprintf("10.%d.%d.1", i/250, i%250)
 			svc.RedeemInvite(ctx, in)
 		}
 	}
-	in := redeemIn("FB-AAAA-AAAA", "x") // a source with a failure of its own is held back by the global cap
+	in := redeemIn("UZ-AAAA-AAAA", "x") // a source with a failure of its own is held back by the global cap
 	in.RemoteAddr = "10.0.0.1"
 	if _, err := svc.RedeemInvite(ctx, in); !errors.Is(err, hub.ErrRateLimited) {
 		t.Fatalf("failing source below the global cap: %v", err)

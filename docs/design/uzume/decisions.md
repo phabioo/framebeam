@@ -111,7 +111,7 @@ Review of batch 3: runs always in Play with a Rules column (mode as neutral Tag,
 | 10 | Run column | No 300 px run list beside a run; details are a section under the Runs table. | Accepted |
 | 11 | Shield | Outlined placeholder for the Windows shield on admin-rights buttons. | Accepted (gap) |
 | 12 | Progress dialog | 8i-3 is a plain Dialog with a disabled primary "Sharing..." (the busy Dialog dims content). | Accepted (gap) |
-| 13 | Old names | The upgrade dialog (8l-10) names FrameBeam Player and Hub, the names Setup finds on old PCs. | Accepted |
+| 13 | Old names | The upgrade dialog (8l-10) names FrameBeam Player and Hub, the names Setup finds on old PCs. Not built: FrameBeam installs are not upgraded or migrated, they are replaced by a fresh install ([ADR 0030](../../adr/0030-one-app-one-server-uzume.md)). | Accepted |
 | 14 | Light check | Every board except 8l has a Kinari twin. | Accepted |
 | 15 | Board size | 8l-1 to 8l-3 are 1040 high to fit four dialogs at 1:1. | Accepted |
 

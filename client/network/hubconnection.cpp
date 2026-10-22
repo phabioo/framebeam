@@ -188,7 +188,7 @@ void HubConnection::startIdentify(const QString& addressInput, bool allowHttp, s
 
   setState(State::Identifying);
   http_ = new HubHttp(base, pin_, this);
-  QNetworkReply* reply = http_->get(QStringLiteral("/.well-known/framebeam"), {}, {}, /*allowUnpinned=*/true);
+  QNetworkReply* reply = http_->get(QStringLiteral("/.well-known/uzume"), {}, {}, /*allowUnpinned=*/true);
   track(reply, [this](const HttpResult& r) { onIdentified(r); });
 }
 

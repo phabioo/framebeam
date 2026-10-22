@@ -39,7 +39,7 @@ const (
 	InfoVersion = 1
 	// DefaultMaxLogBytes caps the log content of one bundle (before compression).
 	DefaultMaxLogBytes int64 = 50 << 20
-	journalUnit              = "framebeam-hub"
+	journalUnit              = "uzume-server"
 )
 
 var processStart = time.Now()

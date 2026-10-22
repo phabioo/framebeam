@@ -205,7 +205,7 @@ Four dialogs: 8L-5 Progress ("Installing the server service...", status "Registe
 
 Boards: [`S8l3`](../source/uzume/S8l3.dc.html) (1280 x 1040). Built in: 0.18 package 11 (installer).
 
-Three dialogs: 8L-8 Change / Repair / Remove (Change switches between the three modes; Repair fixes files and the service, data stays; Remove keeps games, saves and server data); 8L-9 Remove ("Your saves, games and server data in `C:\ProgramData\Uzume` stay"; optional checkbox "Also delete all server data", cannot be undone); 8L-10 Upgrade from FrameBeam Player and Hub (found FrameBeam Player 0.16.4 and Hub 0.16.4, becomes "Uzume with a server on this PC"; library, saves, users and settings kept; old names and shortcuts removed).
+Three dialogs: 8L-8 Change / Repair / Remove (Change switches between the three modes; Repair fixes files and the service, data stays; Remove keeps games, saves and server data); 8L-9 Remove ("Your saves, games and server data in `C:\ProgramData\Uzume` stay"; optional checkbox "Also delete all server data", cannot be undone); 8L-10 Upgrade from FrameBeam Player and Hub (found FrameBeam Player 0.16.4 and Hub 0.16.4, becomes "Uzume with a server on this PC"; library, saves, users and settings kept; old names and shortcuts removed). Not built: there is no upgrade from FrameBeam, the MSI replaces the product but takes over no data ([ADR 0030](../../adr/0030-one-app-one-server-uzume.md)).
 
 ## 8m Linux
 

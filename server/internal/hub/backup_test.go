@@ -122,7 +122,7 @@ func TestBackupRunRetentionAndList(t *testing.T) {
 		t.Fatalf("no problem expected: %+v", p)
 	}
 	// Delete: only a plain archive name of the folder.
-	if err := e.svc.DeleteBackup(ctx, "../framebeam.db"); !errors.Is(err, hub.ErrNotFound) {
+	if err := e.svc.DeleteBackup(ctx, "../uzume.db"); !errors.Is(err, hub.ErrNotFound) {
 		t.Fatalf("%v", err)
 	}
 	if err := e.svc.DeleteBackup(ctx, list[1].Name); err != nil {
@@ -250,7 +250,7 @@ func TestBackupContainsDatabaseAndData(t *testing.T) {
 	for _, x := range m.Members {
 		names[x.Name] = true
 	}
-	for _, want := range []string{"database/framebeam.db", "data/saves/u/g/main/aaaa", "data/plugins/p/1/main.lua"} {
+	for _, want := range []string{"database/uzume.db", "data/saves/u/g/main/aaaa", "data/plugins/p/1/main.lua"} {
 		if !names[want] {
 			t.Errorf("missing %s", want)
 		}
@@ -332,7 +332,7 @@ func TestRestorePreparesAndRejectsBadBackups(t *testing.T) {
 	if !backup.HasPending(e.data) {
 		t.Fatal("restore must be pending for the next start")
 	}
-	if _, err := os.Stat(filepath.Join(e.data, backup.StagingDir, "framebeam.db")); err != nil {
+	if _, err := os.Stat(filepath.Join(e.data, backup.StagingDir, "uzume.db")); err != nil {
 		t.Fatal("staging must hold the database")
 	}
 	st = e.svc.BackupStatus(ctx)

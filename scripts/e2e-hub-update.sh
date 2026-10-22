@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # E2E of the Uzume server packaging and self-update on a real systemd host (CI runner; destructive, installs a service):
-#   1. install with packaging/linux/install-hub.sh (script install)
-#   2. install the .deb over it (migration keeps data and hub.env, service stays up)
+#   1. install with packaging/linux/install-server.sh (script install)
+#   2. install the .deb over it (migration keeps data and server.env, service stays up)
 #   3. update round trip: second .deb with a higher version, throwaway signing key, local signed updates index
 #      with file:// URLs, `uzume-server update stage` as the service user, the path unit applies it.
 # Skips (exit 0) with a message when root/sudo or systemd is missing. Env: UZUME_E2E_PORT (default 8447),
@@ -13,13 +13,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT="${UZUME_E2E_PORT:-8447}"
 V1="0.3.0-e2e.1"
 V2="0.3.0-e2e.2"
-SHARE=/srv/framebeam-e2e-updates   # not /tmp: the server unit has PrivateTmp
-DATA=/var/lib/framebeam
+SHARE=/srv/uzume-e2e-updates   # not /tmp: the server unit has PrivateTmp
+DATA=/var/lib/uzume
 
 say()  { echo "e2e: $*"; }
 fail() { echo "e2e FAIL: $*" >&2; dump_logs; exit 1; }
 dump_logs() {
-  $SUDO journalctl -u framebeam-hub -u framebeam-hub-update --no-pager -n 40 -o cat 2>/dev/null | tail -n 40 >&2 || true
+  $SUDO journalctl -u uzume-server -u uzume-server-update --no-pager -n 40 -o cat 2>/dev/null | tail -n 40 >&2 || true
 }
 
 SUDO=""
@@ -32,11 +32,11 @@ fi
 for t in go dpkg-deb curl; do
   command -v "$t" >/dev/null 2>&1 || { say "SKIP: $t not found"; exit 0; }
 done
-if $SUDO systemctl is-active --quiet framebeam-hub 2>/dev/null; then
-  fail "framebeam-hub is already active on this host; refusing to touch an existing installation"
+if $SUDO systemctl is-active --quiet uzume-server 2>/dev/null; then
+  fail "uzume-server is already active on this host; refusing to touch an existing installation"
 fi
 
-for p in "$DATA" /etc/framebeam /usr/local/bin/uzume-server /usr/local/bin/framebeam-hub /usr/bin/uzume-server /usr/bin/framebeam-hub; do
+for p in "$DATA" /etc/uzume /usr/local/bin/uzume-server /usr/bin/uzume-server; do
   if $SUDO test -e "$p"; then fail "$p exists: this test needs a host without an Uzume server installation (it removes everything afterwards)"; fi
 done
 ARCH="$(dpkg --print-architecture)"
@@ -45,9 +45,9 @@ WORK="$(mktemp -d)"
 cleanup() {
   local rc=$?
   if [ "${UZUME_E2E_CLEANUP:-1}" != 0 ]; then
-    $SUDO systemctl stop framebeam-hub-update.path framebeam-hub-update.service framebeam-hub 2>/dev/null || true
-    $SUDO dpkg --purge framebeam-hub >/dev/null 2>&1 || true
-    $SUDO rm -rf "$SHARE" "$DATA" /etc/framebeam /etc/systemd/system/framebeam-hub.service* /usr/local/bin/uzume-server /usr/local/bin/framebeam-hub
+    $SUDO systemctl stop uzume-server-update.path uzume-server-update.service uzume-server 2>/dev/null || true
+    $SUDO dpkg --purge uzume-server >/dev/null 2>&1 || true
+    $SUDO rm -rf "$SHARE" "$DATA" /etc/uzume /etc/systemd/system/uzume-server.service* /usr/local/bin/uzume-server
     $SUDO systemctl daemon-reload 2>/dev/null || true
   fi
   rm -rf "$WORK"
@@ -62,7 +62,7 @@ build_hub() { # VERSION OUT
 }
 wait_api() { # up to 60 s
   for _ in $(seq 1 60); do
-    curl -fsk "https://127.0.0.1:$PORT/.well-known/framebeam" >/dev/null 2>&1 && return 0
+    curl -fsk "https://127.0.0.1:$PORT/.well-known/uzume" >/dev/null 2>&1 && return 0
     sleep 1
   done
   return 1
@@ -77,32 +77,25 @@ DEB1="$("$ROOT/packaging/linux/build-deb.sh" --binary "$WORK/hub-v1" --arch "$AR
 DEB2="$("$ROOT/packaging/linux/build-deb.sh" --binary "$WORK/hub-v2" --arch "$ARCH" --version "$V2" --out "$WORK/deb")"
 
 # 1. script install
-say "1/3 install with install-hub.sh"
-$SUDO "$ROOT/packaging/linux/install-hub.sh" install --binary "$WORK/hub-v1" --port "$PORT" --name e2e >/dev/null
-wait_api || fail "server does not answer after install-hub.sh"
+say "1/3 install with install-server.sh"
+$SUDO "$ROOT/packaging/linux/install-server.sh" install --binary "$WORK/hub-v1" --port "$PORT" --name e2e >/dev/null
+wait_api || fail "server does not answer after install-server.sh"
 echo "keep-me" | $SUDO tee "$DATA/e2e-marker" >/dev/null
-$SUDO chown framebeam:framebeam "$DATA/e2e-marker"
-echo "UZUME_E2E_MARK=1" | $SUDO tee -a /etc/framebeam/hub.env >/dev/null
-# An install from before the rename has FRAMEBEAM_* keys in hub.env; the server must keep reading them (the package
-# never rewrites an existing hub.env), so the migration below runs against such a file.
-$SUDO sed -i -e 's/^UZUME_LISTEN=/FRAMEBEAM_LISTEN=/' -e 's/^UZUME_DATA_DIR=/FRAMEBEAM_DATA_DIR=/' /etc/framebeam/hub.env
-$SUDO systemctl restart framebeam-hub
-wait_api || fail "server does not answer with a legacy FRAMEBEAM_* hub.env"
+$SUDO chown uzume:uzume "$DATA/e2e-marker"
+echo "UZUME_E2E_MARK=1" | $SUDO tee -a /etc/uzume/server.env >/dev/null
 
 # 2. .deb over the script install
 say "2/3 install the .deb over it (migration)"
 $SUDO dpkg -i "$DEB1" >/dev/null
-if [ -e /usr/local/bin/framebeam-hub ] || [ -e /usr/local/bin/uzume-server ]; then fail "old /usr/local/bin binary still present"; fi
-[ "$(readlink /usr/bin/framebeam-hub)" = uzume-server ] || fail "compat symlink /usr/bin/framebeam-hub missing"
-/usr/bin/framebeam-hub version --json >/dev/null 2>&1 || fail "compat symlink does not run"
-$SUDO test -f /etc/framebeam/framebeam-hub.service.pre-deb || fail "old unit was not kept as framebeam-hub.service.pre-deb"
-[ ! -e /etc/systemd/system/framebeam-hub.service ] || fail "old unit still shadows the packaged one"
-$SUDO grep -qx 'UZUME_E2E_MARK=1' /etc/framebeam/hub.env || fail "hub.env was modified"
-$SUDO grep -qx "FRAMEBEAM_LISTEN=:$PORT" /etc/framebeam/hub.env || fail "hub.env lost the listen address"
+if [ -e /usr/local/bin/uzume-server ]; then fail "old /usr/local/bin binary still present"; fi
+$SUDO test -f /etc/uzume/uzume-server.service.pre-deb || fail "old unit was not kept as uzume-server.service.pre-deb"
+[ ! -e /etc/systemd/system/uzume-server.service ] || fail "old unit still shadows the packaged one"
+$SUDO grep -qx 'UZUME_E2E_MARK=1' /etc/uzume/server.env || fail "server.env was modified"
+$SUDO grep -qx "UZUME_LISTEN=:$PORT" /etc/uzume/server.env || fail "server.env lost the listen address"
 [ "$($SUDO cat "$DATA/e2e-marker")" = keep-me ] || fail "data marker lost"
 wait_api || fail "server does not answer after the .deb install"
-$SUDO systemctl is-active --quiet framebeam-hub || fail "framebeam-hub is not active after the .deb install"
-$SUDO systemctl is-active --quiet framebeam-hub-update.path || fail "update path unit is not active"
+$SUDO systemctl is-active --quiet uzume-server || fail "uzume-server is not active after the .deb install"
+$SUDO systemctl is-active --quiet uzume-server-update.path || fail "update path unit is not active"
 [ "$(installed_version)" = "$V1" ] || fail "installed version is '$(installed_version)', expected $V1"
 
 # 3. update round trip
@@ -127,26 +120,26 @@ $SUDO install -m 0644 "$WORK/updates-index.json" "$WORK/updates-index.json.sig" 
   echo "UZUME_SERVER_UPDATE_INDEX_URL=file://$SHARE/updates-index.json"
   echo "UZUME_SERVER_CORE_TRUST_KEYS=$PUB"
   echo "UZUME_PLUGIN_INDEX_URL=none"
-} | $SUDO tee -a /etc/framebeam/hub.env >/dev/null
-$SUDO systemctl restart framebeam-hub
+} | $SUDO tee -a /etc/uzume/server.env >/dev/null
+$SUDO systemctl restart uzume-server
 wait_api || fail "server does not answer after the restart with the update settings"
 
-$SUDO runuser -u framebeam -- bash -c 'set -a; . /etc/framebeam/hub.env; exec /usr/bin/uzume-server update stage' \
+$SUDO runuser -u uzume -- bash -c 'set -a; . /etc/uzume/server.env; exec /usr/bin/uzume-server update stage' \
   || fail "uzume-server update stage failed"
 
 ok=0
 # The helper writes last-result.json after dpkg has restarted the Hub, so wait for it as well.
 for _ in $(seq 1 120); do
-  if [ "$(installed_version)" = "$V2" ] && $SUDO systemctl is-active --quiet framebeam-hub \
-     && curl -fsk "https://127.0.0.1:$PORT/.well-known/framebeam" >/dev/null 2>&1 \
+  if [ "$(installed_version)" = "$V2" ] && $SUDO systemctl is-active --quiet uzume-server \
+     && curl -fsk "https://127.0.0.1:$PORT/.well-known/uzume" >/dev/null 2>&1 \
      && $SUDO test -e "$DATA/updates/last-result.json"; then ok=1; break; fi
   sleep 1
 done
 [ "$ok" -eq 1 ] || fail "update was not applied within 120 s (installed: $(installed_version))"
-[ ! -e /run/framebeam/update-request ] || fail "update request file was not consumed"
-$SUDO grep -qx 'UZUME_E2E_MARK=1' /etc/framebeam/hub.env || fail "hub.env lost after the update"
+[ ! -e /run/uzume/update-request ] || fail "update request file was not consumed"
+$SUDO grep -qx 'UZUME_E2E_MARK=1' /etc/uzume/server.env || fail "server.env lost after the update"
 [ "$($SUDO cat "$DATA/e2e-marker")" = keep-me ] || fail "data marker lost after the update"
-$SUDO systemctl is-active --quiet framebeam-hub-update.path || fail "update path unit not active after the update"
+$SUDO systemctl is-active --quiet uzume-server-update.path || fail "update path unit not active after the update"
 $SUDO grep -q '"ok" *: *true' "$DATA/updates/last-result.json" \
   || fail "last-result.json missing or not ok"
-say "OK: installed $V2, service active, data and hub.env kept"
+say "OK: installed $V2, service active, data and server.env kept"

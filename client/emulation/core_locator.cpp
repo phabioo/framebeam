@@ -89,7 +89,7 @@ CoreLocation CoreLocator::locate(const SystemManifest& manifest, const QString& 
   if (probe(m_explicit.value(manifest.coreId), "explicit")) return loc;
   // Environment: UZUME_<CORE_ID>_CORE, also under the core's other ids (UZUME_MELONDS_DS_CORE for melondsds).
   for (const QString& id : QStringList(manifest.coreId) + manifest.coreAliases) {
-    if (probe(qEnvironmentVariable(uzume::env::name(environmentVariableFor(id).toUtf8().constData()).constData()), "env")) return loc;
+    if (probe(qEnvironmentVariable(environmentVariableFor(id).toUtf8().constData()), "env")) return loc;
   }
   if (!m_cacheRoot.isEmpty() && !m_platform.isEmpty()) {
     // The core's own cache directory first, then those of its other ids (a core cached under a legacy id still works).

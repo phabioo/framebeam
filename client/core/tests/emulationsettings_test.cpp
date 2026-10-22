@@ -102,7 +102,7 @@ class EmulationSettingsTest : public QObject {
   void coreChoiceRoundTrip() {
     QTemporaryDir dir;
     const QString key = QString::fromLatin1(EmulationSettings::kCoreKey);
-    QCOMPARE(key, QStringLiteral("framebeam.core"));
+    QCOMPARE(key, QStringLiteral("uzume.core"));
     {
       EmulationSettings s(dir.path());
       QVERIFY(s.setValue(L::System, QStringLiteral("nds"), key, QStringLiteral("desmume")));

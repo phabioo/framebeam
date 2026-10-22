@@ -1,11 +1,11 @@
 openapi: 3.0.3
 info:
   title: Uzume server API
-  version: 1.26.1
+  version: 1.27.0
   description: |
     HTTPS/JSON API of the Uzume server (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the server under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for app-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for an app on the same PC as the server (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected apps receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on app devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games); 0.17 adds problem reports (`reports_v1`: `POST /reports` from any paired device, the admin list, files, zip archive, seen mark and delete under `/admin/reports`). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
-    only the info endpoint lives under `/.well-known/framebeam`.
+    only the info endpoint lives under `/.well-known/uzume`.
     Compatibility: the app's protocol_version < the server's min_protocol_version -> player_too_old;
     the server's protocol_version < the app's min_protocol_version -> hub_too_old.
     All values in examples are placeholders, not real secrets.
@@ -30,7 +30,7 @@ tags:
   - name: admin
   - name: ws
 paths:
-  /.well-known/framebeam:
+  /.well-known/uzume:
     get:
       operationId: getHubInfo
       tags: [info]
@@ -138,7 +138,7 @@ paths:
               schema: { $ref: '#/components/schemas/LocalStatus' }
               examples:
                 default:
-                  value: { admin_exists: false, network_sharing: false, import_dir: 'C:\ProgramData\FrameBeam\Hub\library-import', hub_version: 0.9.0 }
+                  value: { admin_exists: false, network_sharing: false, import_dir: 'C:\ProgramData\Uzume\Server\library-import', hub_version: 0.9.0 }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/local/setup:
@@ -1041,7 +1041,7 @@ paths:
         Raw `application/octet-stream` body (max 64 MiB, opaque, never interpreted by the server).
         Rules, evaluated in order inside one transaction per slot:
         1. SHA-256 equals the current checkpoint -> 200 with the current slot, no new revision (idempotent retry).
-        2. `X-FrameBeam-Base-Revision` equals the current revision (0 and no slot yet) -> new revision, 200.
+        2. `X-Uzume-Base-Revision` equals the current revision (0 and no slot yet) -> new revision, 200.
         3. Otherwise -> 409 `save_conflict`: the upload is secured as history version (`conflict_upload`),
            an open conflict is created or updated (at most one open conflict per slot and device) and
            returned in `conflict`. The current checkpoint stays unchanged.
@@ -1049,19 +1049,19 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: X-FrameBeam-Base-Revision
+        - name: X-Uzume-Base-Revision
           in: header
           required: true
           description: Checkpoint revision the upload is based on; 0 = the app had no server save.
           schema: { type: integer, minimum: 0 }
           example: 3
-        - name: X-FrameBeam-Content-SHA256
+        - name: X-Uzume-Content-SHA256
           in: header
           required: true
           description: Lowercase hex SHA-256 of the body; verified by the server.
           schema: { type: string, pattern: '^[0-9a-f]{64}$' }
           example: '2222222222222222222222222222222222222222222222222222222222222222'
-        - name: X-FrameBeam-Sync-Reason
+        - name: X-Uzume-Sync-Reason
           in: header
           required: true
           schema: { $ref: '#/components/schemas/SaveSyncReason' }
@@ -1217,7 +1217,7 @@ paths:
           description: Current checkpoint content
           headers:
             ETag: { schema: { type: string }, description: Strong ETag = content SHA-256, example: '"1111111111111111111111111111111111111111111111111111111111111111"' }
-            X-FrameBeam-Save-Revision: { schema: { type: integer, minimum: 1 }, description: Checkpoint revision of the content, example: 3 }
+            X-Uzume-Save-Revision: { schema: { type: integer, minimum: 1 }, description: Checkpoint revision of the content, example: 3 }
             Content-Length: { schema: { type: integer, format: int64 } }
           content:
             application/octet-stream:
@@ -1291,7 +1291,7 @@ paths:
           description: History version content
           headers:
             ETag: { schema: { type: string }, description: Strong ETag = content SHA-256 }
-            X-FrameBeam-Save-Revision: { schema: { type: integer, minimum: 1 }, description: Checkpoint revision captured by this version, example: 1 }
+            X-Uzume-Save-Revision: { schema: { type: integer, minimum: 1 }, description: Checkpoint revision captured by this version, example: 1 }
             Content-Length: { schema: { type: integer, format: int64 } }
           content:
             application/octet-stream:
@@ -1390,7 +1390,7 @@ paths:
       summary: Upload a save file (e.g. from another emulator) into a slot (`saves_v4`)
       description: |
         Raw `application/octet-stream` body (max 64 MiB, opaque, never interpreted by the server). Unlike `putSave`
-        this is a deliberate replacement and never creates a conflict: `X-FrameBeam-Expected-Revision` must equal the
+        this is a deliberate replacement and never creates a conflict: `X-Uzume-Expected-Revision` must equal the
         current checkpoint revision (0 = the slot must not exist yet), otherwise 409 `save_conflict_stale` and nothing
         changes. An existing checkpoint is first secured into history (`before_upload`, unless already captured);
         then the body becomes the new checkpoint (revision + 1, reason `upload`, device = caller). A missing slot is
@@ -1402,13 +1402,13 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: X-FrameBeam-Expected-Revision
+        - name: X-Uzume-Expected-Revision
           in: header
           required: true
           description: Current checkpoint revision the caller saw; 0 = the slot must not exist yet.
           schema: { type: integer, minimum: 0 }
           example: 3
-        - name: X-FrameBeam-Content-SHA256
+        - name: X-Uzume-Content-SHA256
           in: header
           required: true
           description: Lowercase hex SHA-256 of the body; verified by the server.
@@ -3175,7 +3175,7 @@ components:
       type: object
       required: [code, display_name, device_id, device_name, platform, arch, player_version, protocol_version]
       properties:
-        code: { type: string, description: 'Invite code, format UZ-XXXX-XXXX (codes issued before the rename start with FB-)', example: UZ-PLACEHOLDER-CODE }
+        code: { type: string, description: 'Invite code, format UZ-XXXX-XXXX', example: UZ-PLACEHOLDER-CODE }
         display_name: { type: string, minLength: 1, maxLength: 32, description: Trimmed; unique per server (case-insensitive) }
         device_id: { type: string, format: uuid }
         device_name: { type: string }
@@ -3242,8 +3242,8 @@ components:
           items: { $ref: '#/components/schemas/FirmwareFile' }
     CoreOrigin:
       type: string
-      enum: [libretro-buildbot, framebeam]
-      description: '`libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed Uzume source.'
+      enum: [libretro-buildbot, legacy-mirror]
+      description: '`libretro-buildbot` = installed from the libretro buildbot; `legacy-mirror` = legacy package from the retired signed Uzume source.'
     SystemCore:
       type: object
       required: [core_id, display_name, version, license, experimental, origin]

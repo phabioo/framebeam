@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds SDL3 (pinned tag, from source) as a shared library for gamepad/joystick use only (no video, audio,
 # render, camera; no X11/Wayland/ALSA dev packages needed) and installs it to
-# $HOME/.cache/framebeam/deps/sdl3/<tag>-<arch>; prints the install prefix (stdout).
+# $HOME/.cache/uzume/deps/sdl3/<tag>-<arch>; prints the install prefix (stdout).
 # Idempotent: already installed = done immediately. All messages go to stderr.
 # Parallelism: CMAKE_BUILD_PARALLEL_LEVEL (default 3).
 set -euo pipefail
@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 . "$ROOT/scripts/sdl3.pin"
-CACHE="${UZUME_CACHE_DIR:-$HOME/.cache/framebeam}"
+CACHE="${UZUME_CACHE_DIR:-$HOME/.cache/uzume}"
 PREFIX="$CACHE/deps/sdl3/$SDL3_TAG-$(uname -m)"
 
 if [ -f "$PREFIX/.complete" ]; then echo "$PREFIX"; exit 0; fi

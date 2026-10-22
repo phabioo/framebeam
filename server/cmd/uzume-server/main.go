@@ -40,7 +40,6 @@ import (
 	"github.com/phabioo/uzume/server/internal/backup"
 	"github.com/phabioo/uzume/server/internal/clientip"
 	"github.com/phabioo/uzume/server/internal/config"
-	"github.com/phabioo/uzume/server/internal/envcompat"
 	"github.com/phabioo/uzume/server/internal/httpapi"
 	"github.com/phabioo/uzume/server/internal/hub"
 	"github.com/phabioo/uzume/server/internal/store"
@@ -99,7 +98,7 @@ func openService(ctx context.Context, cfg *config.Config, serving bool) (*hub.Se
 	if err := os.MkdirAll(cfg.DataDir, 0o750); err != nil {
 		return nil, nil, err
 	}
-	db, err := store.Open(filepath.Join(cfg.DataDir, "framebeam.db"))
+	db, err := store.Open(filepath.Join(cfg.DataDir, "uzume.db"))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -366,14 +365,13 @@ func serveLoop(ctx context.Context, cfg *config.Config, log *slog.Logger) error 
 // serve is the server lifecycle: it starts everything, runs until ctx ends, the listener fails or a restart is
 // requested, and shuts down gracefully. A requested restart returns errRestart after everything is closed.
 func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
-	envcompat.WarnUsed(log) // one hint per FRAMEBEAM_ variable that is still in use instead of its UZUME_ name
 	if cfg.CoreIndexURL != "" {
 		log.Warn("core-index-url is deprecated and ignored: cores come from the libretro buildbot (core-buildbot-url, ADR 0020)")
 	}
 	ctx, cancelAll := context.WithCancel(ctx)
 	defer cancelAll()
 
-	// Values from hub.env and flags; the values saved on the web interface (Settings > Network) win over them.
+	// Values from server.env and flags; the values saved on the web interface (Settings > Network) win over them.
 	base := *cfg
 	base.ICEServers = config.CloneICE(cfg.ICEServers)
 
@@ -489,7 +487,6 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		log.Info("external TURN servers stay off while Network sharing is off")
 	}
 	svc.StartExternalTURN(ctx, externalTURNServers(cfg, specs, log), hub.ExternalTURNOptions{Disabled: !eff.NetworkSharing})
-	envcompat.WarnUsed(log) // names read after the flags (secrets, container marker)
 
 	var tlsConf *tls.Config
 	if cfg.UseTLS() {
@@ -522,7 +519,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		log.Warn("Development mode: HTTP without TLS", "loopback", cfg.ListenIsLoopback())
 	}
 
-	// Listener: the effective (possibly saved) address, else the one from hub.env/flags.
+	// Listener: the effective (possibly saved) address, else the one from server.env/flags.
 	listen := func(addr string) (net.Listener, error) { return net.Listen("tcp", addr) }
 	if !eff.NetworkSharing {
 		log.Info("Network sharing is off: listening on loopback only")
@@ -533,7 +530,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 	if listenIssue != nil {
-		log.Error("saved listen port could not be bound; using the address from hub.env/flags", "err", listenIssue.cause, "fallback", base.Listen)
+		log.Error("saved listen port could not be bound; using the address from server.env/flags", "err", listenIssue.cause, "fallback", base.Listen)
 		issues = append(issues, listenIssue.issue(eff, base.Listen))
 		eff.Listen = base.Listen
 	}

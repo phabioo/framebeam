@@ -70,7 +70,7 @@ wix build "$here\uzume.wxs" -arch x64 -o $OutFile `
 if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
 # Guard: the File table must hold every file of the package plus the server exe, the compat launcher copy and the two markers (a wrong Files pattern or
 # Exclude silently harvests nothing, which once produced a 6 MB MSI without the Player).
-$expected = @(Get-ChildItem -LiteralPath $PackageDir -Recurse -File).Count + 4
+$expected = @(Get-ChildItem -LiteralPath $PackageDir -Recurse -File).Count + 3
 $wi = New-Object -ComObject WindowsInstaller.Installer
 $db = $wi.GetType().InvokeMember('OpenDatabase', 'InvokeMethod', $null, $wi, @($OutFile, 0))
 $view = $db.GetType().InvokeMember('OpenView', 'InvokeMethod', $null, $db, @('SELECT FileName FROM File'))
@@ -85,8 +85,8 @@ while ($true) {
 $view.GetType().InvokeMember('Close', 'InvokeMethod', $null, $view, $null) | Out-Null
 [void][Runtime.InteropServices.Marshal]::ReleaseComObject($view); [void][Runtime.InteropServices.Marshal]::ReleaseComObject($db)
 Write-Host "MSI File table: $($names.Count) files (expected $expected)"
-if ($names.Count -ne $expected) { throw "MSI holds $($names.Count) files, expected $expected (package files + server exe + compat launcher + 2 markers)" }
-foreach ($need in 'Uzume.exe', 'framebeam_player.exe', 'uzume-server.exe', 'framebeam-player.msi-installed', 'framebeam-hub.msi-installed') {
+if ($names.Count -ne $expected) { throw "MSI holds $($names.Count) files, expected $expected (package files + server exe + 2 markers)" }
+foreach ($need in 'Uzume.exe', 'uzume-server.exe', 'uzume-app.msi-installed', 'uzume-server.msi-installed') {
   if ($names -notcontains $need) { throw "MSI File table has no $need" }
 }
 if ((Get-Item $OutFile).Length -lt (Get-Item $HubExe).Length) { throw "MSI is smaller than the server exe alone" }

@@ -261,14 +261,14 @@ func (e AdminUpdateVersionData) Valid() bool {
 
 // Defines values for CoreOrigin.
 const (
-	Framebeam        CoreOrigin = "framebeam"
+	LegacyMirror     CoreOrigin = "legacy-mirror"
 	LibretroBuildbot CoreOrigin = "libretro-buildbot"
 )
 
 // Valid indicates whether the value is a known member of the CoreOrigin enum.
 func (e CoreOrigin) Valid() bool {
 	switch e {
-	case Framebeam:
+	case LegacyMirror:
 		return true
 	case LibretroBuildbot:
 		return true
@@ -1359,7 +1359,7 @@ type CoreInfo struct {
 	Version string `json:"version"`
 }
 
-// CoreOrigin `libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed Uzume source.
+// CoreOrigin `libretro-buildbot` = installed from the libretro buildbot; `legacy-mirror` = legacy package from the retired signed Uzume source.
 type CoreOrigin string
 
 // CorePackage defines model for CorePackage.
@@ -1370,7 +1370,7 @@ type CorePackage struct {
 	// License License name. Packages from the libretro buildbot carry no license file; the name comes from the core info (`files` then has no `license` role entry).
 	License string `json:"license"`
 
-	// Origin `libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed Uzume source.
+	// Origin `libretro-buildbot` = installed from the libretro buildbot; `legacy-mirror` = legacy package from the retired signed Uzume source.
 	Origin    *CoreOrigin  `json:"origin,omitempty"`
 	Platform  CorePlatform `json:"platform"`
 	SourceRef string       `json:"source_ref"`
@@ -1580,7 +1580,7 @@ type InviteRedeemApprovedStatus string
 type InviteRedeemRequest struct {
 	Arch string `json:"arch"`
 
-	// Code Invite code, format UZ-XXXX-XXXX (codes issued before the rename start with FB-)
+	// Code Invite code, format UZ-XXXX-XXXX
 	Code       string             `json:"code"`
 	DeviceId   openapi_types.UUID `json:"device_id"`
 	DeviceName string             `json:"device_name"`
@@ -2226,7 +2226,7 @@ type SystemCore struct {
 	Experimental bool   `json:"experimental"`
 	License      string `json:"license"`
 
-	// Origin `libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed Uzume source.
+	// Origin `libretro-buildbot` = installed from the libretro buildbot; `legacy-mirror` = legacy package from the retired signed Uzume source.
 	Origin CoreOrigin `json:"origin"`
 
 	// RequiredHwApi Graphics API requirement from the core info, e.g. `OpenGL Core >= 3.2`; null when none.
@@ -2451,21 +2451,21 @@ type DeleteSaveSlotParams struct {
 
 // PutSaveParams defines parameters for PutSave.
 type PutSaveParams struct {
-	// XFrameBeamBaseRevision Checkpoint revision the upload is based on; 0 = the app had no server save.
-	XFrameBeamBaseRevision int `json:"X-FrameBeam-Base-Revision"`
+	// XUzumeBaseRevision Checkpoint revision the upload is based on; 0 = the app had no server save.
+	XUzumeBaseRevision int `json:"X-Uzume-Base-Revision"`
 
-	// XFrameBeamContentSHA256 Lowercase hex SHA-256 of the body; verified by the server.
-	XFrameBeamContentSHA256 string         `json:"X-FrameBeam-Content-SHA256"`
-	XFrameBeamSyncReason    SaveSyncReason `json:"X-FrameBeam-Sync-Reason"`
+	// XUzumeContentSHA256 Lowercase hex SHA-256 of the body; verified by the server.
+	XUzumeContentSHA256 string         `json:"X-Uzume-Content-SHA256"`
+	XUzumeSyncReason    SaveSyncReason `json:"X-Uzume-Sync-Reason"`
 }
 
 // UploadSaveFileParams defines parameters for UploadSaveFile.
 type UploadSaveFileParams struct {
-	// XFrameBeamExpectedRevision Current checkpoint revision the caller saw; 0 = the slot must not exist yet.
-	XFrameBeamExpectedRevision int `json:"X-FrameBeam-Expected-Revision"`
+	// XUzumeExpectedRevision Current checkpoint revision the caller saw; 0 = the slot must not exist yet.
+	XUzumeExpectedRevision int `json:"X-Uzume-Expected-Revision"`
 
-	// XFrameBeamContentSHA256 Lowercase hex SHA-256 of the body; verified by the server.
-	XFrameBeamContentSHA256 string `json:"X-FrameBeam-Content-SHA256"`
+	// XUzumeContentSHA256 Lowercase hex SHA-256 of the body; verified by the server.
+	XUzumeContentSHA256 string `json:"X-Uzume-Content-SHA256"`
 }
 
 // GetPluginFileParams defines parameters for GetPluginFile.
@@ -3049,7 +3049,7 @@ func (t *PluginRunSetting_Default) UnmarshalJSON(b []byte) error {
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Server info (no auth, grants no rights)
-	// (GET /.well-known/framebeam)
+	// (GET /.well-known/uzume)
 	GetHubInfo(w http.ResponseWriter, r *http.Request)
 	// List the backup files of the backup folder (admin)
 	// (GET /api/v1/admin/backups)
@@ -4400,72 +4400,72 @@ func (siw *ServerInterfaceWrapper) PutSave(w http.ResponseWriter, r *http.Reques
 
 	headers := r.Header
 
-	// ------------- Required header parameter "X-FrameBeam-Base-Revision" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Base-Revision")]; found {
-		var XFrameBeamBaseRevision int
+	// ------------- Required header parameter "X-Uzume-Base-Revision" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Uzume-Base-Revision")]; found {
+		var XUzumeBaseRevision int
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Base-Revision", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Uzume-Base-Revision", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Base-Revision", valueList[0], &XFrameBeamBaseRevision, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "integer", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Uzume-Base-Revision", valueList[0], &XUzumeBaseRevision, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "integer", Format: ""})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Base-Revision", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Uzume-Base-Revision", Err: err})
 			return
 		}
 
-		params.XFrameBeamBaseRevision = XFrameBeamBaseRevision
+		params.XUzumeBaseRevision = XUzumeBaseRevision
 
 	} else {
-		err := fmt.Errorf("Header parameter X-FrameBeam-Base-Revision is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Base-Revision", Err: err})
+		err := fmt.Errorf("Header parameter X-Uzume-Base-Revision is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Uzume-Base-Revision", Err: err})
 		return
 	}
 
-	// ------------- Required header parameter "X-FrameBeam-Content-SHA256" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Content-SHA256")]; found {
-		var XFrameBeamContentSHA256 string
+	// ------------- Required header parameter "X-Uzume-Content-SHA256" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Uzume-Content-SHA256")]; found {
+		var XUzumeContentSHA256 string
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Content-SHA256", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Uzume-Content-SHA256", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Content-SHA256", valueList[0], &XFrameBeamContentSHA256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Uzume-Content-SHA256", valueList[0], &XUzumeContentSHA256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Uzume-Content-SHA256", Err: err})
 			return
 		}
 
-		params.XFrameBeamContentSHA256 = XFrameBeamContentSHA256
+		params.XUzumeContentSHA256 = XUzumeContentSHA256
 
 	} else {
-		err := fmt.Errorf("Header parameter X-FrameBeam-Content-SHA256 is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+		err := fmt.Errorf("Header parameter X-Uzume-Content-SHA256 is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Uzume-Content-SHA256", Err: err})
 		return
 	}
 
-	// ------------- Required header parameter "X-FrameBeam-Sync-Reason" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Sync-Reason")]; found {
-		var XFrameBeamSyncReason SaveSyncReason
+	// ------------- Required header parameter "X-Uzume-Sync-Reason" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Uzume-Sync-Reason")]; found {
+		var XUzumeSyncReason SaveSyncReason
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Sync-Reason", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Uzume-Sync-Reason", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Sync-Reason", valueList[0], &XFrameBeamSyncReason, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Uzume-Sync-Reason", valueList[0], &XUzumeSyncReason, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Sync-Reason", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Uzume-Sync-Reason", Err: err})
 			return
 		}
 
-		params.XFrameBeamSyncReason = XFrameBeamSyncReason
+		params.XUzumeSyncReason = XUzumeSyncReason
 
 	} else {
-		err := fmt.Errorf("Header parameter X-FrameBeam-Sync-Reason is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Sync-Reason", Err: err})
+		err := fmt.Errorf("Header parameter X-Uzume-Sync-Reason is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Uzume-Sync-Reason", Err: err})
 		return
 	}
 
@@ -4879,49 +4879,49 @@ func (siw *ServerInterfaceWrapper) UploadSaveFile(w http.ResponseWriter, r *http
 
 	headers := r.Header
 
-	// ------------- Required header parameter "X-FrameBeam-Expected-Revision" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Expected-Revision")]; found {
-		var XFrameBeamExpectedRevision int
+	// ------------- Required header parameter "X-Uzume-Expected-Revision" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Uzume-Expected-Revision")]; found {
+		var XUzumeExpectedRevision int
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Expected-Revision", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Uzume-Expected-Revision", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Expected-Revision", valueList[0], &XFrameBeamExpectedRevision, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "integer", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Uzume-Expected-Revision", valueList[0], &XUzumeExpectedRevision, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "integer", Format: ""})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Expected-Revision", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Uzume-Expected-Revision", Err: err})
 			return
 		}
 
-		params.XFrameBeamExpectedRevision = XFrameBeamExpectedRevision
+		params.XUzumeExpectedRevision = XUzumeExpectedRevision
 
 	} else {
-		err := fmt.Errorf("Header parameter X-FrameBeam-Expected-Revision is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Expected-Revision", Err: err})
+		err := fmt.Errorf("Header parameter X-Uzume-Expected-Revision is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Uzume-Expected-Revision", Err: err})
 		return
 	}
 
-	// ------------- Required header parameter "X-FrameBeam-Content-SHA256" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Content-SHA256")]; found {
-		var XFrameBeamContentSHA256 string
+	// ------------- Required header parameter "X-Uzume-Content-SHA256" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Uzume-Content-SHA256")]; found {
+		var XUzumeContentSHA256 string
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Content-SHA256", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Uzume-Content-SHA256", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Content-SHA256", valueList[0], &XFrameBeamContentSHA256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Uzume-Content-SHA256", valueList[0], &XUzumeContentSHA256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Uzume-Content-SHA256", Err: err})
 			return
 		}
 
-		params.XFrameBeamContentSHA256 = XFrameBeamContentSHA256
+		params.XUzumeContentSHA256 = XUzumeContentSHA256
 
 	} else {
-		err := fmt.Errorf("Header parameter X-FrameBeam-Content-SHA256 is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+		err := fmt.Errorf("Header parameter X-Uzume-Content-SHA256 is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Uzume-Content-SHA256", Err: err})
 		return
 	}
 
@@ -6354,7 +6354,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/.well-known/framebeam", wrapper.GetHubInfo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/.well-known/uzume", wrapper.GetHubInfo)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/backups", wrapper.ListAdminBackups)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/backups", wrapper.StartAdminBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/backups/cancel", wrapper.CancelAdminBackup)
@@ -9088,9 +9088,9 @@ type DownloadSaveContentResponseObject interface {
 }
 
 type DownloadSaveContent200ResponseHeaders struct {
-	ContentLength          *int64
-	ETag                   *string
-	XFrameBeamSaveRevision *int
+	ContentLength      *int64
+	ETag               *string
+	XUzumeSaveRevision *int
 }
 
 type DownloadSaveContent200ApplicationoctetStreamResponse struct {
@@ -9111,8 +9111,8 @@ func (response DownloadSaveContent200ApplicationoctetStreamResponse) VisitDownlo
 	if response.Headers.ETag != nil {
 		w.Header().Set("ETag", fmt.Sprint(*response.Headers.ETag))
 	}
-	if response.Headers.XFrameBeamSaveRevision != nil {
-		w.Header().Set("X-FrameBeam-Save-Revision", fmt.Sprint(*response.Headers.XFrameBeamSaveRevision))
+	if response.Headers.XUzumeSaveRevision != nil {
+		w.Header().Set("X-Uzume-Save-Revision", fmt.Sprint(*response.Headers.XUzumeSaveRevision))
 	}
 	w.WriteHeader(200)
 
@@ -9317,9 +9317,9 @@ type DownloadSaveHistoryContentResponseObject interface {
 }
 
 type DownloadSaveHistoryContent200ResponseHeaders struct {
-	ContentLength          *int64
-	ETag                   *string
-	XFrameBeamSaveRevision *int
+	ContentLength      *int64
+	ETag               *string
+	XUzumeSaveRevision *int
 }
 
 type DownloadSaveHistoryContent200ApplicationoctetStreamResponse struct {
@@ -9340,8 +9340,8 @@ func (response DownloadSaveHistoryContent200ApplicationoctetStreamResponse) Visi
 	if response.Headers.ETag != nil {
 		w.Header().Set("ETag", fmt.Sprint(*response.Headers.ETag))
 	}
-	if response.Headers.XFrameBeamSaveRevision != nil {
-		w.Header().Set("X-FrameBeam-Save-Revision", fmt.Sprint(*response.Headers.XFrameBeamSaveRevision))
+	if response.Headers.XUzumeSaveRevision != nil {
+		w.Header().Set("X-Uzume-Save-Revision", fmt.Sprint(*response.Headers.XUzumeSaveRevision))
 	}
 	w.WriteHeader(200)
 
@@ -13124,7 +13124,7 @@ func (response ConnectWebSocket401JSONResponse) VisitConnectWebSocketResponse(w 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Server info (no auth, grants no rights)
-	// (GET /.well-known/framebeam)
+	// (GET /.well-known/uzume)
 	GetHubInfo(ctx context.Context, request GetHubInfoRequestObject) (GetHubInfoResponseObject, error)
 	// List the backup files of the backup folder (admin)
 	// (GET /api/v1/admin/backups)

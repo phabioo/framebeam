@@ -77,7 +77,7 @@ type Options struct {
 	// UpdateIndexURL is the signed updates index (default updates.DefaultIndexURL; https or file://), fetched with
 	// CoreHTTPClient and verified with CoreTrustKeys.
 	UpdateIndexURL string
-	// UpdateRequestDir is where the update request file is created (default /run/framebeam).
+	// UpdateRequestDir is where the update request file is created (default /run/uzume).
 	UpdateRequestDir string
 	// UpdateChannel is the compiled-in default channel: stable, beta or dev (dev = no automatic checks).
 	UpdateChannel string
@@ -91,7 +91,7 @@ type Options struct {
 	// PluginIndexURL is the signed plugin index (https or file://; empty = no index, the server binary passes "none" as empty), fetched with CoreHTTPClient and
 	// verified with CoreTrustKeys.
 	PluginIndexURL string
-	// BackupExtras are files outside the data directory that go into every backup (own TLS certificate and key, hub.env).
+	// BackupExtras are files outside the data directory that go into every backup (own TLS certificate and key, server.env).
 	BackupExtras []backup.Extra
 	// BackupFree reports the free space of a folder (injectable for tests; default: the file system).
 	BackupFree backup.FreeFunc

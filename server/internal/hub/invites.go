@@ -64,8 +64,7 @@ type Invite struct {
 	ForUser string
 }
 
-// newInviteCode creates a code of the form UZ-XXXX-XXXX. Codes created before the rename to Uzume start with FB- and
-// stay valid (normalizeInviteCode keeps the prefix, because the stored hash covers it).
+// newInviteCode creates a code of the form UZ-XXXX-XXXX.
 func newInviteCode() (string, error) {
 	var raw [8]byte
 	if _, err := rand.Read(raw[:]); err != nil {
@@ -90,21 +89,20 @@ func newInviteCode() (string, error) {
 	return b.String(), nil
 }
 
-// normalizeInviteCode uppercases and strips spaces/dashes; it returns the canonical UZ-XXXX-XXXX (or older
-// FB-XXXX-XXXX) form or "".
+// normalizeInviteCode uppercases and strips spaces/dashes; it returns the canonical UZ-XXXX-XXXX form or "".
 func normalizeInviteCode(in string) string {
 	in = strings.ToUpper(strings.TrimSpace(in))
 	in = strings.NewReplacer("-", "", " ", "").Replace(in)
-	if len(in) != 10 || !(strings.HasPrefix(in, "UZ") || strings.HasPrefix(in, "FB")) {
+	if len(in) != 10 || !strings.HasPrefix(in, "UZ") {
 		return ""
 	}
-	prefix, body := in[:2], in[2:]
+	body := in[2:]
 	for _, r := range body {
 		if !strings.ContainsRune(inviteAlphabet, r) {
 			return ""
 		}
 	}
-	return prefix + "-" + body[:4] + "-" + body[4:]
+	return "UZ-" + body[:4] + "-" + body[4:]
 }
 
 func hashInviteCode(code string) string { return auth.HashToken("invite:" + code) }

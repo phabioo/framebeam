@@ -32,7 +32,7 @@ func TestChooseListenFallsBackWhenSavedAddressFails(t *testing.T) {
 		t.Fatalf("%v %v", issue, err)
 	}
 	ln.Close()
-	// Saved address busy: fallback to the hub.env/flag address plus an issue.
+	// Saved address busy: fallback to the server.env/flag address plus an issue.
 	tried = nil
 	ln, issue, err = chooseListen(":9000", ":8443", listen(":9000"))
 	if err != nil || issue == nil || ln == nil {
@@ -59,7 +59,7 @@ func TestChooseListenFallsBackWhenSavedAddressFails(t *testing.T) {
 
 func TestEffectiveConfigPrecedence(t *testing.T) {
 	base := config.Config{Listen: ":8443", TURNPort: 3478, TURNRelayPorts: "49160-49199", SaveKeepRecent: 20, SaveKeepDaily: 30, SaveKeepWeekly: 26,
-		DataDir: "/x", CoreBuildbotURL: "https://example.org/n", CoreInfoURL: "https://example.org/i.zip", UpdateIndexURL: "https://example.org/u.json", UpdateRequestDir: "/run/framebeam",
+		DataDir: "/x", CoreBuildbotURL: "https://example.org/n", CoreInfoURL: "https://example.org/i.zip", UpdateIndexURL: "https://example.org/u.json", UpdateRequestDir: "/run/uzume",
 		ICEServers: []string{"stun:env.example.com:3478"}}
 	eff, issues := effectiveConfig(&base, map[string]string{config.NetListenPort: "9000", config.NetKeepRecent: "3"}, quietLog())
 	if len(issues) != 0 || eff.Listen != ":9000" || eff.SaveKeepRecent != 3 || eff.SaveKeepDaily != 30 || len(eff.ICEServers) != 1 {
@@ -68,12 +68,12 @@ func TestEffectiveConfigPrecedence(t *testing.T) {
 	if base.Listen != ":8443" || base.SaveKeepRecent != 20 {
 		t.Fatal("base modified")
 	}
-	// An unreadable saved value is skipped and reported; the hub.env value stays.
+	// An unreadable saved value is skipped and reported; the server.env value stays.
 	eff, issues = effectiveConfig(&base, map[string]string{config.NetTURNPort: "x"}, quietLog())
 	if len(issues) != 1 || issues[0].Key != config.NetTURNPort || eff.TURNPort != 3478 {
 		t.Fatalf("%+v %v", eff, issues)
 	}
-	// Contradictory saved settings (TURN without public host): the hub.env configuration is used.
+	// Contradictory saved settings (TURN without public host): the server.env configuration is used.
 	eff, issues = effectiveConfig(&base, map[string]string{config.NetTURN: "true"}, quietLog())
 	if len(issues) != 1 || eff.TURN || !strings.Contains(issues[0].Message, "contradictory") {
 		t.Fatalf("%+v %v", eff, issues)

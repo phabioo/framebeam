@@ -190,14 +190,14 @@ func TestSaveRetentionConfig(t *testing.T) {
 func TestWindowsDefaults(t *testing.T) {
 	env := map[string]string{"ProgramData": filepath.Join("D:", "PD")}
 	get := func(k string) string { return env[k] }
-	data := filepath.Join("D:", "PD", "FrameBeam", "Hub")
+	data := filepath.Join("D:", "PD", "Uzume", "Server")
 	if got := DefaultDataDir("windows", get); got != data {
 		t.Fatalf("data dir %q", got)
 	}
-	if got := DefaultDataDir("windows", func(string) string { return "" }); got != filepath.Join(`C:\ProgramData`, "FrameBeam", "Hub") {
+	if got := DefaultDataDir("windows", func(string) string { return "" }); got != filepath.Join(`C:\ProgramData`, "Uzume", "Server") {
 		t.Fatalf("fallback data dir %q", got)
 	}
-	if DefaultDataDir("linux", get) != "/var/lib/framebeam" || DefaultUpdateRequestDir("linux", "/x") != "/run/framebeam" {
+	if DefaultDataDir("linux", get) != "/var/lib/uzume" || DefaultUpdateRequestDir("linux", "/x") != "/run/uzume" {
 		t.Fatal("linux defaults changed")
 	}
 	reg := func(goos string, args ...string) *Config {

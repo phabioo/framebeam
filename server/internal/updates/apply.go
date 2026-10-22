@@ -387,8 +387,8 @@ func checkRollbackTarget(o ApplyOptions, st Staged, cur, cand SemVer, idx Index,
 
 // Names of the database files the rollback moves.
 const (
-	dbFileName      = "framebeam.db"
-	dbRestoringName = "framebeam.db.restoring"
+	dbFileName      = "uzume.db"
+	dbRestoringName = "uzume.db.restoring"
 )
 
 var sqliteHeader = []byte("SQLite format 3\x00")
@@ -396,12 +396,12 @@ var sqliteHeader = []byte("SQLite format 3\x00")
 // ServiceCommand is the command that stops or starts the server service (action "stop" or "start").
 func ServiceCommand(platform, action string) (name string, args []string) {
 	if isWindowsPlatform(platform) {
-		return "net.exe", []string{action, "FrameBeamHub"}
+		return "net.exe", []string{action, "UzumeServer"}
 	}
-	return "systemctl", []string{action, "framebeam-hub.service"}
+	return "systemctl", []string{action, "uzume-server.service"}
 }
 
-// dbSwap is a prepared database replacement: the restored copy waits as framebeam.db.restoring until the service
+// dbSwap is a prepared database replacement: the restored copy waits as uzume.db.restoring until the service
 // is stopped.
 type dbSwap struct {
 	root    *os.Root

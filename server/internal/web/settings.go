@@ -21,7 +21,7 @@ import (
 
 // NetConfig is what the Network settings need to know about the running server (set by cmd/uzume-server).
 type NetConfig struct {
-	// Base is the configuration from hub.env and flags, without the values saved on the web interface.
+	// Base is the configuration from server.env and flags, without the values saved on the web interface.
 	Base config.Config
 	// Running is the effective configuration the server started with (Base plus saved values, after fallbacks).
 	Running config.Config
@@ -71,7 +71,7 @@ var settingsSections = []struct{ ID, Title, Subtitle, Group string }{
 var settingsFlash = map[string]string{
 	"netsaved":       "Network setting saved.",
 	"extturnsaved":   "External TURN servers saved. New joins and connected apps use them now.",
-	"netreset":       "Reset to the hub.env value.",
+	"netreset":       "Reset to the server.env value.",
 	"namesaved":      "Server name saved.",
 	"restarting":     "The server is restarting.",
 	"metrics":        "Metrics setting saved.",
@@ -178,8 +178,8 @@ type netField struct {
 	Key      string
 	Value    string // shown in the input
 	Min, Max string // relay range inputs
-	Web      bool   // saved on the web interface (otherwise it comes from hub.env/flags)
-	EnvText  string // the hub.env/flag value, shown on the reset button
+	Web      bool   // saved on the web interface (otherwise it comes from server.env/flags)
+	EnvText  string // the server.env/flag value, shown on the reset button
 	CSRF     string // for the reset form
 	Err      string
 }
@@ -243,7 +243,7 @@ func sectionIndex(id string) int {
 	return -1
 }
 
-// netDesired returns the configuration as it is meant to be: hub.env/flags plus the saved values.
+// netDesired returns the configuration as it is meant to be: server.env/flags plus the saved values.
 func (s *Server) netDesired(ctx context.Context) (config.Config, map[string]string, error) {
 	stored, err := s.svc.NetOverrides(ctx)
 	if err != nil {
@@ -1015,7 +1015,7 @@ func (s *Server) settingsExternalTURNDelete(w http.ResponseWriter, r *http.Reque
 	s.settingsDone(w, r, sess, "network", settingsRes{OK: "extturnsaved"}, false)
 }
 
-// settingsExternalTURNReset drops the saved list: the -turn-external flags/hub.env apply again.
+// settingsExternalTURNReset drops the saved list: the -turn-external flags/server.env apply again.
 func (s *Server) settingsExternalTURNReset(w http.ResponseWriter, r *http.Request, sess *session) {
 	if err := s.svc.ResetExternalTURN(r.Context()); err != nil {
 		s.fail(w, r, err)
@@ -1024,7 +1024,7 @@ func (s *Server) settingsExternalTURNReset(w http.ResponseWriter, r *http.Reques
 	s.settingsDone(w, r, sess, "network", settingsRes{OK: "extturnsaved"}, false)
 }
 
-// settingsNetReset deletes the saved value: hub.env/flags apply again.
+// settingsNetReset deletes the saved value: server.env/flags apply again.
 func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *session) {
 	key := r.PathValue("key")
 	if !validNetKey(key) {

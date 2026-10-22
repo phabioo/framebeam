@@ -175,7 +175,7 @@ int main(int argc, char* argv[]) {
     }
   }
 #ifdef Q_OS_WIN
-  SetCurrentProcessExplicitAppUserModelID(L"FrameBeam.Player");  // same id as the installer shortcuts
+  SetCurrentProcessExplicitAppUserModelID(L"Uzume.App");  // same id as the installer shortcuts
 #endif
   QGuiApplication app(argc, argv);
   QGuiApplication::setOrganizationName(QStringLiteral("Uzume"));

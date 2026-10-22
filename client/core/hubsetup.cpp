@@ -56,7 +56,7 @@ int HubSetupInstaller::cleanStaleTempDirs(const QString& tempBase, qint64 maxAge
   int removed = 0;
   const QDir base(tempBase);
   const QDateTime limit = QDateTime::currentDateTime().addSecs(-maxAgeSecs);
-  for (const QFileInfo& fi : base.entryInfoList({QStringLiteral("uzume-server-setup-*"), QStringLiteral("framebeam-hub-setup-*")}, QDir::Dirs | QDir::NoDotAndDotDot)) {
+  for (const QFileInfo& fi : base.entryInfoList({QStringLiteral("uzume-server-setup-*")}, QDir::Dirs | QDir::NoDotAndDotDot)) {
     if (fi.isSymLink() || fi.lastModified() >= limit) continue;
     if (QDir(fi.absoluteFilePath()).removeRecursively()) ++removed;
   }

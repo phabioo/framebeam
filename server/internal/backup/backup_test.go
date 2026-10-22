@@ -37,7 +37,7 @@ func read(t *testing.T, p string) string {
 // dataDir builds a synthetic data directory (no real game data).
 func dataDir(t *testing.T) string {
 	d := t.TempDir()
-	write(t, filepath.Join(d, "framebeam.db"), "DB-v1")
+	write(t, filepath.Join(d, "uzume.db"), "DB-v1")
 	write(t, filepath.Join(d, "saves", "u1", "g1", "main", "aaaa"), "save-one")
 	write(t, filepath.Join(d, "saves", "u1", "g1", "main", "bbbb"), "save-two")
 	write(t, filepath.Join(d, "plugins", "p", "1.0.0", "main.lua"), "-- plugin")
@@ -53,7 +53,7 @@ func dataDir(t *testing.T) string {
 func opts(t *testing.T, data, target string) Options {
 	return Options{DataDir: data, TargetDir: target, HubName: "Home Hub", HubID: "hid", HubVersion: "1.2.3", SchemaVersion: 7,
 		Snapshot: func(dest string) error {
-			return os.WriteFile(dest, []byte(read(t, filepath.Join(data, "framebeam.db"))), 0o600)
+			return os.WriteFile(dest, []byte(read(t, filepath.Join(data, "uzume.db"))), 0o600)
 		},
 		Now:  func() time.Time { return time.Date(2026, 10, 14, 1, 0, 0, 0, time.UTC) },
 		Free: func(string) (uint64, bool) { return 1 << 40, true }}
@@ -95,10 +95,10 @@ func TestRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(items, ",") != "firmware,framebeam.db,plugins,saves,tls" {
+	if strings.Join(items, ",") != "firmware,plugins,saves,tls,uzume.db" {
 		t.Fatalf("items %v", items)
 	}
-	if read(t, filepath.Join(stage, "saves", "u1", "g1", "main", "bbbb")) != "save-two" || read(t, filepath.Join(stage, "framebeam.db")) != "DB-v1" {
+	if read(t, filepath.Join(stage, "saves", "u1", "g1", "main", "bbbb")) != "save-two" || read(t, filepath.Join(stage, "uzume.db")) != "DB-v1" {
 		t.Fatal("content differs")
 	}
 }
@@ -107,9 +107,9 @@ func TestIncludeROMsAndExtras(t *testing.T) {
 	data, target := dataDir(t), t.TempDir()
 	o := opts(t, data, target)
 	o.IncludeROMs = true
-	ext := filepath.Join(t.TempDir(), "hub.env")
+	ext := filepath.Join(t.TempDir(), "server.env")
 	write(t, ext, "SECRET=1")
-	o.Extras = []Extra{{"hub.env", ext}, {"missing.pem", filepath.Join(t.TempDir(), "nope")}}
+	o.Extras = []Extra{{"server.env", ext}, {"missing.pem", filepath.Join(t.TempDir(), "nope")}}
 	res, err := Create(bg, o)
 	if err != nil {
 		t.Fatal(err)
@@ -121,7 +121,7 @@ func TestIncludeROMsAndExtras(t *testing.T) {
 	if _, _, err := Extract(bg, res.Path, stage, ExtractOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	if read(t, filepath.Join(stage, "roms", "ab", "abcd")) != "rom-bytes" || read(t, filepath.Join(stage, "restored-config", "hub.env")) != "SECRET=1" {
+	if read(t, filepath.Join(stage, "roms", "ab", "abcd")) != "rom-bytes" || read(t, filepath.Join(stage, "restored-config", "server.env")) != "SECRET=1" {
 		t.Fatal("ROM or extra missing")
 	}
 	if _, err := os.Stat(filepath.Join(stage, "restored-config", "missing.pem")); err == nil {
@@ -178,7 +178,7 @@ func TestChecksumMismatchChangesNothing(t *testing.T) {
 	if _, err := os.Stat(stage); err == nil {
 		t.Fatal("staging must be removed")
 	}
-	if read(t, filepath.Join(data, "framebeam.db")) != "DB-v1" || read(t, filepath.Join(data, "saves", "u1", "g1", "main", "aaaa")) != "save-one" {
+	if read(t, filepath.Join(data, "uzume.db")) != "DB-v1" || read(t, filepath.Join(data, "saves", "u1", "g1", "main", "aaaa")) != "save-one" {
 		t.Fatal("live data changed")
 	}
 	if HasPending(data) {
@@ -314,7 +314,7 @@ func TestNames(t *testing.T) {
 	if !ok || !safety || ts.Hour() != 18 {
 		t.Fatal("parse")
 	}
-	if _, safety, ok := ParseName("framebeam-hub-home-hub-20261014T185203Z-safety.tar"); !ok || !safety {
+	if _, safety, ok := ParseName("uzume-server-home-hub-20261014T185203Z-safety.tar"); !ok || !safety {
 		t.Fatal("archives of versions before the rename must still parse")
 	}
 	for _, bad := range []string{"x.tar", "../uzume-server-a-20261014T185203Z.tar", "uzume-server-a-20261014T185203Z.tar.gz"} {
@@ -355,8 +355,8 @@ func prepare(t *testing.T, data string) (res Result, stage string, items []strin
 	if err != nil {
 		t.Fatal(err)
 	}
-	write(t, filepath.Join(data, "framebeam.db"), "DB-v2")
-	write(t, filepath.Join(data, "framebeam.db-wal"), "wal")
+	write(t, filepath.Join(data, "uzume.db"), "DB-v2")
+	write(t, filepath.Join(data, "uzume.db-wal"), "wal")
 	write(t, filepath.Join(data, "saves", "u1", "g1", "main", "cccc"), "newer-save")
 	stage = filepath.Join(data, StagingDir)
 	_, items, err = Extract(bg, res.Path, stage, ExtractOptions{})
@@ -376,10 +376,10 @@ func TestApplyPendingSwaps(t *testing.T) {
 	if err != nil || r == nil || !r.OK {
 		t.Fatalf("%+v %v", r, err)
 	}
-	if read(t, filepath.Join(data, "framebeam.db")) != "DB-v1" {
+	if read(t, filepath.Join(data, "uzume.db")) != "DB-v1" {
 		t.Fatal("database not restored")
 	}
-	if _, err := os.Stat(filepath.Join(data, "framebeam.db-wal")); err == nil {
+	if _, err := os.Stat(filepath.Join(data, "uzume.db-wal")); err == nil {
 		t.Fatal("wal must go away with the old database")
 	}
 	if _, err := os.Stat(filepath.Join(data, "saves", "u1", "g1", "main", "cccc")); err == nil {
@@ -416,7 +416,7 @@ func TestApplyPendingRollsBackOnFailure(t *testing.T) {
 	if err == nil || r == nil || r.OK {
 		t.Fatalf("want failure: %+v %v", r, err)
 	}
-	if read(t, filepath.Join(data, "framebeam.db")) != "DB-v2" || read(t, filepath.Join(data, "framebeam.db-wal")) != "wal" {
+	if read(t, filepath.Join(data, "uzume.db")) != "DB-v2" || read(t, filepath.Join(data, "uzume.db-wal")) != "wal" {
 		t.Fatal("database must be as before")
 	}
 	if read(t, filepath.Join(data, "saves", "u1", "g1", "main", "cccc")) != "newer-save" || read(t, filepath.Join(data, "plugins", "p", "1.0.0", "main.lua")) != "-- plugin" {
@@ -439,7 +439,7 @@ func TestApplyPendingResumesAfterCrash(t *testing.T) {
 			os.Rename(filepath.Join(data, w), filepath.Join(oldRoot, w))
 		}
 	}
-	for _, it := range []string{"framebeam.db", "saves"} {
+	for _, it := range []string{"uzume.db", "saves"} {
 		os.Rename(filepath.Join(data, it), filepath.Join(oldRoot, it))
 		os.Rename(filepath.Join(stage, it), filepath.Join(data, it))
 	}
@@ -447,7 +447,7 @@ func TestApplyPendingResumesAfterCrash(t *testing.T) {
 	if err != nil || !r.OK {
 		t.Fatalf("%+v %v", r, err)
 	}
-	if read(t, filepath.Join(data, "framebeam.db")) != "DB-v1" || read(t, filepath.Join(data, "tls", "key.pem")) != "KEY" {
+	if read(t, filepath.Join(data, "uzume.db")) != "DB-v1" || read(t, filepath.Join(data, "tls", "key.pem")) != "KEY" {
 		t.Fatal("not fully restored")
 	}
 	if _, err := os.Stat(filepath.Join(data, "saves", "u1", "g1", "main", "cccc")); err == nil {

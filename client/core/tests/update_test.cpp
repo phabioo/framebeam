@@ -345,11 +345,11 @@ class UpdateTest : public QObject {
     const QByteArray ctx = signLine(k, idx, kUpdatesIndexContext);
     QVERIFY(verifyIndexSignature(idx, ctx, {k.pub}).ok);
     // A signature of another document type (plugin index) must not verify as an updates index.
-    SigCheck c = verifyIndexSignature(idx, signLine(k, idx, "framebeam-plugin-index-v2"), {k.pub});
+    SigCheck c = verifyIndexSignature(idx, signLine(k, idx, "uzume-plugin-index-v1"), {k.pub});
     QVERIFY(!c.ok);
     // Relabelling the context breaks the signature, tampering the bytes too.
     QByteArray relabelled = ctx;
-    relabelled.replace("framebeam-updates-index-v2", "framebeam-plugin-index-v2");
+    relabelled.replace("uzume-updates-index-v1", "uzume-plugin-index-v1");
     QVERIFY(!verifyIndexSignature(idx, relabelled, {k.pub}).ok);
     QByteArray bad = idx;
     bad[bad.size() / 2] = static_cast<char>(bad[bad.size() / 2] ^ 1);
@@ -391,10 +391,6 @@ class UpdateTest : public QObject {
     QVERIFY(writeBytes(t.filePath("app/Uzume.exe"), "x"));
     QCOMPARE(installRootFor(t.filePath("app/bin")), QDir(t.filePath("app")).absolutePath());
     QCOMPARE(installRootFor(t.filePath("app")), QDir(t.filePath("app")).absolutePath());
-    // the compat launcher name (installs from before the rename) marks the install root as well
-    QVERIFY(QDir().mkpath(t.filePath("old/bin")));
-    QVERIFY(writeBytes(t.filePath("old/framebeam_player.exe"), "x"));
-    QCOMPARE(installRootFor(t.filePath("old/bin")), QDir(t.filePath("old")).absolutePath());
     QVERIFY(QDir().mkpath(t.filePath("app/tools")));
     QCOMPARE(installRootFor(t.filePath("app/tools")), QDir(t.filePath("app/tools")).absolutePath());
     QVERIFY(directoryWritable(t.filePath("app")));

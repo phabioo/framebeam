@@ -19,8 +19,8 @@ Schema 1:
       "protocol_version": 1,
       "min_protocol_version": 1,
       "artifacts": [
-        {"platform": "linux-arm64", "kind": "deb", "name": "framebeam-hub_0.8.3_arm64.deb",
-         "size": 123, "sha256": "<64 lowercase hex>", "url": "https://github.com/.../framebeam-hub_0.8.3_arm64.deb"}
+        {"platform": "linux-arm64", "kind": "deb", "name": "uzume-server_0.8.3_arm64.deb",
+         "size": 123, "sha256": "<64 lowercase hex>", "url": "https://github.com/.../uzume-server_0.8.3_arm64.deb"}
       ]
     }
   ]

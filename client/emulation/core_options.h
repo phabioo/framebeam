@@ -39,7 +39,7 @@ CoreProbe coreProbeFromJson(const QByteArray& json);
 bool isLockedCoreOption(const SystemManifest& manifest, const QString& key);
 
 // Core options at launch: manifest defaults < user overrides (already merged game > system > global, only explicit
-// values; "framebeam.*" keys are ignored) < firmware options < locked manifest values.
+// values; "uzume.*" keys are ignored) < firmware options < locked manifest values.
 QMap<QString, QString> launchCoreOptions(const SystemManifest& manifest, const QMap<QString, QString>& userOverrides,
                                          const QMap<QString, QString>& firmwareOptions);
 

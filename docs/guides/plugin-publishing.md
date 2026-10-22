@@ -2,7 +2,7 @@
 
 For plugin maintainers with access to the Uzume release signing key. Background: [12-plugins.md](../architecture/12-plugins.md#1610-distribution), [ADR 0023](../adr/0023-plugins.md). Server side: [hub-configuration.md](hub-configuration.md#plugins).
 
-An official plugin is a `.fbplugin` file (zip with `manifest.json` at the root) that carries a `SIGNATURE.json` signed with the Uzume release key. A plugin index lists signed files so that a server admin can install or update them with one click. The tool is `server/cmd/uzume-sign`. The signing key is read from the environment variable `UZUME_SIGNING_KEY` (base64 seed; the old name `FRAMEBEAM_SIGNING_KEY` is still read as a fallback); never write it to a file in a repository or to logs. Plugin repositories keep it as a CI secret.
+An official plugin is a `.fbplugin` file (zip with `manifest.json` at the root) that carries a `SIGNATURE.json` signed with the Uzume release key. A plugin index lists signed files so that a server admin can install or update them with one click. The tool is `server/cmd/uzume-sign`. The signing key is read from the environment variable `UZUME_SIGNING_KEY` (base64 seed); never write it to a file in a repository or to logs. Plugin repositories keep it as a CI secret. The signature prefix is `uzume-plugin-v1`: plugins and the plugin index signed before the rename (FrameBeam) do not verify and must be signed again with "Publish plugin".
 
 1. **Build the zip.** Zip the plugin folder (manifest, entry file, assets, i18n) as `x.fbplugin`. Limits: 32 MiB packed, 64 MiB unpacked, 2000 entries, relative `/` paths only, no symlinks.
 2. **Sign it.**
@@ -22,7 +22,7 @@ An official plugin is a `.fbplugin` file (zip with `manifest.json` at the root) 
    Writes `plugin-index.json.sig` next to the index (same scheme as the updates index).
 5. **Publish** the signed `.fbplugin` at the URL from step 3, and `plugin-index.json` plus `plugin-index.json.sig` side by side at one location.
 
-For a self-hosted index, a server admin sets `-plugin-index-url` (env `UZUME_PLUGIN_INDEX_URL`, https or `file://`, for example `https://hub.example.com/plugin-index.json`) and installs the plugin from the Plugins page. Without a setting every server uses the official index (see below); the value `none` turns the index off for offline servers, and signed or unsigned files can still be uploaded or imported with `framebeam-hub import-plugins <dir>`.
+For a self-hosted index, a server admin sets `-plugin-index-url` (env `UZUME_PLUGIN_INDEX_URL`, https or `file://`, for example `https://hub.example.com/plugin-index.json`) and installs the plugin from the Plugins page. Without a setting every server uses the official index (see below); the value `none` turns the index off for offline servers, and signed or unsigned files can still be uploaded or imported with `uzume-server import-plugins <dir>`.
 
 Checks: the server accepts the signature only for the release key or a key given with `-core-trust-key`; a file that fails validation or whose SHA-256 differs from the index is not installed.
 

@@ -3,19 +3,17 @@
 # Installs a local binary; nothing is downloaded. See docs/guides/hub-install.md.
 set -euo pipefail
 
-SVC=framebeam-hub
-SVC_USER=framebeam
-DEFAULT_DATA_DIR=/var/lib/framebeam
+SVC=uzume-server
+SVC_USER=uzume
+DEFAULT_DATA_DIR=/var/lib/uzume
 DEFAULT_LISTEN=:8443
 
 # UZUME_INSTALL_ROOT prefixes all paths; when set, user/chown/systemctl/runuser
 # calls are only printed (used by scripts/check.sh to test without root).
 P="${UZUME_INSTALL_ROOT:-}"
 BIN_DEST="$P/usr/local/bin/uzume-server"
-# Compat symlink for the name before the Uzume rename (old units, drop-ins and habits keep working).
-BIN_COMPAT="$P/usr/local/bin/framebeam-hub"
-ENV_DIR="$P/etc/framebeam"
-ENV_FILE="$ENV_DIR/hub.env"
+ENV_DIR="$P/etc/uzume"
+ENV_FILE="$ENV_DIR/server.env"
 UNIT_DEST="$P/etc/systemd/system/$SVC.service"
 DROPIN_DIR="$UNIT_DEST.d"
 DROPIN_FILE="$DROPIN_DIR/data-dir.conf"
@@ -26,7 +24,7 @@ NO_START=0 PURGE=0 YES=0 IMPORT_DIR=""
 
 usage() {
   cat <<USAGE
-Usage: install-hub.sh [install|upgrade|uninstall|renew-cert|import-cores DIR|status] [options]
+Usage: install-server.sh [install|upgrade|uninstall|renew-cert|import-cores DIR|status] [options]
 
   install (default)  Install the server binary, config and systemd service.
   upgrade            Replace the binary and restart the service (data/config untouched).
@@ -48,7 +46,7 @@ Options:
   --name NAME        Server name (used on the first start only)
   --admin USER       Create the admin account (password from prompt or one stdin line)
   --no-start         Do not enable/start the service
-  --purge            uninstall: also delete /etc/framebeam and the data dir
+  --purge            uninstall: also delete /etc/uzume and the data dir
   --yes              uninstall --purge: skip the confirmation
   -h, --help         This help
 
@@ -115,26 +113,20 @@ if [ "$CMD" != status ] && ! testmode && [ "$(id -u)" -ne 0 ]; then
   die "must run as root (try: sudo $0 $CMD ...)"
 fi
 
-# --- hub.env helpers -------------------------------------------------------
+# --- server.env helpers -------------------------------------------------------
 
-# Keys are UZUME_<X>. A hub.env written before the Uzume rename uses FRAMEBEAM_<X>, which the server still reads; the
-# helpers find and update such a line instead of adding a second one (the file itself is never renamed or rewritten).
-legacy_key() { printf 'FRAMEBEAM_%s' "${1#UZUME_}"; }
+# Keys are UZUME_<X>.
 
-env_get() { # KEY: value from hub.env (surrounding quotes stripped), empty if absent
+env_get() { # KEY: value from server.env (surrounding quotes stripped), empty if absent
   [ -f "$ENV_FILE" ] || return 0
   local v
   v="$(grep -m1 "^$1=" "$ENV_FILE" | cut -d= -f2- || true)"
-  [ -n "$v" ] || v="$(grep -m1 "^$(legacy_key "$1")=" "$ENV_FILE" | cut -d= -f2- || true)"
   v="${v#\"}"; v="${v%\"}"
   printf '%s' "$v"
 }
 
 env_set() { # KEY VALUE: replace the line or append it; keeps file mode/owner
   local key="$1" val="$2" tmp
-  if ! grep -q "^$key=" "$ENV_FILE" && grep -q "^$(legacy_key "$key")=" "$ENV_FILE"; then
-    key="$(legacy_key "$key")"
-  fi
   tmp="$(mktemp)"
   if grep -q "^$key=" "$ENV_FILE"; then
     V="$val" awk -v k="$key" 'index($0, k "=") == 1 { print k "=" ENVIRON["V"]; next } { print }' \
@@ -161,10 +153,10 @@ validate_data_dir() {
   case "$d" in */..|*/../*) die "data dir must not contain '..': '$1'" ;; esac
   case "$d" in
     /home|/home/*|/root|/root/*)
-      die "data dir '$1' is under /home or /root, which is not supported (the framebeam user cannot traverse private home directories). Install with the default data dir and copy: sudo cp -a <old dir>/. /var/lib/framebeam/" ;;
+      die "data dir '$1' is under /home or /root, which is not supported (the uzume user cannot traverse private home directories). Install with the default data dir and copy: sudo cp -a <old dir>/. /var/lib/uzume/" ;;
     ""|/bin|/boot|/dev|/etc|/lib|/lib64|/opt|/proc|/run|/sbin|/srv|/sys|/tmp|/usr|/var|/mnt|/media|\
     /usr/local|/usr/lib|/usr/share|/var/lib|/var/log|/var/cache|/var/tmp|/var/spool)
-      die "data dir '$1' is a shared system directory; use a dedicated directory such as /var/lib/framebeam or /srv/framebeam" ;;
+      die "data dir '$1' is a shared system directory; use a dedicated directory such as /var/lib/uzume or /srv/uzume" ;;
   esac
 }
 
@@ -201,12 +193,11 @@ install_binary() { # SRC: atomic copy to temp + mv
   tmp="$(mktemp "$BIN_DEST.XXXXXX")"
   if ! install -m 0755 "$1" "$tmp"; then rm -f "$tmp"; die "could not copy binary"; fi
   mv -f "$tmp" "$BIN_DEST"
-  ln -sfn uzume-server "$BIN_COMPAT"
 }
 
 # License and third-party notices: best effort, from next to the script (flat copy) or from a repository checkout.
 install_notices() {
-  local f src found=0 dest="$P/usr/local/share/doc/framebeam-hub"
+  local f src found=0 dest="$P/usr/local/share/doc/uzume-server"
   for f in THIRD-PARTY-NOTICES.txt LICENSE; do
     src=""
     for c in "$SCRIPT_DIR/$f" "$SCRIPT_DIR/../../server/$f" "$SCRIPT_DIR/../../$f"; do
@@ -217,7 +208,7 @@ install_notices() {
     install -m 0644 "$src" "$dest/$f"
     found=1
   done
-  [ "$found" -eq 1 ] || info "Note: LICENSE and THIRD-PARTY-NOTICES.txt not found next to the script; copy them to /usr/local/share/doc/framebeam-hub/ (GPL-3.0-or-later)."
+  [ "$found" -eq 1 ] || info "Note: LICENSE and THIRD-PARTY-NOTICES.txt not found next to the script; copy them to /usr/local/share/doc/uzume-server/ (GPL-3.0-or-later)."
 }
 
 check_binary_runs() {
@@ -273,7 +264,7 @@ write_dropin() { # LISTEN DATA_DIR
   fi
   if [ -n "$body" ]; then
     install -d -m 0755 "$DROPIN_DIR"
-    printf '# Written by install-hub.sh\n[Service]\n%s' "$body" >"$DROPIN_FILE"
+    printf '# Written by install-server.sh\n[Service]\n%s' "$body" >"$DROPIN_FILE"
     chmod 0644 "$DROPIN_FILE"
   else
     rm -f "$DROPIN_FILE"
@@ -321,7 +312,7 @@ cmd_install() {
   check_binary_runs
   [ -z "$ADMIN" ] || read_admin_password
 
-  # Effective config: explicit options win, then existing hub.env, then defaults.
+  # Effective config: explicit options win, then existing server.env, then defaults.
   local listen data_dir
   listen="${LISTEN:-$(effective_listen)}"
   data_dir="${DATA_DIR:-$(effective_data_dir)}"
@@ -347,7 +338,7 @@ cmd_install() {
   if [ ! -f "$ENV_FILE" ]; then
     ( umask 027
       {
-        echo "# Uzume server configuration (read by systemd, see framebeam-hub.service)."
+        echo "# Uzume server configuration (read by systemd, see uzume-server.service)."
         echo "# UZUME_NAME is only used on the first start."
         echo "UZUME_LISTEN=$listen"
         echo "UZUME_DATA_DIR=$data_dir"
@@ -356,12 +347,12 @@ cmd_install() {
         echo "#UZUME_PUBLIC_HOST=hub.example.org"
         [ -z "$NAME" ] || echo "UZUME_NAME=$(quote_name "$NAME")"
       } >"$ENV_FILE" )
-    info "Config:      created /etc/framebeam/hub.env"
+    info "Config:      created /etc/uzume/server.env"
   else
     [ -z "$LISTEN" ]   || env_set UZUME_LISTEN "$LISTEN"
     [ -z "$DATA_DIR" ] || env_set UZUME_DATA_DIR "$DATA_DIR"
     [ -z "$NAME" ]     || env_set UZUME_NAME "$(quote_name "$NAME")"
-    info "Config:      kept /etc/framebeam/hub.env (only explicitly given options updated)"
+    info "Config:      kept /etc/uzume/server.env (only explicitly given options updated)"
   fi
   chmod 0640 "$ENV_FILE"
   sys chown "root:$SVC_USER" "$ENV_FILE"
@@ -432,23 +423,23 @@ cmd_uninstall() {
   else
     systemctl disable --now "$SVC" >/dev/null 2>&1 || true
   fi
-  rm -f "$UNIT_DEST" "$DROPIN_FILE" "$BIN_DEST" "$BIN_COMPAT"
-  rm -rf "$P/usr/local/share/doc/framebeam-hub"
+  rm -f "$UNIT_DEST" "$DROPIN_FILE" "$BIN_DEST"
+  rm -rf "$P/usr/local/share/doc/uzume-server"
   rmdir "$DROPIN_DIR" 2>/dev/null || true
   sys systemctl daemon-reload
   info "Removed:     service unit and /usr/local/bin/uzume-server"
   if [ "$PURGE" -eq 1 ]; then
     if [ "$YES" -ne 1 ]; then
-      echo "This permanently deletes /etc/framebeam and the data dir $data_dir (database, saves, TLS keys)."
+      echo "This permanently deletes /etc/uzume and the data dir $data_dir (database, saves, TLS keys)."
       local ans=""
       read -r -p "Type 'yes' to continue: " ans || true
       [ "$ans" = yes ] || die "aborted, nothing purged"
     fi
     rm -rf "$P$data_dir" "$ENV_DIR"
-    info "Purged:      /etc/framebeam and $data_dir"
+    info "Purged:      /etc/uzume and $data_dir"
     info "Kept:        system user/group '$SVC_USER' (remove with: userdel $SVC_USER)"
   else
-    info "Kept:        /etc/framebeam and $data_dir (delete with: uninstall --purge)"
+    info "Kept:        /etc/uzume and $data_dir (delete with: uninstall --purge)"
     info "Kept:        system user/group '$SVC_USER'"
   fi
 }
@@ -474,7 +465,7 @@ cmd_renew_cert() {
 
 cmd_import_cores() {
   local dir tmp
-  [ -n "$IMPORT_DIR" ] || die "import-cores needs a directory: install-hub.sh import-cores DIR"
+  [ -n "$IMPORT_DIR" ] || die "import-cores needs a directory: install-server.sh import-cores DIR"
   [ -d "$IMPORT_DIR" ] || die "not a directory: $IMPORT_DIR"
   [ -f "$ENV_FILE" ] || testmode || die "$ENV_FILE not found; is the server installed?"
   dir="$(effective_data_dir)"

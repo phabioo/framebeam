@@ -4,7 +4,7 @@ name: Publish plugin
 # file(s) of a release of an official plugin repo, signs them with the release key, adds them to plugin-index.json,
 # signs the index and uploads everything. Without inputs it only re-signs and publishes the existing (or an empty)
 # index. Servers read https://github.com/phabioo/uzume/releases/download/plugin-index/plugin-index.json by default.
-# The signing seed is the secret FRAMEBEAM_SIGNING_KEY of the environment `release` (dispatch from main); it is only in
+# The signing seed is the signing-key secret of the environment `release` (dispatch from main); it is only in
 # the environment of the signing steps. Private plugin repos: set the secret PLUGIN_REPOS_TOKEN (PAT, read access).
 
 on:
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       repo:
-        description: 'Plugin repo, e.g. phabioo/framebeam-plugin-pokemon-core (empty = only re-sign the index)'
+        description: 'Plugin repo, e.g. phabioo/uzume-plugin-pokemon-core (empty = only re-sign the index)'
         required: false
         default: ''
         type: string
@@ -57,7 +57,7 @@ jobs:
               echo "::error::repo and tag must be given together"
               exit 1
             fi
-            [[ "$INPUT_REPO" =~ ^phabioo/(framebeam|uzume)-plugin-[a-z0-9-]+$ ]] || { echo "::error::repo must match phabioo/(framebeam|uzume)-plugin-<name>"; exit 1; }
+            [[ "$INPUT_REPO" =~ ^phabioo/uzume-plugin-[a-z0-9-]+$ ]] || { echo "::error::repo must match phabioo/uzume-plugin-<name>"; exit 1; }
             [[ "$INPUT_TAG" =~ ^v?[0-9][0-9A-Za-z._-]*$ ]] || { echo "::error::invalid tag"; exit 1; }
           fi
       - name: Build uzume-sign

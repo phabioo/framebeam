@@ -38,7 +38,7 @@ func art(platform, kind, name string) Artifact {
 
 func rel(product, channel, version string, arts ...Artifact) Release {
 	if arts == nil {
-		arts = []Artifact{art("linux-amd64", KindDeb, "framebeam-hub_"+strings.ReplaceAll(version, "-", "~")+"_amd64.deb")}
+		arts = []Artifact{art("linux-amd64", KindDeb, "uzume-server_"+strings.ReplaceAll(version, "-", "~")+"_amd64.deb")}
 	}
 	return Release{Product: product, Channel: channel, Version: version, PublishedAt: t0, ProtocolVersion: 1, MinProtocolVersion: 1, Artifacts: arts}
 }
@@ -242,7 +242,7 @@ func newFixture(t *testing.T, version string) *fixture {
 func newFixtureFor(t *testing.T, version, platform, kind, suffix string) *fixture {
 	t.Helper()
 	f := &fixture{dir: t.TempDir(), feed: t.TempDir(), keys: testKeys(t)}
-	f.debName = "framebeam-hub_" + strings.ReplaceAll(version, "-", "~") + suffix
+	f.debName = "uzume-server_" + strings.ReplaceAll(version, "-", "~") + suffix
 	f.debData = []byte("dummy deb payload for " + version)
 	if err := os.WriteFile(filepath.Join(f.feed, f.debName), f.debData, 0o644); err != nil {
 		t.Fatal(err)

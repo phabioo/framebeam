@@ -92,7 +92,7 @@ func TestBackupsWebFlow(t *testing.T) {
 	if rec.Header().Get("Content-Type") != "application/x-tar" || rec.Body.Len() != int(list[0].Size) || !strings.Contains(rec.Header().Get("Content-Disposition"), name) {
 		t.Fatalf("%v %d", rec.Header(), rec.Body.Len())
 	}
-	status(t, c.get("/settings/backups/download?file=../framebeam.db", nil), 404)
+	status(t, c.get("/settings/backups/download?file=../uzume.db", nil), 404)
 
 	// Restore confirmation lists the consequences; this test server cannot restart itself.
 	rec = c.get("/settings/backups?restore="+name, nil)

@@ -20,7 +20,7 @@ On the connection screen, "Set up a Hub on this PC" runs a server on the same co
 1. Start the app and enter the server address (or pick a saved server profile; auto-connect is available).
 2. On first contact the app shows the server's certificate fingerprint. Compare it with the server's log or Settings page and confirm (trust on first use). On a mismatch the connection is blocked and no credential is sent.
 3. Request pairing; an admin allows it on the server's Clients page. Alternatively choose "I have an invite code" and enter the code and your display name: the server creates a user for you without a password.
-4. Credentials are stored in the Windows Credential Manager under the target `Uzume/<server id>/<device id>`. A credential saved by an older version under `FrameBeam/...` is still found, copied to the new target and left in place, so a downgrade keeps working. Known limitation: Linux and macOS builds have no OS credential store yet (planned after 1.0); the device credential is kept in memory only, so after every restart the app pairs again and the admin approves the device anew (no secret is written to disk).
+4. Credentials are stored in the Windows Credential Manager under the target `Uzume/<server id>/<device id>`. Known limitation: Linux and macOS builds have no OS credential store yet (planned after 1.0); the device credential is kept in memory only, so after every restart the app pairs again and the admin approves the device anew (no secret is written to disk).
 
 After a server certificate change (renewal) the server card shows the stored and the presented fingerprint. "Trust new certificate", then "Yes, trust this certificate" re-pins it and keeps the credential (CLI: `--accept-fingerprint <sha256>`). Settings → Hubs switches, edits (address, port), removes and sets auto-connect for servers.
 
@@ -58,7 +58,7 @@ Plugin runtime of 0.11 ([API reference](plugin-api.md), [design](../architecture
 
 ## Collect logs
 
-When something does not work, hand over one file instead of describing it: Settings → Diagnostics → "Collect logs…" opens a save dialog (default name `uzume-diagnostics-<UTC timestamp>.zip` in Desktop or Downloads) and writes the bundle in the background; "Show in folder" then opens its folder. Without the window (for example when the app does not start): `framebeam_player --collect-logs out.zip [--data-dir <path>]` (offline, reads only the data directory, refuses to overwrite an existing file). Same layout as the server bundle ([hub-configuration.md](hub-configuration.md)):
+When something does not work, hand over one file instead of describing it: Settings → Diagnostics → "Collect logs…" opens a save dialog (default name `uzume-diagnostics-<UTC timestamp>.zip` in Desktop or Downloads) and writes the bundle in the background; "Show in folder" then opens its folder. Without the window (for example when the app does not start): `Uzume --collect-logs out.zip [--data-dir <path>]` (offline, reads only the data directory, refuses to overwrite an existing file). Same layout as the server bundle ([hub-configuration.md](hub-configuration.md)):
 
 | Entry | Content |
 |---|---|
@@ -105,7 +105,7 @@ While it uploads, the dialog shows progress and "Cancel" (back to editing, the t
 
 ## Data directory
 
-The ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users/<user_id>/saves/<game_id>/`, `system/` and settings are stored portable by default in `<directory of the executable>/data` (plugins in `plugins/`), provided a real write test succeeds there. Otherwise the app falls back to AppData (`QStandardPaths::AppDataLocation`) and logs a note, for example when installed under Program Files. On the first start under the new name (Uzume) the AppData folder of the old application name "FrameBeam Player" is copied once as well (the old folder stays). On the first portable start existing AppData data is copied once (nothing is moved, deleted or overwritten; `device_id` is preserved; the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir <path>` or `UZUME_DATA_DIR` take precedence ([ADR 0004](../adr/0004-player-portable-data.md)).
+The ROM cache, `profiles.json`, `device.json`, `hubs/<id>/users/<user_id>/saves/<game_id>/`, `system/` and settings are stored portable by default in `<directory of the executable>/data` (plugins in `plugins/`), provided a real write test succeeds there. Otherwise the app falls back to AppData (`QStandardPaths::AppDataLocation`) and logs a note, for example when installed under Program Files. On the first portable start existing AppData data is copied once (nothing is moved, deleted or overwritten; `device_id` is preserved; the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir <path>` or `UZUME_DATA_DIR` take precedence ([ADR 0004](../adr/0004-player-portable-data.md)).
 
 ## Command line and environment
 

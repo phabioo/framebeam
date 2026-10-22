@@ -3,7 +3,7 @@
 #   scripts/fetch-buildbot-core.sh <core>      e.g. desmume  ->  desmume_libretro.so
 # Source: ${UZUME_BUILDBOT_URL:-https://buildbot.libretro.com/nightly}/linux/x86_64/latest/<core>_libretro.so.zip
 # The CRC32 of the extracted library is verified against ".index-extended" of the same directory; exactly one library is extracted
-# to $HOME/.cache/framebeam/cores/buildbot/<core>/<date>-<crc>/ (UZUME_CACHE_DIR overrides $HOME/.cache/framebeam).
+# to $HOME/.cache/uzume/cores/buildbot/<core>/<date>-<crc>/ (UZUME_CACHE_DIR overrides $HOME/.cache/uzume).
 # No pin on purpose: CI tests against the current nightly; date and CRC are logged (stderr).
 # Idempotent: the same date+crc already cached = no zip download. Retries with backoff and timeouts.
 # Env: UZUME_FETCH_RETRIES (default 4), UZUME_FETCH_BACKOFF seconds (default 2, doubled per attempt).
@@ -27,7 +27,7 @@ lib="${core}_libretro.so"
 zipname="$lib.zip"
 RETRIES="${UZUME_FETCH_RETRIES:-4}"
 BACKOFF="${UZUME_FETCH_BACKOFF:-2}"
-CACHE="${UZUME_CACHE_DIR:-$HOME/.cache/framebeam}"
+CACHE="${UZUME_CACHE_DIR:-$HOME/.cache/uzume}"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

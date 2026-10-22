@@ -2,7 +2,7 @@
 #   scripts/fetch-buildbot-core.ps1 <core>      e.g. desmume  ->  desmume_libretro.dll
 # Source: $env:UZUME_BUILDBOT_URL (default https://buildbot.libretro.com/nightly)/windows/x86_64/latest/<core>_libretro.dll.zip
 # CRC32 of the extracted library (not of the zip) is verified against ".index-extended" of the same directory; exactly one library is extracted to
-# <cache>\cores\buildbot\<core>\<date>-<crc>\ (cache = UZUME_CACHE_DIR or $env:LOCALAPPDATA\framebeam).
+# <cache>\cores\buildbot\<core>\<date>-<crc>\ (cache = UZUME_CACHE_DIR or $env:LOCALAPPDATA\uzume).
 # No pin on purpose: CI tests against the current nightly; date and CRC are logged. Idempotent (same date+crc = reuse),
 # retries with backoff, timeouts. http:// is accepted only for 127.0.0.1 (tests).
 # Env: UZUME_FETCH_RETRIES (default 4), UZUME_FETCH_BACKOFF seconds (default 2, doubled per attempt).
@@ -20,7 +20,7 @@ $lib = "${Core}_libretro.dll"
 $zipName = "$lib.zip"
 $retries = if ($env:UZUME_FETCH_RETRIES) { [int]$env:UZUME_FETCH_RETRIES } else { 4 }
 $backoff = if ($env:UZUME_FETCH_BACKOFF) { [int]$env:UZUME_FETCH_BACKOFF } else { 2 }
-$cache = if ($env:UZUME_CACHE_DIR) { $env:UZUME_CACHE_DIR } else { Join-Path $env:LOCALAPPDATA 'framebeam' }
+$cache = if ($env:UZUME_CACHE_DIR) { $env:UZUME_CACHE_DIR } else { Join-Path $env:LOCALAPPDATA 'uzume' }
 
 if (-not ('FbCrc32' -as [type])) {
   Add-Type -TypeDefinition @'

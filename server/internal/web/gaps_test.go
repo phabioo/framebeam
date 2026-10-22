@@ -137,7 +137,7 @@ func TestInviteLandingPublic(t *testing.T) {
 	status(t, rec, 200)
 	contains(t, rec, "I have an invite code", "Install or open the Uzume", "AA:BB:CC:DD", "example.com",
 		`/static/invite.js`, "data-invite-code")
-	notContains(t, rec, "FB-", "secret-12345", "csrf", "Sign out", `name="_csrf"`)
+	notContains(t, rec, "UZ-", "secret-12345", "csrf", "Sign out", `name="_csrf"`)
 	if got := rec.Header().Get("Content-Security-Policy"); !strings.Contains(got, "script-src 'self'") {
 		t.Fatalf("csp %q", got)
 	}
@@ -145,9 +145,9 @@ func TestInviteLandingPublic(t *testing.T) {
 		t.Fatal("inline script")
 	}
 	// A fragment is never sent; a query string code is ignored and not echoed.
-	rec = anon.get("/invite?code=FB-AAAA-BBBB", nil)
+	rec = anon.get("/invite?code=UZ-AAAA-BBBB", nil)
 	status(t, rec, 200)
-	notContains(t, rec, "FB-AAAA-BBBB")
+	notContains(t, rec, "UZ-AAAA-BBBB")
 }
 
 // ---- Clients: App too old ----

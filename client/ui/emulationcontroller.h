@@ -2,7 +2,7 @@
 // EmulationController: data and actions of the Emulation page (3e). Local settings only
 // (<data>/settings/emulation.json): partial overrides in the hierarchy Global -> System/Core -> Game Override.
 // Core options are listed exactly as the core reports them (core_options.h); Uzume's own options come
-// from a small fixed list ("framebeam.*"). Options that Uzume controls (manifest-locked, firmware) are not offered.
+// from a small fixed list ("uzume.*"). Options that Uzume controls (manifest-locked, firmware) are not offered.
 // Changes are applied at the next launch.
 
 #include <QAbstractListModel>
@@ -91,13 +91,13 @@ class EmulationController : public QObject {
   Q_PROPERTY(QString coreNote READ coreNote NOTIFY groupsChanged)    // why the core group is empty, else empty
 
  public:
-  static constexpr const char* kCoreKey = EmulationSettings::kCoreKey;  // "framebeam.core": core of a system (ADR 0020 D6)
-  static constexpr const char* kFullscreenKey = "framebeam.fullscreen_on_start";
-  static constexpr const char* kMultiviewKey = "framebeam.default_multiview";
-  static constexpr const char* kScreenLayoutKey = "framebeam.screen_layout";  // default DS/3DS screen layout (3e-3)
-  static constexpr const char* kSpeedUpRatioKey = "framebeam.speedup_ratio";
-  static constexpr const char* kSpeedUpOnStartKey = "framebeam.speedup_on_start";
-  static constexpr const char* kSpeedUpAudioKey = "framebeam.speedup_audio";
+  static constexpr const char* kCoreKey = EmulationSettings::kCoreKey;  // "uzume.core": core of a system (ADR 0020 D6)
+  static constexpr const char* kFullscreenKey = "uzume.fullscreen_on_start";
+  static constexpr const char* kMultiviewKey = "uzume.default_multiview";
+  static constexpr const char* kScreenLayoutKey = "uzume.screen_layout";  // default DS/3DS screen layout (3e-3)
+  static constexpr const char* kSpeedUpRatioKey = "uzume.speedup_ratio";
+  static constexpr const char* kSpeedUpOnStartKey = "uzume.speedup_on_start";
+  static constexpr const char* kSpeedUpAudioKey = "uzume.speedup_audio";
 
   EmulationController(const QString& dataDir, const emu::ManifestRegistry* manifests, QObject* parent = nullptr);
 
@@ -162,7 +162,7 @@ class EmulationController : public QObject {
   void coreProbingChanged();
   void gamesChanged();
   void gameSelectionChanged();  // the PlayerController makes sure the game's core options are known
-  void uzumeOptionsChanged();  // a "framebeam.*" value changed (the PlayerController applies it)
+  void uzumeOptionsChanged();  // a "uzume.*" value changed (the PlayerController applies it)
   void coreChoiceChanged();        // the core of a system was chosen or reset (the PlayerController refreshes the core state)
 
  private:

@@ -70,7 +70,7 @@ func TestValidateSystemDefs(t *testing.T) {
 
 func openTestDB(t *testing.T) (*Service, func(q string, a ...any)) {
 	t.Helper()
-	db, err := store.Open(filepath.Join(t.TempDir(), "framebeam.db"))
+	db, err := store.Open(filepath.Join(t.TempDir(), "uzume.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

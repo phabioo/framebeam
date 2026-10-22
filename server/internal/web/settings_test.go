@@ -14,7 +14,7 @@ import (
 	"github.com/phabioo/uzume/server/internal/turnsrv"
 )
 
-// Settings sections, the Network form (saved values win over hub.env), live and restart-bound settings.
+// Settings sections, the Network form (saved values win over server.env), live and restart-bound settings.
 
 func baseNet() config.Config {
 	return config.Config{Listen: ":8443", TURNPort: config.DefaultTURNPort, TURNRelayPorts: config.DefaultTURNRelayPorts,
@@ -78,7 +78,7 @@ func TestNetworkSettingsPrecedenceResetAndPending(t *testing.T) {
 	c := e.client()
 	tok := c.login()
 	rec := c.get("/settings/network", nil)
-	contains(t, rec, "From hub.env / flags", "Only in local network", "a public host and the built-in TURN relay", `value="8443"`, `value="3478"`,
+	contains(t, rec, "From server.env / flags", "Only in local network", "a public host and the built-in TURN relay", `value="8443"`, `value="3478"`,
 		`value="49160"`, `value="49199"`)
 	notContains(t, rec, "Restart required to apply", "Set on the web interface", "Keep newest versions")
 	// Retention lives in its own Saves section; the section column carries the numbers.
@@ -96,16 +96,16 @@ func TestNetworkSettingsPrecedenceResetAndPending(t *testing.T) {
 		t.Fatalf("%v", ov)
 	}
 	rec = c.get("/settings/network?ok=netsaved", nil)
-	contains(t, rec, `value="3500"`, "Set on the web interface", "Reset to hub.env value (3478)", "Restart required to apply: TURN port", "Restart server now",
+	contains(t, rec, `value="3500"`, "Set on the web interface", "Reset to server.env value (3478)", "Restart required to apply: TURN port", "Restart server now",
 		"Network setting saved.", "Restart required")
 
-	// Reset deletes the override; hub.env applies again and nothing is pending.
+	// Reset deletes the override; server.env applies again and nothing is pending.
 	status(t, postTok(c, tok, "/settings/network/turn_port/reset", nil), 303)
 	if ov, _ = e.svc.NetOverrides(bg); len(ov) != 0 {
 		t.Fatalf("%v", ov)
 	}
 	rec = c.get("/settings/network", nil)
-	contains(t, rec, `value="3478"`, "From hub.env / flags")
+	contains(t, rec, `value="3478"`, "From server.env / flags")
 	notContains(t, rec, "Restart required to apply")
 
 	// Listen port: free port is accepted (test-bind), keeps the host part of the address and is pending.
@@ -150,7 +150,7 @@ func TestNetworkSettingsValidation(t *testing.T) {
 		form      url.Values
 		want      string
 	}{
-		{"low listen port", config.NetListenPort, url.Values{"value": {"443"}}, "install-hub.sh --port"},
+		{"low listen port", config.NetListenPort, url.Values{"value": {"443"}}, "install-server.sh --port"},
 		{"listen not a number", config.NetListenPort, url.Values{"value": {"abc"}}, "whole number"},
 		{"listen too high", config.NetListenPort, url.Values{"value": {"70000"}}, "not a port number"},
 		{"listen busy", config.NetListenPort, url.Values{"value": {strconv.Itoa(busyPort)}}, "Port " + strconv.Itoa(busyPort) + " is in use"},
@@ -219,7 +219,7 @@ func TestNetworkLiveSettings(t *testing.T) {
 	rec := c.get("/settings/saves", nil)
 	notContains(t, rec, "Restart required to apply")
 	contains(t, rec, "Keep 3 · all days · 26 weeks")
-	// Reset: back to the hub.env value, live again.
+	// Reset: back to the server.env value, live again.
 	rec = postTok(c, tok, "/settings/network/save_keep_recent/reset", nil)
 	status(t, rec, 303)
 	if location(rec) != "/settings/saves?ok=netreset" {

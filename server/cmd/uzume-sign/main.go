@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/phabioo/uzume/server/internal/corepkg"
-	"github.com/phabioo/uzume/server/internal/envcompat"
 	"github.com/phabioo/uzume/server/internal/pluginpkg"
 	"github.com/phabioo/uzume/server/internal/updates"
 )
@@ -46,12 +45,6 @@ func main() {
 }
 
 func run(args []string, getenv func(string) string, out io.Writer, now func() time.Time) error {
-	getenv = envcompat.Wrap(getenv) // UZUME_SIGNING_KEY, FRAMEBEAM_SIGNING_KEY as a deprecated fallback
-	defer func() {
-		for old, nw := range envcompat.Used() {
-			fmt.Fprintf(warnOut, "Warning: %s is deprecated, use %s\n", old, nw)
-		}
-	}()
 	if len(args) == 0 {
 		return errors.New("usage: uzume-sign keygen|add|release-add|plugin-sign|plugin-add|sign|index-refresh|verify|pubkey [flags]")
 	}

@@ -55,7 +55,7 @@ func TestRedeemFailuresOfOneIPDoNotLockOthers(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 40; i++ { // many bad codes from many addresses never reach a per-IP limit
-		in := redeemIn("FB-AAAA-AAAA", "x")
+		in := redeemIn("UZ-AAAA-AAAA", "x")
 		in.RemoteAddr = fmt.Sprintf("198.51.100.%d", i+1)
 		if _, err := svc.RedeemInvite(ctx, in); !errors.Is(err, hub.ErrInviteInvalid) {
 			t.Fatalf("%d: %v", i, err)
@@ -68,11 +68,11 @@ func TestRedeemFailuresOfOneIPDoNotLockOthers(t *testing.T) {
 	}
 	// One IPv6 /64 shares its budget.
 	for i := 0; i < hub.MaxRedeemPerIPPerMinute; i++ {
-		in := redeemIn("FB-AAAA-AAAA", "x")
+		in := redeemIn("UZ-AAAA-AAAA", "x")
 		in.RemoteAddr = fmt.Sprintf("2001:db8:9:9::%x", i+1)
 		svc.RedeemInvite(ctx, in)
 	}
-	in := redeemIn("FB-AAAA-AAAA", "x")
+	in := redeemIn("UZ-AAAA-AAAA", "x")
 	in.RemoteAddr = "2001:db8:9:9:1::1"
 	if _, err := svc.RedeemInvite(ctx, in); !errors.Is(err, hub.ErrRateLimited) {
 		t.Fatalf("same /64: %v", err)

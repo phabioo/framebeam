@@ -55,7 +55,7 @@ func grantFolder(path string) error {
 	return nil
 }
 
-// hubServiceSID resolves NT SERVICE\FrameBeamHub; if the account cannot be looked up (the service is not
+// hubServiceSID resolves NT SERVICE\UzumeServer; if the account cannot be looked up (the service is not
 // registered yet) the virtual service SID is derived from the name the way Windows does.
 func hubServiceSID() (*windows.SID, error) {
 	if sid, _, _, err := windows.LookupSID("", hubServiceAccount); err == nil {

@@ -39,7 +39,7 @@ func backupExtras(cfg *config.Config) []backup.Extra {
 		ex = append(ex, backup.Extra{Name: "tls-key.pem", Path: cfg.TLSKey})
 	}
 	if runtime.GOOS != "windows" {
-		ex = append(ex, backup.Extra{Name: "hub.env", Path: "/etc/framebeam/hub.env"})
+		ex = append(ex, backup.Extra{Name: "server.env", Path: "/etc/uzume/server.env"})
 	}
 	return ex
 }
@@ -300,7 +300,7 @@ func runRestore(args []string, out io.Writer) error {
 	}
 	release, err := backup.LockDataDir(cfg.DataDir)
 	if errors.Is(err, backup.ErrLocked) {
-		return errors.New("the server is running: stop it first (for example 'systemctl stop framebeam-hub'), then restore")
+		return errors.New("the server is running: stop it first (for example 'systemctl stop uzume-server'), then restore")
 	}
 	if err != nil {
 		return err
@@ -367,7 +367,7 @@ func runRestore(args []string, out io.Writer) error {
 		fmt.Fprintf(out, "To undo, restore the safety backup %s.\n", safetyName)
 	}
 	if _, err := os.Stat(filepath.Join(cfg.DataDir, "restored-config")); err == nil {
-		fmt.Fprintf(out, "Files from outside the data folder (own TLS certificate and key, hub.env) are in %s; copy them where they belong.\n", filepath.Join(cfg.DataDir, "restored-config"))
+		fmt.Fprintf(out, "Files from outside the data folder (own TLS certificate and key, server.env) are in %s; copy them where they belong.\n", filepath.Join(cfg.DataDir, "restored-config"))
 	}
 	return nil
 }

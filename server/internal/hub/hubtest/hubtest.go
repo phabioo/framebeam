@@ -38,7 +38,7 @@ func New(t *testing.T, mod func(*hub.Options)) (*hub.Service, *Clock) {
 // can prepare rows and open the same directory again (server restart). The database is closed when the test ends.
 func OpenIn(t *testing.T, dir string, mod func(*hub.Options)) (*hub.Service, *Clock, *sql.DB) {
 	t.Helper()
-	db, err := store.Open(filepath.Join(dir, "framebeam.db"))
+	db, err := store.Open(filepath.Join(dir, "uzume.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

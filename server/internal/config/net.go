@@ -13,7 +13,7 @@ import (
 )
 
 // Network settings that can be changed on the web interface (Settings > Network). A value saved there wins over
-// hub.env and flags, which only provide the initial value. The server stores each value as a raw string under one of
+// server.env and flags, which only provide the initial value. The server stores each value as a raw string under one of
 // these keys; this file knows how to apply, compare and validate them.
 
 // Keys of the network settings.
@@ -79,7 +79,7 @@ func NetLabel(key string) string {
 }
 
 // Port limits for values entered on the web interface. Ports below 1024 need a capability that the systemd unit
-// only gets through the drop-in of install-hub.sh --port.
+// only gets through the drop-in of install-server.sh --port.
 const (
 	MinWebPort        = 1024
 	MaxWebPort        = 65535
@@ -253,7 +253,7 @@ func (c *Config) ApplyNet(vals map[string]string) map[string]error {
 
 // ValidateNet checks the change of one setting that is already applied to c (the candidate configuration). It
 // validates the value itself and the rules that involve it; settings that were not touched are not re-checked, so
-// an unusual value from hub.env (for example a privileged listen port) never blocks unrelated changes. The error
+// an unusual value from server.env (for example a privileged listen port) never blocks unrelated changes. The error
 // text is meant for the web interface.
 func (c *Config) ValidateNet(key string) error {
 	listen := c.ListenPort()
@@ -358,7 +358,7 @@ func (c *Config) checkRelayVsPorts() error {
 
 func webPort(name string, p int) error {
 	if p < MinWebPort {
-		return netErr("%s: ports below %d are not allowed here because they need extra privileges. Use install-hub.sh --port to run the server on a low port", name, MinWebPort)
+		return netErr("%s: ports below %d are not allowed here because they need extra privileges. Use install-server.sh --port to run the server on a low port", name, MinWebPort)
 	}
 	if p > MaxWebPort {
 		return netErr("%s must be between %d and %d", name, MinWebPort, MaxWebPort)

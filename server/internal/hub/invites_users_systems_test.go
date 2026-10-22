@@ -56,7 +56,7 @@ func TestInviteCodeFormatAndOnlyHashStored(t *testing.T) {
 		t.Fatalf("odd expiry: %v", err)
 	}
 	// The database holds a hash only.
-	db, err := store.Open(filepath.Join(svc.DataDir(), "framebeam.db"))
+	db, err := store.Open(filepath.Join(svc.DataDir(), "uzume.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestRedeemInvalidExpiredRevokedAndNameTaken(t *testing.T) {
 			t.Fatalf("%q: %v", code, err)
 		}
 	}
-	bad("FB-AAAA-AAAA")
+	bad("UZ-AAAA-AAAA")
 	bad("")
 	bad("garbage")
 
@@ -257,20 +257,20 @@ func TestRedeemConcurrentSingleUse(t *testing.T) {
 func TestRedeemRateLimitLikePairing(t *testing.T) {
 	svc, clk, _ := newAdmin(t)
 	for i := 0; i < hub.MaxRedeemPerIPPerMinute; i++ {
-		if _, err := svc.RedeemInvite(ctx, redeemIn("FB-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrInviteInvalid) {
+		if _, err := svc.RedeemInvite(ctx, redeemIn("UZ-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrInviteInvalid) {
 			t.Fatalf("%d: %v", i, err)
 		}
 	}
-	if _, err := svc.RedeemInvite(ctx, redeemIn("FB-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrRateLimited) {
+	if _, err := svc.RedeemInvite(ctx, redeemIn("UZ-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrRateLimited) {
 		t.Fatalf("limit: %v", err)
 	}
-	other := redeemIn("FB-AAAA-AAAA", "x")
+	other := redeemIn("UZ-AAAA-AAAA", "x")
 	other.RemoteAddr = "192.0.2.99"
 	if _, err := svc.RedeemInvite(ctx, other); !errors.Is(err, hub.ErrInviteInvalid) {
 		t.Fatalf("other IP: %v", err)
 	}
 	clk.Advance(61 * time.Second)
-	if _, err := svc.RedeemInvite(ctx, redeemIn("FB-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrInviteInvalid) {
+	if _, err := svc.RedeemInvite(ctx, redeemIn("UZ-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrInviteInvalid) {
 		t.Fatalf("after a minute: %v", err)
 	}
 }
@@ -599,7 +599,7 @@ func TestProvideFirmwareKeepsOldFileWhenMetadataUpdateFails(t *testing.T) {
 	if _, err := svc.ProvideFirmware(ctx, "nds", "bios7", bytes.NewReader(v1)); err != nil {
 		t.Fatal(err)
 	}
-	db, err := store.Open(filepath.Join(svc.DataDir(), "framebeam.db"))
+	db, err := store.Open(filepath.Join(svc.DataDir(), "uzume.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

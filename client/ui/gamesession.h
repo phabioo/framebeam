@@ -93,7 +93,7 @@ class GameSession : public QObject {
     QMap<QString, QString> coreOptions;
     bool requireHwRender = false;  // core profile: no start without hardware rendering
     emu::DisplayProfile display;
-    // Speed-up settings (framebeam.speedup_*), resolved game > system > global by the caller.
+    // Speed-up settings (uzume.speedup_*), resolved game > system > global by the caller.
     double speedUpRatio = emu::EmulationRunner::kDefaultSpeedUpRatio;
     bool speedUpOnStart = false;
     bool speedUpAudio = true;

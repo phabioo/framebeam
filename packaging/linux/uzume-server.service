@@ -6,19 +6,19 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=framebeam
-Group=framebeam
-EnvironmentFile=/etc/framebeam/hub.env
+User=uzume
+Group=uzume
+EnvironmentFile=/etc/uzume/server.env
 ExecStart=/usr/local/bin/uzume-server
 Restart=on-failure
 RestartSec=5
 
 # Hardening. The install script writes a drop-in
-# (framebeam-hub.service.d/data-dir.conf) when the data dir is not
-# /var/lib/framebeam or the port is below 1024.
+# (uzume-server.service.d/data-dir.conf) when the data dir is not
+# /var/lib/uzume or the port is below 1024.
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/var/lib/framebeam
+ReadWritePaths=/var/lib/uzume
 ProtectHome=read-only
 PrivateTmp=true
 ProtectKernelTunables=true

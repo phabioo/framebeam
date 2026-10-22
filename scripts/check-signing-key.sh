@@ -24,8 +24,8 @@ trap 'rm -rf "$tmp"' EXIT
 cat >"$tmp/release.json" <<'JSON'
 {"product":"hub","channel":"beta","version":"0.0.0","commit":"0000000000000000000000000000000000000000",
  "published_at":"2000-01-01T00:00:00Z","protocol_version":1,"min_protocol_version":1,
- "artifacts":[{"platform":"linux-amd64","kind":"deb","name":"framebeam-hub_0.0.0_amd64.deb","size":1,
-   "sha256":"0000000000000000000000000000000000000000000000000000000000000000","url":"https://example.invalid/framebeam-hub_0.0.0_amd64.deb"}]}
+ "artifacts":[{"platform":"linux-amd64","kind":"deb","name":"uzume-server_0.0.0_amd64.deb","size":1,
+   "sha256":"0000000000000000000000000000000000000000000000000000000000000000","url":"https://example.invalid/uzume-server_0.0.0_amd64.deb"}]}
 JSON
 "$SIGN" release-add -index "$tmp/updates-index.json" -release "$tmp/release.json" -keep 5 >/dev/null
 "$SIGN" sign -index "$tmp/updates-index.json" -out "$tmp/updates-index.json.sig" -bundle "$tmp/updates-index.json.signed"

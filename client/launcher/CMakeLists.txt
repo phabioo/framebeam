@@ -1,9 +1,8 @@
 # uzume_launcher (Windows only): the tiny top-level Uzume.exe of the installed layout
-#   {app}\Uzume.exe  ->  starts {app}\bin\Uzume.exe with the same arguments (found independent of the launcher's own file name,
-#   so the compat copy framebeam_player.exe that the MSI also installs starts the app too).
+#   {app}\Uzume.exe  ->  starts {app}\bin\Uzume.exe with the same arguments.
 # No Qt, static CRT, GUI subsystem (no console window, like the Player; passes its std handles to the child explicitly and returns the exit code of the child).
 # Output name is Uzume, so it is built into its own directory and never overwrites the real app:
-#   <build>/launcher/Uzume.exe   (CI copies it to the package top level, and as framebeam_player.exe for compat)
+#   <build>/launcher/Uzume.exe   (CI copies it to the package top level)
 if(WIN32)
   add_executable(uzume_launcher WIN32 launcher.cpp launcher.rc)
   # launcher.rc references the Player icon (../app/icons/player.ico); rc.exe resolves it via the include path, independent of the working directory.

@@ -32,7 +32,7 @@ RUN mkdir /data
 # Shared runtime base: distroless static (no shell, no package manager), non-root user 65532.
 FROM gcr.io/distroless/static-debian12:nonroot AS base
 # Only the container marker is set: the server defaults to /data in a container and to :8443, so a compose file that still
-# sets FRAMEBEAM_DATA_DIR / FRAMEBEAM_LISTEN keeps winning through the legacy-name fallback.
+# sets UZUME_DATA_DIR / UZUME_LISTEN keeps winning.
 ENV UZUME_SERVER_CONTAINER=1
 COPY --from=datadir --chown=65532:65532 /data /data
 WORKDIR /data

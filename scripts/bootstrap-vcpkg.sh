@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Clones and bootstraps vcpkg (pinned, shallow). Idempotent and quiet.
-# Target: ${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}
+# Target: ${VCPKG_ROOT:-$HOME/.cache/uzume/vcpkg}
 set -euo pipefail
 
 # The pin is "builtin-baseline" in client/vcpkg.json (single source of truth, shared with the Windows manifest build;
@@ -9,7 +9,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VCPKG_COMMIT="$(sed -n 's/.*"builtin-baseline"[[:space:]]*:[[:space:]]*"\([0-9a-f]\{40\}\)".*/\1/p' "$here/../client/vcpkg.json" | head -n 1)"
 [ -n "$VCPKG_COMMIT" ] || { echo "ERROR bootstrap-vcpkg: no 40-hex builtin-baseline in client/vcpkg.json" >&2; exit 1; }
 VCPKG_REPO="https://github.com/microsoft/vcpkg"
-root="${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}"
+root="${VCPKG_ROOT:-$HOME/.cache/uzume/vcpkg}"
 
 if [ -x "$root/vcpkg" ] && [ "$(git -C "$root" rev-parse HEAD 2>/dev/null)" = "$VCPKG_COMMIT" ]; then
   exit 0

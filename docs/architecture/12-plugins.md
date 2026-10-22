@@ -40,7 +40,7 @@ Non-goals:
 | Saves | keyed by `romSha256` (`gamestarter.cpp`) | A changed ROM (for example externally randomized) gets its own saves | Unchanged; "never overwrite saves silently" stays |
 | Hub channel | WSS envelope, `protocol/schemas/ws-envelope.schema.json` (`type` + `payload`) | Implemented (package 3): `run_updated`, `run_state`, `run_event`, optional `runs` in `hello` (feature `runs_v1`) | - |
 | Peer channel | DataChannel `fb-diag` | Exists only while someone watches the Session | Not suitable for run state |
-| Distribution | Core distribution with SHA-256 pin ([ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md)); signed `updates-index`, `server/cmd/framebeam-sign` | Cores, updates, plugins | Implemented (package 3): `.fbplugin` signature and plugin index reuse the updates-index key and `framebeam-sign` (16.10) |
+| Distribution | Core distribution with SHA-256 pin ([ADR 0020](../adr/0020-cores-from-the-libretro-buildbot.md)); signed `updates-index`, `server/cmd/uzume-sign` | Cores, updates, plugins | Implemented (package 3): `.fbplugin` signature and plugin index reuse the updates-index key and `uzume-sign` (16.10) |
 | UI | `client/ui/*.qml`, `Fb*` components, `Theme.qml`; Hub web: Go templates + htmx (`server/internal/web`) | Implemented in the Player (package 2): `fb.ui`, validation in `client/plugins/plugin_ui.*`, `PluginsController`, `PluginBlock.qml`, `PluginMapView.qml`, `PluginImageProvider`; slots panel, HUD, tile strip, screen, game detail, toasts. [API guide](../guides/plugin-api.md#ui) | Implemented in the Hub web UI (package 3): `server/internal/web/static/plugin-blocks.js` renders the same tree read-only |
 
 Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar exposes memory maps with virtual addresses; `retro_get_memory_data` returns NULL; `retro_cheat_set` is empty).
@@ -84,12 +84,12 @@ The Player shows name, origin (Official / Unverified / Local) and permissions be
 
 ```json
 {
-  "id": "net.framebeam.example",
+  "id": "net.uzume.example",
   "name": "Example",
   "version": "1.0.0",
   "api": 1,
   "type": "script",
-  "requires": { "net.framebeam.example-core": "^1.0" },
+  "requires": { "net.uzume.example-core": "^1.0" },
   "provides": ["example.team"],
   "games": [{ "system": "nds", "codes": ["ABC*"] }],
   "permissions": ["memory.read", "rom.read", "ui", "run.state"],
@@ -167,25 +167,25 @@ Built in package 3 (Hub) and in the Player's delivery part.
 - every name is a relative path with `/` separators: no leading `/`, no `\`, no drive letter, no `.` or `..` segment, no empty segment, at most 255 bytes, no duplicate names (case-insensitive), no symlink entries; directory entries are ignored;
 - `manifest.json` parses, `api` is 1, `id`, `version` and `entry` are valid and the entry file exists.
 
-**`SIGNATURE.json`:** `{ "format": 1, "files": { "<path>": "<sha256 hex>" }, "signature": "<base64 Ed25519>" }`. `files` lists exactly every non-directory entry except `SIGNATURE.json` with the lowercase hex SHA-256 of its content. The signed message is the UTF-8 text `framebeam-plugin-v1\n` followed by one line `<sha256>  <path>\n` (two spaces) per file, sorted by path in byte order. The key is checked against the same trusted keys as the updates index (Hub: release key plus `-core-trust-key`; Player: the compiled-in release key). A missing signature leaves the plugin unsigned; an invalid one is reported as invalid and never counts as official.
+**`SIGNATURE.json`:** `{ "format": 1, "files": { "<path>": "<sha256 hex>" }, "signature": "<base64 Ed25519>" }`. `files` lists exactly every non-directory entry except `SIGNATURE.json` with the lowercase hex SHA-256 of its content. The signed message is the UTF-8 text `uzume-plugin-v1\n` followed by one line `<sha256>  <path>\n` (two spaces) per file, sorted by path in byte order. The key is checked against the same trusted keys as the updates index (Hub: release key plus `-core-trust-key`; Player: the compiled-in release key). A missing signature leaves the plugin unsigned; an invalid one is reported as invalid and never counts as official.
 
-**Origins.** `official`: valid FrameBeam signature, wherever it was installed from (index, Hub upload, file). `unverified`: unsigned, offered by the Hub. `local`: unsigned file or folder on this device; only `local` plugins need developer mode in the Player.
+**Origins.** `official`: valid Uzume signature, wherever it was installed from (index, Hub upload, file). `unverified`: unsigned, offered by the Hub. `local`: unsigned file or folder on this device; only `local` plugins need developer mode in the Player.
 
-**Plugin index.** `plugin-index.json` (`format` 1, `generated_at`, `plugins[]` with `id`, `name`, `version`, `api`, `description`, `permissions`, `url`, `sha256`, `size`) plus a detached `plugin-index.json.sig` in the scheme of `updates-index`. `framebeam-sign plugin-sign` adds the signature to a `.fbplugin`, `plugin-add` puts a signed file into the index (it refuses unsigned files and a different file for an id+version that is already in the index, unless `-replace`), `sign -index` writes the `.sig` ([publishing guide](../guides/plugin-publishing.md)). Hub flag `-plugin-index-url` / `FRAMEBEAM_PLUGIN_INDEX_URL` (https or `file://`); the default is the official index, the release `plugin-index` of the FrameBeam repository (`https://github.com/phabioo/framebeam/releases/download/plugin-index/plugin-index.json`, published by the workflow "Publish plugin"); the value `none` disables the index for offline Hubs, which then have no catalog. The index is read at start, every 24 h and with "Check now"; a failure is shown on the Plugins page and never stops the Hub. Install and Update on the Plugins page download the file, check size and SHA-256 against the signed index and the embedded signature, and store it as `official` (source `index`). Official plugins come from their own repositories whose release workflow builds and signs the `.fbplugin`.
+**Plugin index.** `plugin-index.json` (`format` 1, `generated_at`, `plugins[]` with `id`, `name`, `version`, `api`, `description`, `permissions`, `url`, `sha256`, `size`) plus a detached `plugin-index.json.sig` in the scheme of `updates-index`. `uzume-sign plugin-sign` adds the signature to a `.fbplugin`, `plugin-add` puts a signed file into the index (it refuses unsigned files and a different file for an id+version that is already in the index, unless `-replace`), `sign -index` writes the `.sig` ([publishing guide](../guides/plugin-publishing.md)). Hub flag `-plugin-index-url` / `UZUME_PLUGIN_INDEX_URL` (https or `file://`); the default is the official index, the release `plugin-index` of the Uzume repository (`https://github.com/phabioo/uzume/releases/download/plugin-index/plugin-index.json`, published by the workflow "Publish plugin"); the value `none` disables the index for offline Hubs, which then have no catalog. The index is read at start, every 24 h and with "Check now"; a failure is shown on the Plugins page and never stops the Hub. Install and Update on the Plugins page download the file, check size and SHA-256 against the signed index and the embedded signature, and store it as `official` (source `index`). Official plugins come from their own repositories whose release workflow builds and signs the `.fbplugin`.
 
 **Hub plugin store.** Files live under `<data-dir>/plugins/<id>/<version>.fbplugin`, metadata in the table `plugins` (migration `0012_plugins`). Every stored version is offered to all Players of the Hub:
 
 - `GET /api/v1/plugins` (device token, feature `plugins_v1`): `PluginInfo` per version: `plugin_id`, `version`, `name`, `description`, `api`, `origin`, `sha256`, `size`, `permissions`, `requires`, `provides`, `games`, `created_at`.
 - `GET /api/v1/plugins/{plugin_id}/{version}/file`: the zip bytes, `Content-Type: application/zip`, `ETag` = SHA-256; 404 when unknown.
 - Admin upload in the Hub web UI (admin only; **open:** whether non-admins may upload): the Hub validates the file and shows name, version, origin and one tick per requested permission; "Offer to Players" works only with every tick set (checked on the server). The same id and version with a different SHA-256 is rejected; remove the old version first.
-- Offline: `framebeam-hub import-plugins <dir>` offers every `*.fbplugin` of a folder (source `import`), like `import-cores`; a Hub without internet works completely with uploads and imports.
+- Offline: `uzume-server import-plugins <dir>` offers every `*.fbplugin` of a folder (source `import`), like `import-cores`; a Hub without internet works completely with uploads and imports.
 - Remove: deletes file and row, refused with 409 while a run that is not `finished` or `abandoned` uses that version. Copies Players already installed stay.
 
 **Player.** "Browse plugins on your Hub" lists the offered plugins; Install downloads the file with the list's SHA-256 as pin (a mismatch installs nothing), validates it as above and stores a Hub copy under `<plugins-root>/hub/<id>/<version>/` with `origin.json`. "Install plugin from file": signed files become `official` without developer mode, unsigned ones `local` (developer mode). The developer mode also reloads a plugin from a folder on change and shows a log console.
 
 **Runs** use exactly the plugin versions the run pins (id, version, SHA-256); a locally installed copy is not enough and never replaces the Hub version a run uses.
 
-Official plugin repositories (created 2026-10-11, no code yet, each with its own docs and roadmap): `framebeam-plugin-pokemon-core`, `framebeam-plugin-soullink`, `framebeam-plugin-pokemon-editor`, `framebeam-plugin-cheats`, `framebeam-plugin-template`.
+Official plugin repositories (created 2026-10-11, no code yet, each with its own docs and roadmap): `uzume-plugin-pokemon-core`, `uzume-plugin-soullink`, `uzume-plugin-pokemon-editor`, `uzume-plugin-cheats`, `uzume-plugin-template`.
 
 ### 16.11 Hub: runs
 
@@ -226,6 +226,6 @@ Lua, the building blocks and the helper functions are platform-neutral and run w
 
 ### 16.14 Testing
 
-- Synthetic data only: the in-repo test core `framebeam_test_core` gets a synthetic memory map with self-generated data. No ROMs, no RAM dumps of real games in the repository or in cloud CI.
+- Synthetic data only: the in-repo test core `uzume_test_core` gets a synthetic memory map with self-generated data. No ROMs, no RAM dumps of real games in the repository or in cloud CI.
 - Hub, protocol and renderer run fully in CI.
 - Real games are tested only locally by the maintainer; recordings stay local.

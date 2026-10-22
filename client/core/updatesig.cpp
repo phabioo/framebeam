@@ -9,7 +9,7 @@
 namespace uzume::update {
 
 QList<QByteArray> defaultTrustedKeys() {
-  // Uzume release key (2026-10-07); the private counterpart lives only in the secret FRAMEBEAM_SIGNING_KEY.
+  // Uzume release key (2026-10-07); the private counterpart lives only in the signing key secret.
   return parsePublicKeys({QStringLiteral("XNEQ9t7C2AtGzhfsg+oZwDKp8G2SG0iLxAQGg1u86PI=")});
 }
 

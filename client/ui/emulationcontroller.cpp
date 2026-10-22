@@ -358,12 +358,12 @@ void EmulationController::setOption(const QString& key, const QString& value) {
     settings_.removeValue(levelEnum(), scope(), key);  // back to the default: nothing stays stored, no "changed" mark
   } else {
     settings_.setValue(levelEnum(), scope(), key, value);
-    if (gameRunning_ && !key.startsWith(QLatin1String("framebeam."))) restartTouched_ = true;
+    if (gameRunning_ && !key.startsWith(QLatin1String("uzume."))) restartTouched_ = true;
   }
   rebuild();
   emit systemsChanged();
   emitGamesChanged();
-  if (key.startsWith(QLatin1String("framebeam."))) emit uzumeOptionsChanged();
+  if (key.startsWith(QLatin1String("uzume."))) emit uzumeOptionsChanged();
   if (key == QLatin1String(kCoreKey)) emit coreChoiceChanged();
 }
 
@@ -373,7 +373,7 @@ void EmulationController::resetOption(const QString& key) {
   rebuild();
   emit systemsChanged();
   emitGamesChanged();
-  if (key.startsWith(QLatin1String("framebeam."))) emit uzumeOptionsChanged();
+  if (key.startsWith(QLatin1String("uzume."))) emit uzumeOptionsChanged();
   if (key == QLatin1String(kCoreKey)) emit coreChoiceChanged();
 }
 
@@ -384,7 +384,7 @@ void EmulationController::resetAllChanged() {
   const QMap<QString, QString> vals = settings_.values(levelEnum(), scope());
   for (auto it = vals.cbegin(); it != vals.cend(); ++it) {
     settings_.removeValue(levelEnum(), scope(), it.key());
-    fb = fb || it.key().startsWith(QLatin1String("framebeam."));
+    fb = fb || it.key().startsWith(QLatin1String("uzume."));
     coreChanged = coreChanged || it.key() == QLatin1String(kCoreKey);
   }
   restartTouched_ = false;

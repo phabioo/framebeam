@@ -167,7 +167,7 @@ QMap<QString, QString> launchCoreOptions(const SystemManifest& manifest, const Q
                                          const QMap<QString, QString>& firmwareOptions) {
   QMap<QString, QString> out = manifest.coreOptions;
   for (auto it = userOverrides.cbegin(); it != userOverrides.cend(); ++it) {
-    if (it.key().startsWith(QLatin1String("framebeam.")) || isLockedCoreOption(manifest, it.key())) continue;
+    if (it.key().startsWith(QLatin1String("uzume.")) || isLockedCoreOption(manifest, it.key())) continue;
     out.insert(it.key(), it.value());
   }
   for (auto it = firmwareOptions.cbegin(); it != firmwareOptions.cend(); ++it) {

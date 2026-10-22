@@ -10,10 +10,7 @@ namespace uzume::update {
 QString launcherFileName(const QString& installRoot) {
   if (installRoot.isEmpty()) return {};
   const QDir d(installRoot);
-  for (const char* name : {kPlayerExeName, kLegacyPlayerExeName}) {
-    if (d.exists(QLatin1String(name))) return QLatin1String(name);
-  }
-  return {};
+  return d.exists(QLatin1String(kPlayerExeName)) ? QString::fromLatin1(kPlayerExeName) : QString();
 }
 
 QString installRootFor(const QString& exeDir) {
@@ -38,7 +35,7 @@ bool hubInstalledNear(const QString& installRoot) {
   if (installRoot.isEmpty()) return false;
   QDir d(installRoot);
   if (!d.cdUp()) return false;
-  return QFileInfo::exists(d.filePath(QStringLiteral("Hub/") + QLatin1String(kHubMsiMarker)));
+  return QFileInfo::exists(d.filePath(QStringLiteral("Server/") + QLatin1String(kHubMsiMarker)));
 }
 
 bool isMsiFile(const QString& path) { return path.endsWith(QLatin1String(".msi"), Qt::CaseInsensitive); }
@@ -119,7 +116,7 @@ InstallerCommand msiRelaunchCommand(const QString& launcherCopy, const QString& 
 }
 
 QString perMachinePlayerExe(const QString& programFilesDir) {
-  return QDir(programFilesDir).filePath(QStringLiteral("FrameBeam/Player/") + QLatin1String(kPlayerExeName));
+  return QDir(programFilesDir).filePath(QStringLiteral("Uzume/App/") + QLatin1String(kPlayerExeName));
 }
 
 }  // namespace uzume::update

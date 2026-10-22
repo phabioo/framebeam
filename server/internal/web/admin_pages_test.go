@@ -519,7 +519,7 @@ func updatesFeed(t *testing.T, version string) (url string, pub ed25519.PublicKe
 	pub, _ = corepkg.PublicFromSeed(seed)
 	data := []byte("dummy deb")
 	sum := sha256.Sum256(data)
-	name := "framebeam-hub_" + version + "_amd64.deb"
+	name := "uzume-server_" + version + "_amd64.deb"
 	if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -608,7 +608,7 @@ func TestSettingsUpdatesNotPackagedAndDev(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec = c.get("/settings", nil)
-	contains(t, rec, "Update available", "0.3.0-beta.6", "sudo apt install ./framebeam-hub_0.3.0-beta.6_amd64.deb")
+	contains(t, rec, "Update available", "0.3.0-beta.6", "sudo apt install ./uzume-server_0.3.0-beta.6_amd64.deb")
 	notContains(t, rec, "Install update")
 	rec = postTok(c, tok, "/settings/updates/install", nil)
 	if location(rec) != "/settings/updates?err=updatepackage" {

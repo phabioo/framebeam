@@ -82,7 +82,7 @@ func TestSessionACLService(t *testing.T) {
 
 func TestRecoveredSessionEndsAfterGraceWithoutOwner(t *testing.T) {
 	dir := t.TempDir()
-	db, err := store.Open(filepath.Join(dir, "framebeam.db"))
+	db, err := store.Open(filepath.Join(dir, "uzume.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

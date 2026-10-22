@@ -37,7 +37,7 @@ func TestApplyNetOverridesWin(t *testing.T) {
 			t.Fatalf("%s: %q != %q", k, d.NetValue(k), c.NetValue(k))
 		}
 	}
-	// An empty saved list/host overrides a non-empty hub.env value.
+	// An empty saved list/host overrides a non-empty server.env value.
 	e := baseCfg()
 	e.PublicHost = "env.example.com"
 	e.ApplyNet(map[string]string{NetPublicHost: "", NetICEServers: "[]"})
@@ -53,7 +53,7 @@ func TestApplyNetSkipsUnreadableValues(t *testing.T) {
 		t.Fatalf("%v", bad)
 	}
 	if c.Listen != "0.0.0.0:8443" || c.TURNPort != 3478 || c.SaveKeepRecent != 20 || c.TURNRelayPorts != DefaultTURNRelayPorts || c.TURN || c.SaveKeepDaily != 7 {
-		t.Fatalf("%+v", c) // unreadable values leave the hub.env value alone, readable ones still apply
+		t.Fatalf("%+v", c) // unreadable values leave the server.env value alone, readable ones still apply
 	}
 }
 
@@ -93,7 +93,7 @@ func TestValidateNet(t *testing.T) {
 		want string // "" = valid
 	}{
 		{"port ok", baseCfg(), NetListenPort, "9000", ""},
-		{"port below 1024", baseCfg(), NetListenPort, "443", "install-hub.sh --port"},
+		{"port below 1024", baseCfg(), NetListenPort, "443", "install-server.sh --port"},
 		{"port 1024", baseCfg(), NetListenPort, "1024", ""},
 		{"port 65536", baseCfg(), NetListenPort, "65536", "not a port number"},
 		{"port equals relay range", baseCfg(), NetListenPort, "49170", "relay range"},
@@ -141,7 +141,7 @@ func TestValidateNet(t *testing.T) {
 			}
 		})
 	}
-	// Unusual hub.env values never block an unrelated change.
+	// Unusual server.env values never block an unrelated change.
 	odd := baseCfg()
 	odd.Listen = ":443"
 	if err := change(odd, NetKeepRecent, "10"); err != nil {

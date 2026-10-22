@@ -51,7 +51,7 @@ func TestSignBundleRefreshAndExpiry(t *testing.T) {
 	if err := runE(env, "sign", "-index", idx, "-bundle", idx+".signed"); err != nil {
 		t.Fatal(err)
 	}
-	if err := runE(nil, "verify", "-index", idx, "-bundle", idx+".signed", "-pub", pub); err != nil || !strings.Contains(out.String(), "context=framebeam-updates-index-v2") {
+	if err := runE(nil, "verify", "-index", idx, "-bundle", idx+".signed", "-pub", pub); err != nil || !strings.Contains(out.String(), "context=uzume-updates-index-v1") {
 		t.Fatalf("%v %q", err, out.String())
 	}
 	if err := runE(nil, "verify", "-index", idx, "-sig", idx+".sig", "-pub", pub); err != nil {

@@ -20,11 +20,11 @@ const (
 )
 
 // swapItems are the top-level entries of the data directory a restore may replace.
-var swapItems = map[string]bool{"framebeam.db": true, "saves": true, "states": true, "plugins": true,
+var swapItems = map[string]bool{"uzume.db": true, "saves": true, "states": true, "plugins": true,
 	"firmware": true, "tls": true, "roms": true, "restored-config": true}
 
-// walFiles belong to framebeam.db and are moved away with it (the restored database is a plain file).
-var walFiles = []string{"framebeam.db-wal", "framebeam.db-shm"}
+// walFiles belong to uzume.db and are moved away with it (the restored database is a plain file).
+var walFiles = []string{"uzume.db-wal", "uzume.db-shm"}
 
 // Pending is a prepared restore: staging holds the verified, unpacked archive; the swap happens at the next start.
 type Pending struct {

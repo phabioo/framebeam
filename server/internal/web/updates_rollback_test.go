@@ -24,7 +24,7 @@ func rollbackFeed(t *testing.T, seed []byte, schemas map[string]int) string {
 	dir := t.TempDir()
 	var rels []updates.Release
 	for v, schema := range schemas {
-		name := "framebeam-hub_" + v + "_amd64.deb"
+		name := "uzume-server_" + v + "_amd64.deb"
 		data := []byte("dummy deb " + v)
 		os.WriteFile(filepath.Join(dir, name), data, 0o644)
 		sum := sha256.Sum256(data)

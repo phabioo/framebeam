@@ -1,4 +1,4 @@
-// Uzume launcher (Windows): {app}\Uzume.exe (or its compat copy framebeam_player.exe) starts {app}\bin\Uzume.exe with the
+// Uzume launcher (Windows): {app}\Uzume.exe starts {app}\bin\Uzume.exe with the
 // same arguments, passes its std handles on, waits and returns the exit code of the child.
 // Deliberately tiny: no Qt, no C++ runtime features beyond the static CRT.
 #include <windows.h>
@@ -84,9 +84,7 @@ int applyMsiUpdate(const uzume::launcher::MsiUpdateRequest& req) {
   // Every Player instance holds the named mutex (app/main.cpp); max. 60 s.
   bool stillRunning = false;
   for (int i = 0; i < 120; ++i) {
-    // The mutex of this app and the one of apps before the rename (the app that requested the update may be older).
     HANDLE m = OpenMutexW(SYNCHRONIZE, FALSE, L"UzumeApp");
-    if (m == nullptr) m = OpenMutexW(SYNCHRONIZE, FALSE, L"FrameBeamPlayer");
     if (m == nullptr) break;
     CloseHandle(m);
     stillRunning = i == 119;
@@ -177,7 +175,7 @@ int applyMsiUpdate(const uzume::launcher::MsiUpdateRequest& req) {
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-  SetCurrentProcessExplicitAppUserModelID(L"FrameBeam.Player");
+  SetCurrentProcessExplicitAppUserModelID(L"Uzume.App");
 
   {
     int argc = 0;
@@ -198,13 +196,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   if (slash == std::wstring::npos) return 1;
   dir.resize(slash);
 
-  // The real app is bin\Uzume.exe, independent of this launcher's own file name (the MSI also installs a copy of the
-  // launcher as framebeam_player.exe for pinned shortcuts); installs before the rename have bin\framebeam_player.exe.
-  std::wstring child = dir + L"\\bin\\Uzume.exe";
-  if (GetFileAttributesW(child.c_str()) == INVALID_FILE_ATTRIBUTES) {
-    const std::wstring legacy = dir + L"\\bin\\framebeam_player.exe";
-    if (GetFileAttributesW(legacy.c_str()) != INVALID_FILE_ATTRIBUTES) child = legacy;
-  }
+  // The real app is bin\Uzume.exe, independent of this launcher's own file name.
+  const std::wstring child = dir + L"\\bin\\Uzume.exe";
   std::wstring cmd = uzume::launcher::childCommandLine(child, GetCommandLineW());
 
   // GUI subsystem (no console window, like the Player itself): hand our std handles to the child explicitly,

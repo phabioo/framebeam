@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	hubServiceName     = "FrameBeamHub"
-	updaterServiceName = "FrameBeamHubUpdater"
+	hubServiceName     = "UzumeServer"
+	updaterServiceName = "UzumeServerUpdater"
 )
 
 // stopWaitHint is what the SCM is told to wait for a graceful stop (the server allows 10 s plus helper goroutines).

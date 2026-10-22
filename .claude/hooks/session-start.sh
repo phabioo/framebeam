@@ -5,7 +5,7 @@
 set -uo pipefail
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-export VCPKG_ROOT="${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}"
+export VCPKG_ROOT="${VCPKG_ROOT:-$HOME/.cache/uzume/vcpkg}"
 export GOTOOLCHAIN=local
 
 warn() { echo "session-start: $1" >&2; }

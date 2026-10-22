@@ -5,7 +5,7 @@ name: Release
 # No rebuild: the files are exactly what CI built and tested. ADR 0011.
 # The stable release is made by promote.yml from such a prerelease (same files, same number). To make that possible
 # the index descriptions are also uploaded to the prerelease (index-hub.json, index-player.json).
-# The signing seed is the secret FRAMEBEAM_SIGNING_KEY of the environment `release` (deployment branch: main only); it is only in the environment of the signing step.
+# The signing seed is the signing-key secret of the environment `release` (deployment branch: main only); it is only in the environment of the signing step.
 
 on:
   workflow_run:
@@ -90,7 +90,7 @@ jobs:
           # The CI version job reserved the tag on this commit.
           tag_sha="$(gh api "repos/$GH_REPO/git/ref/tags/$tag" --jq '.object | select(.type == "commit") | .sha' 2>/dev/null || true)"
           [ "$tag_sha" = "$HEAD_SHA" ] || { echo "::error::tag $tag does not exist or does not point at $HEAD_SHA (found '${tag_sha:-none}')"; exit 1; }
-          cp "$art"/uzume-server-linux/framebeam-hub_"${version}"_amd64.deb "$art"/uzume-server-linux/framebeam-hub_"${version}"_arm64.deb "$rel/"
+          cp "$art"/uzume-server-linux/uzume-server_"${version}"_amd64.deb "$art"/uzume-server-linux/uzume-server_"${version}"_arm64.deb "$rel/"
           cp "$art/uzume-server-linux/uzume-server-linux-amd64" "$rel/uzume-server-$version-linux-amd64"
           cp "$art/uzume-server-linux/uzume-server-linux-arm64" "$rel/uzume-server-$version-linux-arm64"
           cp "$art/uzume-server-windows/uzume-server-windows-amd64.exe" "$rel/uzume-server-$version-windows-amd64.exe"
@@ -170,18 +170,14 @@ jobs:
           set -euo pipefail
           # The image only copies the linux binaries that CI built and tested (target hub-prebuilt), so it carries exactly
           # the version of the .deb files. :X.Y.Z and :beta; promote.yml adds :stable and :latest to the same manifest.
-          # uzume-server is the image name; framebeam-hub is pushed with identical tags (same image) until a later release
-          # freezes it, so existing compose files and pulls keep working.
           owner="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
           docker buildx build --push --provenance=false --sbom=false \
             --platform linux/amd64,linux/arm64 \
             -f packaging/docker/Dockerfile --target hub-prebuilt \
             --build-context prebuilt-bin="$RUNNER_TEMP/artifacts/uzume-server-linux" \
             --build-arg HUB_VERSION="$VERSION" --build-arg HUB_COMMIT="$COMMIT" \
-            -t "$owner/uzume-server:$VERSION" -t "$owner/uzume-server:beta" \
-            -t "$owner/framebeam-hub:$VERSION" -t "$owner/framebeam-hub:beta" .
+            -t "$owner/uzume-server:$VERSION" -t "$owner/uzume-server:beta" .
           docker buildx imagetools inspect "$owner/uzume-server:$VERSION"
-          docker buildx imagetools inspect "$owner/framebeam-hub:$VERSION"
       - name: Prune old prereleases (keep the newest 5, no leftover test ones)
         run: |
           set -euo pipefail
@@ -245,8 +241,8 @@ jobs:
                | if ($text | length) > 0 then . + {notes: $text} else . end' "$2"
           }
           # Plain assignments (not process substitution) so a missing asset aborts the step.
-          h1="$(artifact linux-amd64 deb "framebeam-hub_${VERSION}_amd64.deb")"
-          h2="$(artifact linux-arm64 deb "framebeam-hub_${VERSION}_arm64.deb")"
+          h1="$(artifact linux-amd64 deb "uzume-server_${VERSION}_amd64.deb")"
+          h2="$(artifact linux-arm64 deb "uzume-server_${VERSION}_arm64.deb")"
           h3="$(artifact linux-amd64 binary "uzume-server-$VERSION-linux-amd64")"
           h4="$(artifact linux-arm64 binary "uzume-server-$VERSION-linux-arm64")"
           h5="$(artifact windows-amd64 binary "uzume-server-$VERSION-windows-amd64.exe")"

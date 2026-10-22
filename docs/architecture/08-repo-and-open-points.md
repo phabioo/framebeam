@@ -9,7 +9,7 @@ The binding product terms in UI and documentation are **FrameBeam Player** for t
 A common monorepo keeps client, server and protocol changes together:
 
 ```text
-framebeam/
+uzume/
 ├── client/       # app, core, emulation, media, network, ui
 ├── server/
 ├── protocol/     # openapi, schemas

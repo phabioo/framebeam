@@ -45,8 +45,8 @@ class HubSetupInstaller : public QObject {
 
   void start();
   void cancel();
-  // Removes <temp>/{uzume-server,framebeam-hub}-setup-* folders older than a day (a launched setup leaves its folder to the launcher
-  // copy, which removes it after msiexec; this catches what a crash or an old version left behind). Returns the count.
+  // Removes <temp>/uzume-server-setup-* folders older than a day (a launched setup leaves its folder to the launcher
+  // copy, which removes it after msiexec; this catches what a crash or a previous run left behind). Returns the count.
   static int cleanStaleTempDirs(const QString& tempBase = QDir::tempPath(), qint64 maxAgeSecs = 24 * 3600);
 
  signals:

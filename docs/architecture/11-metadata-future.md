@@ -40,7 +40,7 @@ Library entries can have states such as "Matched", "No match" and "Multiple matc
 
 ### Cache, preferences and UI
 
-Normalized metadata is stored in the Hub; artwork lives in the Hub file cache, for example under `/var/lib/framebeam/metadata/artwork/`. Cache/refresh rules take the respective provider terms into account. Already cached content can be served without renewed external access, as far as these rules allow.
+Normalized metadata is stored in the Hub; artwork lives in the Hub file cache, for example under `/var/lib/uzume/metadata/artwork/`. Cache/refresh rules take the respective provider terms into account. Already cached content can be served without renewed external access, as far as these rules allow.
 
 The Player obtains **metadata and artwork exclusively via its active Hub** and knows no external provider credentials. The Hub API delivers the normalized model and Hub-owned asset references instead of external provider URLs. Provider outages do not prevent launching existing ROMs; simple library titles and artwork placeholders remain available.
 

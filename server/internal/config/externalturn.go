@@ -6,8 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/phabioo/uzume/server/internal/envcompat"
 )
 
 // External TURN servers (-turn-external). One flag value describes one server as semicolon-separated key=value
@@ -186,7 +184,6 @@ func checkTURNURL(u string) error {
 // environment variable UZUME_TURN_EXTERNAL_<n>_SECRET or _PASSWORD wins over the file. Errors never contain
 // the value.
 func (c *Config) ExternalTURNSecret(sp ExternalTURNSpec, n int, getenv func(string) string) (string, error) {
-	getenv = envcompat.Wrap(getenv)
 	kind, file := "SECRET", sp.SecretFile
 	if sp.Mode == ExternalModeStatic {
 		kind, file = "PASSWORD", sp.PasswordFile

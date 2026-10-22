@@ -12,7 +12,7 @@ The official image runs the Uzume server as a non-root container for `linux/amd6
 | `stable` and `latest` | The newest promoted release ("Promote to release", no rebuild). |
 | `beta` | The newest build of `main`. Not for production. |
 
-Until a later release freezes it, the same image is also pushed as `ghcr.io/phabioo/framebeam-hub` with the same tags. Use `uzume-server` for new setups and switch existing ones, see [Upgrading from FrameBeam](hub-install.md#upgrading-from-framebeam).
+The image of FrameBeam (`framebeam-hub`) is no longer pushed. Coming from it: start with a new volume, see [Coming from FrameBeam](hub-install.md#coming-from-framebeam).
 
 The image is `distroless/static` with the server binary only: no shell, no package manager. It runs as user `65532` and keeps all data in the volume `/data`. The image sets `UZUME_SERVER_CONTAINER=1`, which makes `/data` the default data directory; the server listens on `:8443` by default.
 
@@ -66,7 +66,7 @@ Bridge networking is fine for the web port. For the TURN relay the server announ
 ## Volumes and permissions
 
 - Back up to a second volume, not into `/data`: see [hub-backup.md](hub-backup.md#docker).
-- `/data` holds everything: `framebeam.db`, `saves/`, `firmware/`, the ROM library, `tls/`, `cores/`, plugins and `backups/`. Nothing else in the container is state.
+- `/data` holds everything: `uzume.db`, `saves/`, `firmware/`, the ROM library, `tls/`, `cores/`, plugins and `backups/`. Nothing else in the container is state.
 - A new named volume starts owned by the container user. For a bind mount (`-v /srv/uzume:/data`) make the folder writable for uid `65532` first: `sudo chown 65532:65532 /srv/uzume`.
 - Own certificate: mount the PEM files read only (for example `-v /srv/certs:/certs:ro`) and set `UZUME_TLS_CERT=/certs/hub.pem`, `UZUME_TLS_KEY=/certs/hub.key`.
 

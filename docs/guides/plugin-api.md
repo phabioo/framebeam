@@ -510,7 +510,7 @@ A zip (stored or deflated) with `manifest.json` at the root, the entry file, ass
 { "format": 1, "files": { "<path>": "<sha256 hex>", ... }, "signature": "<base64 Ed25519 signature>" }
 ```
 
-`files` lists exactly every file except `SIGNATURE.json`. The signed message is `"framebeam-plugin-v1\n"` followed by `"<sha256>  <path>\n"` for every file sorted by path (UTF-8 byte order). A signature that does not verify against the trusted key is reported as invalid and never counts as Official.
+`files` lists exactly every file except `SIGNATURE.json`. The signed message is `"uzume-plugin-v1\n"` followed by `"<sha256>  <path>\n"` for every file sorted by path (UTF-8 byte order). A signature that does not verify against the trusted key is reported as invalid and never counts as Official.
 
 ## Developer mode
 

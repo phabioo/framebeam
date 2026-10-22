@@ -33,7 +33,7 @@ class LaunchOptionsTest : public QObject {
                                          {QStringLiteral("melonds_sysfile_mode"), QStringLiteral("native")},
                                          {QStringLiteral("melonds_audio_interpolation"), QStringLiteral("cubic")},
                                          {QStringLiteral("melonds_boot_mode"), QStringLiteral("native")},
-                                         {QStringLiteral("framebeam.fullscreen_on_start"), QStringLiteral("on")}};
+                                         {QStringLiteral("uzume.fullscreen_on_start"), QStringLiteral("on")}};
     const QMap<QString, QString> fw = {{QStringLiteral("melonds_sysfile_mode"), QStringLiteral("builtin")}};
     const QMap<QString, QString> out = launchCoreOptions(m, user, fw);
     QCOMPARE(out.value(QStringLiteral("melonds_render_mode")), QStringLiteral("opengl"));  // user override applies
@@ -42,7 +42,7 @@ class LaunchOptionsTest : public QObject {
     QCOMPARE(out.value(QStringLiteral("melonds_sysfile_mode")), QStringLiteral("builtin"));
     QCOMPARE(out.value(QStringLiteral("melonds_audio_interpolation")), QStringLiteral("cubic"));
     QCOMPARE(out.value(QStringLiteral("melonds_boot_mode")), QStringLiteral("native"));  // user > manifest default
-    QVERIFY(!out.contains(QStringLiteral("framebeam.fullscreen_on_start")));
+    QVERIFY(!out.contains(QStringLiteral("uzume.fullscreen_on_start")));
   }
 
   void withoutOverridesTheManifestDefaultsApply() {

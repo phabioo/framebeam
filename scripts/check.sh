@@ -5,7 +5,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export CGO_ENABLED=0 GOTOOLCHAIN=local
-export VCPKG_ROOT="${VCPKG_ROOT:-$HOME/.cache/framebeam/vcpkg}"
+export VCPKG_ROOT="${VCPKG_ROOT:-$HOME/.cache/uzume/vcpkg}"
 status=0
 
 # step <label> <command...>: runs it, reports "ok  label" or "FAIL label" + log tail.
@@ -147,10 +147,10 @@ client_test() {
 client() {
   local p="${CLIENT_PRESET:-linux-debug}"
   local -a core_arg=()
-  # libdatachannel (pinned, cached under ~/.cache/framebeam/deps): mandatory, built on first use.
+  # libdatachannel (pinned, cached under ~/.cache/uzume/deps): mandatory, built on first use.
   step "client: libdatachannel" client_libdatachannel
   [ -n "$DDC_PATH" ] && [ -d "$DDC_PATH" ] || return 1
-  # SDL3 (pinned, gamepad only, cached under ~/.cache/framebeam/deps): mandatory, built on first use.
+  # SDL3 (pinned, gamepad only, cached under ~/.cache/uzume/deps): mandatory, built on first use.
   step "client: sdl3" client_sdl3
   [ -n "$SDL3_PATH" ] && [ -d "$SDL3_PATH" ] || return 1
   core_arg=("-DCMAKE_PREFIX_PATH=$DDC_PATH" "-DSDL3_ROOT=$SDL3_PATH")
@@ -192,29 +192,28 @@ packaging_deb() {
   for arch in amd64 arm64; do
     deb="$("$dir/build-deb.sh" --binary "$tmp/dummy-server" --arch "$arch" --version 0.3.0-beta.7 --out "$tmp/deb")" \
       || { echo "build-deb.sh failed for $arch"; return 1; }
-    [ "$(basename "$deb")" = "framebeam-hub_0.3.0-beta.7_${arch}.deb" ] || { echo "unexpected deb name: $deb"; rc=1; }
+    [ "$(basename "$deb")" = "uzume-server_0.3.0-beta.7_${arch}.deb" ] || { echo "unexpected deb name: $deb"; rc=1; }
     info="$(dpkg-deb -f "$deb")"
-    grep -qx 'Package: framebeam-hub' <<<"$info" || { echo "$arch: control lacks Package"; rc=1; }
+    grep -qx 'Package: uzume-server' <<<"$info" || { echo "$arch: control lacks Package"; rc=1; }
     grep -qx 'Version: 0.3.0~beta.7' <<<"$info" || { echo "$arch: control Version is not 0.3.0~beta.7"; rc=1; }
     grep -qx "Architecture: $arch" <<<"$info" || { echo "$arch: control Architecture wrong"; rc=1; }
     listing="$(dpkg-deb -c "$deb")"
     local p
-    for p in ./usr/bin/uzume-server ./lib/systemd/system/framebeam-hub.service \
-             ./lib/systemd/system/framebeam-hub-update.path ./lib/systemd/system/framebeam-hub-update.service \
-             ./usr/share/doc/framebeam-hub/copyright ./usr/share/doc/framebeam-hub/THIRD-PARTY-NOTICES.txt; do
+    for p in ./usr/bin/uzume-server ./lib/systemd/system/uzume-server.service \
+             ./lib/systemd/system/uzume-server-update.path ./lib/systemd/system/uzume-server-update.service \
+             ./usr/share/doc/uzume-server/copyright ./usr/share/doc/uzume-server/THIRD-PARTY-NOTICES.txt; do
       grep -q " $p\$" <<<"$listing" || { echo "$arch: $p missing from the package"; rc=1; }
     done
-    grep -qE ' \./usr/bin/framebeam-hub -> uzume-server$' <<<"$listing" || { echo "$arch: compat symlink usr/bin/framebeam-hub -> uzume-server missing"; rc=1; }
-    # Nothing outside usr/bin, usr/share/doc/framebeam-hub and the unit directory: no data, no config.
+    # Nothing outside usr/bin, usr/share/doc/uzume-server and the unit directory: no data, no config.
     if grep -qiE '_libretro\.|/cores(/|$)' <<<"$listing"; then echo "$arch: emulator cores must not be part of the package"; rc=1; fi
-    if grep -E ' \./' <<<"$listing" | sed 's/ -> .*//' | grep -vE ' \./(usr/(bin/(uzume-server|framebeam-hub)?|share/(doc/(framebeam-hub/(copyright|THIRD-PARTY-NOTICES\.txt)?)?)?)?|lib/(systemd/(system/(framebeam-hub[a-z.-]*)?)?)?)?$' | grep -q .; then
+    if grep -E ' \./' <<<"$listing" | sed 's/ -> .*//' | grep -vE ' \./(usr/(bin/(uzume-server)?|share/(doc/(uzume-server/(copyright|THIRD-PARTY-NOTICES\.txt)?)?)?)?|lib/(systemd/(system/(uzume-server[a-z.-]*)?)?)?)?$' | grep -q .; then
       echo "$arch: unexpected paths in the package"; rc=1
     fi
     local x="$tmp/x-$arch"
     mkdir -p "$x/ctrl"; dpkg-deb -R "$deb" "$x/pkg" >/dev/null
-    grep -qx 'ExecStart=/usr/bin/uzume-server' "$x/pkg/lib/systemd/system/framebeam-hub.service" || { echo "$arch: unit ExecStart"; rc=1; }
-    grep -qx 'PathExists=/run/framebeam/update-request' "$x/pkg/lib/systemd/system/framebeam-hub-update.path" || { echo "$arch: path unit"; rc=1; }
-    grep -qx 'ExecStart=/usr/bin/uzume-server update apply-staged' "$x/pkg/lib/systemd/system/framebeam-hub-update.service" || { echo "$arch: update unit"; rc=1; }
+    grep -qx 'ExecStart=/usr/bin/uzume-server' "$x/pkg/lib/systemd/system/uzume-server.service" || { echo "$arch: unit ExecStart"; rc=1; }
+    grep -qx 'PathExists=/run/uzume/update-request' "$x/pkg/lib/systemd/system/uzume-server-update.path" || { echo "$arch: path unit"; rc=1; }
+    grep -qx 'ExecStart=/usr/bin/uzume-server update apply-staged' "$x/pkg/lib/systemd/system/uzume-server-update.service" || { echo "$arch: update unit"; rc=1; }
     for p in postinst prerm postrm; do [ -x "$x/pkg/DEBIAN/$p" ] || { echo "$arch: $p not executable"; rc=1; }; done
   done
   if command -v actionlint >/dev/null 2>&1; then
@@ -227,7 +226,7 @@ packaging_deb() {
     dpkg-deb -x "$deb" "$tmp/xunits"
     cp "$tmp"/xunits/lib/systemd/system/*.* "$u/"
     sed -i 's#^ExecStart=.*#ExecStart=/bin/true#; s#^User=.*#User=root#; s#^Group=.*#Group=root#; /^EnvironmentFile=/d' "$u"/*.service
-    systemd-analyze verify "$u"/framebeam-hub.service "$u"/framebeam-hub-update.service "$u"/framebeam-hub-update.path >"$tmp/verify2.log" 2>&1 || true
+    systemd-analyze verify "$u"/uzume-server.service "$u"/uzume-server-update.service "$u"/uzume-server-update.path >"$tmp/verify2.log" 2>&1 || true
     if grep -E "$u/" "$tmp/verify2.log" | grep -viE 'not-found|Failed to (connect|create|open)|No such file' | grep -q .; then
       grep -E "$u/" "$tmp/verify2.log" | head -n 5; rc=1
     fi
@@ -240,13 +239,13 @@ packaging() {
   local dir="$ROOT/packaging/linux" tmp rc=0
   tmp="$(mktemp -d)"
   local f
-  for f in "$dir/install-hub.sh" "$dir/build-deb.sh" "$dir"/deb/* "$ROOT/scripts/gen-hub-notices.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" "$ROOT/scripts/next-beta-version.sh" "$ROOT/scripts/update-index.sh" "$ROOT/scripts/fetch-buildbot-core.sh" "$ROOT/scripts/check-vcpkg-pin.sh" "$ROOT/scripts/bootstrap-vcpkg.sh"; do
+  for f in "$dir/install-server.sh" "$dir/build-deb.sh" "$dir"/deb/* "$ROOT/scripts/gen-hub-notices.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" "$ROOT/scripts/next-beta-version.sh" "$ROOT/scripts/update-index.sh" "$ROOT/scripts/fetch-buildbot-core.sh" "$ROOT/scripts/check-vcpkg-pin.sh" "$ROOT/scripts/bootstrap-vcpkg.sh"; do
     bash -n "$f" || rc=1
   done
   # Beta version numbering of the CI version job (ADR 0011).
   "$ROOT/scripts/next-beta-version.sh" --self-test >"$tmp/beta-version.log" 2>&1 || { cat "$tmp/beta-version.log"; rc=1; }
   if command -v shellcheck >/dev/null 2>&1; then
-    shellcheck "$dir/install-hub.sh" "$dir/build-deb.sh" "$ROOT/scripts/gen-hub-notices.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" || rc=1
+    shellcheck "$dir/install-server.sh" "$dir/build-deb.sh" "$ROOT/scripts/gen-hub-notices.sh" "$ROOT/scripts/check-trusted-keys.sh" "$ROOT/scripts/e2e-hub-update.sh" || rc=1
     shellcheck -s sh "$dir"/deb/* || rc=1
     # Remaining scripts: warnings and errors only (the e2e scripts use A && ok || die on purpose).
     shellcheck -S warning "$ROOT"/scripts/*.sh "$ROOT/.claude/hooks/session-start.sh" || rc=1
@@ -255,12 +254,12 @@ packaging() {
   fi
   if command -v systemd-analyze >/dev/null 2>&1; then
     sed 's#^ExecStart=.*#ExecStart=/bin/true#; s#^User=.*#User=root#; s#^Group=.*#Group=root#' \
-      "$dir/framebeam-hub.service" >"$tmp/framebeam-hub.service"
+      "$dir/uzume-server.service" >"$tmp/uzume-server.service"
     # Complaints naming the temp unit are real and fail; anything else (e.g. no
     # systemd manager in a container) is tolerated.
-    if ! systemd-analyze verify "$tmp/framebeam-hub.service" >"$tmp/verify.log" 2>&1 \
-       && grep -q "$tmp/framebeam-hub.service" "$tmp/verify.log"; then
-      grep "$tmp/framebeam-hub.service" "$tmp/verify.log" | head -n 5
+    if ! systemd-analyze verify "$tmp/uzume-server.service" >"$tmp/verify.log" 2>&1 \
+       && grep -q "$tmp/uzume-server.service" "$tmp/verify.log"; then
+      grep "$tmp/uzume-server.service" "$tmp/verify.log" | head -n 5
       rc=1
     fi
   else
@@ -272,38 +271,37 @@ packaging() {
   "$ROOT/scripts/check-trusted-keys.sh" || rc=1
   "$ROOT/scripts/check-vcpkg-pin.sh" >/dev/null || rc=1
   local root="$tmp/root"
-  UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" install --binary "$tmp/dummy-server" \
+  UZUME_INSTALL_ROOT="$root" "$dir/install-server.sh" install --binary "$tmp/dummy-server" \
     --port 8444 --no-start || rc=1
   local bad
   for bad in /etc /var/lib; do
-    if UZUME_INSTALL_ROOT="$tmp/bad" "$dir/install-hub.sh" install --binary "$tmp/dummy-server" \
+    if UZUME_INSTALL_ROOT="$tmp/bad" "$dir/install-server.sh" install --binary "$tmp/dummy-server" \
         --data-dir "$bad" --no-start >/dev/null 2>&1; then
       echo "install --data-dir $bad should have failed"; rc=1
     fi
   done
-  grep -qx 'UZUME_LISTEN=:8444' "$root/etc/framebeam/hub.env" \
-    || { echo "hub.env lacks UZUME_LISTEN=:8444"; rc=1; }
+  grep -qx 'UZUME_LISTEN=:8444' "$root/etc/uzume/server.env" \
+    || { echo "server.env lacks UZUME_LISTEN=:8444"; rc=1; }
   [ -x "$root/usr/local/bin/uzume-server" ] || { echo "binary not installed"; rc=1; }
-  [ "$(readlink "$root/usr/local/bin/framebeam-hub")" = uzume-server ] || { echo "compat symlink framebeam-hub not installed"; rc=1; }
-  [ -f "$root/etc/systemd/system/framebeam-hub.service" ] || { echo "unit not installed"; rc=1; }
-  [ -f "$root/usr/local/share/doc/framebeam-hub/THIRD-PARTY-NOTICES.txt" ] || { echo "third-party notices not installed"; rc=1; }
+  [ -f "$root/etc/systemd/system/uzume-server.service" ] || { echo "unit not installed"; rc=1; }
+  [ -f "$root/usr/local/share/doc/uzume-server/THIRD-PARTY-NOTICES.txt" ] || { echo "third-party notices not installed"; rc=1; }
   local rc_out
-  rc_out="$(UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert 2>&1)" || { echo "renew-cert dry-run failed"; rc=1; }
-  grep -q 'UZUME_DATA_DIR=/var/lib/framebeam .*renew-cert' <<<"$rc_out" \
+  rc_out="$(UZUME_INSTALL_ROOT="$root" "$dir/install-server.sh" renew-cert 2>&1)" || { echo "renew-cert dry-run failed"; rc=1; }
+  grep -q 'UZUME_DATA_DIR=/var/lib/uzume .*renew-cert' <<<"$rc_out" \
     || { echo "renew-cert dry-run lacks the runuser line"; rc=1; }
   mkdir -p "$tmp/cores-in/linux-x64"; : >"$tmp/cores-in/linux-x64/dummy_libretro.so.zip"
-  rc_out="$(UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" import-cores "$tmp/cores-in" 2>&1)" || { echo "import-cores dry-run failed"; rc=1; }
-  grep -q 'UZUME_DATA_DIR=/var/lib/framebeam .*import-cores' <<<"$rc_out" \
+  rc_out="$(UZUME_INSTALL_ROOT="$root" "$dir/install-server.sh" import-cores "$tmp/cores-in" 2>&1)" || { echo "import-cores dry-run failed"; rc=1; }
+  grep -q 'UZUME_DATA_DIR=/var/lib/uzume .*import-cores' <<<"$rc_out" \
     || { echo "import-cores dry-run lacks the runuser line"; rc=1; }
-  if UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" import-cores >/dev/null 2>&1; then
+  if UZUME_INSTALL_ROOT="$root" "$dir/install-server.sh" import-cores >/dev/null 2>&1; then
     echo "import-cores without a directory must fail"; rc=1
   fi
-  printf 'UZUME_TLS_CERT=/x/c.pem\n' >>"$root/etc/framebeam/hub.env"
-  if UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" renew-cert >/dev/null 2>&1; then
+  printf 'UZUME_TLS_CERT=/x/c.pem\n' >>"$root/etc/uzume/server.env"
+  if UZUME_INSTALL_ROOT="$root" "$dir/install-server.sh" renew-cert >/dev/null 2>&1; then
     echo "renew-cert must refuse with UZUME_TLS_CERT set"; rc=1
   fi
-  UZUME_INSTALL_ROOT="$root" "$dir/install-hub.sh" uninstall --purge --yes || rc=1
-  [ ! -e "$root/usr/local/bin/uzume-server" ] && [ ! -L "$root/usr/local/bin/framebeam-hub" ] && [ ! -e "$root/etc/framebeam" ] \
+  UZUME_INSTALL_ROOT="$root" "$dir/install-server.sh" uninstall --purge --yes || rc=1
+  [ ! -e "$root/usr/local/bin/uzume-server" ] && [ ! -e "$root/etc/uzume" ] \
     || { echo "uninstall --purge left files behind"; rc=1; }
   rm -rf "$tmp"
   return "$rc"

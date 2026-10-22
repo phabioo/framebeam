@@ -17,7 +17,7 @@ import (
 	"github.com/phabioo/uzume/server/internal/version"
 )
 
-// runUpdateWatch is the privileged helper on Windows (service FrameBeamHubUpdater, LocalSystem): it waits for the
+// runUpdateWatch is the privileged helper on Windows (service UzumeServerUpdater, LocalSystem): it waits for the
 // update request file the server writes and applies the staged update like `update apply-staged`. The server service
 // itself runs unprivileged and can only stage. Interactive use (Ctrl-C ends it) is possible for testing.
 func runUpdateWatch(args []string, _ io.Writer, run updates.Runner) error {

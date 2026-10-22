@@ -1,8 +1,8 @@
 # Notice
 
-FrameBeam (FrameBeam Hub and FrameBeam Player)
+Uzume (Uzume server and Uzume app)
 
-Copyright (C) 2026 Fabio and FrameBeam contributors
+Copyright (C) 2026 Fabio and Uzume contributors
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -16,18 +16,18 @@ Contributions are accepted under the [CLA](CLA.md); see [CONTRIBUTING.md](CONTRI
 
 ## Trademarks
 
-The name "FrameBeam" and the FrameBeam logo are reserved by the project owner. The GPL covers the code only; it does not grant any right to use the name or the logo. Forks and modified versions must use a different name and must not use the logo.
+The name "Uzume" and the Uzume logo are reserved by the project owner. The GPL covers the code only; it does not grant any right to use the name or the logo. Forks and modified versions must use a different name and must not use the logo.
 
-Nintendo, Game Boy, Game Boy Color, Game Boy Advance, Nintendo DS and Nintendo 3DS are trademarks of Nintendo. Pokémon and Pokémon character names are trademarks of Nintendo. Other game and system names are trademarks of their respective owners. FrameBeam is not affiliated with, endorsed or sponsored by Nintendo, The Pokémon Company or any other console maker or rights holder; these names are used only to describe compatibility.
+Nintendo, Game Boy, Game Boy Color, Game Boy Advance, Nintendo DS and Nintendo 3DS are trademarks of Nintendo. Pokémon and Pokémon character names are trademarks of Nintendo. Other game and system names are trademarks of their respective owners. Uzume is not affiliated with, endorsed or sponsored by Nintendo, The Pokémon Company or any other console maker or rights holder; these names are used only to describe compatibility.
 
 ## Disclaimer
 
-- FrameBeam ships no games, ROMs, BIOS, firmware, keys or emulator cores.
+- Uzume ships no games, ROMs, BIOS, firmware, keys or emulator cores.
 - Use only content you are legally entitled to: homebrew, or dumps of games and firmware you own, made by lawful means.
-- FrameBeam does not circumvent or help circumvent copy protection and never decrypts games.
+- Uzume does not circumvent or help circumvent copy protection and never decrypts games.
 - Each Hub operator is responsible for the content on their Hub.
-- FrameBeam comes with no warranty and no liability; see sections 15 and 16 of the [GPL](LICENSE).
+- Uzume comes with no warranty and no liability; see sections 15 and 16 of the [GPL](LICENSE).
 
 ## Third-party software
 
-FrameBeam uses third-party components under their own licenses. They are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+Uzume uses third-party components under their own licenses. They are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

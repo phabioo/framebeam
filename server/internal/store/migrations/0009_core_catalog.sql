@@ -22,12 +22,12 @@ CREATE TABLE system_cores (
     PRIMARY KEY (system_id, core_id)
 );
 
--- Cores that have a FrameBeam Player profile (manifests/cores/<core_id>.json); every other core is experimental.
+-- Cores that have a Uzume app profile (manifests/cores/<core_id>.json); every other core is experimental.
 CREATE TABLE profiled_cores (core_id TEXT PRIMARY KEY);
 INSERT INTO profiled_cores(core_id) VALUES ('melondsds'), ('desmume');
 
--- Packages of the retired signed source are legacy (origin framebeam).
-UPDATE core_packages SET origin = 'framebeam' WHERE origin <> 'libretro-buildbot';
+-- Packages of the retired signed source are legacy (origin legacy-mirror).
+UPDATE core_packages SET origin = 'legacy-mirror' WHERE origin <> 'libretro-buildbot';
 
 -- Existing Hubs keep working: a completely cached melonds_ds package becomes the installed default core of nds
 -- (the expected version if it is cached, else the most recently synced one).
@@ -37,7 +37,7 @@ SELECT s.id, s.preferred_core_id,
           AND NOT EXISTS (SELECT 1 FROM core_package_files f WHERE f.core_id = p.core_id AND f.version = p.version AND f.cached_at IS NULL)
           AND EXISTS (SELECT 1 FROM core_package_files f WHERE f.core_id = p.core_id AND f.version = p.version AND f.platform = p.platform)
         ORDER BY (p.version = (SELECT x.expected_core_version FROM systems x WHERE x.id = 'nds')) DESC, p.synced_at DESC, p.version DESC LIMIT 1),
-       CAST(strftime('%s','now') AS INTEGER), 'framebeam', s.preferred_core_name,
+       CAST(strftime('%s','now') AS INTEGER), 'legacy-mirror', s.preferred_core_name,
        COALESCE((SELECT p.license FROM core_packages p WHERE p.core_id = s.preferred_core_id LIMIT 1), '')
 FROM systems s
 WHERE s.id = 'nds' AND EXISTS (

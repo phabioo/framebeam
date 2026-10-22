@@ -14,7 +14,7 @@ import (
 )
 
 // Realm is the TURN realm.
-const Realm = "framebeam"
+const Realm = "uzume"
 
 // CredentialTTL is the lifetime of issued credentials (ADR 0012 D3).
 const CredentialTTL = 12 * time.Hour
