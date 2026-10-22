@@ -16,9 +16,25 @@ fi
 opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
 attempts=3
 
+log="$(mktemp)"
+
+# Runs one apt step with a time limit; on failure prints which step failed, its exit code (124 = timed out) and the
+# end of its output, so a hanging source is named in the job log.
+run_step() {
+  local limit="$1" name="$2"
+  shift 2
+  local rc=0
+  timeout -k 10 "$limit" "$@" >"$log" 2>&1 || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "apt step '${name}' failed with exit code ${rc} (124 = timed out after ${limit} s); last output:"
+    tail -n 25 "$log"
+  fi
+  return "$rc"
+}
+
 attempt_once() {
-  timeout -k 10 120 sudo apt-get update -qq "${opts[@]}" &&
-    timeout -k 10 240 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${opts[@]}" "$@"
+  run_step 120 update sudo apt-get update "${opts[@]}" &&
+    run_step 240 install sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q "${opts[@]}" "$@"
 }
 
 switch_mirror() {
@@ -30,6 +46,7 @@ switch_mirror() {
       echo "switched apt mirror to archive.ubuntu.com in $f"
     fi
   done
+  grep -rhoE 'https?://[^ ]+' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | sort -u | sed 's/^/apt source: /' || true
 }
 
 for ((i = 1; i <= attempts; i++)); do
