@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8i-2 Share with others · set up</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;overflow:hidden;font-family:var(--font-sans)">
+  <dc-import name="S8j1" theme="{{ theme }}" hint-size="1280px,800px"></dc-import>
+  <div style="position:absolute;inset:0;z-index:8;background:var(--scrim);display:flex;align-items:center;justify-content:center;gap:24px">
+    <x-import component-from-global-scope="Uzume.Dialog" label="Share with others · 2 of 3" title="Set up Home server" size="lg" actions="{{ act }}" on-close="{{ noop }}"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px"><x-import component-from-global-scope="Uzume.TextField" label="Server name" default-value="Home server"></x-import><x-import component-from-global-scope="Uzume.TextField" label="Your name" default-value="Max"></x-import></div><x-import component-from-global-scope="Uzume.TextField" label="Password" type="password" default-value="abcdefghijkl" state="focus" hint="Required for admins. At least 12 characters."></x-import><div style="display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:12px"><x-import component-from-global-scope="Uzume.Select" label="Who can join" options="{{ who }}" default-value="Home network only" hint="Internet needs a public address and the relay."></x-import><x-import component-from-global-scope="Uzume.TextField" label="Port" default-value="8443"></x-import></div><span style="font-size:12px;line-height:18px;color:var(--muted)">Windows asks to let the Uzume server through the firewall. Allow it for private networks. For the internet, also forward 8443 TCP, 3478 UDP+TCP and 49160–49199 UDP.</span></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "who": ["Home network only", "Home network and internet"]}, { noop: () => {}, act: [B('Install and share', 'primary'), B('Back')] });
+  }
+}
+</script>
+</body>
+</html>

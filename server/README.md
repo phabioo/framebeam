@@ -1,4 +1,4 @@
-# server: FrameBeam Hub
+# Server: Uzume server
 
 Go service with SQLite: ROM library, versioned saves, users and devices, Session signaling, optional STUN/TURN relay, core package cache, updater and a web interface (`html/template` + htmx, admins only). It never emulates, encodes or renders. Rules for agents: `CLAUDE.md`.
 
@@ -12,7 +12,7 @@ framebeam-hub -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTT
 framebeam-hub setup-admin -username <name>       # first admin (password as one line from stdin)
 ```
 
-Requires Go >= 1.25 (`go.mod`). `cmd/framebeam-hub` is the Hub, `cmd/framebeam-sign` signs core and update indexes.
+Requires Go >= 1.25 (`go.mod`). `cmd/framebeam-hub` is the server, `cmd/framebeam-sign` signs core and update indexes.
 
 ## Documentation
 

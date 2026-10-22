@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8l-3 Installer · maintenance</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:1040px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">WINDOWS INSTALLER · 1:1 · DRAWN BY WINDOWS</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:8px 56px 40px;display:flex;flex-direction:column;gap:20px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="MAINTENANCE · REMOVE · UPGRADE">Windows installer</x-import>
+    <div style="display:grid;grid-template-columns:repeat(2,493px);column-gap:120px;row-gap:28px">
+      <div style="display:flex;flex-direction:column;gap:8px">
+  <div style="display:flex;gap:10px;align-items:baseline"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8L-8</span><span style="font-size:12px;line-height:16px;color:var(--muted)">Maintenance · run Setup again</span></div>
+  <div class="uz" data-theme="kinari" style="width:493px;border:1px solid var(--rule);background:var(--ground);color:var(--ink);font-family:var(--font-sans)">
+    <div style="height:30px;display:flex;align-items:center;padding-left:10px;border-bottom:1px solid var(--rule-2);background:var(--surface)"><span style="font:400 12px/16px var(--font-sans)">Uzume Setup</span><span style="margin-left:auto;width:46px;height:30px;display:grid;place-items:center;font-size:12px;color:var(--ink-2)">✕</span></div>
+    <div style="height:312px;display:flex;flex-direction:column;background:var(--ground)">
+      <div style="position:relative;height:58px;flex:none;border-bottom:1px solid var(--rule)">
+        <div style="position:absolute;inset:0"><div class="uz" data-theme="kinari" style="position:relative;width:493px;height:58px;flex:none;background:var(--surface);display:flex;align-items:center;justify-content:flex-end;gap:10px;padding-right:14px;box-sizing:border-box">
+  <x-import component-from-global-scope="Uzume.Mark" size="{{ s36 }}" title="Uzume"></x-import>
+  <span style="align-self:flex-end;padding-bottom:10px"><x-import component-from-global-scope="Uzume.ServerGlyph" size="{{ s20 }}" title="Uzume server"></x-import></span>
+</div></div>
+        <div style="position:absolute;left:16px;top:10px;display:flex;flex-direction:column;gap:2px"><span style="font:600 12px/16px var(--font-sans);color:var(--ink)">Change, repair or remove</span><span style="font:400 12px/16px var(--font-sans);color:var(--ink);padding-left:12px">Select the operation you wish to perform.</span></div>
+      </div>
+      <div style="flex:1;min-height:0;padding:14px 20px;display:flex;flex-direction:column;gap:10px;overflow:hidden"><div style="display:grid;grid-template-columns:18px minmax(0,1fr);row-gap:2px;padding:2px 0">
+  <span style="width:13px;height:13px;margin-top:2px;border-radius:50%;border:1px solid var(--ink-2);box-sizing:border-box;display:grid;place-items:center"><span style="width:7px;height:7px;border-radius:50%;background:var(--ink)"></span></span>
+  <span style="display:flex;align-items:center;font:500 12px/16px var(--font-sans);color:var(--ink)">Change</span>
+  <span></span><span style="font:400 12px/16px var(--font-sans);color:var(--muted)">Switch between Uzume, with a server, or only the server.</span>
+</div><div style="display:grid;grid-template-columns:18px minmax(0,1fr);row-gap:2px;padding:2px 0">
+  <span style="width:13px;height:13px;margin-top:2px;border-radius:50%;border:1px solid var(--ink-2);box-sizing:border-box;display:grid;place-items:center"></span>
+  <span style="display:flex;align-items:center;font:500 12px/16px var(--font-sans);color:var(--ink)">Repair</span>
+  <span></span><span style="font:400 12px/16px var(--font-sans);color:var(--muted)">Fixes missing files and the server service. Data stays.</span>
+</div><div style="display:grid;grid-template-columns:18px minmax(0,1fr);row-gap:2px;padding:2px 0">
+  <span style="width:13px;height:13px;margin-top:2px;border-radius:50%;border:1px solid var(--ink-2);box-sizing:border-box;display:grid;place-items:center"></span>
+  <span style="display:flex;align-items:center;font:500 12px/16px var(--font-sans);color:var(--ink)">Remove</span>
+  <span></span><span style="font:400 12px/16px var(--font-sans);color:var(--muted)">Removes the program. Your games, saves and server data stay.</span>
+</div></div>
+    </div>
+    <div style="height:48px;border-top:1px solid var(--rule);display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 12px;background:var(--ground)"><span style="min-width:75px;height:23px;box-sizing:border-box;padding:0 8px;border:1px solid var(--rule);background:var(--ground);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;font:400 12px/16px var(--font-sans);">&lt; Back</span><span style="min-width:75px;height:23px;box-sizing:border-box;padding:0 8px;border:2px solid var(--ink);background:var(--ground);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;font:400 12px/16px var(--font-sans);">Next &gt;</span><span style="min-width:75px;height:23px;box-sizing:border-box;padding:0 8px;border:1px solid var(--rule);background:var(--ground);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;font:400 12px/16px var(--font-sans);margin-left:8px;">Cancel</span></div>
+  </div>
+</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+  <div style="display:flex;gap:10px;align-items:baseline"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8L-9</span><span style="font-size:12px;line-height:16px;color:var(--muted)">Remove · server data stays unless ticked</span></div>
+  <div class="uz" data-theme="kinari" style="width:493px;border:1px solid var(--rule);background:var(--ground);color:var(--ink);font-family:var(--font-sans)">
+    <div style="height:30px;display:flex;align-items:center;padding-left:10px;border-bottom:1px solid var(--rule-2);background:var(--surface)"><span style="font:400 12px/16px var(--font-sans)">Uzume Setup</span><span style="margin-left:auto;width:46px;height:30px;display:grid;place-items:center;font-size:12px;color:var(--ink-2)">✕</span></div>
+    <div style="height:312px;display:flex;flex-direction:column;background:var(--ground)">
+      <div style="position:relative;height:58px;flex:none;border-bottom:1px solid var(--rule)">
+        <div style="position:absolute;inset:0"><div class="uz" data-theme="kinari" style="position:relative;width:493px;height:58px;flex:none;background:var(--surface);display:flex;align-items:center;justify-content:flex-end;gap:10px;padding-right:14px;box-sizing:border-box">
+  <x-import component-from-global-scope="Uzume.Mark" size="{{ s36 }}" title="Uzume"></x-import>
+  <span style="align-self:flex-end;padding-bottom:10px"><x-import component-from-global-scope="Uzume.ServerGlyph" size="{{ s20 }}" title="Uzume server"></x-import></span>
+</div></div>
+        <div style="position:absolute;left:16px;top:10px;display:flex;flex-direction:column;gap:2px"><span style="font:600 12px/16px var(--font-sans);color:var(--ink)">Remove Uzume</span><span style="font:400 12px/16px var(--font-sans);color:var(--ink);padding-left:12px">Click Remove to remove Uzume from your computer.</span></div>
+      </div>
+      <div style="flex:1;min-height:0;padding:14px 20px;display:flex;flex-direction:column;gap:10px;overflow:hidden"><span style="font:400 12px/16px var(--font-sans);color:var(--ink)">Your saves, games and server data in C:\ProgramData\Uzume stay, so a later install finds them again.</span><span style="display:flex;align-items:center;gap:6px;font:400 12px/16px var(--font-sans);color:var(--danger)"><span style="width:13px;height:13px;border:1px solid var(--ink-2);box-sizing:border-box;display:grid;place-items:center;font-size:10px;line-height:1;color:var(--ink)"></span>Also delete all server data: users, games, saves, backups. This can’t be undone.</span></div>
+    </div>
+    <div style="height:48px;border-top:1px solid var(--rule);display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 12px;background:var(--ground)"><span style="min-width:75px;height:23px;box-sizing:border-box;padding:0 8px;border:1px solid var(--rule);background:var(--ground);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;font:400 12px/16px var(--font-sans);">&lt; Back</span><span style="min-width:75px;height:23px;box-sizing:border-box;padding:0 8px;border:2px solid var(--ink);background:var(--ground);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;font:400 12px/16px var(--font-sans);"><span title="Admin rights" style="width:8px;height:10px;border:1px solid var(--ink-2);box-sizing:border-box"></span>Remove</span><span style="min-width:75px;height:23px;box-sizing:border-box;padding:0 8px;border:1px solid var(--rule);background:var(--ground);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;font:400 12px/16px var(--font-sans);margin-left:8px;">Cancel</span></div>
+  </div>
+</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+  <div style="display:flex;gap:10px;align-items:baseline"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8L-10</span><span style="font-size:12px;line-height:16px;color:var(--muted)">Upgrade from FrameBeam Player and Hub</span></div>
+  <div class="uz" data-theme="kinari" style="width:493px;border:1px solid var(--rule);background:var(--ground);color:var(--ink);font-family:var(--font-sans)">
+    <div style="height:30px;display:flex;align-items:center;padding-left:10px;border-bottom:1px solid var(--rule-2);background:var(--surface)"><span style="font:400 12px/16px var(--font-sans)">Uzume Setup</span><span style="margin-left:auto;width:46px;height:30px;display:grid;place-items:center;font-size:12px;color:var(--ink-2)">✕</span></div>
+    <div style="height:312px;display:flex;flex-direction:column;background:var(--ground)">
+      <div style="position:relative;height:58px;flex:none;border-bottom:1px solid var(--rule)">
+        <div style="position:absolute;inset:0"><div class="uz" data-theme="kinari" style="position:relative;width:493px;height:58px;flex:none;background:var(--surface);display:flex;align-items:center;justify-content:flex-end;gap:10px;padding-right:14px;box-sizing:border-box">
+  <x-import component-from-global-scope="Uzume.Mark" size="{{ s36 }}" title="Uzume"></x-import>
+  <span style="align-self:flex-end;padding-bottom:10px"><x-import component-from-global-scope="Uzume.ServerGlyph" size="{{ s20 }}" title="Uzume server"></x-import></span>
+</div></div>
+        <div style="position:absolute;left:16px;top:10px;display:flex;flex-direction:column;gap:2px"><span style="font:600 12px/16px var(--font-sans);color:var(--ink)">Upgrade to Uzume</span><span style="font:400 12px/16px var(--font-sans);color:var(--ink);padding-left:12px">Setup found an older version under its old name.</span></div>
+      </div>
+      <div style="flex:1;min-height:0;padding:14px 20px;display:flex;flex-direction:column;gap:10px;overflow:hidden"><div style="display:grid;grid-template-columns:100px minmax(0,1fr);gap:4px 8px;padding:8px 10px;border:1px solid var(--rule);background:var(--ground)"><span style="font:400 12px/16px var(--font-sans);color:var(--muted)">Found</span><span style="font:500 11px/16px var(--font-mono);color:var(--ink)">FrameBeam Player 0.16.4</span><span style="font:400 12px/16px var(--font-sans);color:var(--muted)">Found</span><span style="font:500 11px/16px var(--font-mono);color:var(--ink)">FrameBeam Hub 0.16.4</span><span style="font:400 12px/16px var(--font-sans);color:var(--muted)">Becomes</span><span style="font:500 11px/16px var(--font-mono);color:var(--ink)">Uzume with a server on this PC</span></div><span style="font:400 12px/16px var(--font-sans);color:var(--ink)">Your library, saves, users and settings are kept. The old names and shortcuts are removed.</span></div>
+    </div>
+    <div style="height:48px;border-top:1px solid var(--rule);display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 12px;background:var(--ground)"><span style="min-width:75px;height:23px;box-sizing:border-box;padding:0 8px;border:1px solid var(--rule);background:var(--ground);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;font:400 12px/16px var(--font-sans);">&lt; Back</span><span style="min-width:75px;height:23px;box-sizing:border-box;padding:0 8px;border:2px solid var(--ink);background:var(--ground);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;font:400 12px/16px var(--font-sans);"><span title="Admin rights" style="width:8px;height:10px;border:1px solid var(--ink-2);box-sizing:border-box"></span>Upgrade</span><span style="min-width:75px;height:23px;box-sizing:border-box;padding:0 8px;border:1px solid var(--rule);background:var(--ground);color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;font:400 12px/16px var(--font-sans);margin-left:8px;">Cancel</span></div>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "twelve": 12, "s96": 96, "s36": 36, "pct": 0.64}, { noop: () => {},  });
+  }
+}
+</script>
+</body>
+</html>

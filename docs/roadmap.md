@@ -1,14 +1,14 @@
 # Roadmap after the PoC
 
-The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.22 and then 1.0, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. On 2026-10-11 Fabio added plugins as 0.11; Metadata and Linux/macOS moved to 0.12/0.13. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones (the "new" numbers above are those of 2026-10-09). On 2026-10-11 Fabio renumbered again and fixed a goal for 1.0 (see "Goal 1.0"): 0.10.x (connections, small items) comes before new testers; 0.11 is the plugin runtime only, 0.12 Local ROMs, 0.13 GPU paths, 0.14 system template with GB/GBC/GBA, 0.15 UI gaps and Multiview, then the 1.0 test phase. Metadata and artwork and the Linux Player come after 1.0; macOS is dropped (Windows and Linux only). The sentence before about Metadata and Linux/macOS as 0.12/0.13 is therefore obsolete. On 2026-10-12 Fabio reordered 0.13 to 0.15: 0.13 system template with GB/GBC/GBA, 0.14 UI gaps and Multiview, 0.15 GPU paths (2026-10-11 numbers 0.13/0.14/0.15 = now 0.15/0.13/0.14); 0.12 Local ROMs stays. On 2026-10-21 Fabio added milestones 0.16 to 0.22 from the feature brainstorming, all before 1.0. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
+The PoC (phases 0-5) is complete. From here on, work is planned as versions 0.1.1 to 0.23 and then 1.0, each cut into one work package per thread/PR (see `docs/workflow.md`). The order was decided by Fabio on 2026-10-06; on 2026-10-07 he moved Sessions over the internet ahead of the UI passes (renumbered 0.4 to 0.6). On 2026-10-07 Fabio also moved OpenGL hardware rendering for the Player (all emulators/cores, not only 3DS) ahead of the UI passes as the new 0.5; the UI passes, 3DS and everything after shifted by one. ADRs written before 2026-10-07 use the old numbering: old 0.5/0.6/0.7/0.8/0.9/0.10 = new 0.6/0.7/0.8/0.9/0.10/0.11. On 2026-10-09 Fabio reordered the planned milestones again: cores come from the libretro buildbot first ([ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md), new 0.8) and one installer for Player, Hub or both follows (new 0.9, which absorbs the Hub-for-Windows milestone). Old (2026-10-07) 0.8 3DS / 0.9 Metadata and artwork / 0.10 Hub for Windows / 0.11 Linux and macOS Player = new 0.10 / 0.11 / 0.9 / 0.12. On 2026-10-11 Fabio added plugins as 0.11; Metadata and Linux/macOS moved to 0.12/0.13. ADRs and docs written before 2026-10-09 may still use the older numbers for these milestones (the "new" numbers above are those of 2026-10-09). On 2026-10-11 Fabio renumbered again and fixed a goal for 1.0 (see "Goal 1.0"): 0.10.x (connections, small items) comes before new testers; 0.11 is the plugin runtime only, 0.12 Local ROMs, 0.13 GPU paths, 0.14 system template with GB/GBC/GBA, 0.15 UI gaps and Multiview, then the 1.0 test phase. Metadata and artwork and the Linux Player come after 1.0; macOS is dropped (Windows and Linux only). The sentence before about Metadata and Linux/macOS as 0.12/0.13 is therefore obsolete. On 2026-10-12 Fabio reordered 0.13 to 0.15: 0.13 system template with GB/GBC/GBA, 0.14 UI gaps and Multiview, 0.15 GPU paths (2026-10-11 numbers 0.13/0.14/0.15 = now 0.15/0.13/0.14); 0.12 Local ROMs stays. On 2026-10-21 Fabio added milestones 0.16 to 0.22 from the feature brainstorming, all before 1.0. On 2026-10-22 Fabio inserted 0.18 "Uzume" (one app, one server, new name, [ADR 0030](adr/0030-one-app-one-server-uzume.md)) directly after 0.17; the waves moved by one (2026-10-21 numbers 0.18/0.19/0.20/0.21/0.22 = now 0.19/0.20/0.21/0.22/0.23). From 0.18 on the product is called Uzume: the FrameBeam Player is the app, the FrameBeam Hub the Uzume server; older entries below keep the old names. Items marked open are not decided yet; decisions are recorded as ADRs in `docs/adr/`.
 
 ## Goal 1.0
 
-Decided by Fabio on 2026-10-11: 1.0 is reached when a group of friends completes a SoulLink run in Pokémon Omega Ruby/Alpha Sapphire (3DS) over FrameBeam. For that, NDS and 3DS run cleanly, and the foundations and templates for further systems are clean, so a new system costs minimal effort.
+Decided by Fabio on 2026-10-11: 1.0 is reached when a group of friends completes a SoulLink run in Pokémon Omega Ruby/Alpha Sapphire (3DS) over Uzume (then FrameBeam). For that, NDS and 3DS run cleanly, and the foundations and templates for further systems are clean, so a new system costs minimal effort.
 
-- Platforms: Windows and Linux only. macOS is dropped for Player and Hub (decided by Fabio on 2026-10-11): no Keychain or notarization work. The Linux Player now comes before 1.0 (0.22); metadata and artwork come after 1.0.
-- The plugins (`pokemon-core`, `soullink`) live in their own repositories and are independent of FrameBeam milestones; Fabio aims to have them ready for testing before 1.0. FrameBeam delivers the plugin runtime (0.11).
-- Decided by Fabio on 2026-10-21: milestones 0.16 to 0.22 (below) ship before 1.0. A test evening before 1.0 stays possible at any time; it is just no longer the 1.0 criterion for these features.
+- Platforms: Windows and Linux only. macOS is dropped for Player and Hub (decided by Fabio on 2026-10-11): no Keychain or notarization work. The Linux app now comes before 1.0 (0.23); metadata and artwork come after 1.0.
+- The plugins (`pokemon-core`, `soullink`) live in their own repositories and are independent of Uzume milestones; Fabio aims to have them ready for testing before 1.0. Uzume delivers the plugin runtime (0.11); the plugin IDs become `uzume.soullink-core` and `uzume.soullink` in 0.18.
+- Decided by Fabio on 2026-10-21: milestones 0.16 to 0.22 (now 0.16 to 0.23 with 0.18 "Uzume" inserted on 2026-10-22) ship before 1.0. A test evening before 1.0 stays possible at any time; it is just no longer the 1.0 criterion for these features.
 - Test evening with friends: date open.
 
 ## PoC phases (history)
@@ -51,11 +51,12 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.15 | done in code (GPUs and drivers verified only locally) | GPU paths | OpenGL to D3D11 bridge, zero-copy game view on Windows without CPU readback, GPU-direct QSV and AMF; readback stays the fallback ([ADR 0027](adr/0027-gpu-paths.md)). |
 | 0.16 | done in code (first real runs on GitHub open) | Release workflow and changelogs | Every beta gets real release notes from PR changelog sections, the stable release summarizes all betas, and the Player can show "What's new". |
 | 0.17 | done in code (real NATs, Docker hosts and rollback on real installs are verified only locally) | Operations and safety | Hub backup and restore, update rollback, problem reports, connection assistant, Hub health, Docker image, plugin UI language. |
-| 0.18 | planned | Player comfort and library | Audio controls, scaling, screenshots, play time, favorites and collections, storage overview, per-game overrides, DS/3DS screen layouts. |
-| 0.19 | planned | Emulation | Save states, rewind, run-ahead, `memory.write` in the plugin API and automatic snapshots. |
-| 0.20 | planned | Together | Online status, notifications, ready check, chat, viewer role, audio mixer, voice chat, controller hand-over. |
-| 0.21 | planned | Plugins | Developer console, run recap, Discord Rich Presence, tracker plugins. |
-| 0.22 | planned | Platforms | Linux Player package, watching a Session in the browser, Vulkan, Hub setup assistant (may be split into 0.22 to 0.24). |
+| 0.18 | in progress | Uzume: one app, one server, new name | FrameBeam becomes Uzume: administration moves from the Hub web into the app, every user gets an account, the server gets setup and emergency commands, one installer with three options, runs without a plugin, the new design system; the web admin is removed at the end ([ADR 0030](adr/0030-one-app-one-server-uzume.md)). |
+| 0.19 | planned | Player comfort and library | Audio controls, scaling, screenshots, play time, favorites and collections, storage overview, per-game overrides, DS/3DS screen layouts. |
+| 0.20 | planned | Emulation | Save states, rewind, run-ahead, `memory.write` in the plugin API and automatic snapshots. |
+| 0.21 | planned | Together | Online status, notifications, ready check, chat, viewer role, audio mixer, voice chat, controller hand-over. |
+| 0.22 | planned | Plugins | Developer console, run recap, Discord Rich Presence, tracker plugins. |
+| 0.23 | planned | Platforms | Linux app package, watching a Session in the browser, Vulkan (may be split into 0.23 to 0.25). |
 | 1.0 | planned | Test phase | Test evening(s) with friends (date open), then the SoulLink run in Pokémon Omega Ruby/Alpha Sapphire. |
 | after 1.0 | planned | Metadata and artwork | Central game metadata and boxart. |
 
@@ -404,35 +405,54 @@ Decided by Fabio on 2026-10-21. Useful before a test evening. UI parts (backup s
 - [x] Done (0.17, [ADR 0029](adr/0029-operations-and-safety.md) D1): Docker image for the Hub (`ghcr.io/<owner>/framebeam-hub`, arm64 and amd64, volume `/data`, non-root, no self-update in the container, [guide](guides/hub-docker.md), CI build, push by `release.yml`, `stable`/`latest` by `promote.yml`) (S)
 - [x] Done in code: Plugin UI language (pulled forward from the plugins wave): setting "Plugin language" (Auto | English | Deutsch) in Settings > Plugins; Auto = the 3DS system language (Azahar core option) for 3DS games, else the OS language; `GameContext.language` is that tag (S)
 
-## 0.18 Player comfort and library
+## 0.18 Uzume: one app, one server, new name
 
-Decided by Fabio on 2026-10-21. One Claude Design handoff for the whole wave first.
+Decided by Fabio on 2026-10-22 ([ADR 0030](adr/0030-one-app-one-server-uzume.md)). FrameBeam becomes Uzume: one app that also administers the server, no web admin, accounts for every user, server commands for setup and emergencies. The design is final ([docs/design/uzume/](design/uzume/README.md)). Rule for the whole milestone: every beta stays usable, so the web admin goes only at the end, when the app can do everything. After package 2, packages 3, 4 and 5 can run in parallel; 6 and 9 run next to 7 and 8.
+
+- [ ] 1 Docs: roadmap, ADR 0030, terms in all docs and CLAUDE.md files, design import to `docs/design/uzume/`, `VERSION` 0.18.0 (M)
+- [ ] 2 Rename (first code PR): Go module path, programs `Uzume` and `uzume-server`, service `UzumeServer`, data folders with migration, `UZUME_*` (reads `FRAMEBEAM_*`), `uzume://`, Docker `uzume-server` (`framebeam-hub` still published for a few versions), invites `UZ-` (`FB-` stays valid), update URLs on the new repository; index product keys, `fb.*` and the signing key stay (L)
+- [ ] 3 Design system in the app: Uzume tokens and IBM Plex fonts, mark, QML building blocks (Toggle, Select, Menu, SettingsRow, Dialog, HelpColumn, Tag, Kbd, Slider, Popover, Avatar with speaking mark, GamepadHint with all keys, stage overlays), AppNav with PLAY / SERVER / THIS PC, Settings with the This PC / Server switch, app icon and installer bitmaps (L)
+- [ ] 4 Server accounts: password for every user (required for admins), sign-in on new devices, user switching with PIN, "Confirm it's you" before dangerous steps, device list per user, migration, OpenAPI (M-L)
+- [ ] 5 Admin API: everything the web admin does under `/api/v1/admin/...` (users and invites, devices, systems and cores, plugins, reports, library, saves of all users, server settings, status), feature flag in the handshake (L)
+- [ ] 6 Server commands: `setup-code`, `code`, `reset-admin`, `status`, `update`, `backup`, `restore`, `reset` (Windows, Linux, Docker) (M)
+- [ ] 7 App start and accounts: first start (8a), join a server with a security code (8b), invite link (8c), switch user (8d), My account with privacy (8e), confirm it's you (8f), forgot password (8g) (L)
+- [ ] 8 App admin area: status, users with invites and devices, systems and cores, plugins, reports, admin actions in the library, saves of all users, server settings (7 pages), What's new, setup assistant (XL, maybe 2 PRs)
+- [ ] 9 Runs without a plugin: runs always visible, own save slot "Run: <Name>", run tabs; plugin API: the sidebar slot becomes a run-tab slot; plugin repositories: IDs `uzume.*`, one plugin "SoulLink & Nuzlocke" with a mode, plugin index republished (M plus plugin PRs)
+- [ ] 10 On this PC and sharing: server as a child process without UAC, "Share with others" turns it into a service (one UAC, data kept), "Stop sharing" keeps accounts and saves (M)
+- [ ] 11 Installer: MSI with three options and new bitmaps, upgrade from FrameBeam (old service removed, new one installed, data taken over), Linux package `uzume-server` with Replaces/Conflicts (M)
+- [ ] 12 Remove the web admin and finish: delete the Hub web pages (the OBS stream view stays), final docs, roadmap, test list for Fabio (M)
+
+Tests only Fabio can do at the end: MSI upgrade on Windows (old service gone, data taken over), new image name in the Pi's Compose file, sign-in on a second PC and user switching, the GHCR package `uzume-server` set to public.
+
+## 0.19 Player comfort and library
+
+Decided by Fabio on 2026-10-21 (as 0.18; renumbered on 2026-10-22). The screens are drawn in the Uzume design (library, game page, in-game panel, Settings › This PC); no own design round, and no Hub web parts any more.
 
 - [ ] Audio stage 1: master volume, mute, hotkeys, "mute in background" (S)
 - [ ] Integer scaling and aspect ratio options; "Continue playing" tile in the Library (S)
-- [ ] Screenshot hotkey with storage on the Hub (per game, optionally per run) and a gallery in the Hub web (S-M)
-- [ ] Play time per game, run and user (the Hub counts from Session and game start events); favorites, collections and recently played (per user on the Hub, filters in Player and Hub web) (M)
-- [ ] Storage overview in the Hub (ROMs, saves, snapshots, cores, backups, screenshots; clean-up suggestions) (S)
+- [ ] Screenshot hotkey with storage on the server (per game, optionally per run) and a gallery in the app (S-M)
+- [ ] Play time per game, run and user (the server counts from Session and game start events); favorites, collections and recently played (per user on the server, filters in the app) (M)
+- [ ] Storage overview in the app (Settings › This PC › Storage and Server › Storage: ROMs, saves, snapshots, cores, backups, screenshots; clean-up suggestions) (S)
 - [ ] Per-game overrides for core options, layout and controller profile (builds on the Game override page of 0.10) (M)
 - [ ] NDS and 3DS screen layouts: hotkey switch, bottom screen in its own window or on a second monitor (M)
 
-## 0.19 Emulation
+## 0.20 Emulation
 
-Decided by Fabio on 2026-10-21. Spike first for save states. Dependency chain: save states -> rewind -> run-ahead (all use `retro_serialize`). One Claude Design handoff for the UI parts.
+Decided by Fabio on 2026-10-21 (as 0.19; renumbered on 2026-10-22). Spike first for save states. Dependency chain: save states -> rewind -> run-ahead (all use `retro_serialize`). The UI parts are drawn in the Uzume design; no own design round.
 
 - [ ] Spike: serialization in melonDS DS, DeSmuME, Azahar, mGBA and Gambatte (size, time, determinism), with a note, then cut the packages (S)
-- [ ] Save states: slots per game, stored on the Hub next to saves (own limit), hotkeys, preview image; run rule "states allowed" through `run_settings`, run log event on use (M-L)
+- [ ] Save states: slots per game, stored on the server next to saves (own limit), hotkeys, preview image; run rule "states allowed" through `run_settings`, run log event on use (M-L)
 - [ ] Rewind: ring buffer, hold a hotkey, memory limit, can be blocked in runs by rule (M)
 - [ ] `memory.write` in the plugin API: consent per game, one write queue, snapshot before the first write, run log, run rule, as described in [12-plugins.md](architecture/12-plugins.md) (M)
 - [ ] Automatic snapshot: plugin API `fb.save.snapshot(reason)` (usable without `memory.write`); SoulLink triggers it before gym battles. Later the editor and cheats plugins build on `memory.write` (S)
 - [ ] Run-ahead: 1-2 frames, only for cores with fast serialization, off for 3DS (M)
 
-## 0.20 Together
+## 0.21 Together
 
-Decided by Fabio on 2026-10-21. One Claude Design handoff for the wave. Dependency chains: online status -> notifications -> ready check (same presence over WSS); chat -> audio mixer stage 2 -> voice chat; viewer role -> controller hand-over (and browser watching in 0.22). Spike first for voice chat (echo and noise without libwebrtc).
+Decided by Fabio on 2026-10-21 (as 0.20; renumbered on 2026-10-22). The UI is drawn in the Uzume design (speaking mark, mixer popover, People and Chat tabs, notifications); no own design round. Dependency chains: online status -> notifications -> ready check (same presence over WSS); chat -> audio mixer stage 2 -> voice chat; viewer role -> controller hand-over (and browser watching in 0.23). Spike first for voice chat (echo and noise without libwebrtc).
 
 - [ ] Online status: who is online and what they play, "Watch" and "Invite" from the list (S)
-- [ ] Notifications (Player toasts, Hub web): Session started, invite, run event; switchable per kind (S-M)
+- [ ] Notifications (app toasts and bell): Session started, invite, run event; switchable per kind (S-M)
 - [ ] Ready check and shared pause for runs and Sessions (S-M)
 - [ ] Session and run chat with emotes and pings; history on the Hub for runs (M)
 - [ ] Viewer role cleanly separated; quality per viewer (selection and latency display) (M)
@@ -440,22 +460,22 @@ Decided by Fabio on 2026-10-21. One Claude Design handoff for the wave. Dependen
 - [ ] Voice chat: spike first, then microphone, push-to-talk, volume per person, ducking (L)
 - [ ] Controller hand-over: a viewer controls P2 or takes over P1, the host confirms (M-L)
 
-## 0.21 Plugins
+## 0.22 Plugins
 
-Decided by Fabio on 2026-10-21. One Claude Design handoff for the UI parts (console, recap page). The plugin UI language moved forward to 0.17.
+Decided by Fabio on 2026-10-21 (as 0.21; renumbered on 2026-10-22). The UI parts are drawn in the Uzume design (developer console 4d-1/4d-2, run recap 4jh-app-2); no own design round. The plugin UI language moved forward to 0.17.
 
 - [ ] Developer console: live log with filter, reload, memory viewer and search, inspect state (M)
-- [ ] Run recap: timeline from the run event log, Hub page per run, export as image or HTML (M, Hub and SoulLink)
-- [ ] Discord Rich Presence as a local Player option (S)
+- [ ] Run recap: timeline from the run event log, recap page per run in the app, export as image or HTML (M, server and SoulLink)
+- [ ] Discord Rich Presence as a local app option, switch in My account (S)
 - [ ] Tracker plugins (speedrun splits and autosplitter, randomizer tracker) in their own plugin repositories (M per plugin)
 
-## 0.22 Platforms
+## 0.23 Platforms
 
-Decided by Fabio on 2026-10-21. May be split into 0.22 to 0.24, one milestone per topic. Spikes first for Vulkan (which cores offer the libretro Vulkan path: melonDS DS, Azahar?) and browser watching (H.264 and Opus over WebRTC in the browser, signaling through the Hub web). Browser watching needs the viewer role from 0.20.
+Decided by Fabio on 2026-10-21 (as 0.22; renumbered on 2026-10-22). May be split into 0.23 to 0.25, one milestone per topic. Spikes first for Vulkan (which cores offer the libretro Vulkan path: melonDS DS, Azahar?) and browser watching (H.264 and Opus over WebRTC in the browser, signaling through the server). Browser watching needs the viewer role from 0.21. The UI follows the Uzume boards ([ADR 0030](adr/0030-one-app-one-server-uzume.md) D8).
 
-- [ ] Hub setup assistant: systems, cores, folders, test the internet reachability (M)
-- [ ] Linux Player package (Flatpak or AppImage): Secret Service instead of in-memory credentials, updater and core distribution for Linux (buildbot platform mapping, [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)), check gamepads and audio, check the Steam Deck (L)
-- [ ] Watching a Session in the browser: the Hub web receives WebRTC from the host Session, Hub users only, viewer only, no emulator (L)
+- Moved to 0.18: the Hub setup assistant is built as the setup assistant in the app (0.18 package 8).
+- [ ] Linux app package (Flatpak or AppImage): Secret Service instead of in-memory credentials, updater and core distribution for Linux (buildbot platform mapping, [ADR 0020](adr/0020-cores-from-the-libretro-buildbot.md)), check gamepads and audio, check the Steam Deck (L)
+- [ ] Watching a Session in the browser: a server web page receives WebRTC from the host Session, server users only, viewer only, no emulator; one of the two web pages left after 0.18 (L)
 - [ ] Vulkan next to OpenGL: libretro Vulkan hardware interface, display and encode path; spike first, switchable per core option in the Emulation settings (L)
 
 ## 1.0 Test phase
@@ -473,10 +493,10 @@ Decided by Fabio on 2026-10-21. May be split into 0.22 to 0.24, one milestone pe
 
 ## Later, only on demand
 
-- Netplay, emulation settings sync, StandaloneBackend. (Save states moved to 0.19, controller hand-over to 0.20.)
+- Netplay, emulation settings sync, StandaloneBackend. (Save states moved to 0.20, controller hand-over to 0.21.)
 - Further library features: paging (row actions delete and rename are done in 0.10.x).
 - Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, Virtual Boy (GB, GBC and GBA are scheduled in 0.13) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
-- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.13); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build; it is now planned in 0.19); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
+- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.13); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build; it is now planned in 0.20); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
 - Wii U deferred (Fabio, 2026-10-07): Cemu has no libretro core and would need the StandaloneBackend.
 - To evaluate (Fabio, 2026-10-07): Cloudflare Tunnel in front of a self-hosted Hub, so no router port forwards are needed. The Hub itself stays self-hosted; running it on Workers/Pages would be a rewrite and is not planned.
   - Cloudflare TURN (Realtime) moved to 0.10.x (Connections) on 2026-10-11.
@@ -485,7 +505,7 @@ Decided by Fabio on 2026-10-21. May be split into 0.22 to 0.24, one milestone pe
 
 ## Out of scope
 
-Hosted emulation, friends list, public Session links, guest access, email/password recovery, own ACME client, simultaneous multi-Hub use, federation, cross-Hub Sessions, OAuth/central accounts, web client. They stay out until actively wanted. Watching a Session in the browser (0.22, viewer only, no emulation) is not a web client.
+Hosted emulation, friends list, public Session links, guest access, email/password recovery, own ACME client, simultaneous multi-Hub use, federation, cross-Hub Sessions, OAuth/central accounts, web client. They stay out until actively wanted. Watching a Session in the browser (0.23, viewer only, no emulation) is not a web client. Since 0.18 there is no web admin either ([ADR 0030](adr/0030-one-app-one-server-uzume.md)).
 
 ## Open decisions
 

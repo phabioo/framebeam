@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>0-4 F Copy pass</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="uz" data-theme="sumi" style="width:1280px;height:1040px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">0-4 · F</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 32px;display:grid;grid-template-columns:minmax(0,1fr) 340px;column-gap:56px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="EVERY HUB AND PLAYER">Copy pass</x-import>
+      <div style="display:flex;flex-direction:column;font-size:12px;line-height:18px">
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:0 0 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>WHERE</span><span>FRAMEBEAM</span><span>UZUME</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Sidebar title</span><s style="color:var(--dim)">FrameBeam Player / FrameBeam Hub</s><span>Uzume</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Sidebar card</span><s style="color:var(--dim)">Home Hub · hub.example.com:8443</s><span>Home server · server.example.com:8443 (StatusLine)</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Hub sidebar footer</span><s style="color:var(--dim)">Max · Admin / Home Hub · 0.16.4 · Sign out</s><span>The person at the foot of AppNav</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Connect title</span><s style="color:var(--dim)">Connect to a hub</s><span>Welcome to Uzume (8a)</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Connect field</span><s style="color:var(--dim)">Hub address</s><span>Address or invite code</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Settings section</span><s style="color:var(--dim)">Hubs &amp; library</s><span>This PC › Servers</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Settings section</span><s style="color:var(--dim)">Hub settings (web)</s><span>Settings › Server</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Update row · app</span><s style="color:var(--dim)">FrameBeam Player 0.16.4</s><span>Uzume 0.16.4 · this PC</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Update row · server</span><s style="color:var(--dim)">FrameBeam Hub 0.16.4</s><span>Server 0.16.4 · Home server</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Error</span><s style="color:var(--dim)">Can’t reach Home Hub.</s><span>Can’t reach Home server. Games on this PC still run; saves upload when it’s back.</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Error</span><s style="color:var(--dim)">Hub is too old for this Player.</s><span>Home server needs an update to work with this version.</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Online block</span><s style="color:var(--dim)">Not available while Home Hub is offline.</s><span>Not available while Home server is offline.</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Sharing segment</span><s style="color:var(--dim)">Private · Hub users · Invite only</s><span>Private · Everyone here · Invite only</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Invite field</span><s style="color:var(--dim)">+ Invite a hub user…</s><span>Invite someone…</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">What’s new</span><s style="color:var(--dim)">Hub: / Player:</s><span>Server: / App: (only when both changed)</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Diagnostics</span><s style="color:var(--dim)">Player log / Hub log</s><span>App log (this PC) / Server log</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Diagnostics bundle</span><s style="color:var(--dim);font:400 11px/18px var(--font-mono)">framebeam-player-diag.zip</s><span style="font:400 11px/18px var(--font-mono)">uzume-diag-desktop-livingroom.zip</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Run boards</span><s style="color:var(--dim)">Hosted on Home Hub</s><span>Run on Home server</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Plugin texts</span><s style="color:var(--dim)">Requires Hub 0.16+</s><span>Requires server 0.16+</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Plugin install</span><s style="color:var(--dim)">Install on Hub</s><span>Install for everyone</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Device approval</span><s style="color:var(--dim)">Waiting for the hub admin to approve this Player.</s><span>Waiting for Max to approve Desktop-LivingRoom.</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Certificate dialog</span><s style="color:var(--dim)">The hub shows a new certificate.</s><span>Home server shows a different security code.</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Backups</span><s style="color:var(--dim)">Hub backups</s><span>Server backups</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Tray · service</span><s style="color:var(--dim)">FrameBeam Hub is running</s><span>Uzume server is running</span></div>
+        <div style="display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1.2fr);column-gap:16px;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">Window title</span><s style="color:var(--dim)">FrameBeam Player — Library</s><span>Uzume — Library</span></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:32px">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="EVERYWHERE">Renames</x-import>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule);font:400 11px/16px var(--font-mono)">
+          <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><s style="color:var(--dim)">FrameBeam · FrameBeam server</s><span style="color:var(--ink)">Uzume · Uzume server</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><s style="color:var(--dim)">framebeam-server</s><span style="color:var(--ink)">uzume-server</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><s style="color:var(--dim)">framebeam://join/…</s><span style="color:var(--ink)">uzume://join/…</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><s style="color:var(--dim)">FRAMEBEAM_PUBLIC_HOST · _TURN · _TURN_EXTERNAL · _DATA_DIR</s><span style="color:var(--ink)">UZUME_PUBLIC_HOST · _TURN · _TURN_EXTERNAL · _DATA_DIR</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><s style="color:var(--dim)">docker exec -it framebeam …</s><span style="color:var(--ink)">ghcr.io/&lt;owner&gt;/uzume-server</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><s style="color:var(--dim)">FB-8XK2-M4QD</s><span style="color:var(--ink)">UZ-8XK2-M4QD</span></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}">Rule for new copy</x-import>
+        <p style="margin:0;padding-top:12px;border-top:1px solid var(--rule);font-size:14px;line-height:22px;color:var(--ink-2)">Say “server” only when the person must act on it: address, offline, update, set up. Otherwise name the person (“Ask Max”) or the thing (“your saves”). Never “host”, “instance”, “backend”. Sentence case, verb first, no exclamation marks.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { n1: 1, n2: 2, n3: 3 };
+  }
+}
+</script>
+</body>
+</html>

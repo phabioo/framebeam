@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3n-app-3 Users · actions and states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">USERS · STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 STATES">Users actions</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3N-3A · MAKE ADMIN · LENA</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Make Lena an admin?</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Lena can change everything on Home server, including users and backups. She has no password and must set one (12+ characters) at next sign-in before admin tools open.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Make admin</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3N-3B · RESET PASSWORD · RESULT</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Temporary password for Jonas</span>
+        <div style="display:flex;flex-direction:column;gap:4px;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)"><span style="font:500 20px/28px var(--font-mono);letter-spacing:.06em;color:var(--ink)">tide-amber-0417</span><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">SHOWN ONCE · NEW ONE AT NEXT SIGN-IN</span></div>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Copy</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Done</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3N-3C · TURN OFF · JONAS</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Turn off Jonas?</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Jonas is signed out everywhere and can’t sign in. Saves, play time and devices stay.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Turn off</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Undo: Turn on in the same menu.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3N-3D · LAST ADMIN · MAX</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Max is the only admin</span>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm" disabled="{{ yes }}">Turn off…</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Make someone else admin first.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3N-3E · MEMBER · FROM A LINK</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Users is for admins</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Want to invite a friend? Ask Max for an invite.</span>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Back to Library</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3N-3F · INVITES · EMPTY</span>
+        <x-import component-from-global-scope="Uzume.StateBlock" kind="empty" title="No open invites" text="Create one to let a friend join Home server." action="Create invite…"></x-import>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme ?? 'sumi', n1: 1, yes: true }; }
+}
+</script>
+</body>
+</html>

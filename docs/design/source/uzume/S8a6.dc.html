@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8a-6 Set up a server · errors</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--accent-text)}a:hover{color:var(--accent-hover)}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">SET UP A SERVER · ERRORS</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px 40px">
+    <div style="position:relative;padding:40px 24px 24px;display:flex;flex-direction:column;gap:28px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 STATES">Errors and disabled states</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">When setup stops</h1>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8A-6A · WRONG SETUP CODE</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Find your server</span>
+          <x-import component-from-global-scope="Uzume.TextField" label="Setup code" default-value="7H4K-2O" error="That code doesn’t match. Codes are 6 letters and numbers."></x-import>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Connect</x-import></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8A-6B · DEVICE NOT REACHABLE</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Connect to the device</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">No answer from 192.0.2.10:8443. Is the server started and on the same network?</x-import>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Try again</x-import></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8A-6C · ON THIS PC · NO ADMIN RIGHTS</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Install the server on this PC</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Installing the background service needs admin rights once. Windows will ask.</x-import>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Install</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Without admin rights you can still play on this PC only, or join a server.</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8A-6D · ALREADY SET UP</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">pi-livingroom is already set up</span>
+          <span style="font-size:14px;line-height:22px;color:var(--ink-2)">It belongs to Home server with admin Max. Join it instead, or reset it on the device with <span style="font:400 11px/16px var(--font-mono);color:var(--ink)">uzume-server reset</span>.</span>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Join Home server</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Back</x-import></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0;border-left:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8A-6E · INSTALL FAILED</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Setup didn’t finish</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">Port 8443 is in use by another program on this PC.</x-import>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Use port 8444</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Details</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Nothing was changed. Your local library is untouched.</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8A-6F · SECURITY CODE DIFFERS · STEP 3 OF 4</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Stop: the codes don’t match</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">The device shows a different security code. Something may be in between.</x-import>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Don’t connect</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Details</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Nothing was set up. Check you typed the right address.</span>
+        </div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · SET UP A SERVER · ERRORS" lines="{{ oc }}"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, oc: ['ERROR · SQUARE ✕', 'WARNING · YAMABUKI !', 'ALWAYS ICON + SENTENCE'] };
+  }
+}
+</script>
+</body>
+</html>

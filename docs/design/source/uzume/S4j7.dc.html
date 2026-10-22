@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>4j-app-7 In game · run tabs</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.RunHeader" back="Runs" number="{{ n2 }}" title="Coral Saga: Ember" system="3DS" sub="Run: Ember Route" watchers="{{ watchers }}" watch-label="2 watching" actions="{{ hdr }}"></x-import>
+  <div style="flex:1;min-height:0;display:flex">
+    <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:center;background:var(--stage)">
+      <x-import component-from-global-scope="Uzume.GameStage" system="3DS" labels="{{ labels }}" caption="3DS · 400 × 240 + 320 × 240 · 60 FPS · 21 MS"></x-import>
+    </div>
+    <div style="width:320px;flex:none;border-left:1px solid var(--rule);display:flex;flex-direction:column;min-height:0">
+      <x-import component-from-global-scope="Uzume.RunTabs" items="{{ rtabs }}" active="SoulLink"></x-import>
+      <div style="flex:1;min-height:0;padding:20px 24px;display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="DRAWN BY SOULLINK">Next pair</x-import>
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;line-height:22px;font-weight:500">Route 3 · waiting for Jonas</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Your catch Sparkmole is linked to Lena’s Quillet.</span></div>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;align-items:center;min-height:36px;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;color:var(--ink)">Route 3<span style="display:block;font-size:12px;color:var(--muted)">Max · Sparkmole · Lena · Quillet</span></span><span><x-import component-from-global-scope="Uzume.Tag">Open</x-import></span></div><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;align-items:center;min-height:36px;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;color:var(--ink)">Coral Bay<span style="display:block;font-size:12px;color:var(--muted)">Reefkit · Shellbit · Driftfin</span></span><span><x-import component-from-global-scope="Uzume.Tag" tone="ok">Alive</x-import></span></div><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;align-items:center;min-height:36px;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;color:var(--ink)">Ember Cave<span style="display:block;font-size:12px;color:var(--muted)">Cindermite · Ashwing · Coalpup</span></span><span><x-import component-from-global-scope="Uzume.Tag" tone="danger">Lost</x-import></span></div></div>
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="DAY 9">Runners</x-import>
+        <div><x-import component-from-global-scope="Uzume.RunnerRow" name="Max" person="wasurenagusa" status="Playing · this PC" meta="4 badges"></x-import><x-import component-from-global-scope="Uzume.RunnerRow" name="Lena" person="momo" status="Playing · Lena-PC" meta="4 badges"></x-import><x-import component-from-global-scope="Uzume.RunnerRow" name="Jonas" person="moegi" status="Paused · 1 h ago" meta="3 badges" presence="offline"></x-import></div>
+      </div>
+      <div style="padding:12px 24px;border-top:1px solid var(--rule-2);display:flex;gap:16px"><x-import component-from-global-scope="Uzume.Kbd" keys="Ctrl+Tab" label="Next tab"></x-import><x-import component-from-global-scope="Uzume.Kbd" keys="F1" label="Hide panel"></x-import></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "watchers": [{"name": "Lena", "person": "momo"}, {"name": "Jonas", "person": "moegi"}], "rtabs": ["Run", "Chat", "Saves", "SoulLink"], "labels": ["400 × 240 · TOP", "320 × 240 · TOUCH"]}, { noop: () => {}, hdr: [B('Save', '', { size: 'sm' }), B('Multiview', '', { size: 'sm' }), B('Panel', '', { size: 'sm', state: 'on' })] });
+  }
+}
+</script>
+</body>
+</html>

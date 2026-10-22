@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>6a-app-2 What’s new · member</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;overflow:hidden;font-family:var(--font-sans)">
+  <dc-import name="S3j3" theme="{{ theme }}" hint-size="1280px,800px"></dc-import>
+  <div style="position:absolute;inset:0;z-index:8;background:var(--scrim);display:flex;align-items:center;justify-content:center;gap:24px">
+    <x-import component-from-global-scope="Uzume.Dialog" label="What’s new · 0.17.0 · 22 Oct 2026" title="Uzume 0.17.0" size="lg" actions="{{ act }}" hints="{{ hints }}"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--muted)">ADDED</span><div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div style="display:grid;grid-template-columns:72px minmax(0,1fr);column-gap:12px;min-height:30px;align-items:center;border-bottom:1px solid var(--rule-2)"><span><x-import component-from-global-scope="Uzume.Tag">App</x-import></span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">Sign in with name and password on any PC.</span></div><div style="display:grid;grid-template-columns:72px minmax(0,1fr);column-gap:12px;min-height:30px;align-items:center;border-bottom:1px solid var(--rule-2)"><span><x-import component-from-global-scope="Uzume.Tag">App</x-import></span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">Switch user on a shared PC: <x-import component-from-global-scope="Uzume.Kbd" keys="Ctrl+Shift+U"></x-import> or hold Select + ↑.</span></div><div style="display:grid;grid-template-columns:72px minmax(0,1fr);column-gap:12px;min-height:30px;align-items:center;border-bottom:1px solid var(--rule-2)"><span><x-import component-from-global-scope="Uzume.Tag">Both</x-import></span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">Invite links open Uzume directly.</span></div></div><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--muted)">CHANGED</span><div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div style="display:grid;grid-template-columns:72px minmax(0,1fr);column-gap:12px;min-height:30px;align-items:center;border-bottom:1px solid var(--rule-2)"><span><x-import component-from-global-scope="Uzume.Tag">App</x-import></span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">Settings has two parts: This PC and Server.</span></div></div><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--muted)">FIXED · 2</span><div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div style="display:grid;grid-template-columns:72px minmax(0,1fr);column-gap:12px;min-height:30px;align-items:center;border-bottom:1px solid var(--rule-2)"><span><x-import component-from-global-scope="Uzume.Tag">App</x-import></span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">DS touch input was offset at 125 % display scaling.</span></div><div style="display:grid;grid-template-columns:72px minmax(0,1fr);column-gap:12px;min-height:30px;align-items:center;border-bottom:1px solid var(--rule-2)"><span><x-import component-from-global-scope="Uzume.Tag">Server</x-import></span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">Backups could stop when the disk was nearly full.</span></div></div></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "zero": 0, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}});
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, act: [B('Got it', 'primary'), B('Full release notes', 'ghost')], hints: [G('A', 'Got it'), G('B', 'Close')] });
+  }
+}
+</script>
+</body>
+</html>

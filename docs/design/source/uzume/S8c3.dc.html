@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8c-3 Invite link · other states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">INVITE · STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px 40px">
+    <div style="position:relative;padding:40px 24px 24px;display:flex;flex-direction:column;gap:28px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 STATES">Invite link</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">When the link can’t open</h1>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8C-3A · GAME RUNNING</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Invite from Lena</span>
+          <span style="font-size:14px;line-height:22px;color:var(--ink-2)">You’re playing Harbor Rally. The invite opens when you quit; your save uploads first.</span>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Open after I quit</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Dismiss</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">In-game it arrives as a Toast, bottom left.</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8C-3B · ALREADY A MEMBER</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">You’re already on Lena’s server</span>
+          <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Signed in as Jonas.</span>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Open Lena’s server</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Close</x-import></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8C-3C · EXPIRED OR USED UP</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">This invite doesn’t work any more</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">It expired on 20 Oct 2026, or all its uses are gone.</x-import>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Close</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Ask Lena for a new invite.</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8C-3D · BROKEN LINK</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">That link isn’t complete</span>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Chat apps sometimes cut long links.</span>
+          <x-import component-from-global-scope="Uzume.TextField" label="Paste the invite code instead" placeholder="UZ-XXXX-XXXX" state="focus"></x-import>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Continue</x-import></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0;border-left:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8C-3E · SECURITY CODE DIFFERS</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Stop: the code doesn’t match</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">192.0.2.20 shows a different security code than the invite. Someone may be in between.</x-import>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Don’t connect</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Details</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Tell Lena. Nothing was sent to the server.</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8C-3F · SERVER OFFLINE</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Can’t reach Lena’s server</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">No answer from 192.0.2.20:8443.</x-import>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Try again</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Keep for later</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Keep for later saves the invite in Settings › This PC › Servers until it expires.</span>
+        </div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · INVITE · STATES" lines="{{ oc }}"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, oc: ['LENA’S SERVER', 'INVITE · 1 USE', 'KEPT UNTIL IT EXPIRES'] };
+  }
+}
+</script>
+</body>
+</html>

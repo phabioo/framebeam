@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>0-4 D One library, admin inline</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Library" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:56px 24px 24px;display:flex;flex-direction:column;gap:28px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="128 GAMES">Library</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px">
+          <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Library</h1>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:16px"><x-import component-from-global-scope="Uzume.SearchField"></x-import><x-import component-from-global-scope="Uzume.Button" variant="primary">Add games…</x-import></div>
+        </div>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="Games" size="lg"></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="LAST PLAYED FIRST">All games</x-import>
+        <div class="uz-table" style="position:relative">
+          <x-import component-from-global-scope="Uzume.TableHead"></x-import>
+          <x-import component-from-global-scope="Uzume.TableRow" no="01" title="Harbor Rally" system="NDS" played="14 h" last="Yesterday" state="selected"></x-import>
+          <x-import component-from-global-scope="Uzume.TableRow" no="02" title="Lumen Drift" system="GBA" played="6 h" last="2 days ago"></x-import>
+          <x-import component-from-global-scope="Uzume.TableRow" no="03" title="Paper Wizards" system="GBC" played="—" last="—"></x-import>
+          <x-import component-from-global-scope="Uzume.TableRow" no="04" title="Coral Saga: Ember" system="3DS" played="22 h" last="Last week"></x-import>
+          <x-import component-from-global-scope="Uzume.TableRow" no="05" title="Pocket Comet" system="GB" played="40 min" last="Sep 2026"></x-import>
+          <div style="position:absolute;top:32px;right:-8px;z-index:4"><x-import component-from-global-scope="Uzume.Menu" label="Harbor Rally actions" open="{{ yes }}" active-index="{{ zero }}" align="end" width="{{ menuW }}" items="{{ menu }}"></x-import></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="VISIBLE TO ADMINS">Harbor Rally · details</x-import>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:32px;align-items:end;border-top:1px solid var(--rule)">
+          <div style="display:grid;grid-template-columns:96px minmax(0,1fr) 72px minmax(0,1fr);column-gap:16px;font-size:12px;line-height:18px">
+            <span style="padding:8px 0;border-bottom:1px solid var(--rule-2);color:var(--muted)">Uploaded by</span><span style="padding:8px 0;border-bottom:1px solid var(--rule-2);color:var(--ink)">Max · 3 Oct 2026</span>
+            <span style="padding:8px 0;border-bottom:1px solid var(--rule-2);color:var(--muted)">Folder</span><span style="padding:8px 0;border-bottom:1px solid var(--rule-2);font:400 11px/18px var(--font-mono);color:var(--ink)">/roms/nds/</span>
+            <span style="padding:8px 0;border-bottom:1px solid var(--rule-2);color:var(--muted)">SHA-256</span><span style="padding:8px 0;border-bottom:1px solid var(--rule-2);font:400 11px/18px var(--font-mono);color:var(--ink-2)">4f1a…c09e <a href="#copy" style="color:var(--accent-text);text-decoration:none;font-family:var(--font-sans);font-size:12px">Copy</a></span>
+            <span style="padding:8px 0;border-bottom:1px solid var(--rule-2);color:var(--muted)">Saves</span><span style="padding:8px 0;border-bottom:1px solid var(--rule-2);color:var(--ink)">3 people · 41 versions</span>
+          </div>
+          <div style="display:flex;gap:8px;padding-bottom:4px"><x-import component-from-global-scope="Uzume.Button" size="sm">Rename…</x-import><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">Delete…</x-import></div>
+        </div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · LIBRARY · HOME SERVER" lines="{{ oc }}"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, n3: 3, yes: true, three: 3, menuW: 220, tabs: ['Games', 'Saves', 'Screenshots'], badges: { Users: 1, Reports: 2 },
+      online: [{ name: 'Lena', person: 'momo', playing: 'Lumen Drift' }, { name: 'Jonas', person: 'moegi', playing: 'Harbor Rally' }],
+      max: { name: 'Max', role: 'Admin', person: 'wasurenagusa' },
+      menu: [{ label: 'Play' }, { label: 'Open saves' }, { separator: true }, { heading: 'Admin' }, { label: 'Rename…', shortcut: 'F2' }, { label: 'Rescan folder' }, { separator: true }, { label: 'Delete game…', danger: true }],
+      oc: ['5 SYSTEMS', '128 GAMES · 41.2 GB', 'RESCAN BY HAND'] };
+  }
+}
+</script>
+</body>
+</html>

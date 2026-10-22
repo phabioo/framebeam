@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3l-app-2 Systems &amp; cores › Firmware</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Systems &amp; cores" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:24px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="ALL SYSTEMS · 1 NEEDED">Systems &amp; cores</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Firmware</h1>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="Firmware · 1" size="lg"></x-import>
+      </div>
+      <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px 200px 72px;column-gap:12px;padding:0 0 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>FILE</span><span>SYSTEM</span><span>STATUS</span><span></span></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px 200px 72px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono)">bios7.bin</span><x-import component-from-global-scope="Uzume.SystemChip" system="NDS"></x-import><span><x-import component-from-global-scope="Uzume.Tag" tone="ok">Matches</x-import></span><span></span></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px 200px 72px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono)">bios9.bin</span><x-import component-from-global-scope="Uzume.SystemChip" system="NDS"></x-import><span><x-import component-from-global-scope="Uzume.Tag" tone="ok">Matches</x-import></span><span></span></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px 200px 72px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono)">firmware.bin</span><x-import component-from-global-scope="Uzume.SystemChip" system="NDS"></x-import><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Tag">Missing</x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">optional</span></span><x-import component-from-global-scope="Uzume.Button" size="sm">Add…</x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px 200px 72px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono)">gba_bios.bin</span><x-import component-from-global-scope="Uzume.SystemChip" system="GBA"></x-import><span><x-import component-from-global-scope="Uzume.Tag" tone="ok">Matches</x-import></span><span></span></div>
+        <div role="row" aria-selected="true" style="display:grid;grid-template-columns:minmax(0,1fr) 72px 200px 72px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start);padding-left:8px"><span style="font:500 11px/16px var(--font-mono)">aes_keys.txt</span><x-import component-from-global-scope="Uzume.SystemChip" system="3DS"></x-import><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Tag" tone="danger">Missing</x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">needed</span></span><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Add…</x-import></div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · SYSTEMS · HOME SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, three: 3, tabs: ['Cores', 'Firmware · 1'], badges: { Users: 1, Reports: 2 },
+      online: [{ name: 'Lena', person: 'momo', playing: 'Lumen Drift' }],
+      max: { name: 'Max', role: 'Admin', person: 'wasurenagusa' } };
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, help: [{ text: "Firmware stays on the server and goes to an app only when a game needs it." }, { text: "Uzume never downloads firmware; you add your own files." }] });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>0-4 G Tokens, hotkeys, server commands</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="uz" data-theme="sumi" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">0-4 · G</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:48px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="NONE NEW">Tokens used</x-import>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule);font:400 11px/16px var(--font-mono)">
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#1c1b19;box-shadow:inset 0 0 0 1px #3a3833"></span><span style="width:16px;height:16px;background:#fbfaf5;box-shadow:inset 0 0 0 1px #3a3833"></span><span style="color:var(--ink-2)">ground · pages, sidebar, forms</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#242320;box-shadow:inset 0 0 0 1px #3a3833"></span><span style="width:16px;height:16px;background:#ffffff;box-shadow:inset 0 0 0 1px #3a3833"></span><span style="color:var(--ink-2)">surface · menus, toasts, dialogs</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#efece4"></span><span style="width:16px;height:16px;background:#1c1b19;box-shadow:inset 0 0 0 1px #3a3833"></span><span style="color:var(--ink-2)">ink · titles, values</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#d3cfc5"></span><span style="width:16px;height:16px;background:#3a3936"></span><span style="color:var(--ink-2)">ink-2 · body</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#a19d94"></span><span style="width:16px;height:16px;background:#5f5c55"></span><span style="color:var(--ink-2)">muted · helper lines, inactive</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#8a867c"></span><span style="width:16px;height:16px;background:#74706a"></span><span style="color:var(--ink-2)">dim · Mono labels, on ground only</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#3a3833"></span><span style="width:16px;height:16px;background:#d6d2c6"></span><span style="color:var(--ink-2)">rule · heads, edges, field frames</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#2b2a27;box-shadow:inset 0 0 0 1px #3a3833"></span><span style="width:16px;height:16px;background:#e9e6dd"></span><span style="color:var(--ink-2)">rule-2 · row separators, hint row</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#f8b500"></span><span style="width:16px;height:16px;background:#f8b500"></span><span style="color:var(--ink-2)">accent · primary, focus, markers, “!”</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#f8b500"></span><span style="width:16px;height:16px;background:#715c1f"></span><span style="color:var(--ink-2)">accent-text · links (Forgot password?)</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#ee836f"></span><span style="width:16px;height:16px;background:#b94047"></span><span style="color:var(--ink-2)">danger · error text, ✕ square, Delete…</span></div>
+        <div style="display:grid;grid-template-columns:16px 16px minmax(0,1fr);column-gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule-2)"><span style="width:16px;height:16px;background:#68be8d"></span><span style="width:16px;height:16px;background:#007b43"></span><span style="color:var(--ink-2)">ok · 6 px square beside ONLINE only</span></div>
+      </div>
+      <span style="font-size:12px;line-height:18px;color:var(--muted)">Pairs are Sumi · Kinari. The old cyan, amber and banner tints are gone (see Index 02–03).</span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="HELP TEXT ONLY">Server commands</x-import>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono);color:var(--ink)">uzume-server setup-code</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Shows the setup code for first setup (8a-4).</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono);color:var(--ink)">uzume-server code</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Shows the security code to compare when joining (8b-2).</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono);color:var(--ink)">uzume-server reset-admin</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Prints a one-time admin password; no data is touched.</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono);color:var(--ink)">uzume-server update</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Updates to the newest version on its channel.</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono);color:var(--ink)">uzume-server backup</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Makes a backup now into the backup folder.</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono);color:var(--ink)">uzume-server restore &lt;file&gt;</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Replaces everything with that backup; makes a safety backup first.</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono);color:var(--danger)">uzume-server reset</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Deletes everything: users, games, saves, settings. Asks you to type the server name. Only a backup brings it back.</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono);color:var(--ink)">docker exec -it uzume-server uzume-server reset-admin</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Same, in the ghcr.io/&lt;owner&gt;/uzume-server container.</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:32px;min-width:0">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}">Hotkeys</x-import>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule);font-size:12px;line-height:18px">
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:12px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">CTRL SHIFT U</span><span style="color:var(--muted)">Switch user</span></div>
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:12px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">CTRL ,</span><span style="color:var(--muted)">Settings</span></div>
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:12px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">CTRL 1 … 4</span><span style="color:var(--muted)">Library, Runs, Emulation, Controllers</span></div>
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:12px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">CTRL V</span><span style="color:var(--muted)">Paste an uzume:// invite link anywhere</span></div>
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:12px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">HOLD SELECT + ↑</span><span style="color:var(--muted)">Gamepad: Who’s playing? One modifier, no Guide button.</span></div>
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:12px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">ADMIN PAGES</span><span style="color:var(--muted)">No hotkeys.</span></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n4 }}" meta="FROM THE SYSTEM">AppNav measures</x-import>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule);font-size:12px;line-height:18px">
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:12px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">WIDTH 232</span><span style="color:var(--muted)">Shares ground with the page, 1 px rule on the right.</span></div>
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:12px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">ITEMS 32</span><span style="color:var(--muted)">Plex Sans 14 muted; hover fill; active ink 500 + marker.</span></div>
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:12px;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/18px var(--font-mono);letter-spacing:.06em;color:var(--ink)">GROUP HEADS</span><span style="color:var(--muted)">Mono 500 10/16 uppercase dim, led by a 12 px rule dash.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { n1: 1, n2: 2, n3: 3, n4: 4 };
+  }
+}
+</script>
+</body>
+</html>

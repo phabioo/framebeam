@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3s-app-2 Restore for another person</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;overflow:hidden;font-family:var(--font-sans)">
+  <dc-import name="S3s1" theme="{{ theme }}" hint-size="1280px,800px"></dc-import>
+  <div style="position:absolute;inset:0;z-index:8;background:var(--scrim);display:flex;align-items:center;justify-content:center;gap:24px">
+    <x-import component-from-global-scope="Uzume.Dialog" label="Next: restore v6 for Lena" title="Confirm it’s you" text="Enter your password. You won’t be asked again for 5 minutes on this PC." actions="{{ act1 }}"><x-import component-from-global-scope="Uzume.TextField" label="Password for Max" type="password" default-value="abcdefghijkl" state="focus"></x-import></x-import>
+    <x-import component-from-global-scope="Uzume.Dialog" label="Then · Lena · Lumen Drift · Main" title="Restore v6 for Lena?" text="v6 becomes the newest version (v9). v8 stays in the history as “Before restore”." actions="{{ act2 }}"><p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Lena is playing Lumen Drift right now. The restore waits until she quits; she gets a notification.</p></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() { return { theme: this.props.theme ?? 'sumi' }; }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, act1: [B('Confirm', 'primary'), B('Cancel')], act2: [B('Restore when she quits', 'primary'), B('Cancel')] });
+  }
+}
+</script>
+</body>
+</html>

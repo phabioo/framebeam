@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>0-4 B AppNav</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="uz" data-theme="sumi" style="width:1280px;height:1240px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">0-4 · B</span>
+  </div>
+  <div style="flex:none;padding:0 56px;display:grid;grid-template-columns:repeat(4,232px);column-gap:40px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">B-1 · ADMIN · SERVER MENU OPEN</span>
+      <div style="height:880px;display:flex;border:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.AppNav" active="Library" badges="{{ badges }}" notifications="{{ three }}" online="{{ onlineAdmin }}" server-menu-open="{{ yes }}" user="{{ max }}"></x-import></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">B-2 · MEMBER · USER MENU OPEN</span>
+      <div style="height:880px;display:flex;border:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.AppNav" role="member" active="Runs" notifications="{{ zero }}" online="{{ onlineMember }}" user-menu-open="{{ yes }}" user="{{ lena }}"></x-import></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">B-3 · ON THIS PC · NO SERVER</span>
+      <div style="height:880px;display:flex;border:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.AppNav" server="{{ no }}" active="Systems &amp; cores" user="{{ local }}"></x-import></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">B-4 · COMPACT · ADMIN · 800 PX</span>
+      <div style="height:800px;display:flex;border:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Settings" badges="{{ badgesUsers }}" notifications="{{ twelve }}" online="{{ onlineAdmin }}" user="{{ max }}"></x-import></div>
+    </div>
+  </div>
+  <div style="flex:1;min-height:0;padding:32px 56px 40px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:40px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="THREE VIEWS">One sidebar</x-import>
+      <span style="font-size:12px;line-height:18px;color:var(--muted);padding-top:8px;border-top:1px solid var(--rule)">Admin: PLAY · SERVER · ONLINE · Settings · server line · person. Member: no SERVER group. On this PC: THIS PC instead of SERVER, no ONLINE, no server line.</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="FOOT">Server line and person</x-import>
+      <span style="font-size:12px;line-height:18px;color:var(--muted);padding-top:8px;border-top:1px solid var(--rule)">Server ⋯ opens upward: Switch server, Details, Share… The person opens My account, Switch user (Ctrl+Shift+U), Sign out. Storage and Backups never in the sidebar.</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="BELOW 900 PX">Compact</x-import>
+      <span style="font-size:12px;line-height:18px;color:var(--muted);padding-top:8px;border-top:1px solid var(--rule)">Every 1280 × 800 screen uses density="compact": 28 px items, one-line ONLINE rows, no address line. The bell shows 9+ above nine.</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      n1: 1, n2: 2, n3: 3, yes: true, no: false, zero: 0, three: 3, twelve: 12,
+      badges: { Users: 1, Reports: 2 }, badgesUsers: { Users: 1 },
+      onlineAdmin: [{ name: 'Lena', person: 'momo', playing: 'Lumen Drift', system: 'GBA' }, { name: 'Jonas', person: 'moegi', playing: 'Harbor Rally', system: 'NDS' }, { name: 'Sam', person: 'fuji' }],
+      onlineMember: [{ name: 'Max', person: 'wasurenagusa', playing: 'Coral Saga: Ember', system: '3DS' }, { name: 'Jonas', person: 'moegi', playing: 'Harbor Rally', system: 'NDS' }],
+      max: { name: 'Max', role: 'Admin', person: 'wasurenagusa' }, lena: { name: 'Lena', role: 'Member', person: 'momo' }, local: { name: 'Max', role: 'This PC', person: 'wasurenagusa' }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3n-app-2 Users › Invites</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Users" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:24px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="JOINING IS INVITE ONLY">Users</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Users</h1><div style="margin-left:auto"><x-import component-from-global-scope="Uzume.Button" variant="primary">Create invite…</x-import></div></div>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="Invites" size="lg"></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="1 OPEN">Invites</x-import>
+        <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+          <div role="row" style="display:grid;grid-template-columns:140px 72px 96px 72px 64px minmax(0,1fr);column-gap:12px;padding:0 0 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>CODE</span><span>ROLE</span><span>USES</span><span>EXPIRES</span><span>MADE BY</span><span></span></div>
+          <div role="row" style="display:grid;grid-template-columns:140px 72px 96px 72px 64px minmax(0,1fr);column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono)">UZ-8XK2-····</span><span style="color:var(--muted)">Member</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">0 of 1</span><span style="color:var(--muted)">29 Oct</span><span style="color:var(--muted)">Max</span><span style="display:flex;justify-content:flex-end"><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Withdraw</x-import></span></div>
+          <div role="row" style="display:grid;grid-template-columns:140px 72px 96px 72px 64px minmax(0,1fr);column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2);opacity:.6"><span style="font:400 11px/16px var(--font-mono)">UZ-3PLW-····</span><span style="color:var(--muted)">Member</span><span style="color:var(--muted)">Used by Jonas</span><span style="color:var(--muted)">—</span><span style="color:var(--muted)">Max</span><span></span></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · USERS · HOME SERVER" items="{{ help }}"></x-import></div>
+  </div>
+  <div style="position:absolute;inset:0;z-index:8;background:var(--scrim);display:flex;align-items:center;justify-content:center;gap:24px">
+    <x-import component-from-global-scope="Uzume.Dialog" label="Users · New invite" title="Create an invite" actions="{{ act1 }}" on-close="{{ noop }}"><x-import component-from-global-scope="Uzume.Select" label="Role" options="{{ roles }}" default-value="Member" hint="Admins must set a password of 12+ characters when they join."></x-import><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px"><x-import component-from-global-scope="Uzume.Select" label="Valid for" options="{{ valid }}" default-value="7 days"></x-import><x-import component-from-global-scope="Uzume.Select" label="Uses" options="{{ uses }}" default-value="1 person"></x-import></div></x-import>
+    <x-import component-from-global-scope="Uzume.Dialog" label="Users · Invite created" title="Send this to your friend" text="Shown once. The link contains the security code, so your friend skips the code check." actions="{{ act2 }}"><div style="display:flex;flex-direction:column;gap:4px;padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)"><div class="uz-invite" style="color:var(--ink)">UZ-8XK2-M4QD</div><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)">VALID UNTIL 29 OCT · 1 USE · MEMBER</span></div><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Kbd" keys="Ctrl+C" label="Copy link"></x-import></div></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, three: 3, tabs: ['People', 'Invites', 'Devices · 1'], roles: ['Member', 'Admin'], valid: ['1 day', '7 days', '30 days'], uses: ['1 person', '5 people', 'No limit'], badges: { Users: 1, Reports: 2 },
+      online: [{ name: 'Lena', person: 'momo', playing: 'Harbor Rally' }],
+      max: { name: 'Max', role: 'Admin', person: 'wasurenagusa' } };
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, act1: [B('Create', 'primary'), B('Cancel')], act2: [B('Copy link', 'primary'), B('Copy code')], help: [{ text: "Codes are shown in full once, then only their first part." }, { text: T(K('Ctrl+C'), ' on a new invite copies the link.') }] });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>6d-app-1 Reports</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Reports" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:18px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="FROM PEOPLE’S APPS">Server</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Reports</h1>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="All" size="lg"></x-import>
+      </div>
+      <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+        <div role="row" style="display:grid;grid-template-columns:72px minmax(0,1.6fr) minmax(0,.8fr) 110px;column-gap:12px;padding:0 12px 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>STATUS</span><span>REPORT</span><span>FROM</span><span>SENT</span></div>
+        <div role="row" aria-selected="true" style="display:grid;grid-template-columns:72px minmax(0,1.6fr) minmax(0,.8fr) 110px;column-gap:12px;align-items:center;min-height:52px;padding:0 12px;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start)"><span><x-import component-from-global-scope="Uzume.Tag" tone="accent" variant="plane">New</x-import></span><span style="display:flex;flex-direction:column"><span><b style="font-weight:500">Sound crackles in Multiview</b></span><span style="font-size:12px;line-height:18px;color:var(--muted)">Harbor Rally · linked: audio underrun</span></span><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Lena" person="momo" size="{{ s20 }}"></x-import><span style="font-size:13px">Lena</span></span><span style="font:400 12px/18px var(--font-mono);color:var(--muted)">Today 14:31</span></div>
+        <div role="row" style="display:grid;grid-template-columns:72px minmax(0,1.6fr) minmax(0,.8fr) 110px;column-gap:12px;align-items:center;min-height:52px;padding:0 12px;border-bottom:1px solid var(--rule-2)"><span><x-import component-from-global-scope="Uzume.Tag" tone="accent" variant="plane">New</x-import></span><span style="display:flex;flex-direction:column"><span>Can’t join Ember Route</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Relayed only</span></span><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Jonas" person="moegi" size="{{ s20 }}"></x-import><span style="font-size:13px">Jonas</span></span><span style="font:400 12px/18px var(--font-mono);color:var(--muted)">Today 11:02</span></div>
+        <div role="row" style="display:grid;grid-template-columns:72px minmax(0,1.6fr) minmax(0,.8fr) 110px;column-gap:12px;align-items:center;min-height:52px;padding:0 12px;border-bottom:1px solid var(--rule-2)"><span><x-import component-from-global-scope="Uzume.Tag">Seen</x-import></span><span style="display:flex;flex-direction:column"><span><span style="color:var(--muted)">Touch offset on bottom screen</span></span><span style="font-size:12px;line-height:18px;color:var(--muted)">Stylus Knights</span></span><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Max" person="wasurenagusa" size="{{ s20 }}"></x-import><span style="font-size:13px">Max</span></span><span style="font:400 12px/18px var(--font-mono);color:var(--dim)">18 Oct</span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:32px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="LENA · TODAY 14:31">Sound crackles in Multiview</x-import>
+          <div style="display:flex;flex-direction:column"><div style="display:grid;grid-template-columns:72px minmax(0,1fr);column-gap:12px;min-height:28px;align-items:center"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)">FROM</span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">Lena · Lena-PC · 0.17.0</span></div><div style="display:grid;grid-template-columns:72px minmax(0,1fr);column-gap:12px;min-height:28px;align-items:center"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)">LINKED</span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">Audio underrun · 14:29</span></div></div>
+          <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">“With 3 tiles open the sound crackles every few seconds. One tile is fine.”</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="3.6 MB">Attachments · 3</x-import>
+          <div role="table" style="display:flex;flex-direction:column;font-size:13px"><div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px;column-gap:12px;padding:0 0 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>FILE</span><span>SIZE</span></div><div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px;column-gap:12px;align-items:center;min-height:32px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 12px/18px var(--font-mono);color:var(--ink)">app-log.txt</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted)">2.1 MB</span></div><div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px;column-gap:12px;align-items:center;min-height:32px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 12px/18px var(--font-mono);color:var(--ink)">diagnostics.json</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted)">340 KB</span></div><div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px;column-gap:12px;align-items:center;min-height:32px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font:400 12px/18px var(--font-mono);color:var(--ink)">screenshot.png</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted)">1.2 MB</span></div></div>
+          <div style="display:flex;gap:8px;padding-top:4px"><x-import component-from-global-scope="Uzume.Button" size="sm">Download all</x-import><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Mark as seen</x-import></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · REPORTS · HOME SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "zero": 0, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "tabs": ["All", "New · 2", "Seen"]});
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, help: [{ text: "People send reports from Settings › This PC › Diagnostics or from an error." }, { text: "Attachments are kept 30 days. Never included: passwords, saves, chat." }] });
+  }
+}
+</script>
+</body>
+</html>

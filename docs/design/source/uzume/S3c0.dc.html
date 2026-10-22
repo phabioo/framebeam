@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3c-0 Library · continue and collections</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Library" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="10 GAMES · HOME SERVER">Library</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Library</h1><div style="margin-left:auto;display:flex;gap:8px"><x-import component-from-global-scope="Uzume.SearchField" placeholder="Search games" aria-label="Search games"></x-import><x-import component-from-global-scope="Uzume.Button" variant="primary">Add games…</x-import></div></div>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ libtabs }}" active="Games" size="lg"></x-import>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.4fr) repeat(2,minmax(0,1fr));column-gap:24px;align-items:end">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="MAIN · V14 · 2 H AGO">Continue</x-import>
+          <div style="display:flex;align-items:center;gap:16px;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule-2)"><span style="display:flex;flex-direction:column;flex:1;min-width:0"><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Lumen Drift</span><span style="font-size:12px;line-height:18px;color:var(--muted)">GBA · Main v14 · Desktop-LivingRoom</span></span><x-import component-from-global-scope="Uzume.Button">Continue</x-import></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">RECENT</span><span style="font-size:14px;line-height:22px">Harbor Rally</span><span style="font:400 10px/16px var(--font-mono);color:var(--dim)">NDS · YESTERDAY</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">RECENT</span><span style="font-size:14px;line-height:22px">Clocktower Kids</span><span style="font:400 10px/16px var(--font-mono);color:var(--dim)">NDS · 16 OCT</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:16px"><div style="display:flex;gap:8px;flex-wrap:wrap"><x-import component-from-global-scope="Uzume.FilterChip" selected="{{ yes }}">All · 10</x-import><x-import component-from-global-scope="Uzume.FilterChip">Favourites · 3</x-import><x-import component-from-global-scope="Uzume.FilterChip">Couch co-op · 4</x-import><x-import component-from-global-scope="Uzume.FilterChip">Nuzlocke · 2</x-import><x-import component-from-global-scope="Uzume.FilterChip">+ Collection</x-import></div><span style="margin-left:auto"><x-import component-from-global-scope="Uzume.Select" options="{{ sort }}" default-value="Recently played" aria-label="Sort" style="width:180px"></x-import></span></div>
+        <div class="uz-table" style="position:relative"><x-import component-from-global-scope="Uzume.TableHead"></x-import><x-import component-from-global-scope="Uzume.TableRow" no="01" title="Lumen Drift" system="GBA" played="12 h 40 min" last="2 h ago" state="selected"></x-import><x-import component-from-global-scope="Uzume.TableRow" no="02" title="Harbor Rally" system="NDS" played="31 h" last="Yesterday"></x-import><x-import component-from-global-scope="Uzume.TableRow" no="03" title="Clocktower Kids" system="NDS" played="4 h 05 min" last="16 Oct"></x-import><x-import component-from-global-scope="Uzume.TableRow" no="04" title="Coral Saga: Ember" system="3DS" played="58 h" last="12 Oct"></x-import><x-import component-from-global-scope="Uzume.TableRow" no="05" title="Paper Wizards" system="GBC" played="45 min" last="3 Oct"></x-import></div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · LIBRARY · HOME SERVER" lines="{{ oc }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "libtabs": ["Games", "Saves", "Screenshots"], "sort": ["Recently played", "Name", "Play time"], "oc": ["10 GAMES", "3 FAVOURITES", "2 COLLECTIONS"]}, { noop: () => {},  });
+  }
+}
+</script>
+</body>
+</html>

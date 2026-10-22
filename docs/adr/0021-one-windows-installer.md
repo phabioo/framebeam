@@ -1,6 +1,7 @@
 # ADR 0021: One Windows installer (0.9)
 
 - Status: Proposed (merged 2026-10-10; acceptance follows Fabio's local test of installer, upgrades and services)
+- Superseded in part: D6 and D7 by [ADR 0030](0030-one-app-one-server-uzume.md) D4 and D6 ("Only on this PC" as a child process, "Share with others", setup code); the MSI keeps D1 to D5 and gets three options in 0.18.
 - Date: 2026-10-09
 - Decided by: Fabio (milestone plan of 2026-10-09); implementation proposal by the orchestrator
 - Supersedes: the Inno Setup parts of [ADR 0007](0007-phase5.md) (installer script, D8 of the PoC) and [ADR 0011](0011-automatic-updates.md) (Player update by an Inno `setup.exe` with `/UPDATE`), see D9. The updater mechanics of ADR 0011 (signed index, size and SHA-256, root helper) stay.

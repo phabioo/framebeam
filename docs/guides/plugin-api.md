@@ -1,9 +1,9 @@
 # Plugin API reference (API 1)
 
-For authors of FrameBeam Player plugins. Design background: `docs/architecture/12-plugins.md`, `docs/adr/0023-plugins.md`.
-This page describes what the Player runtime implements today. Parts marked as coming later are not available yet.
+For authors of Uzume plugins. Design background: `docs/architecture/12-plugins.md`, `docs/adr/0023-plugins.md`.
+This page describes what the app runtime implements today. Parts marked as coming later are not available yet.
 
-A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n/` and `assets/`. It runs in a sandboxed Lua 5.4 state on the plugin thread of the Player, never on the emulation or UI thread. A plugin can read the game's memory, but it can never slow the game down.
+A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n/` and `assets/`. It runs in a sandboxed Lua 5.4 state on the plugin thread of the app, never on the emulation or UI thread. A plugin can read the game's memory, but it can never slow the game down.
 
 ## Manifest
 
@@ -33,10 +33,10 @@ A plugin is a folder with a `manifest.json`, a Lua entry file and optional `i18n
 |---|---|
 | `id` | Reverse-DNS, lowercase letters, digits, `-` and `.`, at least two parts (`net.example.tracker`). |
 | `name`, `version` | Display name; SemVer (`1.0.0`). |
-| `api` | Must be `1`. Otherwise the plugin is rejected: "`<name>` needs plugin API `<n>`; this Player supports API 1". |
+| `api` | Must be `1`. Otherwise the plugin is rejected: "`<name>` needs plugin API `<n>`; this app supports API 1". |
 | `type` | `"script"` (default). `"tool"` is rejected: "tool plugins are not supported yet". |
 | `requires` | Map of plugin id to version range: `^1.2` (compatible, below the next major; `^0.2` stays below `0.3`), `~1.2` (below the next minor), `>=1.0`, `1.2.3` (exact), `*`. Required plugins start first. A required plugin must be installed and match the range. |
-| `min_player` | Optional SemVer (`"0.16.4"`): the oldest FrameBeam Player that runs the plugin. A plugin that needs a newer Player has the problem "Needs Player X", is not started and cannot be turned on; an enabled one stays enabled and runs again after the Player is updated (also after "Go back" to an older Player, see [updates](updates.md#rollback)). The Hub does not check it. |
+| `min_player` | Optional SemVer (`"0.16.4"`): the oldest Uzume that runs the plugin. A plugin that needs a newer app has the problem "Needs Player X", is not started and cannot be turned on; an enabled one stays enabled and runs again after the app is updated (also after "Go back" to an older app, see [updates](updates.md#rollback)). The server does not check it. |
 | `provides` | Interface names this plugin offers to others with `fb.provide`. |
 | `games` | List of `{ "system", "codes" }`. `codes` are globs (`*` any run, `?` one character, case-insensitive); no `codes` = every game of that system. An empty or missing list = all games. |
 | `permissions` | `memory.read`, `rom.read`, `ui`, `run.state`, `video.capture`. `memory.write` and `tool.exec` are rejected ("permission `<p>` is not available yet"), unknown names are errors. |
@@ -88,8 +88,8 @@ Hardening of the sandbox that plugins can observe:
 
 - `setmetatable` refuses a metatable with `__gc` (a finalizer would run when the state is closed, outside any budget).
 - `tostring`, `print` and `string.format("%s")` show `table: #1`, `function: #2` and so on for tables, functions and userdata without `__tostring`, never memory addresses; `string.format("%p")` is not available.
-- Text from plugins and from other participants (manifest names, block text, event and state fields, run events) is always shown as plain text in the Player: markup such as `<b>` or `<img>` appears literally.
-- Plugin images (`cache:` and `asset:`) are PNGs up to 4096x4096 and 8 MiB. The Player decodes them scaled to the size they are shown at (never above 2048x2048), and one plugin may have at most 128 megapixels decoded per 10 seconds.
+- Text from plugins and from other participants (manifest names, block text, event and state fields, run events) is always shown as plain text in the app: markup such as `<b>` or `<img>` appears literally.
+- Plugin images (`cache:` and `asset:`) are PNGs up to 4096x4096 and 8 MiB. The app decodes them scaled to the size they are shown at (never above 2048x2048), and one plugin may have at most 128 megapixels decoded per 10 seconds.
 - `fb.rom.romfs` and `fb.rom.romfs_list` keep the parsed RomFS index of the running game between calls.
 
 ## API
@@ -100,7 +100,7 @@ Everything lives in the global table `fb`.
 
 - `fb.api` is `1`.
 - `fb.plugin` is `{ id, version }`.
-- `fb.game` is `{ system, code, sha256, title, language }`. Any field may be `nil`. `language` is the plugin UI language as a tag (`en`, `de`, `de-DE`, ...): the Player setting Settings > Plugins > Plugin language, or with Auto the Azahar "3DS System Language" of a 3DS game, else the language of the computer. It is fixed when the game starts.
+- `fb.game` is `{ system, code, sha256, title, language }`. Any field may be `nil`. `language` is the plugin UI language as a tag (`en`, `de`, `de-DE`, ...): the app setting Settings > Plugins > Plugin language, or with Auto the Azahar "3DS System Language" of a 3DS game, else the language of the computer. It is fixed when the game starts.
 - `fb.clock()` returns monotonic milliseconds (integer).
 
 ### Logging
@@ -118,7 +118,7 @@ Plugins read a **snapshot** that the emulation copies after frames. They registe
 - `fb.memory.watch(key, addr, len)` registers a range under a name of your choice (the same key replaces the range). `fb.memory.unwatch(key)` removes it.
 - `fb.memory.u8/u16/u32/u64/s8/s16/s32(addr)` read little-endian integers. `fb.memory.bytes(addr, len)` returns a string (`len` up to 4 MiB). `u64` wraps into the signed Lua integer range.
 - All reads return `nil` when the address is not in the latest snapshot. `fb.memory.frame()` returns the frame number of the latest snapshot or `nil` if there is none yet.
-- **Late memory maps:** a core may re-send its memory map while the game runs (for example when the game maps its heap later). The Player picks up the new regions at once: the console's MEMORY MAP section updates, and addresses that were unreadable become readable from the next snapshot on (ranges you already watch need no re-registration).
+- **Late memory maps:** a core may re-send its memory map while the game runs (for example when the game maps its heap later). The app picks up the new regions at once: the console's MEMORY MAP section updates, and addresses that were unreadable become readable from the next snapshot on (ranges you already watch need no re-registration).
 - **Pointer following:** read a pointer, then watch the target. The target is readable from a later snapshot.
 
 ```lua
@@ -199,7 +199,7 @@ if plain and ok then species = string.unpack("<I2", plain, 9) end
 
 ### Game picture (`video.capture`)
 
-Lets a plugin take a picture of what the core renders, for example the game's own map graphic from the 3DS bottom screen while the in-game map is open. The Player never writes a capture to disk or to the log; keep what you need with `fb.cache`. The user sees the permission "Capture the game picture" when installing the plugin.
+Lets a plugin take a picture of what the core renders, for example the game's own map graphic from the 3DS bottom screen while the in-game map is open. The app never writes a capture to disk or to the log; keep what you need with `fb.cache`. The user sees the permission "Capture the game picture" when installing the plugin.
 
 - `fb.video.screens()` returns a list of `{ name, x, y, w, h }`, one per emulated screen, in pixels of the core's output frame at native resolution (not the window): `"top"` and `"bottom"` for Nintendo DS and 3DS (taken from the screen arrangement of the system, scaled with a higher internal resolution), `"main"` for single-screen systems. `nil` when no game runs (shell context).
 - `fb.video.capture(target)` asks for the latest frame at native core resolution, before scaling and shaders (for hardware-rendered cores such as Azahar: the existing readback of the frame; nothing is read back while nobody asks, so there is no cost per frame). `target` is a screen name (`"bottom"`) or a rectangle `{ x = 0, y = 0, w = 320, h = 240 }` of integers in the same coordinates. It does not block: it returns a request id (integer, counting from 1 per plugin state) and the result arrives later as the host event `video.captured`. A wrong argument type or a rectangle without integers raises a Lua error; everything else is reported in the event.
@@ -221,7 +221,7 @@ Event `video.captured` (source `"fb"`, delivered on the plugin thread like the o
 | `unknown_screen` | The screen name is not in `fb.video.screens()`. |
 | `invalid_rect` | The rectangle is empty, negative, larger than 4096 in a side or not inside the frame. |
 | `too_large` | The PNG is larger than 2 MiB. |
-| `unsupported` | This context has no frame source. Captures work for the game running on this Player; in a Session viewed from another Player the decoded stream frame is not offered to plugins. |
+| `unsupported` | This context has no frame source. Captures work for the game running on this app; in a Session viewed from another app the decoded stream frame is not offered to plugins. |
 | `denied` | The frame source refused the capture. |
 
 A capture waits for a frame at native size, so with a hardware-rendered core the result arrives one to a few frames after the request. While the game is paused no new frame is produced and the capture fails with `no_frame` after about 2 seconds, unless the last frame already has native size.
@@ -245,7 +245,7 @@ fb.log.info(fb.i18n.t("team.title", { player = "Ash" }))
 
 ### UI
 
-Needs the permission `ui` and the matching manifest field `ui`. A plugin ships no QML: it describes each surface as a tree of declarative blocks, and the Player draws it with its own components and design tokens. Plugins choose tone names, size names and player numbers only, never colours or pixels. In-game surfaces are always dark.
+Needs the permission `ui` and the matching manifest field `ui`. A plugin ships no QML: it describes each surface as a tree of declarative blocks, and the app draws it with its own components and design tokens. Plugins choose tone names, size names and player numbers only, never colours or pixels. In-game surfaces are always dark.
 
 #### Manifest field `ui`
 
@@ -279,7 +279,7 @@ Needs the permission `ui` and the matching manifest field `ui`. A plugin ships n
 
 - In a game: as before, the plugins for the game start with it.
 - **Shell context:** while no game runs, every enabled plugin that declares `ui.screen` or `ui.detail` runs with an empty game: `fb.game` has no `language` and its other fields are empty, memory reads return `nil`, `fb.rom.*` returns `nil`. Plugins it requires run too. Starting a game stops the shell set and starts the game set; ending the game restarts the shell set. Turning a plugin or Developer mode on or off re-evaluates the shell set.
-- **Run view:** while a run is open in the detail of the Runs screen, the user is its creator or has joined, and no game runs, the run's plugins that declare `ui.run` (plus the plugins they require) run in the shell context as the exact Hub copies pinned by the run; missing copies are fetched like for "Play run". They get a read-only `fb.run` for that run (see [Run state](#run-state)). A plugin that is in both the shell set and the run view set runs once, as the run view instance. Opening or closing the run view restarts the shell plugins; while it is open, the other shell plugins with `run.state` also see that read-only `fb.run`. Starting a game stops the run view set; it comes back when the game ends and the detail is still open.
+- **Run view:** while a run is open in the detail of the Runs screen, the user is its creator or has joined, and no game runs, the run's plugins that declare `ui.run` (plus the plugins they require) run in the shell context as the exact server copies pinned by the run; missing copies are fetched like for "Play run". They get a read-only `fb.run` for that run (see [Run state](#run-state)). A plugin that is in both the shell set and the run view set runs once, as the run view instance. Opening or closing the run view restarts the shell plugins; while it is open, the other shell plugins with `run.state` also see that read-only `fb.run`. Starting a game stops the run view set; it comes back when the game ends and the detail is still open.
 - A paused plugin keeps its last trees, shown dimmed.
 - **In-game screen:** the sidebar screen does not exist while a game runs, so `fb.ui.open("screen")` shows the `screen` tree in a sheet over the play area and the side panel (always dark, content up to 1100 px wide). The game keeps running; Esc or "← Back to game" closes the sheet, and actions in it reach the plugin with slot `"screen"`.
 
@@ -291,9 +291,9 @@ All functions raise `permission ui not granted` without the permission. A slot m
 - `fb.ui.patch(slot, id, props)` merges `props` into the block with that `id` in the current tree, so you send only changed values. Errors: no tree in the slot yet, unknown `id`, `type`/`id`/`children` in `props`, invalid props. A prop cannot be removed with patch (a `nil` value does not exist in a Lua table); set it to an empty or neutral value or use `set`.
 - `fb.ui.clear(slot)` removes the tree.
 - `fb.ui.title(slot, text)` overrides the declared title (slots `panel` and `screen` only; 1 to 40 characters; `nil` restores the declared title).
-- `fb.ui.open(slot)` asks the Player to show the plugin's own `"screen"` or `"panel"` (needs `ui.screen` / `ui.panel`; other slots raise `fb.ui.open only supports the slots screen and panel`). In a game, `"screen"` opens the in-game screen sheet and `"panel"` selects the plugin's tab in the side panel (shown if collapsed; ignored in fullscreen and in the Multiview). Outside a game, `"screen"` opens the plugin's sidebar screen and `"panel"` is ignored. Typical use: a button or hotkey action handled in `fb.ui.on_action`.
+- `fb.ui.open(slot)` asks the app to show the plugin's own `"screen"` or `"panel"` (needs `ui.screen` / `ui.panel`; other slots raise `fb.ui.open only supports the slots screen and panel`). In a game, `"screen"` opens the in-game screen sheet and `"panel"` selects the plugin's tab in the side panel (shown if collapsed; ignored in fullscreen and in the Multiview). Outside a game, `"screen"` opens the plugin's sidebar screen and `"panel"` is ignored. Typical use: a button or hotkey action handled in `fb.ui.on_action`.
 - `fb.ui.badge(n)` shows a count on the plugin's sidebar entry. `0` or `nil` hides it; values are clamped to 0..999.
-- `fb.ui.dot(kind)` sets the dot on the panel tab: `"news"` or `nil` to clear. The amber "paused" dot is set by the Player.
+- `fb.ui.dot(kind)` sets the dot on the panel tab: `"news"` or `nil` to clear. The amber "paused" dot is set by the app.
 - `fb.ui.notify{ tone, title, text, actions }` shows a toast and returns its id. `tone` is `"info"` (default), `"important"` or `"warning"`; `title` up to 80 characters; `text` 1 to 300 characters; `actions` up to 2 of `{ label (1 to 40), action, value? }`. Rate limit per plugin: a burst of 3, then 1 per second. A dropped toast writes a log warning and returns `nil`. The user can mute a plugin's toasts (all, or all but `important`). At most the newest 3 toasts are visible.
 - `fb.ui.on_action(fn)` sets the handler `fn(action, value, slot)`, called on the plugin thread for:
   - buttons, toggles (`value` = new boolean), selects and segmented controls (`value` = chosen option value), tab switches (`value` = 1-based index), text fields on Enter (`value` = text), clickable cards, stats, chips, list and table rows (the row's `value`), empty-state buttons;
@@ -303,7 +303,7 @@ All functions raise `permission ui not granted` without the permission. A slot m
 
   `fb.ui.on_action(nil)` removes the handler. Blocks without their own `value` send `nil` unless stated above.
 
-Tree size limits, per slot: depth 24, 2000 blocks, strings 2000 characters, 512 KiB in total. Action `value`s are plain data up to 8 KiB. The Player coalesces updates to about 30 per second and slot.
+Tree size limits, per slot: depth 24, 2000 blocks, strings 2000 characters, 512 KiB in total. Action `value`s are plain data up to 8 KiB. The app coalesces updates to about 30 per second and slot.
 
 #### Host events from `fb`
 
@@ -312,7 +312,7 @@ Subscribe with `fb.events.on("fb", name, fn)`; `fn(value, "fb", name)`.
 | Event | Value |
 |---|---|
 | `detail.game` | `{ system, code, sha256, title }` when the game detail shows a game, `nil` for none. The host clears the `detail` slot on every change; the plugin sets a new tree. Posted when the selected game in the Library changes. The game code is known only once the game file is cached, so plugins whose `games` entry has code globs match a game from then on. |
-| `tiles` | Array of `{ id, player, user_id, game }` for the visible remote Multiview tiles; `user_id` is the remote player's Hub user id, an empty string when unknown; `id` is stable for a session and is the `<tileId>` of `tile:<tileId>`. |
+| `tiles` | Array of `{ id, player, user_id, game }` for the visible remote Multiview tiles; `user_id` is the remote player's server user id, an empty string when unknown; `id` is stable for a session and is the `<tileId>` of `tile:<tileId>`. |
 | `hud.visible` | `true` or `false` when the user shows or hides this plugin's HUD widget. |
 
 #### Blocks
@@ -353,7 +353,7 @@ Prop details:
 - `tone`: `neutral`, `info`, `ok`, `warning`, `danger`.
 - `gap`: 4, 8, 12, 16 or 20; other numbers are rounded down to the nearest allowed value (below 4 becomes 4).
 - Sizes: `image` `l` = 68x56, `m` = 40x30, `s` = 24x18 (pixel art is scaled nearest-neighbour); `avatar` `s` = 20, `m` = 26, `l` = 32; `scroll` `s` = 160, `m` = 280, `l` = 420.
-- Player colours: `color` and `owner` are numbers 1 to 8. Colours 1 to 4 are designed in the design tokens; 5 to 8 are derived from them in the same style.
+- App colours: `color` and `owner` are numbers 1 to 8. Colours 1 to 4 are designed in the design tokens; 5 to 8 are derived from them in the same style.
 
 #### Map block
 
@@ -366,7 +366,7 @@ Prop details:
 | `players` | Up to 16 of `{ id, initial, color, x, y, label? }` |
 | `routes` | Up to 1000 of `{ id, x, y, area?, number?, done?, icons? }`; `icons` is up to 8 of `{ src, owner? }` |
 | `filter` | `all`, `me` or `open` |
-| `me` | Player `id` used by the "Only me" filter |
+| `me` | App `id` used by the "Only me" filter |
 | `selected` | `id` of the selected route or player |
 | `legend` | Show the legend (default true) |
 | `popover` | Up to 16 rows `{ owner, name, src?, status }` for the selected marker |
@@ -376,13 +376,13 @@ Marker ids are strings (`[A-Za-z0-9_.-]{1,64}`) or non-negative integers; coordi
 
 #### Images
 
-`src` (and `image` of list rows, `src` of map icons) is `cache:<path>` for a file in the plugin's cache (`fb.cache.write`) or `asset:<path>` for a file declared in the manifest `assets`. Paths use `A-Z a-z 0-9 . _ - /`, no `..`, no leading `/`, up to 200 characters. Only PNG files are served. The Player rejects files above 8 MiB, images above 4096x4096, paths that leave the folder (including through symlinks) and undeclared assets. Convert game textures to PNG with `fb.codec.png` and cache them.
+`src` (and `image` of list rows, `src` of map icons) is `cache:<path>` for a file in the plugin's cache (`fb.cache.write`) or `asset:<path>` for a file declared in the manifest `assets`. Paths use `A-Z a-z 0-9 . _ - /`, no `..`, no leading `/`, up to 200 characters. Only PNG files are served. The app rejects files above 8 MiB, images above 4096x4096, paths that leave the folder (including through symlinks) and undeclared assets. Convert game textures to PNG with `fb.codec.png` and cache them.
 
 #### Hotkeys
 
 - Controllers → Hotkeys shows a FRAMEBEAM group first (these keys always win), then one group per enabled plugin that declares hotkeys, ordered by plugin id, each with an origin marker and its key count. The user can choose a key, clear it or reset it to the declared default.
-- Overrides are stored locally in the Player settings (`plugin_hotkeys`): `"<pluginId>/<hotkeyId>"` → key text, `"none"` = unassigned.
-- Conflicts: FrameBeam keys win (configured FrameBeam hotkeys, Esc, F4, Alt+1 to Alt+9), then the earlier plugin. A losing key is not active; it is shown as "<key> · not active" in amber with "Already used by <owner>. Unassigned until you choose."
+- Overrides are stored locally in the app settings (`plugin_hotkeys`): `"<pluginId>/<hotkeyId>"` → key text, `"none"` = unassigned.
+- Conflicts: Uzume keys win (configured Uzume hotkeys, Esc, F4, Alt+1 to Alt+9), then the earlier plugin. A losing key is not active; it is shown as "<key> · not active" in amber with "Already used by <owner>. Unassigned until you choose."
 - In a game, an active plugin key calls the plugin's `fb.ui.on_action` handler as `fn(id, nil, "hotkey")`. Keys do not fire while a text field has focus or on auto-repeat. Plugin keys and Alt+n are not passed to the core.
 - Alt+1 to Alt+9 open panel tab n.
 
@@ -448,32 +448,32 @@ end)
 
 ### Run state
 
-Permission `run.state`. `fb.run` exists only when the game was started with "Play run" from the Runs screen (a run needs a Hub with `runs_v1`) or in the [run view](#when-plugins-run) (read-only, see below); otherwise it is `nil`, so check `if fb.run then`. The run's plugins are the exact Hub copies pinned by the run, so all participants run the same versions.
+Permission `run.state`. `fb.run` exists only when the game was started with "Play run" from the Runs screen (a run needs a server with `runs_v1`) or in the [run view](#when-plugins-run) (read-only, see below); otherwise it is `nil`, so check `if fb.run then`. The run's plugins are the exact server copies pinned by the run, so all participants run the same versions.
 
 | Function | Meaning |
 |---|---|
-| `fb.run.current()` | `{id, name, status, me, settings, plugins = {...}, participants = {{user_id, name, color, status, game_id}, ...}}` from the Player's cache. |
+| `fb.run.current()` | `{id, name, status, me, settings, plugins = {...}, participants = {{user_id, name, color, status, game_id}, ...}}` from the app's cache. |
 | `fb.run.state([user_id [, plugin_id]])` / `fb.run.states([plugin_id])` | One participant's state object for a plugin of the run (defaults: the own user and the calling plugin; `nil` if none yet) / table `user_id -> state` for that plugin (default: the calling plugin). Another plugin's state of the same run may be read (read-only), for example state published by another run plugin. Updated live; no network call. |
-| `fb.run.setState(tbl)` | Replaces the calling plugin's state object of the own participant (JSON-able table, at most 64 KiB per plugin). Coalesced per plugin to at most 4 sends per second: the latest value wins. On `409 state_conflict` the Player adopts the Hub revision of that plugin and sends the latest value again. |
-| `fb.run.event{type=, text=, payload=, source=}` | Posts a run event (`type` required, `text` at most 280 characters, `payload` an object of at most 4 KiB, `source` `"automatic"` (default) or `"manual"`). Returns the `client_id` (a UUID); the Player queues the event and retries it idempotently until the Hub confirms it (at most 2 per second). |
-| `fb.run.events(after_seq, limit)` | Events from the local cache, ascending by `seq` (limit 1 to 500, default 100). Missed events are paged from the Hub after a reconnect. |
+| `fb.run.setState(tbl)` | Replaces the calling plugin's state object of the own participant (JSON-able table, at most 64 KiB per plugin). Coalesced per plugin to at most 4 sends per second: the latest value wins. On `409 state_conflict` the app adopts the server revision of that plugin and sends the latest value again. |
+| `fb.run.event{type=, text=, payload=, source=}` | Posts a run event (`type` required, `text` at most 280 characters, `payload` an object of at most 4 KiB, `source` `"automatic"` (default) or `"manual"`). Returns the `client_id` (a UUID); the app queues the event and retries it idempotently until the server confirms it (at most 2 per second). |
+| `fb.run.events(after_seq, limit)` | Events from the local cache, ascending by `seq` (limit 1 to 500, default 100). Missed events are paged from the server after a reconnect. |
 | `fb.run.on(kind, fn)` | Callbacks on the plugin thread like ticks (at most 16): `"event"` `fn(event)` (own and other participants' events), `"state"` `fn(user_id, state, plugin_id)` (every plugin's state change, own writes included), `"status"` `fn(status, previous)`, `"participants"` `fn(list)`. |
-| `fb.run.setBoard(tree)` | Sets the plugin's board for the Hub run board. `tree` is checked with the same validator as `fb.ui` blocks (64 KiB at most); at most 1 per second (the latest tree is sent after the pause). |
+| `fb.run.setBoard(tree)` | Sets the plugin's board for the server run board. `tree` is checked with the same validator as `fb.ui` blocks (64 KiB at most); at most 1 per second (the latest tree is sent after the pause). |
 
 Rules:
 
 - Run view: `fb.run.current()` has `view = true`; reads and `fb.run.on` work; `setState`, `event` and `setBoard` return `nil, "read only outside the game"`.
 - Writes (`setState`, `event`, `setBoard`) are accepted while the run is `starting` or `active`. In `paused`, `finished` or `abandoned` they are refused locally and return `nil, "message"` instead of raising, so a paused run never pauses the plugin. Reads keep working.
 - Bad arguments (not a table, too large, unknown field) raise a Lua error as everywhere else in the API.
-- Every plugin of the run has its own state object per participant, each with its own revision on the Hub (`PUT /runs/{run_id}/state/{plugin_id}`). `setState` replaces only the calling plugin's object; plugins never overwrite each other's state. The Player keeps the states per (user, plugin) in its run cache.
-- Join and Start dialogs list the library games that every plugin of the run accepts: the system must match a `games` entry of the plugin and, when the entry has `codes`, the Hub's game code (`game_code`, same identity as `fb.game.code`) must match one of the globs (`*`, `?`, case-insensitive). A game whose code the Hub does not know stays selectable after the matching ones with the hint "Game not recognized"; a known code that matches nothing is not listed.
-- The Hub may refuse a write (`403`, `409 run_not_active`, `413`, `429`); the Player drops the value and logs it. Nothing is retried except events (idempotent by `client_id`) and the latest state after a conflict.
-- Required plugins: the Start dialog adds the `requires` of the picked plugins automatically (newest Hub-offered version that fits, transitive), shown as "Included: <name> <version> · needed by <name>". They need no `run.state` permission, count toward the 8-plugin limit and take part in the game filter. A missing or conflicting requirement blocks the start with a message.
+- Every plugin of the run has its own state object per participant, each with its own revision on the server (`PUT /runs/{run_id}/state/{plugin_id}`). `setState` replaces only the calling plugin's object; plugins never overwrite each other's state. The app keeps the states per (user, plugin) in its run cache.
+- Join and Start dialogs list the library games that every plugin of the run accepts: the system must match a `games` entry of the plugin and, when the entry has `codes`, the server's game code (`game_code`, same identity as `fb.game.code`) must match one of the globs (`*`, `?`, case-insensitive). A game whose code the server does not know stays selectable after the matching ones with the hint "Game not recognized"; a known code that matches nothing is not listed.
+- The server may refuse a write (`403`, `409 run_not_active`, `413`, `429`); the app drops the value and logs it. Nothing is retried except events (idempotent by `client_id`) and the latest state after a conflict.
+- Required plugins: the Start dialog adds the `requires` of the picked plugins automatically (newest server-offered version that fits, transitive), shown as "Included: <name> <version> · needed by <name>". They need no `run.state` permission, count toward the 8-plugin limit and take part in the game filter. A missing or conflicting requirement blocks the start with a message.
 - Saves of a run go to the slot `run-<first 8 hex of the run id>`; the normal save slot of the game is untouched.
 
 ### Run settings
 
-Manifest field `run_settings` (optional, 1 to 32 entries) declares the rules a plugin wants when a run is started. Player and Hub enforce the same rules; violations are manifest errors, unknown fields inside an entry are ignored.
+Manifest field `run_settings` (optional, 1 to 32 entries) declares the rules a plugin wants when a run is started. App and server enforce the same rules; violations are manifest errors, unknown fields inside an entry are ignored.
 
 | Field | Rules |
 |---|---|
@@ -483,28 +483,28 @@ Manifest field `run_settings` (optional, 1 to 32 entries) declares the rules a p
 | `default` | Required: a boolean, or an option `value` for `enum`. |
 | `options` | `enum` only, 2 to 8 of `{ value, label }`; `value`s are unique and follow the `key` segment pattern; `label` is an i18n key. |
 
-- The Hub plugin list carries `run_settings` and `run_settings_strings` (`{ lang: { key: text } }`, only the referenced keys; OpenAPI 1.19.0).
-- The Player's "Start a run" dialog shows a Rules section per plugin: boolean as toggle, enum with up to 3 options as segments, more as select. Label language: the plugin language setting (base language), then `en`, then the key.
+- The server plugin list carries `run_settings` and `run_settings_strings` (`{ lang: { key: text } }`, only the referenced keys; OpenAPI 1.19.0).
+- The app's "Start a run" dialog shows a Rules section per plugin: boolean as toggle, enum with up to 3 options as segments, more as select. Label language: the plugin language setting (base language), then `en`, then the key.
 - Every entry is sent as run settings `settings[<plugin_id>]`, nested by key segments. The keys `mode` and `rules.dupes_clause` give `{ "<plugin_id>": { "mode": "soullink", "rules": { "dupes_clause": true } } }`. Plugins without `run_settings` get no member.
 - Plugins read them with `fb.run.current().settings[<own plugin id>]`. The raw manifest `settings` field is unchanged (schema still undefined).
 
 ## Installing plugins and origins
 
-A plugin reaches the Player in three ways, and the Player always shows where it came from (Settings -> Plugins):
+A plugin reaches the app in three ways, and the app always shows where it came from (Settings -> Plugins):
 
 | Origin | Pill | How | Runs |
 |---|---|---|---|
-| `official` | "✓ Official" | signed by the FrameBeam release key, from the Hub, a `.fbplugin` file or the plugin index | always |
-| `unverified` | "! Hub upload · unverified" | unsigned, offered by the Hub (an admin uploaded it) | always; the Player warns before it is turned on |
+| `official` | "✓ Official" | signed by the Uzume release key, from the server, a `.fbplugin` file or the plugin index | always |
+| `unverified` | "! Hub upload · unverified" | unsigned, offered by the server (an admin uploaded it) | always; the app warns before it is turned on |
 | `local` | "Local file" | unsigned `.fbplugin` file or plugin folder on this device | only while Developer mode is on |
 
-- **From the Hub:** "Browse plugins on your Hub" lists what the Hub offers (REST `GET /plugins`, handshake feature `plugins_v1`). Install or Update downloads the file with the SHA-256 from the list as a pin: a file that does not match is rejected and nothing is installed; a network error leaves the previous state. The file is checked like any `.fbplugin` (below) and stored as a Hub copy under `<data>/plugins/hub/<id>/<version>/` (several versions side by side, `origin.json` written by the Player). A new install is turned off. An update that asks for permissions the previous version did not have is turned off.
-- **From a file:** "Install from file..." takes a `.fbplugin` (or a plugin folder). A valid FrameBeam signature makes it Official, otherwise it is Local. It is copied to `<data>/plugins/installed/<id>/`. A SIGNATURE.json or `origin.json` inside a folder is never trusted.
-- **Outside runs** one copy per plugin id is active: a linked developer folder, else the installed file/folder, else the newest Hub copy. A run uses exactly the Hub version of the run (`PluginDelivery::ensureHubCopy(id, version, sha256)` downloads it when missing); a local copy never replaces it.
+- **From the server:** "Browse plugins on your Hub" lists what the server offers (REST `GET /plugins`, handshake feature `plugins_v1`). Install or Update downloads the file with the SHA-256 from the list as a pin: a file that does not match is rejected and nothing is installed; a network error leaves the previous state. The file is checked like any `.fbplugin` (below) and stored as a server copy under `<data>/plugins/hub/<id>/<version>/` (several versions side by side, `origin.json` written by the app). A new install is turned off. An update that asks for permissions the previous version did not have is turned off.
+- **From a file:** "Install from file..." takes a `.fbplugin` (or a plugin folder). A valid Uzume signature makes it Official, otherwise it is Local. It is copied to `<data>/plugins/installed/<id>/`. A SIGNATURE.json or `origin.json` inside a folder is never trusted.
+- **Outside runs** one copy per plugin id is active: a linked developer folder, else the installed file/folder, else the newest server copy. A run uses exactly the server version of the run (`PluginDelivery::ensureHubCopy(id, version, sha256)` downloads it when missing); a local copy never replaces it.
 
 ### `.fbplugin` file
 
-A zip (stored or deflated) with `manifest.json` at the root, the entry file, assets and i18n as in a plugin folder, and an optional `SIGNATURE.json`. Limits, identical in Hub and Player: file <= 32 MiB, sum of unpacked sizes <= 64 MiB, <= 2000 entries; names are relative paths with `/`, no leading `/`, no `\`, no drive letter or `:`, no `.` or `..` or empty segment, <= 255 bytes, no duplicates ignoring case, no symbolic links (directory entries are ignored); `manifest.json` valid, `api` 1, entry file present. Not a valid zip, encrypted entries, zip64 and multi-part archives are rejected.
+A zip (stored or deflated) with `manifest.json` at the root, the entry file, assets and i18n as in a plugin folder, and an optional `SIGNATURE.json`. Limits, identical in server and app: file <= 32 MiB, sum of unpacked sizes <= 64 MiB, <= 2000 entries; names are relative paths with `/`, no leading `/`, no `\`, no drive letter or `:`, no `.` or `..` or empty segment, <= 255 bytes, no duplicates ignoring case, no symbolic links (directory entries are ignored); `manifest.json` valid, `api` 1, entry file present. Not a valid zip, encrypted entries, zip64 and multi-part archives are rejected.
 
 ```json
 { "format": 1, "files": { "<path>": "<sha256 hex>", ... }, "signature": "<base64 Ed25519 signature>" }
@@ -514,13 +514,13 @@ A zip (stored or deflated) with `manifest.json` at the root, the entry file, ass
 
 ## Developer mode
 
-Plugins that are not signed ("Local file") only run while **Developer mode** is on; Official and Hub-offered plugins need no Developer mode. In Developer mode you can:
+Plugins that are not signed ("Local file") only run while **Developer mode** is on; Official and server-offered plugins need no Developer mode. In Developer mode you can:
 
-- install a plugin from a folder (the Player copies it),
+- install a plugin from a folder (the app copies it),
 - link a folder (`linkDevFolder`): the plugin runs straight from your folder, and saving a file reloads it after about 300 ms,
 - read the developer console: status, WATCHED values, EVENTS, LOG, and the error with traceback when a plugin was paused.
 
-A new install is turned off. A plugin whose requirements are missing, too old or cyclic cannot be turned on; the Player shows the reason (for example "needs Creature Core ^2.0 · you have 1.2.0", "needs net.example.core, not installed", "dependency cycle: a -> b -> a").
+A new install is turned off. A plugin whose requirements are missing, too old or cyclic cannot be turned on; the app shows the reason (for example "needs Creature Core ^2.0 · you have 1.2.0", "needs net.example.core, not installed", "dependency cycle: a -> b -> a").
 
 ## Minimal example
 

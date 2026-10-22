@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>9a-2 Controllers · gamepad</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Controllers" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="width:232px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:14px">
+    <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim);padding:0 12px">Controllers</span>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Mapping is saved per controller on this PC.</span>
+    <nav aria-label="Controllers" style="display:flex;flex-direction:column"><a href="#xbox" aria-current="page" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);box-shadow:var(--marker-start);text-decoration:none">Xbox Wireless Controller<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">P1</span></a><a href="#kb" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Keyboard<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">P1</span></a><a href="#add" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Add a controller…</a></nav>
+  </div>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:48px;padding:0 48px">
+    <div style="position:relative;padding:48px 0px 24px;display:flex;flex-direction:column;gap:14px;min-width:0">
+      
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="CONNECTED · USB · PLAYER 1">Controllers</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Xbox Wireless Controller</h1>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ ctabs }}" active="Gamepad" size="lg"></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.SettingsRow" label="Left stick as D-pad" help="Use the stick like the D-pad in every system."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Dead zone" help="How far the stick moves before it counts."><x-import component-from-global-scope="Uzume.Segmented" items="{{ dz }}" active="15 %" size="sm" label="Dead zone"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Rumble" help="For games and cores that support it."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ no }}"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Touch screen (NDS, 3DS)" help="Right stick moves a pointer; R3 taps."><x-import component-from-global-scope="Uzume.Select" options="{{ touch }}" default-value="Right stick + R3" aria-label="Right stick + R3" style="width:200px"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Player" help="Which player this controller is in local multiplayer."><x-import component-from-global-scope="Uzume.Select" options="{{ player }}" default-value="Player 1" aria-label="Player 1" style="width:140px"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Button labels in hints" help="Follow the connected pad, or pick one."><x-import component-from-global-scope="Uzume.Select" options="{{ labels }}" default-value="Automatic" aria-label="Automatic" style="width:160px"></x-import></x-import></div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · CONTROLLERS · THIS PC" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "ctabs": ["Mapping", "Gamepad", "Test"], "dz": ["10 %", "15 %", "25 %"], "touch": ["Right stick + R3", "Mouse only"], "player": ["Player 1", "Player 2"], "labels": ["Automatic", "Xbox", "PlayStation", "Steam Deck"]}, { noop: () => {}, help: [{ title: 'Steam Deck and handhelds', text: 'Hints follow the pad you used last. On a handheld everything is reachable with the D-pad.' }] });
+  }
+}
+</script>
+</body>
+</html>

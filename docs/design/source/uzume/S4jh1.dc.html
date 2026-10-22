@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>4jh-app-1 Run board · admin</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Runs" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="SOULLINK RUN · CORAL SAGA: EMBER · STARTED 12 OCT">Run</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Ember Route</h1><div style="margin-left:auto;display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button">Export…</x-import><x-import component-from-global-scope="Uzume.Button" variant="primary">Play</x-import></div></div>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="Board" size="lg"></x-import>
+      </div>
+      <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 96px 64px 40px;column-gap:12px;padding:0 12px 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>RUNNER</span><span>PROGRESS</span><span>STATUS</span><span>LAST</span><span></span></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 96px 64px 40px;column-gap:12px;align-items:center;min-height:48px;padding:0 12px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px;font-weight:500;"><x-import component-from-global-scope="Uzume.Avatar" name="Max" person="wasurenagusa" size="{{ s20 }}"></x-import>Max</span><span style="font-size:13px;color:var(--ink-2)">4 badges · team 6</span><span><x-import component-from-global-scope="Uzume.Tag" tone="ok">Playing</x-import></span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">2 min</span><x-import component-from-global-scope="Uzume.Menu" items="{{ rmenu }}" label="Max"></x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 96px 64px 40px;column-gap:12px;align-items:center;min-height:48px;padding:0 12px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Avatar" name="Lena" person="momo" size="{{ s20 }}"></x-import>Lena</span><span style="font-size:13px;color:var(--ink-2)">4 badges · team 5</span><span><x-import component-from-global-scope="Uzume.Tag" tone="ok">Playing</x-import></span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">now</span><x-import component-from-global-scope="Uzume.Menu" items="{{ rmenu }}" label="Lena"></x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 96px 64px 40px;column-gap:12px;align-items:center;min-height:48px;padding:0 12px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Avatar" name="Jonas" person="moegi" size="{{ s20 }}"></x-import>Jonas</span><span style="font-size:13px;color:var(--ink-2)">3 badges · team 4</span><span><x-import component-from-global-scope="Uzume.Tag">Paused</x-import></span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">1 h</span><x-import component-from-global-scope="Uzume.Menu" items="{{ rmenu }}" label="Jonas"></x-import></div>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:32px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="RUN: EMBER ROUTE">Save slot</x-import>
+          <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Each runner plays in “Run: Ember Route”. Their Main slot is not touched.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="ADMINS ONLY">Manage run</x-import>
+          <div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" size="sm">Edit rules…</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Pause for everyone</x-import></div>
+          <div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">Remove runner…</x-import><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">End run…</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Ending or removing keeps board, recap, chat and saves.</span>
+        </div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · RUNS · HOME SERVER" lines="{{ oc }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "tabs": ["Board", "Recap", "Log", "Chat · 2", "SoulLink"], "oc": ["DAY 9", "3 OF 8 PEOPLE", "SOULLINK &amp; NUZLOCKE 1.4.0"], "rmenu": [{"label": "Open saves"}, {"label": "Watch"}, {"separator": true}, {"label": "Remove from run…", "danger": true}]}, { noop: () => {},  });
+  }
+}
+</script>
+</body>
+</html>
