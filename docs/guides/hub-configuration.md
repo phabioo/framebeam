@@ -12,6 +12,8 @@ framebeam-hub renew-cert [-data-dir <dir>]     # renew the self-generated certif
 framebeam-hub import-cores <dir>               # import libretro buildbot core zips offline
 framebeam-hub import-plugins <dir>             # offer every *.fbplugin file of a folder to Players (offline, see "Plugins")
 framebeam-hub diagnostics <out.zip>            # write the diagnostics bundle without the web interface (see "Diagnostics bundle")
+framebeam-hub backup [--out DIR]               # make a backup now; also `backup list|config|verify` (see hub-backup.md)
+framebeam-hub restore <file>                   # restore a backup; the Hub must be stopped (see hub-backup.md)
 framebeam-hub version [--json]                 # version info
 framebeam-hub update check|stage [-channel stable|beta]   # see updates.md
 ```
@@ -237,7 +239,7 @@ Install with the FrameBeam MSI (feature Hub; see [packaging.md](packaging.md)), 
 
 ## Data directory
 
-Default `/var/lib/framebeam`: `framebeam.db` (SQLite, metadata only), `saves/`, `firmware/<system>/`, `tls/`, `cores/`, `updates/`, and `backups/` (database backups before schema migrations, newest 5). ROMs, saves and firmware are files; they are never stored in SQLite.
+Default `/var/lib/framebeam`: `framebeam.db` (SQLite, metadata only), `saves/`, `firmware/<system>/`, `tls/`, `cores/`, `updates/`, and `backups/` (database backups before schema migrations, newest 5), `plugins/`, `hub.lock` (held by the running Hub). Full Hub backups (database, saves, plugins, settings, optionally ROMs) go to a folder of your choice, not into the data folder: see [hub-backup.md](hub-backup.md). ROMs, saves and firmware are files; they are never stored in SQLite.
 
 - **Staging area.** `tmp/` holds uploads and staged files of the running Hub. Only the serving process cleans it at start (leftovers of a crash); CLI commands such as `import-cores`, `import-plugins` and `setup-admin` open the data directory next to the running service and leave `tmp/` alone. A firmware `.bak` left by a crash is restored when the firmware file is missing, otherwise removed.
 - **Newer database.** The Hub refuses to start when `framebeam.db` has a schema newer than the binary knows (after a downgrade or a rolled-back update): "database schema N is newer than this Hub". Install the matching version or restore a copy from `backups/hub-*.db`.

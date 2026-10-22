@@ -7,6 +7,8 @@
 //	framebeam-hub import-cores <dir>           import libretro buildbot core zips from a directory (offline) and exit
 //	framebeam-hub import-plugins <dir>         offer every *.fbplugin file of a directory to Players (offline) and exit
 //	framebeam-hub diagnostics <out.zip>        write the diagnostics bundle (logs, configuration; no database access) and exit
+//	framebeam-hub backup [--out DIR]           make a backup now; also: backup list | config | verify <file>
+//	framebeam-hub restore <file>               restore a backup (the Hub must be stopped; makes a safety backup first)
 //	framebeam-hub version [--json]            print the version (JSON: product, version, channel, commit, protocol versions)
 //	framebeam-hub update check [-channel c]    print the update selection as JSON
 //	framebeam-hub update stage [-channel c]    check, download, verify and stage the update, create the request file
@@ -34,6 +36,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/phabioo/framebeam/server/internal/backup"
 	"github.com/phabioo/framebeam/server/internal/clientip"
 	"github.com/phabioo/framebeam/server/internal/config"
 	"github.com/phabioo/framebeam/server/internal/httpapi"
@@ -64,6 +67,10 @@ func main() {
 		err = runImportPlugins(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "diagnostics" {
 		err = runDiagnostics(args[1:], os.Stdout)
+	} else if len(args) > 0 && args[0] == "backup" {
+		err = runBackup(args[1:], os.Stdout)
+	} else if len(args) > 0 && args[0] == "restore" {
+		err = runRestore(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "version" {
 		err = runVersion(args[1:], os.Stdout)
 	} else if len(args) > 0 && args[0] == "update" {
@@ -100,7 +107,8 @@ func openService(ctx context.Context, cfg *config.Config, serving bool) (*hub.Se
 	svc, err := hub.Open(ctx, db, hub.Options{CleanStaging: serving, DataDir: cfg.DataDir, Name: cfg.Name, HubVersion: version.String(), ICEServers: cfg.ICEServers,
 		CoreBuildbotURL: cfg.CoreBuildbotURL, CoreInfoURL: cfg.CoreInfoURL, CoreTrustKeys: keys,
 		SaveKeepRecent: cfg.SaveKeepRecent, SaveKeepDaily: cfg.SaveKeepDaily, SaveKeepWeekly: cfg.SaveKeepWeekly,
-		UpdateIndexURL: cfg.UpdateIndexURL, PluginIndexURL: cfg.PluginIndex(), UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel})
+		UpdateIndexURL: cfg.UpdateIndexURL, PluginIndexURL: cfg.PluginIndex(), UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel,
+		BackupExtras: backupExtras(cfg)})
 	if err != nil {
 		db.Close()
 		return nil, nil, err
@@ -364,6 +372,24 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	base := *cfg
 	base.ICEServers = config.CloneICE(cfg.ICEServers)
 
+	// One Hub per data directory (also keeps `framebeam-hub restore` away from a running Hub). A restore that was
+	// prepared before this start (web or API) is swapped in now, before the database is opened.
+	if err := os.MkdirAll(cfg.DataDir, 0o750); err != nil {
+		return err
+	}
+	releaseLock, err := backup.LockDataDir(cfg.DataDir)
+	if err != nil {
+		return fmt.Errorf("data directory %s: %w", cfg.DataDir, err)
+	}
+	defer releaseLock()
+	if res, rerr := backup.ApplyPending(cfg.DataDir, time.Now().UTC()); res != nil {
+		if rerr != nil {
+			log.Error("restore failed and was rolled back; the Hub starts with its previous data", "backup", res.Backup, "err", rerr)
+		} else {
+			log.Warn("backup restored", "backup", res.Backup, "safety_backup", res.Safety)
+		}
+	}
+
 	svc, closeDB, err := openService(ctx, cfg, true)
 	if err != nil {
 		return err
@@ -376,6 +402,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		svc.Close()
 		closeDB()
 	}()
+	svc.SetBackupRestart(requestRestart)
 	// Network sharing: the flag only seeds the stored setting once; afterwards the stored value wins.
 	if err := svc.SeedNetworkSharing(ctx, base.NetworkSharing); err != nil {
 		return fmt.Errorf("store network sharing: %w", err)
@@ -538,6 +565,12 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	go func() {
 		defer bg.Done()
 		svc.RunSaveSweep(ctx, 24*time.Hour, func(err error) { log.Error("save history sweep", "err", err) })
+	}()
+	// Scheduled backups (Settings > Backups): runs until the Hub stops.
+	bg.Add(1)
+	go func() {
+		defer bg.Done()
+		svc.RunBackupSchedule(ctx, func(msg string, args ...any) { log.Warn(msg, args...) })
 	}()
 	// Core source sync: in the background, never blocks or fails startup; ends with ctx on shutdown.
 	bg.Add(3)

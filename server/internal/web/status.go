@@ -120,6 +120,15 @@ func (s *Server) statusData(r *http.Request) (statusBody, error) {
 			Percent: int(pct + .5), Show: true, Warn: pct >= health.DiskWarnPercent, Link: "/settings/saves", LinkText: "Saves retention →"}
 	}
 	b.Meters = append(b.Meters, dv)
+	bv := meterView{Label: "Disk · backup", Value: "Off", Sub: "No backup folder is set", Link: "/settings/backups", LinkText: "Backups →"}
+	if bd := st.Backup; bd.FolderSet && bd.OK {
+		pct := sysmetrics.UsedPercent(bd.Total, bd.Free)
+		bv = meterView{Label: "Disk · backup", Value: humanBytes(bd.Free) + " free", Sub: fmt.Sprintf("of %s · %s", humanBytes(bd.Total), bd.Folder),
+			Percent: int(pct + .5), Show: true, Warn: pct >= health.DiskWarnPercent, Link: "/settings/backups", LinkText: "Backups →"}
+	} else if bd.FolderSet {
+		bv.Value, bv.Sub = "n/a", bd.Folder
+	}
+	b.Meters = append(b.Meters, bv)
 
 	// Sessions.
 	for _, x := range st.Sessions {

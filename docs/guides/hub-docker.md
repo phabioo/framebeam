@@ -63,6 +63,7 @@ Bridge networking is fine for the web port. For the TURN relay the Hub announces
 
 ## Volumes and permissions
 
+- Back up to a second volume, not into `/data`: see [hub-backup.md](hub-backup.md#docker).
 - `/data` holds everything: `framebeam.db`, `saves/`, `firmware/`, the ROM library, `tls/`, `cores/`, plugins and `backups/`. Nothing else in the container is state.
 - A new named volume starts owned by the container user. For a bind mount (`-v /srv/framebeam:/data`) make the folder writable for uid `65532` first: `sudo chown 65532:65532 /srv/framebeam`.
 - Own certificate: mount the PEM files read only (for example `-v /srv/certs:/certs:ro`) and set `FRAMEBEAM_TLS_CERT=/certs/hub.pem`, `FRAMEBEAM_TLS_KEY=/certs/hub.key`.

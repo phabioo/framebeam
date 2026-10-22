@@ -396,7 +396,7 @@ Decided by Fabio on 2026-10-21. First in the series, because every later package
 
 Decided by Fabio on 2026-10-21. Useful before a test evening. UI parts (backup settings, problem reports, connection assistant, health page) get one Claude Design handoff.
 
-- [ ] Hub backup and restore: one archive (database snapshot, saves, plugins, settings; ROMs optional), schedule, target folder, retention, `framebeam-hub backup` / `restore`, Hub web Settings → Backup (M)
+- [x] Done (0.17, [ADR 0029](adr/0029-operations-and-safety.md) D2): Hub backup and restore: one archive (database snapshot, saves, plugins, settings; ROMs optional), schedule, target folder, retention, `framebeam-hub backup` / `restore`, admin API `/api/v1/admin/backups`, plain Settings → Backups page, Status card "Disk · backup" ([guide](guides/hub-backup.md)). Not yet: restore from the Player app, compressed or off-site backups
 - [ ] Update rollback: "Restore previous version" for Player and Hub from the index (last 5 releases), Hub with a database backup before the update (finishes ADR 0011 D8) (M)
 - [ ] "Report a problem": builds on "Collect logs", sends the bundle with a short description to the user's own Hub; admins see the list in the Hub web (S)
 - [ ] Connection assistant in the Player: Hub reachable, STUN, TURN, NAT type, test connection to the Hub, plain-language result and "Add to bundle" (S-M)

@@ -24,6 +24,66 @@ const (
 	PollTokenAuthScopes pollTokenAuthContextKey = "pollTokenAuth.Scopes"
 )
 
+// Defines values for AdminBackupProgressKind.
+const (
+	AdminBackupProgressKindBackup  AdminBackupProgressKind = "backup"
+	AdminBackupProgressKindRestore AdminBackupProgressKind = "restore"
+)
+
+// Valid indicates whether the value is a known member of the AdminBackupProgressKind enum.
+func (e AdminBackupProgressKind) Valid() bool {
+	switch e {
+	case AdminBackupProgressKindBackup:
+		return true
+	case AdminBackupProgressKindRestore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminBackupSettingsMode.
+const (
+	AdminBackupSettingsModeDaily  AdminBackupSettingsMode = "daily"
+	AdminBackupSettingsModeOff    AdminBackupSettingsMode = "off"
+	AdminBackupSettingsModeWeekly AdminBackupSettingsMode = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the AdminBackupSettingsMode enum.
+func (e AdminBackupSettingsMode) Valid() bool {
+	switch e {
+	case AdminBackupSettingsModeDaily:
+		return true
+	case AdminBackupSettingsModeOff:
+		return true
+	case AdminBackupSettingsModeWeekly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminBackupSettingsUpdateMode.
+const (
+	AdminBackupSettingsUpdateModeDaily  AdminBackupSettingsUpdateMode = "daily"
+	AdminBackupSettingsUpdateModeOff    AdminBackupSettingsUpdateMode = "off"
+	AdminBackupSettingsUpdateModeWeekly AdminBackupSettingsUpdateMode = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the AdminBackupSettingsUpdateMode enum.
+func (e AdminBackupSettingsUpdateMode) Valid() bool {
+	switch e {
+	case AdminBackupSettingsUpdateModeDaily:
+		return true
+	case AdminBackupSettingsUpdateModeOff:
+		return true
+	case AdminBackupSettingsUpdateModeWeekly:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminProblemSeverity.
 const (
 	AdminProblemSeverityError AdminProblemSeverity = "error"
@@ -662,25 +722,25 @@ func (e SaveResolveRequestResolution) Valid() bool {
 
 // Defines values for SaveSyncReason.
 const (
-	Checkpoint      SaveSyncReason = "checkpoint"
-	Final           SaveSyncReason = "final"
-	FinalSessionEnd SaveSyncReason = "final_session_end"
-	Restore         SaveSyncReason = "restore"
-	Upload          SaveSyncReason = "upload"
+	SaveSyncReasonCheckpoint      SaveSyncReason = "checkpoint"
+	SaveSyncReasonFinal           SaveSyncReason = "final"
+	SaveSyncReasonFinalSessionEnd SaveSyncReason = "final_session_end"
+	SaveSyncReasonRestore         SaveSyncReason = "restore"
+	SaveSyncReasonUpload          SaveSyncReason = "upload"
 )
 
 // Valid indicates whether the value is a known member of the SaveSyncReason enum.
 func (e SaveSyncReason) Valid() bool {
 	switch e {
-	case Checkpoint:
+	case SaveSyncReasonCheckpoint:
 		return true
-	case Final:
+	case SaveSyncReasonFinal:
 		return true
-	case FinalSessionEnd:
+	case SaveSyncReasonFinalSessionEnd:
 		return true
-	case Restore:
+	case SaveSyncReasonRestore:
 		return true
-	case Upload:
+	case SaveSyncReasonUpload:
 		return true
 	default:
 		return false
@@ -744,6 +804,119 @@ func (e TokenResponseTokenType) Valid() bool {
 	}
 }
 
+// AdminBackup defines model for AdminBackup.
+type AdminBackup struct {
+	// Contents For example "Database · saves · plugins · ROMs"
+	Contents *string   `json:"contents,omitempty"`
+	Created  time.Time `json:"created"`
+
+	// Error Set when the file is damaged or unreadable
+	Error        *string `json:"error,omitempty"`
+	HubVersion   *string `json:"hub_version,omitempty"`
+	IncludesRoms bool    `json:"includes_roms"`
+	Name         string  `json:"name"`
+
+	// Restored The last restore used this file
+	Restored bool `json:"restored"`
+
+	// Safety Made automatically before a restore; kept until deleted
+	Safety        bool  `json:"safety"`
+	SchemaVersion *int  `json:"schema_version,omitempty"`
+	Size          int64 `json:"size"`
+}
+
+// AdminBackupList defines model for AdminBackupList.
+type AdminBackupList struct {
+	Backups []AdminBackup `json:"backups"`
+}
+
+// AdminBackupProgress defines model for AdminBackupProgress.
+type AdminBackupProgress struct {
+	By         *string                 `json:"by,omitempty"`
+	DoneBytes  int64                   `json:"done_bytes"`
+	EtaSeconds *int                    `json:"eta_seconds,omitempty"`
+	Kind       AdminBackupProgressKind `json:"kind"`
+	Phase      string                  `json:"phase"`
+	Started    time.Time               `json:"started"`
+
+	// Step restore only: 1 safety backup, 2 verify and prepare, 3 restarting
+	Step       *int  `json:"step,omitempty"`
+	TotalBytes int64 `json:"total_bytes"`
+}
+
+// AdminBackupProgressKind defines model for AdminBackupProgress.Kind.
+type AdminBackupProgressKind string
+
+// AdminBackupRun defines model for AdminBackupRun.
+type AdminBackupRun struct {
+	// By "schedule" or the admin who started it
+	By       *string   `json:"by,omitempty"`
+	Error    *string   `json:"error,omitempty"`
+	Finished time.Time `json:"finished"`
+	Name     *string   `json:"name,omitempty"`
+
+	// NoSpace The backup folder had too little free space. The Hub never deletes backups to make room.
+	NoSpace   *bool   `json:"no_space,omitempty"`
+	Ok        bool    `json:"ok"`
+	PruneNote *string `json:"prune_note,omitempty"`
+	Size      *int64  `json:"size,omitempty"`
+
+	// Skipped Files that vanished while the backup ran
+	Skipped *int      `json:"skipped,omitempty"`
+	Started time.Time `json:"started"`
+}
+
+// AdminBackupSettings defines model for AdminBackupSettings.
+type AdminBackupSettings struct {
+	// Folder Backup folder; empty = not set (backups are off)
+	Folder      string `json:"folder"`
+	IncludeRoms bool   `json:"include_roms"`
+
+	// Keep Regular backups kept; older ones are deleted after a new one succeeded
+	Keep int                     `json:"keep"`
+	Mode AdminBackupSettingsMode `json:"mode"`
+
+	// Time Time of day in the Hub's local time zone
+	Time string `json:"time"`
+
+	// Weekday 0 = Sunday; used by weekly
+	Weekday int `json:"weekday"`
+}
+
+// AdminBackupSettingsMode defines model for AdminBackupSettings.Mode.
+type AdminBackupSettingsMode string
+
+// AdminBackupSettingsUpdate defines model for AdminBackupSettingsUpdate.
+type AdminBackupSettingsUpdate struct {
+	Folder      *string                        `json:"folder,omitempty"`
+	IncludeRoms *bool                          `json:"include_roms,omitempty"`
+	Keep        *int                           `json:"keep,omitempty"`
+	Mode        *AdminBackupSettingsUpdateMode `json:"mode,omitempty"`
+	Time        *string                        `json:"time,omitempty"`
+	Weekday     *int                           `json:"weekday,omitempty"`
+}
+
+// AdminBackupSettingsUpdateMode defines model for AdminBackupSettingsUpdate.Mode.
+type AdminBackupSettingsUpdateMode string
+
+// AdminBackupStatus defines model for AdminBackupStatus.
+type AdminBackupStatus struct {
+	// CanRestore This Hub can restart itself, so a restore from the API is possible
+	CanRestore bool                 `json:"can_restore"`
+	DiskFree   *int64               `json:"disk_free,omitempty"`
+	DiskTotal  *int64               `json:"disk_total,omitempty"`
+	FolderSet  bool                 `json:"folder_set"`
+	Last       *AdminBackupRun      `json:"last,omitempty"`
+	LastOk     *AdminBackupRun      `json:"last_ok,omitempty"`
+	Next       *time.Time           `json:"next,omitempty"`
+	Restore    *AdminRestoreResult  `json:"restore,omitempty"`
+	Running    *AdminBackupProgress `json:"running,omitempty"`
+	Settings   AdminBackupSettings  `json:"settings"`
+
+	// WriteError Set when the folder cannot be written
+	WriteError *string `json:"write_error,omitempty"`
+}
+
 // AdminMetrics defines model for AdminMetrics.
 type AdminMetrics struct {
 	Enabled bool `json:"enabled"`
@@ -786,8 +959,24 @@ type AdminProblem struct {
 // AdminProblemSeverity defines model for AdminProblem.Severity.
 type AdminProblemSeverity string
 
+// AdminRestoreResult defines model for AdminRestoreResult.
+type AdminRestoreResult struct {
+	At            time.Time  `json:"at"`
+	Backup        string     `json:"backup"`
+	BackupCreated *time.Time `json:"backup_created,omitempty"`
+	Error         *string    `json:"error,omitempty"`
+	IncludesRoms  *bool      `json:"includes_roms,omitempty"`
+	Ok            bool       `json:"ok"`
+
+	// Safety File name of the safety backup made before the restore
+	Safety *string `json:"safety,omitempty"`
+}
+
 // AdminStatus defines model for AdminStatus.
 type AdminStatus struct {
+	// BackupDisk The volume holding the backup folder; absent when no backup folder is set. Sizes are absent where the platform has no reader.
+	BackupDisk *AdminStatusBackupDisk `json:"backup_disk,omitempty"`
+
 	// CpuPercent Machine-wide CPU load 0 to 100; absent where the platform has no reader
 	CpuPercent *float32 `json:"cpu_percent,omitempty"`
 
@@ -833,6 +1022,13 @@ type AdminStatus struct {
 
 	// Viewers Viewers over all Sessions
 	Viewers int `json:"viewers"`
+}
+
+// AdminStatusBackupDisk The volume holding the backup folder; absent when no backup folder is set. Sizes are absent where the platform has no reader.
+type AdminStatusBackupDisk struct {
+	Folder     string `json:"folder"`
+	FreeBytes  *int64 `json:"free_bytes,omitempty"`
+	TotalBytes *int64 `json:"total_bytes,omitempty"`
 }
 
 // AdminStatusError defines model for AdminStatusError.
@@ -1833,6 +2029,9 @@ type UserList struct {
 	Users []UserInfo `json:"users"`
 }
 
+// AdminBackupName defines model for AdminBackupName.
+type AdminBackupName = string
+
 // CoreId defines model for CoreId.
 type CoreId = string
 
@@ -1862,6 +2061,9 @@ type SessionId = openapi_types.UUID
 
 // UserId defines model for UserId.
 type UserId = string
+
+// AdminBackupConflict defines model for AdminBackupConflict.
+type AdminBackupConflict = Error
 
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
@@ -1973,6 +2175,9 @@ type ListRunEventsParams struct {
 type PutUploadChunkParams struct {
 	ContentRange string `json:"Content-Range"`
 }
+
+// UpdateAdminBackupSettingsJSONRequestBody defines body for UpdateAdminBackupSettings for application/json ContentType.
+type UpdateAdminBackupSettingsJSONRequestBody = AdminBackupSettingsUpdate
 
 // SetAdminMetricsJSONRequestBody defines body for SetAdminMetrics for application/json ContentType.
 type SetAdminMetricsJSONRequestBody = AdminMetricsUpdate
@@ -2521,6 +2726,36 @@ type ServerInterface interface {
 	// Hub info (no auth, grants no rights)
 	// (GET /.well-known/framebeam)
 	GetHubInfo(w http.ResponseWriter, r *http.Request)
+	// List the backup files of the backup folder (admin)
+	// (GET /api/v1/admin/backups)
+	ListAdminBackups(w http.ResponseWriter, r *http.Request)
+	// Start a backup now (admin)
+	// (POST /api/v1/admin/backups)
+	StartAdminBackup(w http.ResponseWriter, r *http.Request)
+	// Cancel the running backup (admin)
+	// (POST /api/v1/admin/backups/cancel)
+	CancelAdminBackup(w http.ResponseWriter, r *http.Request)
+	// Dismiss the result of the last restore (admin)
+	// (DELETE /api/v1/admin/backups/restore-result)
+	DismissAdminRestoreResult(w http.ResponseWriter, r *http.Request)
+	// Backup settings (admin)
+	// (GET /api/v1/admin/backups/settings)
+	GetAdminBackupSettings(w http.ResponseWriter, r *http.Request)
+	// Change backup settings (admin)
+	// (PUT /api/v1/admin/backups/settings)
+	UpdateAdminBackupSettings(w http.ResponseWriter, r *http.Request)
+	// Backup status with progress of a running job (admin)
+	// (GET /api/v1/admin/backups/status)
+	GetAdminBackupStatus(w http.ResponseWriter, r *http.Request)
+	// Delete one backup file (admin)
+	// (DELETE /api/v1/admin/backups/{name})
+	DeleteAdminBackup(w http.ResponseWriter, r *http.Request, name AdminBackupName)
+	// Download one backup file (admin, streamed, range support)
+	// (GET /api/v1/admin/backups/{name}/download)
+	DownloadAdminBackup(w http.ResponseWriter, r *http.Request, name AdminBackupName)
+	// Restore a backup (admin)
+	// (POST /api/v1/admin/backups/{name}/restore)
+	RestoreAdminBackup(w http.ResponseWriter, r *http.Request, name AdminBackupName)
 	// State of the Prometheus metrics endpoint (admin only)
 	// (GET /api/v1/admin/metrics)
 	GetAdminMetrics(w http.ResponseWriter, r *http.Request)
@@ -2741,6 +2976,242 @@ func (siw *ServerInterfaceWrapper) GetHubInfo(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHubInfo(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAdminBackups operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminBackups(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminBackups(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartAdminBackup operation middleware
+func (siw *ServerInterfaceWrapper) StartAdminBackup(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartAdminBackup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelAdminBackup operation middleware
+func (siw *ServerInterfaceWrapper) CancelAdminBackup(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelAdminBackup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DismissAdminRestoreResult operation middleware
+func (siw *ServerInterfaceWrapper) DismissAdminRestoreResult(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DismissAdminRestoreResult(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminBackupSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminBackupSettings(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminBackupSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAdminBackupSettings operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAdminBackupSettings(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAdminBackupSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminBackupStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminBackupStatus(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminBackupStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAdminBackup operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdminBackup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "name" -------------
+	var name AdminBackupName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", r.PathValue("name"), &name, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdminBackup(w, r, name)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadAdminBackup operation middleware
+func (siw *ServerInterfaceWrapper) DownloadAdminBackup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "name" -------------
+	var name AdminBackupName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", r.PathValue("name"), &name, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadAdminBackup(w, r, name)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreAdminBackup operation middleware
+func (siw *ServerInterfaceWrapper) RestoreAdminBackup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "name" -------------
+	var name AdminBackupName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", r.PathValue("name"), &name, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreAdminBackup(w, r, name)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5241,6 +5712,16 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/.well-known/framebeam", wrapper.GetHubInfo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/backups", wrapper.ListAdminBackups)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/backups", wrapper.StartAdminBackup)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/backups/cancel", wrapper.CancelAdminBackup)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/backups/restore-result", wrapper.DismissAdminRestoreResult)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/backups/settings", wrapper.GetAdminBackupSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/admin/backups/settings", wrapper.UpdateAdminBackupSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/backups/status", wrapper.GetAdminBackupStatus)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/backups/{name}", wrapper.DeleteAdminBackup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/backups/{name}/download", wrapper.DownloadAdminBackup)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/backups/{name}/restore", wrapper.RestoreAdminBackup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/metrics", wrapper.GetAdminMetrics)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/admin/metrics", wrapper.SetAdminMetrics)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/metrics/token", wrapper.CreateAdminMetricsToken)
@@ -5313,6 +5794,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	return m
 }
 
+type AdminBackupConflictJSONResponse Error
+
 type BadRequestJSONResponse Error
 
 type CapabilityMissingJSONResponse Error
@@ -5360,6 +5843,624 @@ func (response GetHubInfo200JSONResponse) VisitGetHubInfoResponse(w http.Respons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminBackupsRequestObject struct {
+}
+
+type ListAdminBackupsResponseObject interface {
+	VisitListAdminBackupsResponse(w http.ResponseWriter) error
+}
+
+type ListAdminBackups200JSONResponse AdminBackupList
+
+func (response ListAdminBackups200JSONResponse) VisitListAdminBackupsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminBackups401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminBackups401JSONResponse) VisitListAdminBackupsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminBackups403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminBackups403JSONResponse) VisitListAdminBackupsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartAdminBackupRequestObject struct {
+}
+
+type StartAdminBackupResponseObject interface {
+	VisitStartAdminBackupResponse(w http.ResponseWriter) error
+}
+
+type StartAdminBackup202Response struct {
+}
+
+func (response StartAdminBackup202Response) VisitStartAdminBackupResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type StartAdminBackup400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response StartAdminBackup400JSONResponse) VisitStartAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartAdminBackup401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response StartAdminBackup401JSONResponse) VisitStartAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartAdminBackup403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response StartAdminBackup403JSONResponse) VisitStartAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartAdminBackup409JSONResponse struct {
+	AdminBackupConflictJSONResponse
+}
+
+func (response StartAdminBackup409JSONResponse) VisitStartAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelAdminBackupRequestObject struct {
+}
+
+type CancelAdminBackupResponseObject interface {
+	VisitCancelAdminBackupResponse(w http.ResponseWriter) error
+}
+
+type CancelAdminBackup204Response struct {
+}
+
+func (response CancelAdminBackup204Response) VisitCancelAdminBackupResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type CancelAdminBackup401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CancelAdminBackup401JSONResponse) VisitCancelAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelAdminBackup403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CancelAdminBackup403JSONResponse) VisitCancelAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelAdminBackup409JSONResponse struct {
+	AdminBackupConflictJSONResponse
+}
+
+func (response CancelAdminBackup409JSONResponse) VisitCancelAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DismissAdminRestoreResultRequestObject struct {
+}
+
+type DismissAdminRestoreResultResponseObject interface {
+	VisitDismissAdminRestoreResultResponse(w http.ResponseWriter) error
+}
+
+type DismissAdminRestoreResult204Response struct {
+}
+
+func (response DismissAdminRestoreResult204Response) VisitDismissAdminRestoreResultResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DismissAdminRestoreResult401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DismissAdminRestoreResult401JSONResponse) VisitDismissAdminRestoreResultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DismissAdminRestoreResult403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DismissAdminRestoreResult403JSONResponse) VisitDismissAdminRestoreResultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminBackupSettingsRequestObject struct {
+}
+
+type GetAdminBackupSettingsResponseObject interface {
+	VisitGetAdminBackupSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetAdminBackupSettings200JSONResponse AdminBackupSettings
+
+func (response GetAdminBackupSettings200JSONResponse) VisitGetAdminBackupSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminBackupSettings401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminBackupSettings401JSONResponse) VisitGetAdminBackupSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminBackupSettings403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminBackupSettings403JSONResponse) VisitGetAdminBackupSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminBackupSettingsRequestObject struct {
+	Body *UpdateAdminBackupSettingsJSONRequestBody
+}
+
+type UpdateAdminBackupSettingsResponseObject interface {
+	VisitUpdateAdminBackupSettingsResponse(w http.ResponseWriter) error
+}
+
+type UpdateAdminBackupSettings200JSONResponse AdminBackupSettings
+
+func (response UpdateAdminBackupSettings200JSONResponse) VisitUpdateAdminBackupSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminBackupSettings400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateAdminBackupSettings400JSONResponse) VisitUpdateAdminBackupSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminBackupSettings401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateAdminBackupSettings401JSONResponse) VisitUpdateAdminBackupSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminBackupSettings403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpdateAdminBackupSettings403JSONResponse) VisitUpdateAdminBackupSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminBackupStatusRequestObject struct {
+}
+
+type GetAdminBackupStatusResponseObject interface {
+	VisitGetAdminBackupStatusResponse(w http.ResponseWriter) error
+}
+
+type GetAdminBackupStatus200JSONResponse AdminBackupStatus
+
+func (response GetAdminBackupStatus200JSONResponse) VisitGetAdminBackupStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminBackupStatus401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminBackupStatus401JSONResponse) VisitGetAdminBackupStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminBackupStatus403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminBackupStatus403JSONResponse) VisitGetAdminBackupStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminBackupRequestObject struct {
+	Name AdminBackupName `json:"name"`
+}
+
+type DeleteAdminBackupResponseObject interface {
+	VisitDeleteAdminBackupResponse(w http.ResponseWriter) error
+}
+
+type DeleteAdminBackup204Response struct {
+}
+
+func (response DeleteAdminBackup204Response) VisitDeleteAdminBackupResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAdminBackup401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteAdminBackup401JSONResponse) VisitDeleteAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminBackup403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeleteAdminBackup403JSONResponse) VisitDeleteAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminBackup404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteAdminBackup404JSONResponse) VisitDeleteAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminBackup409JSONResponse struct {
+	AdminBackupConflictJSONResponse
+}
+
+func (response DeleteAdminBackup409JSONResponse) VisitDeleteAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadAdminBackupRequestObject struct {
+	Name AdminBackupName `json:"name"`
+}
+
+type DownloadAdminBackupResponseObject interface {
+	VisitDownloadAdminBackupResponse(w http.ResponseWriter) error
+}
+
+type DownloadAdminBackup200ApplicationxTarResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response DownloadAdminBackup200ApplicationxTarResponse) VisitDownloadAdminBackupResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/x-tar")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadAdminBackup401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DownloadAdminBackup401JSONResponse) VisitDownloadAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadAdminBackup403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DownloadAdminBackup403JSONResponse) VisitDownloadAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadAdminBackup404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DownloadAdminBackup404JSONResponse) VisitDownloadAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreAdminBackupRequestObject struct {
+	Name AdminBackupName `json:"name"`
+}
+
+type RestoreAdminBackupResponseObject interface {
+	VisitRestoreAdminBackupResponse(w http.ResponseWriter) error
+}
+
+type RestoreAdminBackup202Response struct {
+}
+
+func (response RestoreAdminBackup202Response) VisitRestoreAdminBackupResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type RestoreAdminBackup400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RestoreAdminBackup400JSONResponse) VisitRestoreAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreAdminBackup401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RestoreAdminBackup401JSONResponse) VisitRestoreAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreAdminBackup403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RestoreAdminBackup403JSONResponse) VisitRestoreAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreAdminBackup404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RestoreAdminBackup404JSONResponse) VisitRestoreAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreAdminBackup409JSONResponse struct {
+	AdminBackupConflictJSONResponse
+}
+
+func (response RestoreAdminBackup409JSONResponse) VisitRestoreAdminBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -10595,6 +11696,36 @@ type StrictServerInterface interface {
 	// Hub info (no auth, grants no rights)
 	// (GET /.well-known/framebeam)
 	GetHubInfo(ctx context.Context, request GetHubInfoRequestObject) (GetHubInfoResponseObject, error)
+	// List the backup files of the backup folder (admin)
+	// (GET /api/v1/admin/backups)
+	ListAdminBackups(ctx context.Context, request ListAdminBackupsRequestObject) (ListAdminBackupsResponseObject, error)
+	// Start a backup now (admin)
+	// (POST /api/v1/admin/backups)
+	StartAdminBackup(ctx context.Context, request StartAdminBackupRequestObject) (StartAdminBackupResponseObject, error)
+	// Cancel the running backup (admin)
+	// (POST /api/v1/admin/backups/cancel)
+	CancelAdminBackup(ctx context.Context, request CancelAdminBackupRequestObject) (CancelAdminBackupResponseObject, error)
+	// Dismiss the result of the last restore (admin)
+	// (DELETE /api/v1/admin/backups/restore-result)
+	DismissAdminRestoreResult(ctx context.Context, request DismissAdminRestoreResultRequestObject) (DismissAdminRestoreResultResponseObject, error)
+	// Backup settings (admin)
+	// (GET /api/v1/admin/backups/settings)
+	GetAdminBackupSettings(ctx context.Context, request GetAdminBackupSettingsRequestObject) (GetAdminBackupSettingsResponseObject, error)
+	// Change backup settings (admin)
+	// (PUT /api/v1/admin/backups/settings)
+	UpdateAdminBackupSettings(ctx context.Context, request UpdateAdminBackupSettingsRequestObject) (UpdateAdminBackupSettingsResponseObject, error)
+	// Backup status with progress of a running job (admin)
+	// (GET /api/v1/admin/backups/status)
+	GetAdminBackupStatus(ctx context.Context, request GetAdminBackupStatusRequestObject) (GetAdminBackupStatusResponseObject, error)
+	// Delete one backup file (admin)
+	// (DELETE /api/v1/admin/backups/{name})
+	DeleteAdminBackup(ctx context.Context, request DeleteAdminBackupRequestObject) (DeleteAdminBackupResponseObject, error)
+	// Download one backup file (admin, streamed, range support)
+	// (GET /api/v1/admin/backups/{name}/download)
+	DownloadAdminBackup(ctx context.Context, request DownloadAdminBackupRequestObject) (DownloadAdminBackupResponseObject, error)
+	// Restore a backup (admin)
+	// (POST /api/v1/admin/backups/{name}/restore)
+	RestoreAdminBackup(ctx context.Context, request RestoreAdminBackupRequestObject) (RestoreAdminBackupResponseObject, error)
 	// State of the Prometheus metrics endpoint (admin only)
 	// (GET /api/v1/admin/metrics)
 	GetAdminMetrics(ctx context.Context, request GetAdminMetricsRequestObject) (GetAdminMetricsResponseObject, error)
@@ -10847,6 +11978,259 @@ func (sh *strictHandler) GetHubInfo(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetHubInfoResponseObject); ok {
 		if err := validResponse.VisitGetHubInfoResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAdminBackups operation middleware
+func (sh *strictHandler) ListAdminBackups(w http.ResponseWriter, r *http.Request) {
+	var request ListAdminBackupsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminBackups(ctx, request.(ListAdminBackupsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminBackups")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdminBackupsResponseObject); ok {
+		if err := validResponse.VisitListAdminBackupsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartAdminBackup operation middleware
+func (sh *strictHandler) StartAdminBackup(w http.ResponseWriter, r *http.Request) {
+	var request StartAdminBackupRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartAdminBackup(ctx, request.(StartAdminBackupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartAdminBackup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartAdminBackupResponseObject); ok {
+		if err := validResponse.VisitStartAdminBackupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelAdminBackup operation middleware
+func (sh *strictHandler) CancelAdminBackup(w http.ResponseWriter, r *http.Request) {
+	var request CancelAdminBackupRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelAdminBackup(ctx, request.(CancelAdminBackupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelAdminBackup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CancelAdminBackupResponseObject); ok {
+		if err := validResponse.VisitCancelAdminBackupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DismissAdminRestoreResult operation middleware
+func (sh *strictHandler) DismissAdminRestoreResult(w http.ResponseWriter, r *http.Request) {
+	var request DismissAdminRestoreResultRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DismissAdminRestoreResult(ctx, request.(DismissAdminRestoreResultRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DismissAdminRestoreResult")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DismissAdminRestoreResultResponseObject); ok {
+		if err := validResponse.VisitDismissAdminRestoreResultResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminBackupSettings operation middleware
+func (sh *strictHandler) GetAdminBackupSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetAdminBackupSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminBackupSettings(ctx, request.(GetAdminBackupSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminBackupSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminBackupSettingsResponseObject); ok {
+		if err := validResponse.VisitGetAdminBackupSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAdminBackupSettings operation middleware
+func (sh *strictHandler) UpdateAdminBackupSettings(w http.ResponseWriter, r *http.Request) {
+	var request UpdateAdminBackupSettingsRequestObject
+
+	var body UpdateAdminBackupSettingsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAdminBackupSettings(ctx, request.(UpdateAdminBackupSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAdminBackupSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAdminBackupSettingsResponseObject); ok {
+		if err := validResponse.VisitUpdateAdminBackupSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminBackupStatus operation middleware
+func (sh *strictHandler) GetAdminBackupStatus(w http.ResponseWriter, r *http.Request) {
+	var request GetAdminBackupStatusRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminBackupStatus(ctx, request.(GetAdminBackupStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminBackupStatus")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminBackupStatusResponseObject); ok {
+		if err := validResponse.VisitGetAdminBackupStatusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAdminBackup operation middleware
+func (sh *strictHandler) DeleteAdminBackup(w http.ResponseWriter, r *http.Request, name AdminBackupName) {
+	var request DeleteAdminBackupRequestObject
+
+	request.Name = name
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAdminBackup(ctx, request.(DeleteAdminBackupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAdminBackup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteAdminBackupResponseObject); ok {
+		if err := validResponse.VisitDeleteAdminBackupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadAdminBackup operation middleware
+func (sh *strictHandler) DownloadAdminBackup(w http.ResponseWriter, r *http.Request, name AdminBackupName) {
+	var request DownloadAdminBackupRequestObject
+
+	request.Name = name
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadAdminBackup(ctx, request.(DownloadAdminBackupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadAdminBackup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadAdminBackupResponseObject); ok {
+		if err := validResponse.VisitDownloadAdminBackupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RestoreAdminBackup operation middleware
+func (sh *strictHandler) RestoreAdminBackup(w http.ResponseWriter, r *http.Request, name AdminBackupName) {
+	var request RestoreAdminBackupRequestObject
+
+	request.Name = name
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RestoreAdminBackup(ctx, request.(RestoreAdminBackupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RestoreAdminBackup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RestoreAdminBackupResponseObject); ok {
+		if err := validResponse.VisitRestoreAdminBackupResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

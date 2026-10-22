@@ -152,6 +152,7 @@ func (s *Service) armOwnerGrace(sessionID, deviceID string) {
 // Close stops the Session grace timers and waits for a callback that is already running. Call it before the
 // database closes (Hub shutdown, in-process restart). The service is not usable for Sessions afterwards.
 func (s *Service) Close() {
+	s.stopBackup()
 	s.sess.mu.Lock() // waits for a running grace callback (they hold it while they work)
 	defer s.sess.mu.Unlock()
 	rt := &s.sess.rt

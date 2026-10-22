@@ -1187,7 +1187,7 @@ table.users-list th, table.users-list td { padding-left: 14px; padding-right: 14
 .status-banner { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--warn-border); background: var(--amber-surface); font-size: 14px; }
 .status-banner.error { border-color: var(--error-card-border); background: var(--error-card); }
 .status-banner-text { flex: 1; min-width: 200px; color: var(--text-2); }
-.status-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.status-meters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .status-meter { gap: 8px; }
 .status-value { font: 500 24px var(--font-mono); overflow-wrap: anywhere; }
 .status-bar { height: 6px; border-radius: 3px; background: var(--neutral-bg); overflow: hidden; }
@@ -1208,3 +1208,19 @@ table.users-list th, table.users-list td { padding-left: 14px; padding-right: 14
   .status-meters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .status .set-card { padding: 12px; }
 }
+
+/* Settings > Backups */
+.bk-card.warn { background: var(--warn-bg); border-color: var(--warn-border); }
+.bk-card.done { border-color: var(--ok-border); }
+.bk-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bk-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.bk-actions form { display: inline; }
+.bk-form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.bk-form input[type=text], .bk-form input[type=number], .bk-form input[type=time], .bk-form select { height: 32px; padding: 0 8px; border: 1px solid var(--border-input); border-radius: 7px; background: var(--surface); color: var(--text); font: inherit; }
+.bk-form input.wide { min-width: 280px; }
+.bk-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.bk-table td { padding: 10px 6px; border-top: 1px solid var(--row-sep); vertical-align: middle; }
+.bk-table .act { text-align: right; white-space: nowrap; }
+.bk-table form { display: inline; }
+.bk-confirm { border-color: var(--error-card-border); }
+.bk-confirm ul { margin: 6px 0; padding-left: 18px; }

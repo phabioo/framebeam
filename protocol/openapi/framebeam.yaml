@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.23.0
+  version: 1.24.0
   description: |
     HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected Players receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on Player devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
@@ -2217,6 +2217,171 @@ paths:
       responses:
         '101': { description: Switching Protocols }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/admin/backups:
+    get:
+      operationId: listAdminBackups
+      tags: [admin]
+      summary: List the backup files of the backup folder (admin)
+      description: Newest first. Safety backups (made before a restore) are listed too and are never removed by the retention.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The backups
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBackupList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: startAdminBackup
+      tags: [admin]
+      summary: Start a backup now (admin)
+      description: |
+        Starts one backup in the background and returns at once; follow it with `getAdminBackupStatus`. Players keep
+        playing. 400 when no backup folder is set or it cannot be written, 409 `conflict` when a backup or restore is
+        already running.
+      security:
+        - bearerAuth: []
+      responses:
+        '202': { description: Started }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/AdminBackupConflict' }
+  /api/v1/admin/backups/status:
+    get:
+      operationId: getAdminBackupStatus
+      tags: [admin]
+      summary: Backup status with progress of a running job (admin)
+      description: Settings, folder state and free space, the running job (bytes done and total, phase), the last attempt, the last good backup, the next scheduled run and the result of the last restore.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBackupStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/backups/cancel:
+    post:
+      operationId: cancelAdminBackup
+      tags: [admin]
+      summary: Cancel the running backup (admin)
+      description: The partial file is removed. A restore can be canceled until its safety backup is done; 409 `conflict` when nothing can be canceled.
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Canceling }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/AdminBackupConflict' }
+  /api/v1/admin/backups/settings:
+    get:
+      operationId: getAdminBackupSettings
+      tags: [admin]
+      summary: Backup settings (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBackupSettings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      operationId: updateAdminBackupSettings
+      tags: [admin]
+      summary: Change backup settings (admin)
+      description: Only the given fields change. `folder` is an absolute path (an empty string unsets it, which turns backups off); it cannot be inside the saves, plugins, firmware, tls or roms directories of the data folder.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminBackupSettingsUpdate' }
+            examples:
+              default: { value: { mode: daily, time: '03:00', keep: 7, include_roms: false, folder: /mnt/backup/framebeam } }
+      responses:
+        '200':
+          description: The settings now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBackupSettings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/backups/restore-result:
+    delete:
+      operationId: dismissAdminRestoreResult
+      tags: [admin]
+      summary: Dismiss the result of the last restore (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Dismissed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/backups/{name}:
+    delete:
+      operationId: deleteAdminBackup
+      tags: [admin]
+      summary: Delete one backup file (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminBackupName'
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminBackupConflict' }
+  /api/v1/admin/backups/{name}/download:
+    get:
+      operationId: downloadAdminBackup
+      tags: [admin]
+      summary: Download one backup file (admin, streamed, range support)
+      description: The file contains secrets (TLS key, password hashes). Keep it as private as the data folder.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminBackupName'
+      responses:
+        '200':
+          description: The archive
+          content:
+            application/x-tar:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/backups/{name}/restore:
+    post:
+      operationId: restoreAdminBackup
+      tags: [admin]
+      summary: Restore a backup (admin)
+      description: |
+        Makes a safety backup first, verifies every checksum, then restarts the Hub, which swaps the database and data
+        in before it opens the database. Returns 202 at once; running Sessions end and Players reconnect. Follow it with
+        `getAdminBackupStatus` (`running.step` 1 to 3, then the Hub restarts and `restore` holds the result). 400 when
+        the backup was made by a newer Hub or this Hub cannot restart itself; a damaged file is reported in `restore`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminBackupName'
+      responses:
+        '202': { description: Started }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminBackupConflict' }
 components:
   securitySchemes:
     bearerAuth:
@@ -2228,6 +2393,12 @@ components:
       scheme: bearer
       description: Poll token of a pairing request (opaque, prefix fbp_).
   parameters:
+    AdminBackupName:
+      name: name
+      in: path
+      required: true
+      schema: { type: string, pattern: '^framebeam-hub-[a-z0-9-]+-[0-9]{8}T[0-9]{6}Z(-safety)?\.tar$' }
+      example: framebeam-hub-home-hub-20261014T010000Z.tar
     CoreId:
       name: core_id
       in: path
@@ -2389,6 +2560,13 @@ components:
         uploaded_by: u_placeholder_1
         added_at: '2026-01-01T12:00:00Z'
   responses:
+    AdminBackupConflict:
+      description: A backup or restore is already running (`conflict`), or there is nothing to cancel
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: conflict, message: A backup or restore is already running } } }
     BadRequest:
       description: Invalid request
       content:
@@ -2603,6 +2781,14 @@ components:
         time: { type: string, format: date-time }
         level: { type: string, enum: [warn, error] }
         message: { type: string, description: Redacted }
+    AdminStatusBackupDisk:
+      type: object
+      description: The volume holding the backup folder; absent when no backup folder is set. Sizes are absent where the platform has no reader.
+      required: [folder]
+      properties:
+        folder: { type: string }
+        total_bytes: { type: integer, format: int64 }
+        free_bytes: { type: integer, format: int64 }
     AdminStatus:
       type: object
       required: [hub_name, hub_version, uptime_seconds, public_address, time, problems, memory, sessions, viewers, players, errors, metrics_enabled]
@@ -2631,6 +2817,8 @@ components:
           properties:
             total_bytes: { type: integer, format: int64 }
             free_bytes: { type: integer, format: int64 }
+        backup_disk:
+          $ref: '#/components/schemas/AdminStatusBackupDisk'
         sessions:
           type: array
           items: { $ref: '#/components/schemas/AdminStatusSession' }
@@ -3434,3 +3622,95 @@ components:
       required: [rev]
       properties:
         rev: { type: integer, format: int64, minimum: 1 }
+    AdminBackupSettings:
+      type: object
+      required: [mode, weekday, time, keep, include_roms, folder]
+      properties:
+        mode: { type: string, enum: [off, daily, weekly] }
+        weekday: { type: integer, minimum: 0, maximum: 6, description: '0 = Sunday; used by weekly' }
+        time: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$', description: "Time of day in the Hub's local time zone", example: '03:00' }
+        keep: { type: integer, minimum: 1, maximum: 365, description: Regular backups kept; older ones are deleted after a new one succeeded }
+        include_roms: { type: boolean }
+        folder: { type: string, description: Backup folder; empty = not set (backups are off) }
+    AdminBackupSettingsUpdate:
+      type: object
+      properties:
+        mode: { type: string, enum: [off, daily, weekly] }
+        weekday: { type: integer, minimum: 0, maximum: 6 }
+        time: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+        keep: { type: integer, minimum: 1, maximum: 365 }
+        include_roms: { type: boolean }
+        folder: { type: string }
+    AdminBackup:
+      type: object
+      required: [name, created, size, safety, includes_roms, restored]
+      properties:
+        name: { type: string, example: framebeam-hub-home-hub-20261014T010000Z.tar }
+        created: { type: string, format: date-time }
+        size: { type: integer, format: int64 }
+        safety: { type: boolean, description: Made automatically before a restore; kept until deleted }
+        contents: { type: string, description: 'For example "Database · saves · plugins · ROMs"' }
+        includes_roms: { type: boolean }
+        hub_version: { type: string }
+        schema_version: { type: integer }
+        error: { type: string, description: Set when the file is damaged or unreadable }
+        restored: { type: boolean, description: The last restore used this file }
+    AdminBackupList:
+      type: object
+      required: [backups]
+      properties:
+        backups:
+          type: array
+          items: { $ref: '#/components/schemas/AdminBackup' }
+    AdminBackupRun:
+      type: object
+      required: [ok, started, finished]
+      properties:
+        ok: { type: boolean }
+        started: { type: string, format: date-time }
+        finished: { type: string, format: date-time }
+        name: { type: string }
+        size: { type: integer, format: int64 }
+        error: { type: string }
+        no_space: { type: boolean, description: The backup folder had too little free space. The Hub never deletes backups to make room. }
+        by: { type: string, description: '"schedule" or the admin who started it' }
+        skipped: { type: integer, description: Files that vanished while the backup ran }
+        prune_note: { type: string }
+    AdminBackupProgress:
+      type: object
+      required: [kind, phase, done_bytes, total_bytes, started]
+      properties:
+        kind: { type: string, enum: [backup, restore] }
+        phase: { type: string, example: saves and snapshots }
+        step: { type: integer, description: 'restore only: 1 safety backup, 2 verify and prepare, 3 restarting' }
+        done_bytes: { type: integer, format: int64 }
+        total_bytes: { type: integer, format: int64 }
+        started: { type: string, format: date-time }
+        by: { type: string }
+        eta_seconds: { type: integer }
+    AdminRestoreResult:
+      type: object
+      required: [ok, at, backup]
+      properties:
+        ok: { type: boolean }
+        at: { type: string, format: date-time }
+        backup: { type: string }
+        backup_created: { type: string, format: date-time }
+        includes_roms: { type: boolean }
+        safety: { type: string, description: File name of the safety backup made before the restore }
+        error: { type: string }
+    AdminBackupStatus:
+      type: object
+      required: [settings, folder_set, can_restore]
+      properties:
+        settings: { $ref: '#/components/schemas/AdminBackupSettings' }
+        folder_set: { type: boolean }
+        write_error: { type: string, description: Set when the folder cannot be written }
+        disk_total: { type: integer, format: int64 }
+        disk_free: { type: integer, format: int64 }
+        running: { $ref: '#/components/schemas/AdminBackupProgress' }
+        last: { $ref: '#/components/schemas/AdminBackupRun' }
+        last_ok: { $ref: '#/components/schemas/AdminBackupRun' }
+        next: { type: string, format: date-time }
+        restore: { $ref: '#/components/schemas/AdminRestoreResult' }
+        can_restore: { type: boolean, description: 'This Hub can restart itself, so a restore from the API is possible' }
