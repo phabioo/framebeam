@@ -16,9 +16,16 @@ func (s *Server) RedeemInvite(ctx context.Context, req api.RedeemInviteRequestOb
 	}
 	b := req.Body
 	ip, _ := ctx.Value(keyRemoteIP).(string)
-	res, err := s.svc.RedeemInvite(ctx, hub.RedeemInput{Code: b.Code, DisplayName: b.DisplayName, DeviceID: b.DeviceId.String(),
+	in := hub.RedeemInput{Code: b.Code, DisplayName: b.DisplayName, DeviceID: b.DeviceId.String(),
 		DeviceName: b.DeviceName, Platform: b.Platform, Arch: b.Arch, PlayerVersion: b.PlayerVersion,
-		ProtocolVersion: b.ProtocolVersion, RemoteAddr: ip})
+		ProtocolVersion: b.ProtocolVersion, RemoteAddr: ip}
+	if b.Password != nil {
+		in.Password = *b.Password
+	}
+	if b.InstallId != nil {
+		in.InstallID = *b.InstallId
+	}
+	res, err := s.svc.RedeemInvite(ctx, in)
 	if err != nil {
 		return nil, err
 	}

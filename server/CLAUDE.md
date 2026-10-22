@@ -18,7 +18,8 @@ Details only when needed, from `docs/architecture/` (index: `docs/architecture/R
 
 ## Security
 - HTTPS/WSS required; HTTP/WS only in dev mode or on localhost. Own certificate, own cert/key or reverse proxy.
-- Admin: username/password, Argon2id. Regular users are passwordless and created by the admin only (invites). User and device are separate.
+- Admin: username/password, Argon2id. Regular users may have a password too (admins must); created by the admin only (invites). User and device are separate.
+- Password sign-in (`POST /api/v1/auth/sign-in`) replaces admin approval on a new device; generic `invalid_credentials`, rate limit per IP and lockout per user name. Dangerous admin steps call the hub helper `RequireConfirmed` ("Confirm it's you", 403 `confirmation_required`).
 - Pairing: player request, admin allow/deny (mandatory). Revoking a device also revokes its access tokens.
 - Store tokens and device credentials only as a verification representation; never log secrets. See `10-identity-pairing-tls.md`.
 

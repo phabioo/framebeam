@@ -81,6 +81,9 @@ func (s *Server) RollbackAdminUpdate(ctx context.Context, req api.RollbackAdminU
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err
 	}
+	if err := s.requireConfirmed(ctx); err != nil {
+		return nil, err
+	}
 	who := principal(ctx).User.Username
 	res, err := s.svc.Rollback(ctx, hub.RollbackRequest{Version: req.Body.Version, By: who, ConfirmDataLoss: req.Body.ConfirmDataLoss != nil && *req.Body.ConfirmDataLoss})
 	switch {

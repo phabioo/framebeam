@@ -32,6 +32,10 @@ type PairingInput struct {
 	PlayerVersion   string
 	ProtocolVersion int
 	RemoteAddr      string
+	// InstallID optionally names the app install (groups the device rows of one PC); at most 64 characters.
+	InstallID string
+	// kind is the sign-in kind the device gets ("" = approval); only this package sets it.
+	kind string
 }
 
 // PairingCreated is the response to a new request; PollToken is delivered in plaintext only here.
@@ -77,8 +81,12 @@ func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (_ 
 		return PairingCreated{}, badRequest("device_id must be a UUID")
 	}
 	if !validPairingField(in.DeviceName, 100) || !validPairingField(in.Platform, 50) ||
-		!validPairingField(in.Arch, 50) || !validPairingField(in.PlayerVersion, 50) || in.ProtocolVersion < 1 {
+		!validPairingField(in.Arch, 50) || !validPairingField(in.PlayerVersion, 50) || in.ProtocolVersion < 1 || len(in.InstallID) > MaxInstallIDLen {
 		return PairingCreated{}, badRequest("Required field missing or too long")
+	}
+	kind := in.kind
+	if kind == "" {
+		kind = SignInApproval
 	}
 	poll, err := auth.NewToken(auth.PrefixPoll)
 	if err != nil {
@@ -108,9 +116,10 @@ func (s *Service) CreatePairingRequest(ctx context.Context, in PairingInput) (_ 
 		return PairingCreated{}, &Error{Code: CodeRateLimited, Message: "Too many open requests"}
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO pairing_requests(id, poll_token_hash, device_id, device_name, platform, arch,
-		player_version, protocol_version, remote_addr, status, created_at, expires_at) VALUES (?,?,?,?,?,?,?,?,?,'pending',?,?)`,
+		player_version, protocol_version, remote_addr, status, created_at, expires_at, sign_in_kind, install_id)
+		VALUES (?,?,?,?,?,?,?,?,?,'pending',?,?,?,NULLIF(?,''))`,
 		id, auth.HashToken(poll), in.DeviceID, in.DeviceName, in.Platform, in.Arch, in.PlayerVersion, in.ProtocolVersion,
-		in.RemoteAddr, now.Unix(), now.Add(PairingTTL).Unix()); err != nil {
+		in.RemoteAddr, now.Unix(), now.Add(PairingTTL).Unix(), kind, in.InstallID); err != nil {
 		return PairingCreated{}, internal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -324,11 +333,11 @@ func (s *Service) PollPairing(ctx context.Context, requestID, pollToken string) 
 	}
 	defer tx.Rollback()
 	var r PairingRequest
-	var hash, status string
+	var hash, status, kind, installID string
 	var exp, created int64
 	err = tx.QueryRowContext(ctx, `SELECT poll_token_hash, status, expires_at, created_at, device_id, device_name, platform, arch,
-		player_version, COALESCE(user_id,'') FROM pairing_requests WHERE id = ?`, requestID).
-		Scan(&hash, &status, &exp, &created, &r.DeviceID, &r.DeviceName, &r.Platform, &r.Arch, &r.PlayerVersion, &r.UserID)
+		player_version, COALESCE(user_id,''), sign_in_kind, COALESCE(install_id,'') FROM pairing_requests WHERE id = ?`, requestID).
+		Scan(&hash, &status, &exp, &created, &r.DeviceID, &r.DeviceName, &r.Platform, &r.Arch, &r.PlayerVersion, &r.UserID, &kind, &installID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return PairingResult{}, ErrNotFound
 	}
@@ -363,17 +372,9 @@ func (s *Service) PollPairing(ctx context.Context, requestID, pollToken string) 
 	if err != nil {
 		return PairingResult{}, internal(err)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO devices(id, user_id, name, platform, arch, player_version, credential_hash, status, created_at)
-		VALUES (?,?,?,?,?,?,?,'trusted',?)
-		ON CONFLICT(id) DO UPDATE SET user_id = excluded.user_id, name = excluded.name, platform = excluded.platform,
-			arch = excluded.arch, player_version = excluded.player_version, credential_hash = excluded.credential_hash,
-			status = 'trusted', revoked_at = NULL`,
-		r.DeviceID, r.UserID, r.DeviceName, r.Platform, r.Arch, r.PlayerVersion, auth.HashToken(cred), now.Unix()); err != nil {
-		return PairingResult{}, internal(err)
-	}
-	// New credential: this device's old access tokens are no longer valid.
-	if _, err := tx.ExecContext(ctx, `DELETE FROM access_tokens WHERE device_id = ?`, r.DeviceID); err != nil {
-		return PairingResult{}, internal(err)
+	if err := upsertTrustedDevice(ctx, tx, trustedDevice{ID: r.DeviceID, UserID: r.UserID, Name: r.DeviceName, Platform: r.Platform,
+		Arch: r.Arch, Version: r.PlayerVersion, CredHash: auth.HashToken(cred), Kind: kind, InstallID: installID}, now.Unix()); err != nil {
+		return PairingResult{}, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE pairing_requests SET status = 'consumed' WHERE id = ?`, requestID); err != nil {
 		return PairingResult{}, internal(err)

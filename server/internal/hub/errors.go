@@ -32,12 +32,18 @@ const (
 	CodeSaveSlotExists     Code = "save_slot_exists"
 	CodeSessionRunning     Code = "session_running"
 	CodeSaveSlotProtected  Code = "save_slot_protected"
+	// Accounts (0.18 package 4).
+	CodeConfirmationRequired Code = "confirmation_required"
+	CodePasswordRequired     Code = "password_required"
+	CodePasswordNotSet       Code = "password_not_set"
 )
 
 // Error is a domain error with a spec code. errors.Is compares the code only.
 type Error struct {
 	Code    Code
 	Message string
+	// RetryAfter is set on rate_limited answers that know when the next try is possible (seconds, 0 = unknown).
+	RetryAfter int
 	// ExistingGameID is set on a duplicate ROM upload (conflict) and names the library entry that holds it.
 	ExistingGameID string
 }
@@ -82,6 +88,12 @@ var (
 	ErrSessionRunning = &Error{Code: CodeSessionRunning, Message: "A Session of this game is running; end it first"}
 	// ErrSaveSlotProtected: the default slot cannot be renamed (409).
 	ErrSaveSlotProtected = &Error{Code: CodeSaveSlotProtected, Message: "The default slot cannot be renamed"}
+	// ErrConfirmationRequired: a dangerous step needs a fresh "Confirm it's you" on this device (403).
+	ErrConfirmationRequired = &Error{Code: CodeConfirmationRequired, Message: "Confirm it's you first"}
+	// ErrPasswordRequired: the password cannot be removed (admin, or the server requires passwords) (403).
+	ErrPasswordRequired = &Error{Code: CodePasswordRequired, Message: "A password is required for this account"}
+	// ErrPasswordNotSet: the step needs a password and the account has none (409).
+	ErrPasswordNotSet = &Error{Code: CodePasswordNotSet, Message: "This account has no password"}
 )
 
 func badRequest(format string, a ...any) *Error {

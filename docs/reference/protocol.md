@@ -5,7 +5,7 @@ Shared protocol definition for server and app: `protocol/openapi/uzume.yaml` (Op
 - Current `protocol_version`: **1** (integer, separate from product versions). Server and app each report `protocol_version` and `min_protocol_version`.
 - Compatibility: `Player.protocol_version < Hub.min_protocol_version` -> `player_too_old`; `Hub.protocol_version < Player.min_protocol_version` -> `hub_too_old`.
 - Error format: `{"error": {"code": <enum>, "message": string}}`. Auth: Bearer (`fba_` access token, 15 min, `fbd_` device credential, `fbp_` poll token).
-- Current OpenAPI spec version: 1.27.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only while a relay provider is on: embedded TURN, Cloudflare TURN and/or an external TURN server), `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `cores_v2`, `local_setup_v1`, `ice_update_v1`, `plugins_v1`, `runs_v1`, `local_roms_v1`, `reports_v1`; `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
+- Current OpenAPI spec version: 1.28.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only while a relay provider is on: embedded TURN, Cloudflare TURN and/or an external TURN server), `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `cores_v2`, `local_setup_v1`, `ice_update_v1`, `plugins_v1`, `runs_v1`, `local_roms_v1`, `reports_v1`, `accounts_v1`; `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
 
 | Method | Path | Auth | operationId |
 |---|---|---|---|
@@ -72,6 +72,19 @@ Shared protocol definition for server and app: `protocol/openapi/uzume.yaml` (Op
 | POST | `/api/v1/runs/{run_id}/events` | Bearer | appendRunEvent (`{client_id, plugin_id, source, type, text, payload}`, 201 `{seq}`, 200 for a repeated `client_id`) |
 | GET | `/api/v1/runs/{run_id}/events` | Bearer | listRunEvents (`after`, `limit` 1 to 500, default 200; `{events, last_seq}`) |
 | PUT | `/api/v1/runs/{run_id}/boards/{plugin_id}` | Bearer | putRunBoard (`{tree}`, at most 64 KiB, `{rev}`) |
+| POST | `/api/v1/auth/sign-in` | none | signIn (`{username, password, device_id, ...}`; a new device signs in with user name and password instead of admin approval; 401 `invalid_credentials`, 429 `rate_limited` with `retry_after`) |
+| GET | `/api/v1/account` | Bearer | getAccount (`accounts_v1`) |
+| PATCH | `/api/v1/account` | Bearer | updateAccount |
+| PUT | `/api/v1/account/password` | Bearer | setAccountPassword (min 12 characters; forced change after an admin reset) |
+| DELETE | `/api/v1/account/password` | Bearer | removeAccountPassword (403 `password_required` for admins and under the policy `require_passwords`) |
+| POST | `/api/v1/account/confirm` | Bearer | confirmAccount ("Confirm it's you": password check, valid 120 / 300 / 900 s for this user and device; 3 wrong passwords lock the device for 5 min) |
+| DELETE | `/api/v1/account/confirm` | Bearer | endAccountConfirmation |
+| GET | `/api/v1/account/devices` | Bearer | listAccountDevices (own devices) |
+| DELETE | `/api/v1/account/devices/{device_id}` | Bearer | signOutAccountDevice (signs one own device out) |
+| POST | `/api/v1/account/devices/sign-out-all` | Bearer | signOutAllAccountDevices |
+| POST | `/api/v1/admin/users/{user_id}/password-reset` | Bearer (admin, confirmed) | resetAdminUserPassword (temporary password, the user must change it) |
+| GET | `/api/v1/admin/accounts/settings` | Bearer (admin) | getAdminAccountSettings (`require_passwords`) |
+| PUT | `/api/v1/admin/accounts/settings` | Bearer (admin, confirmed) | updateAdminAccountSettings |
 | GET | `/api/v1/ws` | Bearer | connectWebSocket (WSS upgrade, documentation only) |
 
 Phase 3 (OpenAPI 1.1.0, handshake feature `saves_v1`, `protocol_version` stays 1). Error codes added: `save_conflict` (409), `save_conflict_stale` (409), `payload_too_large` (413). Rules: ADR 0005.
@@ -149,3 +162,5 @@ The release feed of the updaters is specified in [update-index.md](update-index.
 0.18 "Rename to Uzume" (OpenAPI 1.26.1, `protocol_version` stays 1, no new feature, [ADR 0030](../adr/0030-one-app-one-server-uzume.md)). Changed: the file is `protocol/openapi/uzume.yaml` with the title "Uzume server API", texts say server and app, the JSON schema `$id` host is `uzume.invalid`, the invite example is `UZ-...`. Unchanged: all message names and JSON fields and the error codes (`player_too_old`, `hub_too_old`). New invite codes look like `UZ-XXXX-XXXX`.
 
 0.18 "Rename, round 2" (OpenAPI 1.27.0, `protocol_version` stays 1, no new feature, [ADR 0030](../adr/0030-one-app-one-server-uzume.md)). Changed on the wire, without compatibility: the info path is `/.well-known/uzume`, the headers are `X-Uzume-Base-Revision`, `X-Uzume-Content-SHA256`, `X-Uzume-Sync-Reason`, `X-Uzume-Save-Revision` and `X-Uzume-Expected-Revision`, the core origin value is `legacy-mirror`. Only `UZ-` invite codes are accepted. An app and a server of the two naming generations do not work together.
+
+0.18 "Server accounts" (OpenAPI 1.28.0, tag `account`, `protocol_version` stays 1, handshake feature `accounts_v1`, [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D5). Added: the sign-in, account and admin account endpoints above. `redeemInvite` and the pairing request take an optional `install_id` (one install of the app on one PC; several users on it get one device row each with its own device id and the shared `install_id`); `redeemInvite` takes an optional `password`. Error codes added: `invalid_credentials` (401, generic, also for unknown names), `confirmation_required` (403), `password_required` (403), `password_not_set` (409); `rate_limited` (429) answers may carry `retry_after` (seconds). Dangerous admin steps (backup restore and delete, update rollback, password reset, accounts settings) answer 403 `confirmation_required` until the caller confirmed with `POST /api/v1/account/confirm`. Limits: 10 sign-in attempts per minute per IP; 15 min lock of a user name after 10 failures (unknown names count too). The cookie login of the web admin is unchanged.
