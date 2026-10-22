@@ -150,6 +150,8 @@ scrape_configs:
 | `framebeam_process_memory_bytes`, `framebeam_cpu_usage_ratio` | gauge | memory held by the Hub process; machine-wide CPU load 0 to 1 |
 | `framebeam_log_records_total{level}` | counter | WARN and ERROR log records since the start |
 
+The same data is available over the REST API for the admin in the Player (admin access token; 401 without a token, 403 for users): `GET /api/v1/admin/status` (the Status page as JSON, problems most urgent first), `GET /api/v1/admin/status/log` (redacted log text), `GET`/`PUT /api/v1/admin/metrics` (`{"enabled": bool}`; switching on for the first time returns the token once) and `POST /api/v1/admin/metrics/token` (new token, returned once). Both the page and the API read one data builder (`server/internal/statusinfo`).
+
 The endpoint carries no names, paths or secrets. It lives on the Hub's own listener: put it behind your reverse proxy like the rest.
 
 ## Reverse proxy

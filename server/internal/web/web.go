@@ -15,9 +15,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/phabioo/framebeam/server/internal/config"
 	"github.com/phabioo/framebeam/server/internal/diag"
 	"github.com/phabioo/framebeam/server/internal/health"
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/statusinfo"
 	"github.com/phabioo/framebeam/server/internal/turnsrv"
 )
 
@@ -73,6 +75,8 @@ type Config struct {
 	Errors *diag.ErrorRing
 	// Log holds the recent log lines for "Download log" (default diag.Recent).
 	Log *diag.Ring
+	// Disk replaces the disk reader of the Status page (tests only).
+	Disk func(dir string) (total, free uint64, ok bool)
 }
 
 // Server is the web interface.
@@ -84,6 +88,7 @@ type Server struct {
 	login *limiter
 	// verifySem bounds concurrent Argon2id verifications (64 MiB each) so parallel requests cannot exhaust memory.
 	verifySem chan struct{}
+	src       *statusinfo.Source
 	done      chan struct{} // closed by Shutdown: long-lived streams (SSE) end
 	once      sync.Once
 }
@@ -104,6 +109,14 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{}, done: make(chan struct{}),
 		login: newLimiter(svc.Now), verifySem: make(chan struct{}, maxConcurrentVerify)}
+	var turnIssues []string
+	for _, is := range cfg.Net.Issues {
+		if is.Key == config.NetTURN {
+			turnIssues = append(turnIssues, is.Message)
+		}
+	}
+	s.src = &statusinfo.Source{Svc: svc, TURN: cfg.TURN, PublicHost: cfg.PublicHost, PublicPort: cfg.PublicPort,
+		ListenPort: func() int { return cfg.Net.Running.ListenPort() }, TURNIssues: turnIssues, Errors: cfg.Errors, Log: cfg.Log, Disk: cfg.Disk}
 	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm", "plugins", "runs", "status", "notfound"} {
 		t, err := template.New(p).Funcs(template.FuncMap{"asset": assetURL}).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
@@ -113,6 +126,9 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	return s, nil
 }
+
+// StatusSource is the health data source of the Status page; the admin REST API uses the same one.
+func (s *Server) StatusSource() *statusinfo.Source { return s.src }
 
 // Shutdown ends long-lived responses (the /events streams) so a graceful http.Server.Shutdown does not
 // wait for them. Idempotent; wire it with http.Server.RegisterOnShutdown.

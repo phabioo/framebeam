@@ -515,7 +515,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 	mux := http.NewServeMux()
-	httpapi.Register(mux, svc, log, httpapi.WithRestart(requestRestart))
+	httpapi.Register(mux, svc, log, httpapi.WithRestart(requestRestart), httpapi.WithStatus(webSrv.StatusSource()))
 	webSrv.Register(mux)
 
 	srv := &http.Server{

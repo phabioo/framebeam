@@ -169,6 +169,7 @@ func TestProblemSelection(t *testing.T) {
 
 	// TURN failing and a failed update: the error wins, the update failure is still listed.
 	e := newEnv(t, true, func(c *Config) {
+		c.Disk = func(string) (uint64, uint64, bool) { return 1000, 500, true }
 		c.Net.Issues = []NetIssue{{Key: config.NetTURN, Value: "x", Message: "The built-in TURN relay could not be started."}}
 	})
 	srv, err := New(e.svc, e.cfg, nil)
@@ -198,7 +199,7 @@ func TestProblemSelection(t *testing.T) {
 		t.Fatalf("update detail %q", ps[1].Detail)
 	}
 	// Without the TURN issue the update failure is the banner; a successful install clears it.
-	plain, _ := New(e.svc, Config{}, nil)
+	plain, _ := New(e.svc, Config{Disk: e.cfg.Disk}, nil)
 	if mu := health.MostUrgent(plain.problems(bg)); mu == nil || mu.ID != "update" || mu.Title != "Update failed" {
 		t.Fatalf("most urgent %+v", mu)
 	}
@@ -218,6 +219,7 @@ func TestStatusPage(t *testing.T) {
 	logRing := diag.NewRing(100, 1<<16)
 	e := newEnv(t, true, func(c *Config) {
 		c.Errors, c.Log = ring, logRing
+		c.Disk = func(string) (uint64, uint64, bool) { return 1000, 500, true }
 		c.PublicHost, c.PublicPort = "hub.example.com", 8443
 		c.Net.Issues = []NetIssue{{Key: config.NetTURN, Value: "x", Message: "The built-in TURN relay could not be started."}}
 	})
@@ -268,7 +270,10 @@ func TestStatusPage(t *testing.T) {
 }
 
 func TestStatusPageWithoutProblem(t *testing.T) {
-	e := newEnv(t, true, func(c *Config) { c.Errors, c.Log = diag.NewErrorRing(5), diag.NewRing(5, 1024) })
+	e := newEnv(t, true, func(c *Config) {
+		c.Errors, c.Log = diag.NewErrorRing(5), diag.NewRing(5, 1024)
+		c.Disk = func(string) (uint64, uint64, bool) { return 1000, 500, true }
+	})
 	c := e.client()
 	c.login()
 	rec := c.get("/status", nil)

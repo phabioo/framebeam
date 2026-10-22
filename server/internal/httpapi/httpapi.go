@@ -19,6 +19,7 @@ import (
 
 	"github.com/phabioo/framebeam/server/internal/api"
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/statusinfo"
 )
 
 const maxBodyBytes = 1 << 20
@@ -29,6 +30,7 @@ const (
 	keyBearer ctxKey = iota
 	keyPrincipal
 	keyRemoteIP
+	keyHost
 )
 
 var errNotImplemented = errors.New("httpapi: not implemented")
@@ -38,6 +40,7 @@ type Server struct {
 	svc     *hub.Service
 	log     *slog.Logger
 	restart func()
+	status  *statusinfo.Source
 }
 
 // Register attaches the API routes (including the info endpoint and ROM download) to mux. The web interface
@@ -141,6 +144,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 		ctx = context.WithValue(ctx, keyBearer, tok)
 		ctx = context.WithValue(ctx, keyRemoteIP, remoteIP(r))
 		ctx = hub.WithRequestHost(ctx, r.Host)
+		ctx = context.WithValue(ctx, keyHost, r.Host)
 		if isLocalOp(op) && !isLoopbackRemote(r) {
 			return nil, errNotLoopback
 		}
@@ -151,6 +155,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"ListUsers", "GetCorePackage", "GetCorePackageFile", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
 			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer", "ListPlugins", "GetPluginFile",
 			"RegisterGame", "DeleteGameRegistration", "CreateUpload", "GetUpload", "PutUploadChunk", "DeleteUpload",
+			"GetAdminStatus", "GetAdminStatusLog", "GetAdminMetrics", "SetAdminMetrics", "CreateAdminMetricsToken",
 			"ListRuns", "CreateRun", "GetRun", "JoinRun", "DeclineRun", "LeaveRun", "InviteRun", "SetRunStatus", "PutRunState", "AppendRunEvent", "ListRunEvents", "PutRunBoard":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {
