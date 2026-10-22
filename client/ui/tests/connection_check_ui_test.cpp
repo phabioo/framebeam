@@ -219,6 +219,17 @@ class ConnectionCheckUiTest : public QObject {
     QVERIFY(text(h, "connectionCheckSummaryTitle").endsWith(QStringLiteral("cannot be reached")));
     uitest::saveShot(h.window, QStringLiteral("6e-hub-unreachable"));
 
+    // Every action stays inside the 600 px card (with wide fonts the row wraps).
+    QQuickItem* card = h.item("connectionCheckDialog");
+    QVERIFY(card != nullptr);
+    const QRectF cardRect = card->mapRectToScene(QRectF(0, 0, card->width(), card->height()));
+    for (const char* name : {"connectionCheckCopy", "connectionCheckAttach", "connectionCheckEditHub", "connectionCheckRun"}) {
+      QQuickItem* b = h.item(name);
+      QVERIFY2(b != nullptr && b->isVisible(), name);
+      const QRectF r = b->mapRectToScene(QRectF(0, 0, b->width(), b->height()));
+      QVERIFY2(cardRect.contains(r), name);
+    }
+
     QVERIFY(h.click("connectionCheckEditHub"));
     QTRY_VERIFY(!c->isOpen());
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("settings"), 4000);

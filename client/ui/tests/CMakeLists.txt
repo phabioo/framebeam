@@ -238,7 +238,7 @@ target_compile_definitions(test_ui_runs PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_D
 # that only fit with Linux font metrics (Windows CI renders wider; 16 px letter spacing is about the Windows fallback font).
 # Not on Windows: its fonts are already the wide case, extra spacing there tests something no user sees.
 if(NOT WIN32)
-  foreach(t ui_shell_layout ui_library_saves ui_ingame ui_plugin_slots ui_settings_row ui_screens ui_plugins)
+  foreach(t ui_shell_layout ui_library_saves ui_ingame ui_plugin_slots ui_settings_row ui_screens ui_plugins ui_connection_check)
     add_test(NAME ${t}_widefont COMMAND test_${t})
     set_tests_properties(${t}_widefont PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;FRAMEBEAM_TEST_WIDE_FONT=16")
   endforeach()

@@ -227,8 +227,11 @@ class HubJob : public Job<HubProbeResult> {
     connect(reply_, &QNetworkReply::finished, this, [this]() { onFinished(); });
     timer_.setSingleShot(true);
     connect(&timer_, &QTimer::timeout, this, [this]() {
+      // A failure Qt already knows (for example a refused connection that Windows reports only after its SYN retries) is not a
+      // timeout: let its finished() signal classify it instead of aborting the reply first.
+      if (reply_ == nullptr || reply_->error() != QNetworkReply::NoError) return;
       timedOut_ = true;
-      if (reply_) reply_->abort();
+      reply_->abort();
     });
     timer_.start(timeoutMs);
   }
@@ -239,13 +242,21 @@ class HubJob : public Job<HubProbeResult> {
     HubProbeResult out;
     out.latencyMs = elapsedMs();
     const QNetworkReply::NetworkError err = reply_->error();
+    if (timedOut_) {  // aborted by our timer: nothing to read from the closed reply
+      reply_->deleteLater();
+      reply_ = nullptr;
+      out.errorKind = QStringLiteral("timeout");
+      out.error = QStringLiteral("no answer");
+      finish(out);
+      return;
+    }
     const HttpResult r = HubHttp::resultOf(reply_);
     reply_->deleteLater();
     reply_ = nullptr;
     if (r.certMismatch) {
       out.errorKind = QStringLiteral("certificate");
       out.error = QStringLiteral("certificate does not match the pinned fingerprint");
-    } else if (timedOut_ || err == QNetworkReply::TimeoutError || err == QNetworkReply::OperationCanceledError) {
+    } else if (err == QNetworkReply::TimeoutError || err == QNetworkReply::OperationCanceledError) {
       out.errorKind = QStringLiteral("timeout");
       out.error = QStringLiteral("no answer");
     } else if (err == QNetworkReply::HostNotFoundError) {

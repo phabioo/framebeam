@@ -135,184 +135,212 @@ Item {
                 }
                 Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.borderInput }
 
-                // Steps
-                ColumnLayout {
+                // Steps and summary scroll when the card is taller than the window (large fonts); header and actions stay put.
+                Flickable {
+                    id: bodyFlick
                     Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    Layout.topMargin: 8
-                    spacing: 0
-                    Repeater {
-                        model: root.check.steps
-                        delegate: Item {
-                            id: row
-                            required property var modelData
-                            required property int index
-                            objectName: "connectionCheckStep_" + modelData.id
-                            readonly property string st: modelData.state
-                            Layout.fillWidth: true
-                            implicitHeight: rowGrid.implicitHeight + 20
-                            Accessible.role: Accessible.ListItem
-                            Accessible.name: modelData.title + ": " + modelData.result
-
-                            Rectangle {
-                                visible: row.index < 4
-                                anchors.bottom: parent.bottom
-                                width: parent.width
-                                height: 1
-                                color: Theme.borderRow
-                            }
-                            GridLayout {
-                                id: rowGrid
-                                x: 0
-                                y: 10
-                                width: parent.width
-                                columns: 3
-                                columnSpacing: 12
-                                rowSpacing: 0
-                                Rectangle {
-                                    objectName: "connectionCheckIcon_" + row.modelData.id
-                                    Layout.preferredWidth: 18
-                                    Layout.preferredHeight: 18
-                                    Layout.topMargin: 1
-                                    Layout.leftMargin: 0
-                                    Layout.rightMargin: 4
-                                    radius: 9
-                                    color: root.stepIconBg(row.st)
-                                    border.width: row.st === "running" ? 2 : row.st === "waiting" || row.st === "skipped" ? 1.5 : 0
-                                    border.color: root.stepRing(row.st)
-                                    FbLabel {
-                                        anchors.centerIn: parent
-                                        text: root.stepIcon(row.st)
-                                        color: root.stepIconFg(row.st)
-                                        font.pixelSize: 11
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
-                                FbLabel {
-                                    Layout.preferredWidth: 150
-                                    Layout.alignment: Qt.AlignTop
-                                    text: row.modelData.title
-                                    font.pixelSize: Theme.fontBody
-                                    font.weight: Font.Medium
-                                    color: row.st === "waiting" || row.st === "skipped" ? Theme.textFaint : Theme.text
-                                }
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    Layout.minimumWidth: 0
-                                    spacing: 2
-                                    FbLabel {
-                                        objectName: "connectionCheckResult_" + row.modelData.id
-                                        Layout.fillWidth: true
-                                        text: row.modelData.result
-                                        wrapMode: Text.WordWrap
-                                        font.pixelSize: Theme.fontSmall
-                                        color: row.st === "warning" ? Theme.pluginWarn
-                                             : row.st === "waiting" || row.st === "skipped" ? Theme.textFaint : Theme.textSecondary
-                                    }
-                                    FbLabel {
-                                        objectName: "connectionCheckExplain_" + row.modelData.id
-                                        visible: text !== ""
-                                        Layout.fillWidth: true
-                                        text: row.modelData.explanation
-                                        wrapMode: Text.WordWrap
-                                        lineHeight: 17
-                                        lineHeightMode: Text.FixedHeight
-                                        font.pixelSize: Theme.fontMeta
-                                        color: Theme.textMeta
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Summary card
-                Rectangle {
-                    id: summaryCard
-                    objectName: "connectionCheckSummary"
-                    visible: root.check.summary !== "" && !root.check.running
-                    readonly property string tone: root.check.summaryTone
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 24
-                    Layout.rightMargin: 24
-                    Layout.topMargin: 8
-                    implicitHeight: sumCol.implicitHeight + 24
-                    radius: 8
-                    color: tone === "ok" ? Theme.okBg : tone === "warn" ? Theme.amberRow : Theme.surface
-                    border.width: 1
-                    border.color: tone === "ok" ? (Theme.dark ? "#1f3a2a" : "#bfe0cb") : tone === "warn" ? Theme.pluginWarnLine : Theme.borderInput
+                    Layout.fillHeight: true
+                    Layout.preferredHeight: body.implicitHeight
+                    Layout.minimumHeight: 0
+                    contentWidth: width
+                    contentHeight: body.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
                     ColumnLayout {
-                        id: sumCol
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        anchors.leftMargin: 14
-                        anchors.rightMargin: 14
-                        spacing: 3
-                        FbLabel {
-                            objectName: "connectionCheckSummaryTitle"
-                            Layout.fillWidth: true
-                            text: root.check.summary
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: Theme.fontBody
-                            font.weight: Font.DemiBold
-                            color: summaryCard.tone === "ok" ? Theme.ok : summaryCard.tone === "warn" ? Theme.pluginWarn : Theme.text
+                        id: body
+                        width: bodyFlick.width
+                        spacing: 0
+
+                    // Steps
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 24
+                        Layout.topMargin: 8
+                        spacing: 0
+                        Repeater {
+                            model: root.check.steps
+                            delegate: Item {
+                                id: row
+                                required property var modelData
+                                required property int index
+                                objectName: "connectionCheckStep_" + modelData.id
+                                readonly property string st: modelData.state
+                                Layout.fillWidth: true
+                                implicitHeight: rowGrid.implicitHeight + 20
+                                Accessible.role: Accessible.ListItem
+                                Accessible.name: modelData.title + ": " + modelData.result
+
+                                Rectangle {
+                                    visible: row.index < 4
+                                    anchors.bottom: parent.bottom
+                                    width: parent.width
+                                    height: 1
+                                    color: Theme.borderRow
+                                }
+                                GridLayout {
+                                    id: rowGrid
+                                    x: 0
+                                    y: 10
+                                    width: parent.width
+                                    columns: 3
+                                    columnSpacing: 12
+                                    rowSpacing: 0
+                                    Rectangle {
+                                        objectName: "connectionCheckIcon_" + row.modelData.id
+                                        Layout.preferredWidth: 18
+                                        Layout.preferredHeight: 18
+                                        Layout.topMargin: 1
+                                        Layout.leftMargin: 0
+                                        Layout.rightMargin: 4
+                                        radius: 9
+                                        color: root.stepIconBg(row.st)
+                                        border.width: row.st === "running" ? 2 : row.st === "waiting" || row.st === "skipped" ? 1.5 : 0
+                                        border.color: root.stepRing(row.st)
+                                        FbLabel {
+                                            anchors.centerIn: parent
+                                            text: root.stepIcon(row.st)
+                                            color: root.stepIconFg(row.st)
+                                            font.pixelSize: 11
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
+                                    FbLabel {
+                                        Layout.preferredWidth: 150
+                                        Layout.alignment: Qt.AlignTop
+                                        text: row.modelData.title
+                                        font.pixelSize: Theme.fontBody
+                                        font.weight: Font.Medium
+                                        color: row.st === "waiting" || row.st === "skipped" ? Theme.textFaint : Theme.text
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
+                                        spacing: 2
+                                        FbLabel {
+                                            objectName: "connectionCheckResult_" + row.modelData.id
+                                            Layout.fillWidth: true
+                                            text: row.modelData.result
+                                            wrapMode: Text.WordWrap
+                                            font.pixelSize: Theme.fontSmall
+                                            color: row.st === "warning" ? Theme.pluginWarn
+                                                 : row.st === "waiting" || row.st === "skipped" ? Theme.textFaint : Theme.textSecondary
+                                        }
+                                        FbLabel {
+                                            objectName: "connectionCheckExplain_" + row.modelData.id
+                                            visible: text !== ""
+                                            Layout.fillWidth: true
+                                            text: row.modelData.explanation
+                                            wrapMode: Text.WordWrap
+                                            lineHeight: 17
+                                            lineHeightMode: Text.FixedHeight
+                                            font.pixelSize: Theme.fontMeta
+                                            color: Theme.textMeta
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        FbLabel {
-                            objectName: "connectionCheckSummaryDetail"
-                            visible: text !== ""
-                            Layout.fillWidth: true
-                            text: root.check.summaryDetail
-                            wrapMode: Text.WordWrap
-                            lineHeight: 18
-                            lineHeightMode: Text.FixedHeight
-                            font.pixelSize: Theme.fontMeta
-                            color: Theme.textSecondary
+                    }
+
+                    // Summary card
+                    Rectangle {
+                        id: summaryCard
+                        objectName: "connectionCheckSummary"
+                        visible: root.check.summary !== "" && !root.check.running
+                        readonly property string tone: root.check.summaryTone
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 24
+                        Layout.rightMargin: 24
+                        Layout.topMargin: 8
+                        implicitHeight: sumCol.implicitHeight + 24
+                        radius: 8
+                        color: tone === "ok" ? Theme.okBg : tone === "warn" ? Theme.amberRow : Theme.surface
+                        border.width: 1
+                        border.color: tone === "ok" ? (Theme.dark ? "#1f3a2a" : "#bfe0cb") : tone === "warn" ? Theme.pluginWarnLine : Theme.borderInput
+                        ColumnLayout {
+                            id: sumCol
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 14
+                            spacing: 3
+                            FbLabel {
+                                objectName: "connectionCheckSummaryTitle"
+                                Layout.fillWidth: true
+                                text: root.check.summary
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: Theme.fontBody
+                                font.weight: Font.DemiBold
+                                color: summaryCard.tone === "ok" ? Theme.ok : summaryCard.tone === "warn" ? Theme.pluginWarn : Theme.text
+                            }
+                            FbLabel {
+                                objectName: "connectionCheckSummaryDetail"
+                                visible: text !== ""
+                                Layout.fillWidth: true
+                                text: root.check.summaryDetail
+                                wrapMode: Text.WordWrap
+                                lineHeight: 18
+                                lineHeightMode: Text.FixedHeight
+                                font.pixelSize: Theme.fontMeta
+                                color: Theme.textSecondary
+                            }
                         }
+                    }
                     }
                 }
 
-                // Actions
+                // Actions while running: progress and Cancel
                 RowLayout {
+                    visible: root.check.running
                     Layout.fillWidth: true
                     Layout.leftMargin: 24
                     Layout.rightMargin: 24
                     Layout.topMargin: 16
                     Layout.bottomMargin: 20
                     spacing: 8
-
                     FbLabel {
                         objectName: "connectionCheckProgress"
-                        visible: root.check.running
                         text: root.check.progressText
                         color: Theme.accent
                         font.pixelSize: Theme.fontSmall
                     }
-                    Item { visible: root.check.running; Layout.fillWidth: true }
+                    Item { Layout.fillWidth: true }
                     FbButton {
                         objectName: "connectionCheckCancel"
-                        visible: root.check.running
                         implicitHeight: 34
                         text: qsTr("Cancel")
                         onClicked: root.check.cancel()
                     }
+                }
+
+                // Actions of a finished check. A Flow: with wide fonts (Windows) the buttons wrap to a second line instead of
+                // leaving the 600 px card.
+                Flow {
+                    id: actionFlow
+                    objectName: "connectionCheckActions"
+                    visible: !root.check.running
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 24
+                    Layout.rightMargin: 24
+                    Layout.topMargin: 16
+                    Layout.bottomMargin: 20
+                    Layout.preferredHeight: implicitHeight
+                    spacing: 8
 
                     FbButton {
                         objectName: "connectionCheckCopy"
-                        visible: !root.check.running
                         implicitHeight: 34
                         text: root.check.copied ? qsTr("Copied") : qsTr("Copy result")
                         onClicked: root.check.copyResult()
                     }
                     FbButton {
                         objectName: "connectionCheckAttach"
-                        visible: !root.check.running
                         enabled: root.check.canAttach && !root.check.attached
                         implicitHeight: 34
                         text: root.check.attached ? qsTr("Added to the next report") : qsTr("Add to problem report")
                         onClicked: root.check.addToReport()
                     }
-                    Item { visible: !root.check.running; Layout.fillWidth: true }
                     FbButton {
                         objectName: "connectionCheckEditHub"
                         visible: root.check.canEditHubAddress
@@ -322,7 +350,6 @@ Item {
                     }
                     FbButton {
                         objectName: "connectionCheckRun"
-                        visible: !root.check.running
                         implicitHeight: 34
                         kind: root.check.canEditHubAddress ? "primary" : "outline"
                         text: qsTr("Run again")

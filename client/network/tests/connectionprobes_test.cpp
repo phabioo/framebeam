@@ -264,13 +264,17 @@ class ConnectionProbesTest : public QObject {
     QVERIFY(!r->ok);
     QCOMPARE(r->errorKind, QString("certificate"));
 
-    // Nothing listens: refused.
+    // Nothing listens: refused. Windows reports it only after its connect retries (about 2 s, more under load), so this probe gets
+    // the real 10 s limit instead of the short test one.
+    ProbeTimings slow = fast();
+    slow.hubTimeoutMs = 10000;
+    auto slowProbes = makeQtConnectionProbes({}, {}, slow);
     r.reset();
     ConnectionTarget closed = baseTarget();
     closed.hubAddress = QStringLiteral("http://127.0.0.1:1");
     closed.allowHttp = true;
-    probes->probeHub(closed, [&r](const HubProbeResult& x) { r = x; });
-    QTRY_VERIFY_WITH_TIMEOUT(r.has_value(), 5000);
+    slowProbes->probeHub(closed, [&r](const HubProbeResult& x) { r = x; });
+    QTRY_VERIFY_WITH_TIMEOUT(r.has_value(), 15000);
     QVERIFY(!r->ok);
     QCOMPARE(r->errorKind, QString("refused"));
   }
