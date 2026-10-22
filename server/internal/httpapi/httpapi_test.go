@@ -35,9 +35,9 @@ type env struct {
 	remote string
 }
 
-func newEnv(t *testing.T, mod func(*hub.Options)) *env {
+func newEnv(t *testing.T, mod func(*hub.Options), opts ...Option) *env {
 	t.Helper()
-	e := newEnvNoAdmin(t, mod)
+	e := newEnvNoAdmin(t, mod, opts...)
 	admin, err := e.svc.CreateAdmin(context.Background(), "admin", "secret-12345")
 	if err != nil {
 		t.Fatal(err)

@@ -61,21 +61,7 @@ func (s *Server) runResendInvite(w http.ResponseWriter, r *http.Request, sess *s
 // runResendAll sends the invitation to everyone who has not joined yet (the banner button).
 func (s *Server) runResendAll(w http.ResponseWriter, r *http.Request, sess *session) {
 	id := r.PathValue("id")
-	run, err := s.svc.GetRunAdmin(r.Context(), id)
-	if err != nil {
-		s.runResult(w, r, id, "", err)
-		return
-	}
-	for _, p := range run.Participants {
-		if p.Status != hub.ParticipantInvited {
-			continue
-		}
-		if err := s.svc.ResendRunInvite(r.Context(), sess.User.ID, id, p.UserID); err != nil {
-			s.runResult(w, r, id, "", err)
-			return
-		}
-	}
-	s.runResult(w, r, id, "invitesent", nil)
+	s.runResult(w, r, id, "invitesent", s.svc.ResendRunInvites(r.Context(), sess.User.ID, id))
 }
 
 func (s *Server) runRemoveInviteConfirm(w http.ResponseWriter, r *http.Request, sess *session) {

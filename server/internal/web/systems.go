@@ -166,13 +166,7 @@ func (s *Server) systemsBodyData(r *http.Request) (systemsBody, error) {
 			Provisioning: e.Provisioning, Platforms: strings.Join(e.Platforms, ", "), Extensions: strings.Join(e.Extensions, ", "),
 			InputProfile: e.InputProfile, DisplayProfile: e.DisplayProfile, Mode: string(e.FirmwareMode),
 			Native: e.FirmwareMode == hub.FirmwareNative, NoCore: e.CoreID == "", AutoMode: e.AutoUpdate}
-		v.AutoEffective = src.AutoUpdate
-		switch e.AutoUpdate {
-		case hub.SystemAutoOn:
-			v.AutoEffective = true
-		case hub.SystemAutoOff:
-			v.AutoEffective = false
-		}
+		v.AutoEffective = hub.SystemAutoEffective(src.AutoUpdate, e.AutoUpdate)
 		v.LibretroIDs = strings.Join(e.LibretroIDs, ", ")
 		sc, err := s.svc.SystemCores(r.Context(), e.ID)
 		if err != nil {

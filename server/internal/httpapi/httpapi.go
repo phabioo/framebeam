@@ -17,8 +17,10 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/phabioo/uzume/server/internal/adminhost"
 	"github.com/phabioo/uzume/server/internal/api"
 	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/pluginpkg"
 	"github.com/phabioo/uzume/server/internal/statusinfo"
 )
 
@@ -41,6 +43,7 @@ type Server struct {
 	log     *slog.Logger
 	restart func()
 	status  *statusinfo.Source
+	host    adminhost.Host // process-level facts for the admin settings API (nil in tests that do not need it)
 }
 
 // Register attaches the API routes (including the info endpoint and ROM download) to mux. The web interface
@@ -76,6 +79,9 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 				}
 				if r.Method == http.MethodPost && r.URL.Path == "/api/v1/reports" {
 					limit = hub.ReportMaxBytes + 1<<20 // attachments plus the multipart framing and meta
+				}
+				if r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/plugins/stage" {
+					limit = pluginpkg.MaxCompressedBytes + 1 // the service answers 413 payload_too_large
 				}
 				if r.Method == http.MethodPost && r.URL.Path == "/api/v1/games" {
 					limit = hub.MaxROMBytes // streamed to disk, never buffered
@@ -120,7 +126,7 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 type skipRomMux struct{ *http.ServeMux }
 
 func (m skipRomMux) HandleFunc(pattern string, h func(http.ResponseWriter, *http.Request)) {
-	if strings.Contains(pattern, "/api/v1/roms/") || strings.Contains(pattern, "/firmware/") || strings.HasSuffix(pattern, "/admin/backups/{name}/download") || strings.HasSuffix(pattern, " /api/v1/ws") {
+	if strings.Contains(pattern, "/api/v1/roms/") || pattern == "GET /api/v1/systems/{system_id}/firmware/{file_id}" || strings.HasSuffix(pattern, "/admin/backups/{name}/download") || strings.HasSuffix(pattern, " /api/v1/ws") {
 		return
 	}
 	m.ServeMux.HandleFunc(pattern, h)
@@ -164,6 +170,13 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"DismissAdminRestoreResult", "DeleteAdminBackup", "RestoreAdminBackup",
 			"CreateReport", "ListAdminReports", "GetAdminReport", "MarkAdminReportSeen", "DeleteAdminReport", "GetAdminReportFile", "GetAdminReportArchive",
 			"GetAdminUpdateVersions", "RollbackAdminUpdate", "ResumeAdminUpdates",
+			"ListAdminUsers", "CreateAdminUser", "UpdateAdminUser", "DeleteAdminUser", "CreateAdminUserCode", "SetAdminUserRole", "DisableAdminUser", "EnableAdminUser",
+			"ListAdminInvites", "CreateAdminInvite", "RevokeAdminInvite", "ListAdminPairingRequests", "AllowAdminPairingRequest", "DenyAdminPairingRequest",
+			"ListAdminDevices", "RenameAdminDevice", "RevokeAdminDevice", "DeleteAdminDevice",
+			"ListAdminSystems", "UpdateAdminSystem", "UpdateAdminSystemCore", "InstallAdminCore", "UpgradeAdminCore", "RemoveAdminCore", "SyncAdminCores", "UpdateAdminCoreSettings",
+			"GetAdminFirmwareFile", "PutAdminFirmwareFile", "PinAdminFirmwareFile", "RemoveAdminFirmwareFile",
+			"ListAdminPlugins", "StageAdminPlugin", "OfferAdminPlugin", "DiscardAdminPlugin", "RemoveAdminPlugin", "RefreshAdminPluginIndex", "InstallAdminIndexPlugin",
+			"CreateAdminDiagnosticsBundle", "DeleteAdminGame", "RenameAdminGame", "GetAdminLibraryRescan", "StartAdminLibraryRescan", "ListAdminRuns", "DeleteAdminRun", "GetAdminRun", "ArchiveAdminRun", "ExportAdminRun", "FinishAdminRun", "RemoveAdminRunInvite", "ResendAdminRunInvite", "PauseAdminRun", "ResendAdminRunInvites", "ResumeAdminRun", "StartAdminRun", "UnarchiveAdminRun", "ListAdminSaves", "RenewAdminCertificate", "GetAdminSettings", "UpdateAdminSettings", "DeleteAdminExternalTurn", "SaveAdminExternalTurn", "ResetAdminExternalTurn", "RestartAdminServer", "ResetAdminNetSetting", "SetAdminNetSetting", "CheckAdminUpdates", "InstallAdminUpdate", "DeleteAdminSaveSlot", "GetAdminSaveSlot", "ResolveAdminSaveConflict", "DownloadAdminSaveContent", "ListAdminSaveHistory", "DeleteAdminSaveVersion", "DownloadAdminSaveHistoryContent", "RestoreAdminSaveVersion", "RenameAdminSaveSlot", "CreateAdminSaveSlot", "CreateAdminSaveSnapshot", "UploadAdminSaveFile",
 			"ListRuns", "CreateRun", "GetRun", "JoinRun", "DeclineRun", "LeaveRun", "InviteRun", "SetRunStatus", "PutRunState", "AppendRunEvent", "ListRunEvents", "PutRunBoard":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {
@@ -391,6 +404,9 @@ func (s *Server) PostHandshake(ctx context.Context, req api.PostHandshakeRequest
 		return nil, err
 	} else if can {
 		features = append(features, hub.FeatureUploadsV1)
+	}
+	if principal(ctx).User.Role == hub.RoleAdmin {
+		features = append(features, hub.FeatureAdminV1)
 	}
 	out := api.HandshakeResponse{HubVersion: res.Info.HubVersion, ProtocolVersion: res.Info.ProtocolVersion,
 		MinProtocolVersion: res.Info.MinProtocolVersion, Compatible: res.Compatible, Problems: []api.HandshakeProblem{},

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -21,7 +20,6 @@ import (
 
 const (
 	runEventsShown = 100
-	exportPage     = 2000
 )
 
 type runFilter struct {
@@ -527,8 +525,7 @@ func (s *Server) runDelete(w http.ResponseWriter, r *http.Request, sess *session
 // "error" member after the events (`],"error":"..."}`) and is logged; a complete export has no "error" member.
 // Callers must check for it: the file is valid JSON either way.
 func (s *Server) runExport(w http.ResponseWriter, r *http.Request, sess *session) {
-	ctx := r.Context()
-	run, err := s.svc.GetRunAdmin(ctx, r.PathValue("id"))
+	x, err := s.svc.OpenRunExport(r.Context(), r.PathValue("id"))
 	if errors.Is(err, hub.ErrNotFound) {
 		http.Redirect(w, r, "/runs?err=norun", http.StatusSeeOther)
 		return
@@ -537,53 +534,12 @@ func (s *Server) runExport(w http.ResponseWriter, r *http.Request, sess *session
 		s.fail(w, r, err)
 		return
 	}
-	var evs []hub.RunEvent
-	if run.LastSeq > 0 { // the first page is read before the response starts, so its failure is a plain 500
-		if evs, _, err = s.svc.ListRunEventsAdmin(ctx, run.ID, 0, exportPage); err != nil {
-			s.fail(w, r, err)
-			return
-		}
-	}
-	head, _ := json.Marshal(map[string]any{"run_id": run.ID, "name": run.Name, "status": run.Status, "exported_at": s.svc.Now().Format(time.RFC3339), "last_seq": run.LastSeq})
 	h := w.Header()
 	h.Set("Content-Type", "application/json")
-	h.Set("Content-Disposition", `attachment; filename="run-`+run.ID+`-events.json"`)
-	// {"run_id":...,"events":[ ... ]} : the header object without its closing brace, then the events.
-	fmt.Fprintf(w, "%s,\"events\":[", head[:len(head)-1])
-	first := true
-	var after int64
-	fail := func(err error) {
-		s.log.Error("run export incomplete", "run_id", run.ID, "after_seq", after, "last_seq", run.LastSeq, "err", err)
-		msg, _ := json.Marshal("export incomplete after event " + strconv.FormatInt(after, 10) + " of " + strconv.FormatInt(run.LastSeq, 10))
-		fmt.Fprintf(w, "],\"error\":%s}\n", msg)
+	h.Set("Content-Disposition", `attachment; filename="`+x.FileName()+`"`)
+	if err := x.WriteTo(r.Context(), w); err != nil {
+		s.log.Error("run export incomplete", "run_id", x.Run().ID, "err", err)
 	}
-	for after < run.LastSeq {
-		if evs == nil {
-			if evs, _, err = s.svc.ListRunEventsAdmin(ctx, run.ID, after, exportPage); err != nil {
-				fail(err)
-				return
-			}
-		}
-		if len(evs) == 0 {
-			fail(errors.New("event log ends before last_seq"))
-			return
-		}
-		for _, e := range evs {
-			b, err := json.Marshal(e)
-			if err != nil {
-				fail(err)
-				return
-			}
-			if !first {
-				fmt.Fprint(w, ",")
-			}
-			first = false
-			w.Write(b)
-			after = e.Seq
-		}
-		evs = nil
-	}
-	fmt.Fprint(w, "]}\n")
 }
 
 // pluginLabel is "Display name version" from the plugin store; the plugin id replaces the name when the store
