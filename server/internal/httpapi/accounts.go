@@ -208,6 +208,10 @@ func (s *Server) UpdateAdminAccountSettings(ctx context.Context, req api.UpdateA
 	if err := s.svc.SetRequirePasswords(ctx, req.Body.RequirePasswords); err != nil {
 		return nil, err
 	}
-	s.log.Info("account policy changed", "require_passwords", req.Body.RequirePasswords, "admin", principal(ctx).User.Username)
+	policy := "optional for members"
+	if req.Body.RequirePasswords {
+		policy = "required for everyone"
+	}
+	s.log.Info("account policy changed", "policy", policy, "admin", principal(ctx).User.Username)
 	return api.UpdateAdminAccountSettings200JSONResponse{RequirePasswords: req.Body.RequirePasswords}, nil
 }
