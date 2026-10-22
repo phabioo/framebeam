@@ -32,6 +32,7 @@ type navInput struct {
 	ShowRuns        bool
 	UpdateAvailable bool
 	StatusProblem   string // title of the most urgent problem ("" none)
+	NewReports      int    // reports not yet marked seen (cyan badge on Reports)
 }
 
 // navIDs are the values of pageData.Nav (the part of the path after the slash).
@@ -81,13 +82,16 @@ func navGroups(in navInput) []navGroup {
 	}
 	setup.Items = []navEntry{sys, cl, e("users", "Users")}
 
-	// Reports joins this list with its page (a later change): one more entry here.
 	admin := navGroup{Eyebrow: "ADMIN"}
 	st := e("status", "Status")
 	if in.StatusProblem != "" {
 		st = with(st, in.StatusProblem, "")
 	}
-	admin.Items = []navEntry{st, settings}
+	rep := e("reports", "Reports")
+	if in.NewReports > 0 {
+		rep = with(rep, fmt.Sprintf("%d new", in.NewReports), "info")
+	}
+	admin.Items = []navEntry{st, rep, settings}
 	return []navGroup{play, setup, admin}
 }
 

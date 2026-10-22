@@ -20,7 +20,7 @@ const (
 
 // badgeTopics are the topics that change the sidebar badges.
 var badgeTopics = map[string]bool{
-	hub.TopicClients: true, hub.TopicSaves: true, hub.TopicSystems: true, hub.TopicUpdates: true, hub.TopicRuns: true,
+	hub.TopicClients: true, hub.TopicSaves: true, hub.TopicSystems: true, hub.TopicUpdates: true, hub.TopicRuns: true, hub.TopicReports: true,
 }
 
 // events is the Server-Sent Events stream (GET /events, admin session via guard). Each event is

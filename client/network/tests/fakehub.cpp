@@ -314,6 +314,66 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     handleSessions(sock, req);
   } else if (req.path == QLatin1String("/api/v1/runs") || req.path.startsWith(QLatin1String("/api/v1/runs/"))) {
     handleRuns(sock, req);
+  } else if (req.method == "POST" && req.path == QLatin1String("/api/v1/reports")) {
+    if (reportUnauthorizedNext > 0) {
+      --reportUnauthorizedNext;
+      respondError(sock, 401, QStringLiteral("unauthorized"));
+      return;
+    }
+    if (holdReports) {
+      ++reportsHeld;
+      return;
+    }
+    if (reportDropNext > 0) {
+      --reportDropNext;
+      sock->abort();
+      return;
+    }
+    if (reportFailNext > 0) {
+      --reportFailNext;
+      respondError(sock, reportFailStatus, reportFailStatus == 429 ? QStringLiteral("rate_limited") : reportFailStatus == 413 ? QStringLiteral("payload_too_large") : QStringLiteral("internal"));
+      return;
+    }
+    // multipart/form-data: split on the boundary of the Content-Type header.
+    const QByteArray ctype = req.headers.value(QStringLiteral("content-type"));
+    const qsizetype bi = ctype.indexOf("boundary=");
+    if (!ctype.startsWith("multipart/form-data") || bi < 0) {
+      respondError(sock, 400, QStringLiteral("bad_request"));
+      return;
+    }
+    const QByteArray delim = "--" + ctype.mid(bi + 9);
+    ReceivedReport rep;
+    rep.authorization = req.headers.value(QStringLiteral("authorization"));
+    bool first = true;
+    qsizetype pos = req.body.indexOf(delim);
+    while (pos >= 0) {
+      pos += delim.size();
+      if (req.body.mid(pos, 2) == "--") break;
+      pos += 2;  // CRLF
+      const qsizetype hdrEnd = req.body.indexOf("\r\n\r\n", pos);
+      const qsizetype next = req.body.indexOf("\r\n" + delim, hdrEnd);
+      if (hdrEnd < 0 || next < 0) {
+        respondError(sock, 400, QStringLiteral("bad_request"));
+        return;
+      }
+      const QByteArray headers = req.body.mid(pos, hdrEnd - pos);
+      const QByteArray content = req.body.mid(hdrEnd + 4, next - hdrEnd - 4);
+      if (first) {
+        if (!headers.contains("name=\"meta\"")) {
+          respondError(sock, 400, QStringLiteral("bad_request"));
+          return;
+        }
+        rep.meta = QJsonDocument::fromJson(content).object();
+        first = false;
+      } else {
+        const qsizetype fi = headers.indexOf("filename=\"");
+        const QByteArray rest = headers.mid(fi + 10);
+        rep.files.insert(QString::fromUtf8(rest.left(rest.indexOf('"'))), content);
+      }
+      pos = next + 2;
+    }
+    reports.append(rep);
+    respond(sock, 201, json({{QStringLiteral("id"), reports.size()}}));
   } else if (handleLocalRoms(sock, req)) {
     // answered
   } else if (req.path == QLatin1String("/api/v1/saves") || req.path.startsWith(QLatin1String("/api/v1/games/"))) {

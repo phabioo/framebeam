@@ -189,6 +189,7 @@ a { color: inherit; }
 /* Nav badge: text only, 12/500; warn cyan, error red. */
 .badge { font-size: 12px; font-weight: 500; color: var(--warn-text); white-space: nowrap; }
 .badge.error { color: var(--warn-text); }
+.badge.info { color: var(--info-text); }
 .sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
 .sidebar-foot .who { font-size: 13px; font-weight: 500; }
 .sidebar-foot .meta { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
@@ -691,6 +692,8 @@ form.pin input { font-size: 12px; }
 .runs-item.sel { border-color: var(--accent-border); background: var(--accent-sel); }
 .runs-item-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .runs-item-name { font-weight: 600; overflow-wrap: anywhere; }
+.runs-item-name.read { font-weight: 400; }
+.report-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .runs-detail { padding: 32px 40px; min-width: 0; display: flex; flex-direction: column; gap: 22px; }
 .runs-banner { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--pb-warn-line); background: var(--pb-warn-bg); color: var(--pb-warn-fg); font-size: 13px; }
 .runs-board { display: flex; flex-direction: column; gap: 10px; }

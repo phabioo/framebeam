@@ -51,6 +51,7 @@
 #include "system_manifest.h"
 #include "localhubcontroller.h"
 #include "updatescontroller.h"
+#include "reportcontroller.h"
 
 namespace framebeam::ui {
 
@@ -122,6 +123,8 @@ class PlayerController : public QObject {
   Q_PROPERTY(framebeam::ui::SessionController* sessions READ sessions CONSTANT)
   // Updates (Settings section + banner)
   Q_PROPERTY(framebeam::ui::UpdatesController* updates READ updates CONSTANT)
+  // "Report a problem" dialog (Settings > Diagnostics, game "⋯" menu)
+  Q_PROPERTY(framebeam::ui::ReportController* report READ report CONSTANT)
   // "Set up a Hub on this PC" (connection screen, pairing form, Settings > Hubs)
   Q_PROPERTY(framebeam::ui::LocalHubController* localHub READ localHub CONSTANT)
   // Plugins (Settings > Plugins, Plugin console tab of the game panel)
@@ -186,6 +189,7 @@ class PlayerController : public QObject {
   GameSession* gameSession() { return &session_; }
   SessionController* sessions() { return sessions_.get(); }
   UpdatesController* updates() { return updates_.get(); }
+  ReportController* report() { return report_.get(); }
   LocalHubController* localHub() { return localHub_.get(); }
   PluginsController* plugins() { return plugins_.get(); }
   RunsController* runs() { return runs_.get(); }
@@ -420,6 +424,7 @@ class PlayerController : public QObject {
   GameSession session_;
   std::unique_ptr<SessionController> sessions_;
   std::unique_ptr<UpdatesController> updates_;
+  std::unique_ptr<ReportController> report_;  // "Report a problem"
   std::unique_ptr<LocalHubController> localHub_;
   std::unique_ptr<PluginsController> plugins_;  // after settings_ and session_: destroyed before them
   std::unique_ptr<RunClient> runClient_;        // after sessions_ (the Hub socket) and plugins_

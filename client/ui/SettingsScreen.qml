@@ -912,6 +912,17 @@ Rectangle {
                         ]
                         onButtonClicked: name => { if (name === "connectionCheck") root.player.connectionCheck.show() }
                     }
+                    SettingsRow {
+                        objectName: "reportProblemRow"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Report a problem")
+                        description: qsTr("Sends a short description with logs and settings to the admins of your Hub. You see what is included before it goes out.")
+                        ctrl: "buttons"
+                        buttons: [{ name: "report", text: qsTr("Report a problem…") }]
+                        onButtonClicked: name => { if (name === "report") root.player.report.show() }
+                    }
                     Loader {
                         id: collectDialog
                         active: false

@@ -13,7 +13,9 @@
 #include <QByteArray>
 #include <QDateTime>
 #include <QJsonObject>
+#include <QList>
 #include <QMap>
+#include <QPair>
 #include <QString>
 
 namespace framebeam::diag {
@@ -52,6 +54,16 @@ QJsonObject offlineInfo(const QString& dataDir);
 // (kCutMarker first), further files are left out. false + *error on failure.
 bool writeBundle(const QString& outPath, const QJsonObject& info, const QString& dataDir, const Options& options = {},
                  QString* error = nullptr);
+
+// Zip of named entries (store/deflate), written atomically; entry names are used as given. false + *error on failure.
+// Used by "Report a problem" -> "Save as file…".
+bool writeZip(const QString& outPath, const QList<QPair<QString, QByteArray>>& entries, const QDateTime& now = {},
+              QString* error = nullptr);
+
+// Redacted log content of the last `days` days for a problem report: files newest first, each after a "=== <name> ==="
+// line; lines older than the cut-off are left out when they start with a timestamp. At most maxBytes: the older content
+// is cut at a line boundary (kCutMarker). Empty when there is nothing from that period.
+QByteArray recentLogs(const QString& logDir, int days, qint64 maxBytes, const QDateTime& now = {});
 
 // Minimal zip reader (tests, store and deflate): entry name -> content; false when the archive is damaged or a CRC differs.
 bool readZip(const QString& path, QMap<QString, QByteArray>* entries, QString* error = nullptr);

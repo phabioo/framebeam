@@ -125,6 +125,14 @@ Everything in it passes a redaction pass: TURN secret and credentials (`username
 
 If the web interface does not come up, `framebeam-hub diagnostics out.zip [-data-dir <dir>]` writes the same layout from the command line (as the service user, for example `sudo -u framebeam framebeam-hub diagnostics /tmp/out.zip -data-dir /var/lib/framebeam`). It never opens the database, so a running Hub is not disturbed; `hub-info.json` then has `"mode": "offline"` and lacks cores, counts and Players, and the network values come from `hub.env`/flags, not the saved web settings. It refuses to overwrite an existing file.
 
+## Problem reports
+
+Players send reports with Settings → Diagnostics → "Report a problem…" ([player.md](player.md)). Admins find them in the sidebar group ADMIN → Reports (cyan "n new" badge; "n new reports" is information, not a Status problem). The page lists reports newest first with the filters All / New / Seen; a report shows who sent it (user, device, Player version, OS), the text, the linked event if any, and its files for download or as one zip. Opening a report does not mark it seen: "Mark as seen" does. Delete is in the "⋯" menu and asks first. Reports are kept until an admin deletes them (the files live in `<data>/reports/<id>/`; they are part of the data directory backup).
+
+Limits: 25 MB and 12 files per report, description up to 8000 characters, 5 reports per device and hour (429). Text attachments pass the Hub redactor again on receipt (tokens, passwords, TURN credentials, cookies become `[redacted]`). The Hub logs only report id and device, never the content.
+
+REST (admin session or admin device token; the web page is only a plain view of it): `GET /api/v1/admin/reports?status=new|seen`, `GET`/`DELETE /api/v1/admin/reports/{id}`, `POST .../{id}/seen`, `GET .../{id}/files/{name}`, `GET .../{id}/archive`. Sending is `POST /api/v1/reports` (any paired device, feature `reports_v1`).
+
 ## Status page and metrics endpoint
 
 **Status** (admin only, sidebar group ADMIN) shows the health of the Hub and refreshes itself every 10 s: Hub name, version, uptime and public address; a banner for the single most urgent problem (the sidebar badge carries the same short text); CPU, memory (Hub process, and the whole machine where the platform reports it) and the disk of the data directory; running Sessions with viewers and the TURN relay allocations; connected Players with version and state (a Player older than the Hub is amber); the warnings and errors of the last 24 hours with "Download log" (the last log lines held in memory, redacted like the diagnostics bundle). Problems are: data directory above 90 % used (error above 97 %), the built-in TURN relay not started with the saved settings, and a failed Hub update install. CPU, memory and disk are read on Linux and Windows; elsewhere the cards show "n/a".

@@ -688,6 +688,12 @@ Rectangle {
                 trailing: qsTr("Controllers")
                 onActivated: { root.popover = ""; root.player.leaveGameView(); root.player.showControllers() }
             }
+            PopoverItem {
+                objectName: "moreReport"
+                width: parent.width
+                text: qsTr("Report a problem…")
+                onActivated: { root.closePopover(); root.player.report.show() }
+            }
         }
     }
 

@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "connectioncheck.h"
+#include "reportcontroller.h"
 #include "diagbundle.h"
 #include "fakehub.h"
 #include "testsupport.h"
@@ -144,6 +145,22 @@ class ConnectionCheckUiTest : public QObject {
     QVERIFY(!h.item("connectionCheckAttach")->isEnabled());
     QVERIFY(!c->lastResultAt().isEmpty());
     QVERIFY(c->lastResultJson().contains(QStringLiteral("\"outcome\": \"direct\"")));
+
+    // The "Report a problem" dialog lists the same result as "Connection check from <time>", checked because it was marked.
+    {
+      ReportController* rc = h.controller->report();
+      rc->show();
+      QTRY_COMPARE(rc->state(), QStringLiteral("editing"));
+      QVariantMap conn;
+      for (const QVariant& v : rc->attachments()) {
+        if (v.toMap().value("id").toString() == QLatin1String("connection")) conn = v.toMap();
+      }
+      QVERIFY(!conn.isEmpty());
+      QVERIFY(conn.value("checked").toBool());
+      QVERIFY(conn.value("label").toString().startsWith(QStringLiteral("Connection check from ")));
+      QVERIFY(rc->includedFiles().contains(QStringLiteral("connection-check.json")));
+      rc->close();
+    }
 
     QTemporaryDir out;
     const QString zip = out.filePath(QStringLiteral("bundle.zip"));

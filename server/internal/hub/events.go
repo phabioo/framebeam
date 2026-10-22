@@ -14,6 +14,7 @@ const (
 	TopicSystems = "systems"
 	TopicUsers   = "users"
 	TopicUpdates = "updates"
+	TopicReports = "reports"
 )
 
 // Event is a change notification without data.

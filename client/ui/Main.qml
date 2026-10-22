@@ -130,6 +130,7 @@ ApplicationWindow {
     }
 
     ConflictDialog { player: window.player }
+    ReportProblemDialog { player: window.player }  // Settings > Diagnostics and the game "⋯" menu open it
 
     // Tooltips (R-P12): the shared tooltip of the attached ToolTip type is restyled once with the theme tokens
     // (popup surface, popup border, text) instead of the default white box.

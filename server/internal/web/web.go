@@ -117,7 +117,7 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	s.src = &statusinfo.Source{Svc: svc, TURN: cfg.TURN, PublicHost: cfg.PublicHost, PublicPort: cfg.PublicPort,
 		ListenPort: func() int { return cfg.Net.Running.ListenPort() }, TURNIssues: turnIssues, Errors: cfg.Errors, Log: cfg.Log, Disk: cfg.Disk}
-	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm", "plugins", "runs", "status", "notfound"} {
+	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm", "plugins", "runs", "status", "reports", "notfound"} {
 		t, err := template.New(p).Funcs(template.FuncMap{"asset": assetURL}).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
 			return nil, err
@@ -246,6 +246,13 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /runs/{id}/export", s.guard(s.runExport))
 	h("GET /runs/{id}/delete", s.guard(s.runDeleteConfirm))
 	h("POST /runs/{id}/delete", s.guard(s.runDelete))
+	h("GET /reports", s.guard(s.reportsGet))
+	h("GET /reports/{id}", s.guard(s.reportsGet))
+	h("POST /reports/{id}/seen", s.guard(s.reportSeen))
+	h("GET /reports/{id}/delete", s.guard(s.reportDeleteConfirm))
+	h("POST /reports/{id}/delete", s.guard(s.reportDelete))
+	h("GET /reports/{id}/files/{name}", s.guard(s.reportFile))
+	h("GET /reports/{id}/archive", s.guard(s.reportArchive))
 	h("GET /status", s.guard(s.statusGet))
 	h("GET /status/log", s.guard(s.statusLog))
 	h("GET /metrics", s.metricsGet)
@@ -351,6 +358,7 @@ type pageData struct {
 	UpdateAvailable     bool   // a newer Hub version is known (nav dot on Settings)
 	IsAdmin             bool   // the signed-in user is an admin (members see only Play and Settings)
 	StatusProblem       string // title of the most urgent Hub problem (badge on Status), admins only
+	NewReports          int    // reports not yet marked seen (badge on Reports), admins only
 	NavGroups           []navGroup
 	Theme               string // light, dark or system (Hub setting)
 	Flash, Error        string
@@ -364,6 +372,8 @@ var flashTexts = map[string]string{
 	"uploaded":        "ROM added to the library.",
 	"rescan":          "Scanning the import folder.",
 	"userrenamed":     "User renamed.",
+	"reportseen":      "Report marked as seen.",
+	"reportdeleted":   "Report deleted.",
 	"userrole":        "Role changed.",
 	"devrevoked":      "Access revoked.",
 	"devrenamed":      "Device renamed.",
@@ -416,6 +426,7 @@ var flashTexts = map[string]string{
 }
 
 var errTexts = map[string]string{
+	"noreport":         "That report no longer exists.",
 	"stale":            "The slot changed in the meantime or the conflict was already resolved. Please review and decide again.",
 	"label":            "The snapshot label must be at most 64 characters.",
 	"toolarge":         "The save file is too large (maximum 64 MiB).",
@@ -484,9 +495,12 @@ func (s *Server) base(r *http.Request, sess *session, nav, title string) pageDat
 			if p := health.MostUrgent(s.problems(r.Context())); p != nil {
 				d.StatusProblem = p.Title
 			}
+			if n, err := s.svc.NewReportCount(r.Context()); err == nil {
+				d.NewReports = n
+			}
 		}
 		d.NavGroups = navGroups(navInput{Admin: d.IsAdmin, Active: nav, Conflicts: d.Conflicts, Firmware: d.Firmware, Pending: d.Pending,
-			ActiveRuns: d.ActiveRuns, ShowRuns: d.ShowRuns, UpdateAvailable: d.UpdateAvailable, StatusProblem: d.StatusProblem})
+			ActiveRuns: d.ActiveRuns, ShowRuns: d.ShowRuns, UpdateAvailable: d.UpdateAvailable, StatusProblem: d.StatusProblem, NewReports: d.NewReports})
 	}
 	return d
 }

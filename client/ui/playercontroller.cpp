@@ -196,6 +196,20 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
       UploadController::Deps{conn_.get(), profiles_.get(), model_, localRoms_, manifests_});
   connect(uploads_.get(), &UploadController::changed, this, &PlayerController::uploadChanged);
   connect(uploads_.get(), &UploadController::finished, this, &PlayerController::onUploadFinished);
+  report_ = std::make_unique<ReportController>(
+      ReportController::Deps{conn_.get(), profiles_->baseDir(),
+                             [this]() {
+                               ReportController::Deps::CheckInfo c;
+                               if (!connectionCheck_ || connectionCheck_->lastResultAt().isEmpty()) return c;
+                               c.json = connectionCheck_->lastResultJson().toUtf8();
+                               c.at = QDateTime::fromString(connectionCheck_->lastResultAt(), Qt::ISODate);
+                               c.marked = connectionCheck_->markedForReport();
+                               return c;
+                             },
+                             [this]() {
+                               if (connectionCheck_) connectionCheck_->clearReportMark();
+                             },
+                             [this]() { return diagnosticsInfo(); }});
   connect(systems_.get(), &HubSystems::stateChanged, this, [this]() {
     if (systems_->state() == HubSystems::State::Ready) {
       fwProblems_.clear();  // fresh registry from the Hub: validation problems are re-evaluated

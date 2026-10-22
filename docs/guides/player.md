@@ -86,7 +86,22 @@ What the test connection proves: the Player's WebRTC stack works with these serv
 
 Results: "Your network allows direct connections" (green), "Only relayed connections are possible here" (amber: works, adds delay), "Connections to other networks are not possible from here" (amber: no usable relay or STUN, so Sessions work on the same network only), "<Hub> cannot be reached" (the other steps are skipped; "Edit Hub address…" opens the Hub's address field in Settings). If the Player has no open session with the Hub, the check ends after step 1 with "Connect to <Hub> to run the full check", because the Hub's STUN and relay servers are not known then. A check can be cancelled (Esc or Cancel) and stops after 60 s at the latest.
 
-Actions: "Copy result" (Ctrl+C) copies the result as text, "Add to problem report" keeps it for the next "Collect logs" bundle (`connection-check.json`, taken by that one bundle), "Run again" (R). The text and the JSON contain addresses and server names, never the relay credentials. `FRAMEBEAM_FORCE_RELAY=1` is noted in the result and makes the check report "only relayed".
+Actions: "Copy result" (Ctrl+C) copies the result as text, "Add to problem report" keeps it for the next "Collect logs" bundle (`connection-check.json`, taken by that one bundle) and ticks it in the "Report a problem" dialog (until a report with it was sent), "Run again" (R). The text and the JSON contain addresses and server names, never the relay credentials. `FRAMEBEAM_FORCE_RELAY=1` is noted in the result and makes the check report "only relayed".
+
+## Report a problem
+
+Settings → Diagnostics → "Report a problem…" (and "Report a problem…" in the in-game "⋯" menu) opens a dialog: describe what happened in a few words and send it, with a few attachments, to your own FrameBeam Hub. The admins of that Hub see it in their report list; nothing goes to anyone else. Ctrl+Enter sends, Esc cancels.
+
+| Attachment | Default | Content |
+|---|---|---|
+| Logs of the last 3 days | on | `player-logs.txt`, redacted like "Collect logs", cut to the newest lines if large |
+| Settings | on | `settings.json`, redacted, no passwords and no Hub token |
+| Connection check | off; on when you pressed "Add to problem report" in the connection check. Listed as "Connection check from <time>" whenever a result exists | `connection-check.json` |
+| System info | off | `system-info.json`: OS, GPU, driver, cores |
+
+"See what is included" lists the file names. Never included: passwords, the Hub pairing token, ROMs, saves. The Hub allows 25 MB per report (uncheck the logs when it is larger) and 5 reports per device and hour.
+
+While it uploads, the dialog shows progress and "Cancel" (back to editing, the text is kept). It then shows "Sent. Report #<number>". If the Hub is offline, the dialog says so and sends the report by itself as soon as the Hub is reachable again, as long as the dialog stays open; "Save as file…" writes the same zip (`report.txt` with your text, plus the checked files) so you can pass it on yourself. If the upload fails, the text is kept and "Try again" repeats it. A Hub without the `reports_v1` feature (older than 0.17) cannot receive reports; use "Save as file…" or "Collect logs…".
 
 ## Data directory
 

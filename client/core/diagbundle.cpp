@@ -553,6 +553,66 @@ bool writeBundle(const QString& outPath, const QJsonObject& info, const QString&
   return true;
 }
 
+bool writeZip(const QString& outPath, const QList<QPair<QString, QByteArray>>& entries, const QDateTime& now, QString* error) {
+  const auto fail = [error](const QString& m) {
+    if (error != nullptr) *error = m;
+    return false;
+  };
+  QSaveFile out(outPath);
+  if (!out.open(QIODevice::WriteOnly)) return fail(out.errorString());
+  ZipWriter zip(&out, now.isValid() ? now : QDateTime::currentDateTimeUtc());
+  for (const auto& e : entries) {
+    if (!zip.add(e.first, e.second)) return fail(QStringLiteral("write failed"));
+  }
+  if (!zip.finish() || !out.commit()) return fail(out.errorString());
+  return true;
+}
+
+namespace {
+// The timestamp a log line starts with (filelog::formatLine: local time, ISO with milliseconds); invalid for other lines.
+QDateTime lineTime(const QByteArray& line) {
+  if (line.size() < 23 || line[4] != '-' || line[10] != 'T') return {};
+  return QDateTime::fromString(QString::fromLatin1(line.constData(), 23), Qt::ISODateWithMs);
+}
+}  // namespace
+
+QByteArray recentLogs(const QString& logDir, int days, qint64 maxBytes, const QDateTime& now) {
+  const QDateTime cutoff = (now.isValid() ? now : QDateTime::currentDateTime()).addDays(-days);
+  QByteArray out;
+  qint64 budget = maxBytes;
+  for (const LogFile& f : logFiles(logDir)) {
+    if (budget <= 0) break;
+    if (f.mod < cutoff) break;  // newest first: every further file is older
+    QFile file(f.path);
+    if (!file.open(QIODevice::ReadOnly)) continue;
+    QByteArray body;
+    while (!file.atEnd()) {
+      const QByteArray line = file.readLine(1 << 20);
+      if (line.isEmpty()) break;
+      const QDateTime t = lineTime(line);
+      if (t.isValid() && t < cutoff) continue;
+      body += redactLine(line);
+    }
+    if (body.isEmpty()) continue;
+    const QByteArray header = "=== " + f.name.toUtf8() + " ===\n";
+    if (header.size() + body.size() <= budget) {
+      out += header + body;
+      budget -= header.size() + body.size();
+      continue;
+    }
+    // Does not fit: its newest lines, cut at a line boundary, after the marker.
+    const qint64 room = budget - header.size() - qstrlen(kCutMarker);
+    if (room > 0) {
+      QByteArray tail = body.right(room);
+      const qsizetype nl = tail.indexOf('\n');
+      tail = nl >= 0 ? tail.mid(nl + 1) : QByteArray();
+      out += header + kCutMarker + tail;
+    }
+    break;
+  }
+  return out;
+}
+
 bool readZip(const QString& path, QMap<QString, QByteArray>* entries, QString* error) {
   const auto fail = [error](const QString& m) {
     if (error != nullptr) *error = m;

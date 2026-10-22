@@ -76,6 +76,10 @@ class ConnectionCheckController : public QObject {
   // The result "Add to problem report" attached, until the next bundle takes it. Empty when nothing is attached.
   QByteArray attachmentJson() const { return attachment_; }
   void clearAttachment();
+  // "Add to problem report" also marks the last result for the "Report a problem" dialog, which then lists it checked.
+  // The mark ends when a report with it went out or a new run starts. The Collect logs attachment is separate.
+  bool markedForReport() const { return reportMark_; }
+  void clearReportMark() { reportMark_ = false; }
 
   // Opens the dialog and starts a run (unless one runs). Entry points: Settings (Hubs, Diagnostics), later a failed Session
   // and the "Relayed" pill.
@@ -107,6 +111,7 @@ class ConnectionCheckController : public QObject {
   bool hasRun_ = false;
   int stepNumber_ = 0;
   bool attachedCurrent_ = false;
+  bool reportMark_ = false;
   bool copied_ = false;
   QByteArray attachment_;
   QByteArray lastJson_;
