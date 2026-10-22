@@ -32,8 +32,9 @@
          InstallFinalize (ICE77); the default schedule would put it before InstallInitialize. -->
     <!-- AllowDowngrades: "Go back to <version>" (update rollback, ADR 0029 D4) installs this MSI over a newer one and keeps
          the data (settings, saves). An MSI authored without it refuses to install over a newer version, so the signed
-         index marks the releases built with it (msi_downgrade) and only those are offered as rollback targets. -->
-    <MajorUpgrade AllowDowngrades="yes" AllowSameVersionUpgrades="yes" Schedule="afterInstallInitialize" />
+         index marks the releases built with it (msi_downgrade) and only those are offered as rollback targets.
+         It also covers reinstalling the same version, so WiX forbids AllowSameVersionUpgrades next to it. -->
+    <MajorUpgrade AllowDowngrades="yes" Schedule="afterInstallInitialize" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="$(CompressionLevel)" />
     <Icon Id="PlayerIcon" SourceFile="$(IconFile)" />
     <Property Id="ARPPRODUCTICON" Value="PlayerIcon" />
