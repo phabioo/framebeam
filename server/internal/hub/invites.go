@@ -32,6 +32,21 @@ const (
 // InviteTTLs are the selectable invite lifetimes (Users page).
 var InviteTTLs = []time.Duration{15 * time.Minute, time.Hour, 24 * time.Hour, 7 * 24 * time.Hour}
 
+// ParseInviteTTL maps the lifetime names of the Users page and the admin API (15m, 1h, 24h, 7d) to a duration.
+func ParseInviteTTL(v string) (time.Duration, bool) {
+	switch v {
+	case "15m":
+		return 15 * time.Minute, true
+	case "1h":
+		return time.Hour, true
+	case "24h":
+		return 24 * time.Hour, true
+	case "7d":
+		return 7 * 24 * time.Hour, true
+	}
+	return 0, false
+}
+
 // DefaultInviteTTL is the preselected lifetime.
 const DefaultInviteTTL = time.Hour
 

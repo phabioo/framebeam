@@ -287,6 +287,12 @@ func effectiveAutoUpdate(global bool, system, core string) bool {
 	return global
 }
 
+// SystemAutoEffective resolves the server default and the per-system override (SystemAutoDefault, SystemAutoOn or
+// SystemAutoOff) to whether the cores of the system are updated automatically.
+func SystemAutoEffective(global bool, system string) bool {
+	return effectiveAutoUpdate(global, system, CoreAutoFollow)
+}
+
 // SetSystemCoreAutoUpdate sets the per-system override: SystemAutoDefault, SystemAutoOn or SystemAutoOff.
 // Turning updates on kicks a sync so pending updates apply promptly.
 func (s *Service) SetSystemCoreAutoUpdate(ctx context.Context, systemID, mode string) (err error) {

@@ -85,6 +85,192 @@ func (e AdminBackupSettingsUpdateMode) Valid() bool {
 	}
 }
 
+// Defines values for AdminCoreUpdateAutoUpdate.
+const (
+	AdminCoreUpdateAutoUpdateAuto AdminCoreUpdateAutoUpdate = "auto"
+	AdminCoreUpdateAutoUpdateOff  AdminCoreUpdateAutoUpdate = "off"
+)
+
+// Valid indicates whether the value is a known member of the AdminCoreUpdateAutoUpdate enum.
+func (e AdminCoreUpdateAutoUpdate) Valid() bool {
+	switch e {
+	case AdminCoreUpdateAutoUpdateAuto:
+		return true
+	case AdminCoreUpdateAutoUpdateOff:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminDeviceStatus.
+const (
+	AdminDeviceStatusRevoked AdminDeviceStatus = "revoked"
+	AdminDeviceStatusTrusted AdminDeviceStatus = "trusted"
+)
+
+// Valid indicates whether the value is a known member of the AdminDeviceStatus enum.
+func (e AdminDeviceStatus) Valid() bool {
+	switch e {
+	case AdminDeviceStatusRevoked:
+		return true
+	case AdminDeviceStatusTrusted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminFirmwareFileState.
+const (
+	Mismatch AdminFirmwareFileState = "mismatch"
+	Missing  AdminFirmwareFileState = "missing"
+	Optional AdminFirmwareFileState = "optional"
+	Valid    AdminFirmwareFileState = "valid"
+)
+
+// Valid indicates whether the value is a known member of the AdminFirmwareFileState enum.
+func (e AdminFirmwareFileState) Valid() bool {
+	switch e {
+	case Mismatch:
+		return true
+	case Missing:
+		return true
+	case Optional:
+		return true
+	case Valid:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminInstalledCoreAutoUpdate.
+const (
+	AdminInstalledCoreAutoUpdateAuto AdminInstalledCoreAutoUpdate = "auto"
+	AdminInstalledCoreAutoUpdateOff  AdminInstalledCoreAutoUpdate = "off"
+)
+
+// Valid indicates whether the value is a known member of the AdminInstalledCoreAutoUpdate enum.
+func (e AdminInstalledCoreAutoUpdate) Valid() bool {
+	switch e {
+	case AdminInstalledCoreAutoUpdateAuto:
+		return true
+	case AdminInstalledCoreAutoUpdateOff:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminInviteStatus.
+const (
+	AdminInviteStatusActive   AdminInviteStatus = "active"
+	AdminInviteStatusExpired  AdminInviteStatus = "expired"
+	AdminInviteStatusRedeemed AdminInviteStatus = "redeemed"
+	AdminInviteStatusRevoked  AdminInviteStatus = "revoked"
+)
+
+// Valid indicates whether the value is a known member of the AdminInviteStatus enum.
+func (e AdminInviteStatus) Valid() bool {
+	switch e {
+	case AdminInviteStatusActive:
+		return true
+	case AdminInviteStatusExpired:
+		return true
+	case AdminInviteStatusRedeemed:
+		return true
+	case AdminInviteStatusRevoked:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminInviteCreateExpiry.
+const (
+	N15m AdminInviteCreateExpiry = "15m"
+	N1h  AdminInviteCreateExpiry = "1h"
+	N24h AdminInviteCreateExpiry = "24h"
+	N7d  AdminInviteCreateExpiry = "7d"
+)
+
+// Valid indicates whether the value is a known member of the AdminInviteCreateExpiry enum.
+func (e AdminInviteCreateExpiry) Valid() bool {
+	switch e {
+	case N15m:
+		return true
+	case N1h:
+		return true
+	case N24h:
+		return true
+	case N7d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminPairingRequestStatus.
+const (
+	AdminPairingRequestStatusDenied  AdminPairingRequestStatus = "denied"
+	AdminPairingRequestStatusPending AdminPairingRequestStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the AdminPairingRequestStatus enum.
+func (e AdminPairingRequestStatus) Valid() bool {
+	switch e {
+	case AdminPairingRequestStatusDenied:
+		return true
+	case AdminPairingRequestStatusPending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminPluginSource.
+const (
+	AdminPluginSourceImport AdminPluginSource = "import"
+	AdminPluginSourceIndex  AdminPluginSource = "index"
+	AdminPluginSourceUpload AdminPluginSource = "upload"
+)
+
+// Valid indicates whether the value is a known member of the AdminPluginSource enum.
+func (e AdminPluginSource) Valid() bool {
+	switch e {
+	case AdminPluginSourceImport:
+		return true
+	case AdminPluginSourceIndex:
+		return true
+	case AdminPluginSourceUpload:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminPluginCatalogEntryState.
+const (
+	Install   AdminPluginCatalogEntryState = "install"
+	Installed AdminPluginCatalogEntryState = "installed"
+	Update    AdminPluginCatalogEntryState = "update"
+)
+
+// Valid indicates whether the value is a known member of the AdminPluginCatalogEntryState enum.
+func (e AdminPluginCatalogEntryState) Valid() bool {
+	switch e {
+	case Install:
+		return true
+	case Installed:
+		return true
+	case Update:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminProblemSeverity.
 const (
 	AdminProblemSeverityError AdminProblemSeverity = "error"
@@ -220,6 +406,72 @@ func (e AdminStatusSessionVisibility) Valid() bool {
 	}
 }
 
+// Defines values for AdminSystemAutoUpdate.
+const (
+	AdminSystemAutoUpdateDefault AdminSystemAutoUpdate = "default"
+	AdminSystemAutoUpdateOff     AdminSystemAutoUpdate = "off"
+	AdminSystemAutoUpdateOn      AdminSystemAutoUpdate = "on"
+)
+
+// Valid indicates whether the value is a known member of the AdminSystemAutoUpdate enum.
+func (e AdminSystemAutoUpdate) Valid() bool {
+	switch e {
+	case AdminSystemAutoUpdateDefault:
+		return true
+	case AdminSystemAutoUpdateOff:
+		return true
+	case AdminSystemAutoUpdateOn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminSystemClientStatus.
+const (
+	AdminSystemClientStatusCompatible          AdminSystemClientStatus = "compatible"
+	AdminSystemClientStatusCoreMissing         AdminSystemClientStatus = "core_missing"
+	AdminSystemClientStatusCoreVersionMismatch AdminSystemClientStatus = "core_version_mismatch"
+	AdminSystemClientStatusPlayerTooOld        AdminSystemClientStatus = "player_too_old"
+)
+
+// Valid indicates whether the value is a known member of the AdminSystemClientStatus enum.
+func (e AdminSystemClientStatus) Valid() bool {
+	switch e {
+	case AdminSystemClientStatusCompatible:
+		return true
+	case AdminSystemClientStatusCoreMissing:
+		return true
+	case AdminSystemClientStatusCoreVersionMismatch:
+		return true
+	case AdminSystemClientStatusPlayerTooOld:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminSystemUpdateAutoUpdate.
+const (
+	AdminSystemUpdateAutoUpdateDefault AdminSystemUpdateAutoUpdate = "default"
+	AdminSystemUpdateAutoUpdateOff     AdminSystemUpdateAutoUpdate = "off"
+	AdminSystemUpdateAutoUpdateOn      AdminSystemUpdateAutoUpdate = "on"
+)
+
+// Valid indicates whether the value is a known member of the AdminSystemUpdateAutoUpdate enum.
+func (e AdminSystemUpdateAutoUpdate) Valid() bool {
+	switch e {
+	case AdminSystemUpdateAutoUpdateDefault:
+		return true
+	case AdminSystemUpdateAutoUpdateOff:
+		return true
+	case AdminSystemUpdateAutoUpdateOn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminUpdateVersionChannel.
 const (
 	Beta   AdminUpdateVersionChannel = "beta"
@@ -240,19 +492,55 @@ func (e AdminUpdateVersionChannel) Valid() bool {
 
 // Defines values for AdminUpdateVersionData.
 const (
-	AdminUpdateVersionDataKeep    AdminUpdateVersionData = "keep"
-	AdminUpdateVersionDataRefuse  AdminUpdateVersionData = "refuse"
-	AdminUpdateVersionDataRestore AdminUpdateVersionData = "restore"
+	Keep    AdminUpdateVersionData = "keep"
+	Refuse  AdminUpdateVersionData = "refuse"
+	Restore AdminUpdateVersionData = "restore"
 )
 
 // Valid indicates whether the value is a known member of the AdminUpdateVersionData enum.
 func (e AdminUpdateVersionData) Valid() bool {
 	switch e {
-	case AdminUpdateVersionDataKeep:
+	case Keep:
 		return true
-	case AdminUpdateVersionDataRefuse:
+	case Refuse:
 		return true
-	case AdminUpdateVersionDataRestore:
+	case Restore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminUserRole.
+const (
+	AdminUserRoleAdmin AdminUserRole = "admin"
+	AdminUserRoleUser  AdminUserRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the AdminUserRole enum.
+func (e AdminUserRole) Valid() bool {
+	switch e {
+	case AdminUserRoleAdmin:
+		return true
+	case AdminUserRoleUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminUserRoleChangeRole.
+const (
+	AdminUserRoleChangeRoleAdmin AdminUserRoleChangeRole = "admin"
+	AdminUserRoleChangeRoleUser  AdminUserRoleChangeRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the AdminUserRoleChangeRole enum.
+func (e AdminUserRoleChangeRole) Valid() bool {
+	switch e {
+	case AdminUserRoleChangeRoleAdmin:
+		return true
+	case AdminUserRoleChangeRoleUser:
 		return true
 	default:
 		return false
@@ -555,13 +843,13 @@ func (e InviteRedeemApprovedStatus) Valid() bool {
 
 // Defines values for PairingRequestAcceptedStatus.
 const (
-	Pending PairingRequestAcceptedStatus = "pending"
+	PairingRequestAcceptedStatusPending PairingRequestAcceptedStatus = "pending"
 )
 
 // Valid indicates whether the value is a known member of the PairingRequestAcceptedStatus enum.
 func (e PairingRequestAcceptedStatus) Valid() bool {
 	switch e {
-	case Pending:
+	case PairingRequestAcceptedStatusPending:
 		return true
 	default:
 		return false
@@ -898,6 +1186,24 @@ func (e TokenResponseTokenType) Valid() bool {
 	}
 }
 
+// Defines values for ListAdminPairingRequestsParamsStatus.
+const (
+	Denied  ListAdminPairingRequestsParamsStatus = "denied"
+	Pending ListAdminPairingRequestsParamsStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the ListAdminPairingRequestsParamsStatus enum.
+func (e ListAdminPairingRequestsParamsStatus) Valid() bool {
+	switch e {
+	case Denied:
+		return true
+	case Pending:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListAdminReportsParamsStatus.
 const (
 	New  ListAdminReportsParamsStatus = "new"
@@ -914,6 +1220,22 @@ func (e ListAdminReportsParamsStatus) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// AdminAvailableCore defines model for AdminAvailableCore.
+type AdminAvailableCore struct {
+	BuildDate     *string  `json:"build_date,omitempty"`
+	CoreId        string   `json:"core_id"`
+	DisplayName   string   `json:"display_name"`
+	Experimental  bool     `json:"experimental"`
+	Extensions    []string `json:"extensions"`
+	License       string   `json:"license"`
+	NonCommercial bool     `json:"non_commercial"`
+
+	// Notes Raw notes of the core info file
+	Notes         []string `json:"notes"`
+	Platforms     []string `json:"platforms"`
+	RequiredHwApi *string  `json:"required_hw_api,omitempty"`
 }
 
 // AdminBackup defines model for AdminBackup.
@@ -1029,6 +1351,186 @@ type AdminBackupStatus struct {
 	WriteError *string `json:"write_error,omitempty"`
 }
 
+// AdminCode defines model for AdminCode.
+type AdminCode struct {
+	// Code The one-time code, shown only here
+	Code      string    `json:"code"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// AdminCoreSettingsUpdate defines model for AdminCoreSettingsUpdate.
+type AdminCoreSettingsUpdate struct {
+	AutoUpdate bool `json:"auto_update"`
+}
+
+// AdminCoreSource defines model for AdminCoreSource.
+type AdminCoreSource struct {
+	// AutoUpdate Server default of the automatic core update
+	AutoUpdate bool `json:"auto_update"`
+
+	// AutoUpdateError Errors of the last automatic update run
+	AutoUpdateError *string `json:"auto_update_error,omitempty"`
+	BuildbotUrl     string  `json:"buildbot_url"`
+
+	// Cores Cores with a build in the cached catalog
+	Cores       int        `json:"cores"`
+	InfoUrl     string     `json:"info_url"`
+	LastCheck   *time.Time `json:"last_check,omitempty"`
+	LastError   *string    `json:"last_error,omitempty"`
+	LastSuccess *time.Time `json:"last_success,omitempty"`
+}
+
+// AdminCoreUpdate defines model for AdminCoreUpdate.
+type AdminCoreUpdate struct {
+	AutoUpdate AdminCoreUpdateAutoUpdate `json:"auto_update"`
+}
+
+// AdminCoreUpdateAutoUpdate defines model for AdminCoreUpdate.AutoUpdate.
+type AdminCoreUpdateAutoUpdate string
+
+// AdminDevice defines model for AdminDevice.
+type AdminDevice struct {
+	Arch       string     `json:"arch"`
+	CreatedAt  time.Time  `json:"created_at"`
+	Id         string     `json:"id"`
+	LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
+	Name       string     `json:"name"`
+
+	// Online The device has an open connection now
+	Online        bool   `json:"online"`
+	Platform      string `json:"platform"`
+	PlayerVersion string `json:"player_version"`
+
+	// ProtocolVersion Last reported protocol version; absent when the device never reported one
+	ProtocolVersion *int              `json:"protocol_version,omitempty"`
+	RevokedAt       *time.Time        `json:"revoked_at,omitempty"`
+	Status          AdminDeviceStatus `json:"status"`
+	UserId          string            `json:"user_id"`
+
+	// UserName Display name of the owner
+	UserName string `json:"user_name"`
+}
+
+// AdminDeviceStatus defines model for AdminDevice.Status.
+type AdminDeviceStatus string
+
+// AdminDeviceList defines model for AdminDeviceList.
+type AdminDeviceList struct {
+	Devices []AdminDevice `json:"devices"`
+
+	// MinProtocolVersion A device with a lower `protocol_version` is too old to start games
+	MinProtocolVersion int `json:"min_protocol_version"`
+}
+
+// AdminDeviceRename defines model for AdminDeviceRename.
+type AdminDeviceRename struct {
+	Name string `json:"name"`
+}
+
+// AdminFirmwareFile defines model for AdminFirmwareFile.
+type AdminFirmwareFile struct {
+	DisplayName string `json:"display_name"`
+	Id          string `json:"id"`
+
+	// PinnedSha256 The pinned expected SHA-256
+	PinnedSha256 *string    `json:"pinned_sha256,omitempty"`
+	Present      bool       `json:"present"`
+	ProvidedAt   *time.Time `json:"provided_at,omitempty"`
+	Required     bool       `json:"required"`
+
+	// Sha256 SHA-256 of the provided file
+	Sha256 *string `json:"sha256,omitempty"`
+	Size   *int64  `json:"size,omitempty"`
+
+	// Sizes Accepted file sizes in bytes
+	Sizes []int64 `json:"sizes"`
+
+	// State `mismatch` = the file differs from the pin; `missing` = required and not provided
+	State AdminFirmwareFileState `json:"state"`
+}
+
+// AdminFirmwareFileState `mismatch` = the file differs from the pin; `missing` = required and not provided
+type AdminFirmwareFileState string
+
+// AdminFirmwarePin defines model for AdminFirmwarePin.
+type AdminFirmwarePin struct {
+	// Sha256 64 hexadecimal characters; empty clears the pin
+	Sha256 string `json:"sha256"`
+}
+
+// AdminInstalledCore defines model for AdminInstalledCore.
+type AdminInstalledCore struct {
+	// AutoUpdate `off` = pinned to this build, never updated automatically; `auto` = follows the system
+	AutoUpdate AdminInstalledCoreAutoUpdate `json:"auto_update"`
+
+	// AutoUpdateEffective Whether this core is updated automatically after the server default and the system override
+	AutoUpdateEffective bool `json:"auto_update_effective"`
+
+	// BuildDate YYYY-MM-DD, absent for legacy packages
+	BuildDate *string `json:"build_date,omitempty"`
+	CoreId    string  `json:"core_id"`
+
+	// Default The default core of the system
+	Default      bool   `json:"default"`
+	DisplayName  string `json:"display_name"`
+	Experimental bool   `json:"experimental"`
+	License      string `json:"license"`
+
+	// Origin `libretro-buildbot` = installed from the libretro buildbot; `legacy-mirror` = legacy package from the retired signed Uzume source.
+	Origin          CoreOrigin `json:"origin"`
+	Platforms       []string   `json:"platforms"`
+	RequiredHwApi   *string    `json:"required_hw_api,omitempty"`
+	UpdateAvailable bool       `json:"update_available"`
+
+	// UpdateBuildDate Build date of the newer build when `update_available`
+	UpdateBuildDate *string `json:"update_build_date,omitempty"`
+	Version         string  `json:"version"`
+}
+
+// AdminInstalledCoreAutoUpdate `off` = pinned to this build, never updated automatically; `auto` = follows the system
+type AdminInstalledCoreAutoUpdate string
+
+// AdminInvite defines model for AdminInvite.
+type AdminInvite struct {
+	// AuthorizeDevice The first device that redeems the code is trusted directly
+	AuthorizeDevice bool      `json:"authorize_device"`
+	CreatedAt       time.Time `json:"created_at"`
+	ExpiresAt       time.Time `json:"expires_at"`
+
+	// ForUser Display name of the user a pairing code is bound to; absent for an onboarding invite
+	ForUser    *string    `json:"for_user,omitempty"`
+	Id         string     `json:"id"`
+	RedeemedAt *time.Time `json:"redeemed_at,omitempty"`
+
+	// RedeemedBy Display name of the user the redemption created
+	RedeemedBy *string           `json:"redeemed_by,omitempty"`
+	RevokedAt  *time.Time        `json:"revoked_at,omitempty"`
+	Status     AdminInviteStatus `json:"status"`
+}
+
+// AdminInviteStatus defines model for AdminInvite.Status.
+type AdminInviteStatus string
+
+// AdminInviteCreate defines model for AdminInviteCreate.
+type AdminInviteCreate struct {
+	AuthorizeDevice *bool                    `json:"authorize_device,omitempty"`
+	Expiry          *AdminInviteCreateExpiry `json:"expiry,omitempty"`
+}
+
+// AdminInviteCreateExpiry defines model for AdminInviteCreate.Expiry.
+type AdminInviteCreateExpiry string
+
+// AdminInviteCreated defines model for AdminInviteCreated.
+type AdminInviteCreated struct {
+	Code   AdminCode   `json:"code"`
+	Invite AdminInvite `json:"invite"`
+}
+
+// AdminInviteList defines model for AdminInviteList.
+type AdminInviteList struct {
+	Invites []AdminInvite `json:"invites"`
+}
+
 // AdminMetrics defines model for AdminMetrics.
 type AdminMetrics struct {
 	Enabled bool `json:"enabled"`
@@ -1049,6 +1551,123 @@ type AdminMetricsToken struct {
 // AdminMetricsUpdate defines model for AdminMetricsUpdate.
 type AdminMetricsUpdate struct {
 	Enabled bool `json:"enabled"`
+}
+
+// AdminPairingAllow defines model for AdminPairingAllow.
+type AdminPairingAllow struct {
+	// UserId The user the device is paired with
+	UserId string `json:"user_id"`
+}
+
+// AdminPairingRequest defines model for AdminPairingRequest.
+type AdminPairingRequest struct {
+	Arch            string    `json:"arch"`
+	CreatedAt       time.Time `json:"created_at"`
+	DeviceId        string    `json:"device_id"`
+	DeviceName      string    `json:"device_name"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	Id              string    `json:"id"`
+	Platform        string    `json:"platform"`
+	PlayerVersion   string    `json:"player_version"`
+	ProtocolVersion int       `json:"protocol_version"`
+
+	// RemoteAddr Source address of the request (denied requests only)
+	RemoteAddr *string                   `json:"remote_addr,omitempty"`
+	Status     AdminPairingRequestStatus `json:"status"`
+
+	// UserId The user the request is pre-assigned to (pairing code); absent otherwise
+	UserId *string `json:"user_id,omitempty"`
+}
+
+// AdminPairingRequestStatus defines model for AdminPairingRequest.Status.
+type AdminPairingRequestStatus string
+
+// AdminPairingRequestList defines model for AdminPairingRequestList.
+type AdminPairingRequestList struct {
+	// MinProtocolVersion A request with a lower `protocol_version` comes from an app that is too old
+	MinProtocolVersion int                   `json:"min_protocol_version"`
+	Requests           []AdminPairingRequest `json:"requests"`
+}
+
+// AdminPlugin defines model for AdminPlugin.
+type AdminPlugin struct {
+	Info   PluginInfo        `json:"info"`
+	Source AdminPluginSource `json:"source"`
+
+	// UploadedByName Display name of the uploading admin
+	UploadedByName *string `json:"uploaded_by_name,omitempty"`
+}
+
+// AdminPluginSource defines model for AdminPlugin.Source.
+type AdminPluginSource string
+
+// AdminPluginCatalogEntry defines model for AdminPluginCatalogEntry.
+type AdminPluginCatalogEntry struct {
+	Api         int    `json:"api"`
+	Description string `json:"description"`
+	Id          string `json:"id"`
+
+	// InstalledVersion The newest offered version; absent for `install`
+	InstalledVersion *string                      `json:"installed_version,omitempty"`
+	Name             string                       `json:"name"`
+	Permissions      []string                     `json:"permissions"`
+	Size             int64                        `json:"size"`
+	State            AdminPluginCatalogEntryState `json:"state"`
+	Version          string                       `json:"version"`
+}
+
+// AdminPluginCatalogEntryState defines model for AdminPluginCatalogEntry.State.
+type AdminPluginCatalogEntryState string
+
+// AdminPluginIndex defines model for AdminPluginIndex.
+type AdminPluginIndex struct {
+	Catalog    []AdminPluginCatalogEntry `json:"catalog"`
+	Configured bool                      `json:"configured"`
+	LastCheck  *time.Time                `json:"last_check,omitempty"`
+	LastError  *string                   `json:"last_error,omitempty"`
+}
+
+// AdminPluginIndexInstall defines model for AdminPluginIndexInstall.
+type AdminPluginIndexInstall struct {
+	Id      string `json:"id"`
+	Version string `json:"version"`
+}
+
+// AdminPluginOffer defines model for AdminPluginOffer.
+type AdminPluginOffer struct {
+	GrantedPermissions []string `json:"granted_permissions"`
+}
+
+// AdminPluginStage defines model for AdminPluginStage.
+type AdminPluginStage struct {
+	// AlreadyOffered The same file is already offered
+	AlreadyOffered bool `json:"already_offered"`
+
+	// Conflict A different file with this version is already offered; offering is refused
+	Conflict    bool   `json:"conflict"`
+	Description string `json:"description"`
+	Name        string `json:"name"`
+
+	// Official Valid signature of a trusted Uzume key
+	Official bool `json:"official"`
+
+	// Permissions Permissions the plugin asks for; all must be granted to offer it
+	Permissions      []string `json:"permissions"`
+	PluginId         string   `json:"plugin_id"`
+	Sha256           string   `json:"sha256"`
+	SignatureProblem *string  `json:"signature_problem,omitempty"`
+
+	// Signed The file carries a signature (it may not verify; see `signature_problem`)
+	Signed  bool   `json:"signed"`
+	Size    int64  `json:"size"`
+	StageId string `json:"stage_id"`
+	Version string `json:"version"`
+}
+
+// AdminPlugins defines model for AdminPlugins.
+type AdminPlugins struct {
+	Index   AdminPluginIndex `json:"index"`
+	Plugins []AdminPlugin    `json:"plugins"`
 }
 
 // AdminProblem defines model for AdminProblem.
@@ -1268,6 +1887,73 @@ type AdminStatusSession struct {
 // AdminStatusSessionVisibility defines model for AdminStatusSession.Visibility.
 type AdminStatusSessionVisibility string
 
+// AdminSystem defines model for AdminSystem.
+type AdminSystem struct {
+	// AutoUpdate Per-system override of the server default of the automatic core update
+	AutoUpdate          AdminSystemAutoUpdate `json:"auto_update"`
+	AutoUpdateEffective bool                  `json:"auto_update_effective"`
+	AvailableCores      []AdminAvailableCore  `json:"available_cores"`
+
+	// Clients Compatibility of the trusted devices that reported
+	Clients []AdminSystemClient  `json:"clients"`
+	Cores   []AdminInstalledCore `json:"cores"`
+
+	// DefaultCoreId Absent while no core is installed
+	DefaultCoreId  *string             `json:"default_core_id,omitempty"`
+	DisplayName    string              `json:"display_name"`
+	DisplayProfile string              `json:"display_profile"`
+	Extensions     []string            `json:"extensions"`
+	Firmware       []AdminFirmwareFile `json:"firmware"`
+
+	// FirmwareMode `builtin` = the core uses its built-in firmware (files optional); `native` = files required.
+	FirmwareMode FirmwareMode `json:"firmware_mode"`
+	Id           string       `json:"id"`
+	InputProfile string       `json:"input_profile"`
+	LibretroIds  []string     `json:"libretro_ids"`
+	Platforms    []string     `json:"platforms"`
+	Provisioning string       `json:"provisioning"`
+}
+
+// AdminSystemAutoUpdate Per-system override of the server default of the automatic core update
+type AdminSystemAutoUpdate string
+
+// AdminSystemClient defines model for AdminSystemClient.
+type AdminSystemClient struct {
+	Arch string `json:"arch"`
+
+	// CoreVersion Version of the system's default core on the device; absent when not installed
+	CoreVersion *string `json:"core_version,omitempty"`
+	DeviceId    string  `json:"device_id"`
+	DeviceName  string  `json:"device_name"`
+
+	// Expected The served core version (mismatch) or the minimum protocol version (player too old)
+	Expected      *string                 `json:"expected,omitempty"`
+	Platform      string                  `json:"platform"`
+	PlayerVersion string                  `json:"player_version"`
+	Status        AdminSystemClientStatus `json:"status"`
+}
+
+// AdminSystemClientStatus defines model for AdminSystemClient.Status.
+type AdminSystemClientStatus string
+
+// AdminSystemUpdate defines model for AdminSystemUpdate.
+type AdminSystemUpdate struct {
+	AutoUpdate    *AdminSystemUpdateAutoUpdate `json:"auto_update,omitempty"`
+	DefaultCoreId *string                      `json:"default_core_id,omitempty"`
+
+	// FirmwareMode `builtin` = the core uses its built-in firmware (files optional); `native` = files required.
+	FirmwareMode *FirmwareMode `json:"firmware_mode,omitempty"`
+}
+
+// AdminSystemUpdateAutoUpdate defines model for AdminSystemUpdate.AutoUpdate.
+type AdminSystemUpdateAutoUpdate string
+
+// AdminSystems defines model for AdminSystems.
+type AdminSystems struct {
+	CoreSource AdminCoreSource `json:"core_source"`
+	Systems    []AdminSystem   `json:"systems"`
+}
+
 // AdminUpdatePause defines model for AdminUpdatePause.
 type AdminUpdatePause struct {
 	At time.Time `json:"at"`
@@ -1351,6 +2037,56 @@ type AdminUpdateVersions struct {
 	// Unavailable Why `can_rollback` is false
 	Unavailable *string              `json:"unavailable,omitempty"`
 	Versions    []AdminUpdateVersion `json:"versions"`
+}
+
+// AdminUser defines model for AdminUser.
+type AdminUser struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// Devices Devices that still have access
+	Devices     int    `json:"devices"`
+	Disabled    bool   `json:"disabled"`
+	DisplayName string `json:"display_name"`
+	Id          string `json:"id"`
+
+	// LastSeenAt Newest connection of any of their devices; absent when none ever connected
+	LastSeenAt *time.Time    `json:"last_seen_at,omitempty"`
+	Role       AdminUserRole `json:"role"`
+	Username   string        `json:"username"`
+}
+
+// AdminUserRole defines model for AdminUser.Role.
+type AdminUserRole string
+
+// AdminUserCreate defines model for AdminUserCreate.
+type AdminUserCreate struct {
+	DisplayName string `json:"display_name"`
+}
+
+// AdminUserCreated defines model for AdminUserCreated.
+type AdminUserCreated struct {
+	PairingCode AdminCode `json:"pairing_code"`
+	User        AdminUser `json:"user"`
+}
+
+// AdminUserList defines model for AdminUserList.
+type AdminUserList struct {
+	Users []AdminUser `json:"users"`
+}
+
+// AdminUserRoleChange defines model for AdminUserRoleChange.
+type AdminUserRoleChange struct {
+	// Password Required to make a user an admin
+	Password *string                 `json:"password,omitempty"`
+	Role     AdminUserRoleChangeRole `json:"role"`
+}
+
+// AdminUserRoleChangeRole defines model for AdminUserRoleChange.Role.
+type AdminUserRoleChangeRole string
+
+// AdminUserUpdate defines model for AdminUserUpdate.
+type AdminUserUpdate struct {
+	DisplayName string `json:"display_name"`
 }
 
 // CoreInfo defines model for CoreInfo.
@@ -1529,7 +2265,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional server feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the server (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the server pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only), `reports_v1` = problem reports (`POST /reports`; the admin endpoints under `/admin/reports`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+	// Features Optional server feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the server (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the server pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only), `reports_v1` = problem reports (`POST /reports`; the admin endpoints under `/admin/reports`), `admin_v1` = the admin API under `/admin/...` (advertised only to admin users). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -2333,6 +3069,24 @@ type UserList struct {
 // AdminBackupName defines model for AdminBackupName.
 type AdminBackupName = string
 
+// AdminDeviceId defines model for AdminDeviceId.
+type AdminDeviceId = string
+
+// AdminFirmwareId defines model for AdminFirmwareId.
+type AdminFirmwareId = string
+
+// AdminInviteId defines model for AdminInviteId.
+type AdminInviteId = string
+
+// AdminRequestId defines model for AdminRequestId.
+type AdminRequestId = string
+
+// AdminStageId defines model for AdminStageId.
+type AdminStageId = string
+
+// AdminSystemId defines model for AdminSystemId.
+type AdminSystemId = string
+
 // CoreId defines model for CoreId.
 type CoreId = string
 
@@ -2365,6 +3119,9 @@ type UserId = string
 
 // AdminBackupConflict defines model for AdminBackupConflict.
 type AdminBackupConflict = Error
+
+// AdminConflict defines model for AdminConflict.
+type AdminConflict = Error
 
 // AdminUpdateConflict defines model for AdminUpdateConflict.
 type AdminUpdateConflict = Error
@@ -2419,6 +3176,19 @@ type bearerAuthContextKey string
 
 // pollTokenAuthContextKey is the context key for pollTokenAuth security scheme
 type pollTokenAuthContextKey string
+
+// ListAdminInvitesParams defines parameters for ListAdminInvites.
+type ListAdminInvitesParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListAdminPairingRequestsParams defines parameters for ListAdminPairingRequests.
+type ListAdminPairingRequestsParams struct {
+	Status *ListAdminPairingRequestsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListAdminPairingRequestsParamsStatus defines parameters for ListAdminPairingRequests.
+type ListAdminPairingRequestsParamsStatus string
 
 // ListAdminReportsParams defines parameters for ListAdminReports.
 type ListAdminReportsParams struct {
@@ -2498,11 +3268,47 @@ type PutUploadChunkParams struct {
 // UpdateAdminBackupSettingsJSONRequestBody defines body for UpdateAdminBackupSettings for application/json ContentType.
 type UpdateAdminBackupSettingsJSONRequestBody = AdminBackupSettingsUpdate
 
+// UpdateAdminCoreSettingsJSONRequestBody defines body for UpdateAdminCoreSettings for application/json ContentType.
+type UpdateAdminCoreSettingsJSONRequestBody = AdminCoreSettingsUpdate
+
+// RenameAdminDeviceJSONRequestBody defines body for RenameAdminDevice for application/json ContentType.
+type RenameAdminDeviceJSONRequestBody = AdminDeviceRename
+
+// CreateAdminInviteJSONRequestBody defines body for CreateAdminInvite for application/json ContentType.
+type CreateAdminInviteJSONRequestBody = AdminInviteCreate
+
 // SetAdminMetricsJSONRequestBody defines body for SetAdminMetrics for application/json ContentType.
 type SetAdminMetricsJSONRequestBody = AdminMetricsUpdate
 
+// AllowAdminPairingRequestJSONRequestBody defines body for AllowAdminPairingRequest for application/json ContentType.
+type AllowAdminPairingRequestJSONRequestBody = AdminPairingAllow
+
+// InstallAdminIndexPluginJSONRequestBody defines body for InstallAdminIndexPlugin for application/json ContentType.
+type InstallAdminIndexPluginJSONRequestBody = AdminPluginIndexInstall
+
+// OfferAdminPluginJSONRequestBody defines body for OfferAdminPlugin for application/json ContentType.
+type OfferAdminPluginJSONRequestBody = AdminPluginOffer
+
+// UpdateAdminSystemJSONRequestBody defines body for UpdateAdminSystem for application/json ContentType.
+type UpdateAdminSystemJSONRequestBody = AdminSystemUpdate
+
+// UpdateAdminSystemCoreJSONRequestBody defines body for UpdateAdminSystemCore for application/json ContentType.
+type UpdateAdminSystemCoreJSONRequestBody = AdminCoreUpdate
+
+// PinAdminFirmwareFileJSONRequestBody defines body for PinAdminFirmwareFile for application/json ContentType.
+type PinAdminFirmwareFileJSONRequestBody = AdminFirmwarePin
+
 // RollbackAdminUpdateJSONRequestBody defines body for RollbackAdminUpdate for application/json ContentType.
 type RollbackAdminUpdateJSONRequestBody = AdminRollbackRequest
+
+// CreateAdminUserJSONRequestBody defines body for CreateAdminUser for application/json ContentType.
+type CreateAdminUserJSONRequestBody = AdminUserCreate
+
+// UpdateAdminUserJSONRequestBody defines body for UpdateAdminUser for application/json ContentType.
+type UpdateAdminUserJSONRequestBody = AdminUserUpdate
+
+// SetAdminUserRoleJSONRequestBody defines body for SetAdminUserRole for application/json ContentType.
+type SetAdminUserRoleJSONRequestBody = AdminUserRoleChange
 
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = TokenRequest
@@ -3081,6 +3887,33 @@ type ServerInterface interface {
 	// Restore a backup (admin)
 	// (POST /api/v1/admin/backups/{name}/restore)
 	RestoreAdminBackup(w http.ResponseWriter, r *http.Request, name AdminBackupName)
+	// Change the server default of the automatic core update (admin)
+	// (PATCH /api/v1/admin/cores/settings)
+	UpdateAdminCoreSettings(w http.ResponseWriter, r *http.Request)
+	// Refresh the core catalog now (admin)
+	// (POST /api/v1/admin/cores/sync)
+	SyncAdminCores(w http.ResponseWriter, r *http.Request)
+	// List all devices of all users (admin)
+	// (GET /api/v1/admin/devices)
+	ListAdminDevices(w http.ResponseWriter, r *http.Request)
+	// Delete a device (admin)
+	// (DELETE /api/v1/admin/devices/{device_id})
+	DeleteAdminDevice(w http.ResponseWriter, r *http.Request, deviceId AdminDeviceId)
+	// Rename a device (admin)
+	// (PATCH /api/v1/admin/devices/{device_id})
+	RenameAdminDevice(w http.ResponseWriter, r *http.Request, deviceId AdminDeviceId)
+	// Revoke the access of a device (admin)
+	// (POST /api/v1/admin/devices/{device_id}/revoke)
+	RevokeAdminDevice(w http.ResponseWriter, r *http.Request, deviceId AdminDeviceId)
+	// List invites and pairing codes (admin)
+	// (GET /api/v1/admin/invites)
+	ListAdminInvites(w http.ResponseWriter, r *http.Request, params ListAdminInvitesParams)
+	// Create an invite (admin)
+	// (POST /api/v1/admin/invites)
+	CreateAdminInvite(w http.ResponseWriter, r *http.Request)
+	// Revoke an open invite (admin)
+	// (DELETE /api/v1/admin/invites/{invite_id})
+	RevokeAdminInvite(w http.ResponseWriter, r *http.Request, inviteId AdminInviteId)
 	// State of the Prometheus metrics endpoint (admin only)
 	// (GET /api/v1/admin/metrics)
 	GetAdminMetrics(w http.ResponseWriter, r *http.Request)
@@ -3090,6 +3923,36 @@ type ServerInterface interface {
 	// Create a new metrics token (admin only)
 	// (POST /api/v1/admin/metrics/token)
 	CreateAdminMetricsToken(w http.ResponseWriter, r *http.Request)
+	// List pairing requests of devices (admin)
+	// (GET /api/v1/admin/pairing-requests)
+	ListAdminPairingRequests(w http.ResponseWriter, r *http.Request, params ListAdminPairingRequestsParams)
+	// Allow a pairing request and assign it to a user (admin)
+	// (POST /api/v1/admin/pairing-requests/{request_id}/allow)
+	AllowAdminPairingRequest(w http.ResponseWriter, r *http.Request, requestId AdminRequestId)
+	// Deny a pairing request (admin)
+	// (POST /api/v1/admin/pairing-requests/{request_id}/deny)
+	DenyAdminPairingRequest(w http.ResponseWriter, r *http.Request, requestId AdminRequestId)
+	// Install a plugin version from the plugin index (admin)
+	// (POST /api/v1/admin/plugin-index/install)
+	InstallAdminIndexPlugin(w http.ResponseWriter, r *http.Request)
+	// Refresh the plugin index now (admin)
+	// (POST /api/v1/admin/plugin-index/refresh)
+	RefreshAdminPluginIndex(w http.ResponseWriter, r *http.Request)
+	// Offered plugin versions and the plugin index (admin)
+	// (GET /api/v1/admin/plugins)
+	ListAdminPlugins(w http.ResponseWriter, r *http.Request)
+	// Upload a plugin file for review (admin)
+	// (POST /api/v1/admin/plugins/stage)
+	StageAdminPlugin(w http.ResponseWriter, r *http.Request)
+	// Discard an uploaded plugin file (admin)
+	// (DELETE /api/v1/admin/plugins/stage/{stage_id})
+	DiscardAdminPlugin(w http.ResponseWriter, r *http.Request, stageId AdminStageId)
+	// Offer a reviewed plugin file to apps (admin)
+	// (POST /api/v1/admin/plugins/stage/{stage_id}/offer)
+	OfferAdminPlugin(w http.ResponseWriter, r *http.Request, stageId AdminStageId)
+	// Remove an offered plugin version (admin)
+	// (DELETE /api/v1/admin/plugins/{plugin_id}/{version})
+	RemoveAdminPlugin(w http.ResponseWriter, r *http.Request, pluginId PluginId, version PluginVersion)
 	// List problem reports, newest first (admin only, `reports_v1`)
 	// (GET /api/v1/admin/reports)
 	ListAdminReports(w http.ResponseWriter, r *http.Request, params ListAdminReportsParams)
@@ -3114,6 +3977,36 @@ type ServerInterface interface {
 	// Download the recent server log (admin only)
 	// (GET /api/v1/admin/status/log)
 	GetAdminStatusLog(w http.ResponseWriter, r *http.Request)
+	// Systems, cores and firmware as the admin sees them (admin)
+	// (GET /api/v1/admin/systems)
+	ListAdminSystems(w http.ResponseWriter, r *http.Request)
+	// Change settings of a system (admin)
+	// (PATCH /api/v1/admin/systems/{system_id})
+	UpdateAdminSystem(w http.ResponseWriter, r *http.Request, systemId AdminSystemId)
+	// Remove an installed core (admin)
+	// (DELETE /api/v1/admin/systems/{system_id}/cores/{core_id})
+	RemoveAdminCore(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, coreId CoreId)
+	// Pin an installed core or let it follow its system again (admin)
+	// (PATCH /api/v1/admin/systems/{system_id}/cores/{core_id})
+	UpdateAdminSystemCore(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, coreId CoreId)
+	// Install a core from the buildbot catalog (admin)
+	// (POST /api/v1/admin/systems/{system_id}/cores/{core_id}/install)
+	InstallAdminCore(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, coreId CoreId)
+	// Update an installed core to the newest catalog build (admin)
+	// (POST /api/v1/admin/systems/{system_id}/cores/{core_id}/update)
+	UpgradeAdminCore(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, coreId CoreId)
+	// Remove a provided firmware file (admin)
+	// (DELETE /api/v1/admin/systems/{system_id}/firmware/{file_id})
+	RemoveAdminFirmwareFile(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, fileId AdminFirmwareId)
+	// Download a provided firmware file (admin; never logged)
+	// (GET /api/v1/admin/systems/{system_id}/firmware/{file_id})
+	GetAdminFirmwareFile(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, fileId AdminFirmwareId)
+	// Provide a firmware file (admin; raw body, never logged)
+	// (PUT /api/v1/admin/systems/{system_id}/firmware/{file_id})
+	PutAdminFirmwareFile(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, fileId AdminFirmwareId)
+	// Pin or unpin the expected SHA-256 of a firmware file (admin)
+	// (POST /api/v1/admin/systems/{system_id}/firmware/{file_id}/pin)
+	PinAdminFirmwareFile(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, fileId AdminFirmwareId)
 	// Resume automatic updates after going back (admin)
 	// (POST /api/v1/admin/updates/resume)
 	ResumeAdminUpdates(w http.ResponseWriter, r *http.Request)
@@ -3123,6 +4016,30 @@ type ServerInterface interface {
 	// Earlier versions the server can go back to (admin)
 	// (GET /api/v1/admin/updates/versions)
 	GetAdminUpdateVersions(w http.ResponseWriter, r *http.Request)
+	// List all users (admin)
+	// (GET /api/v1/admin/users)
+	ListAdminUsers(w http.ResponseWriter, r *http.Request)
+	// Create a regular user with a pairing code (admin)
+	// (POST /api/v1/admin/users)
+	CreateAdminUser(w http.ResponseWriter, r *http.Request)
+	// Delete a user (admin)
+	// (DELETE /api/v1/admin/users/{user_id})
+	DeleteAdminUser(w http.ResponseWriter, r *http.Request, userId UserId)
+	// Rename a user (admin)
+	// (PATCH /api/v1/admin/users/{user_id})
+	UpdateAdminUser(w http.ResponseWriter, r *http.Request, userId UserId)
+	// Create a new pairing code for a user (admin)
+	// (POST /api/v1/admin/users/{user_id}/code)
+	CreateAdminUserCode(w http.ResponseWriter, r *http.Request, userId UserId)
+	// Disable a user (admin)
+	// (POST /api/v1/admin/users/{user_id}/disable)
+	DisableAdminUser(w http.ResponseWriter, r *http.Request, userId UserId)
+	// Enable a disabled user (admin)
+	// (POST /api/v1/admin/users/{user_id}/enable)
+	EnableAdminUser(w http.ResponseWriter, r *http.Request, userId UserId)
+	// Change the role of a user (admin)
+	// (POST /api/v1/admin/users/{user_id}/role)
+	SetAdminUserRole(w http.ResponseWriter, r *http.Request, userId UserId)
 	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(w http.ResponseWriter, r *http.Request)
@@ -3576,6 +4493,253 @@ func (siw *ServerInterfaceWrapper) RestoreAdminBackup(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// UpdateAdminCoreSettings operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAdminCoreSettings(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAdminCoreSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SyncAdminCores operation middleware
+func (siw *ServerInterfaceWrapper) SyncAdminCores(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SyncAdminCores(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAdminDevices operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminDevices(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminDevices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAdminDevice operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdminDevice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "device_id" -------------
+	var deviceId AdminDeviceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "device_id", r.PathValue("device_id"), &deviceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "device_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdminDevice(w, r, deviceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RenameAdminDevice operation middleware
+func (siw *ServerInterfaceWrapper) RenameAdminDevice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "device_id" -------------
+	var deviceId AdminDeviceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "device_id", r.PathValue("device_id"), &deviceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "device_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenameAdminDevice(w, r, deviceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeAdminDevice operation middleware
+func (siw *ServerInterfaceWrapper) RevokeAdminDevice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "device_id" -------------
+	var deviceId AdminDeviceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "device_id", r.PathValue("device_id"), &deviceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "device_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeAdminDevice(w, r, deviceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAdminInvites operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminInvites(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAdminInvitesParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminInvites(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAdminInvite operation middleware
+func (siw *ServerInterfaceWrapper) CreateAdminInvite(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAdminInvite(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeAdminInvite operation middleware
+func (siw *ServerInterfaceWrapper) RevokeAdminInvite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "invite_id" -------------
+	var inviteId AdminInviteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "invite_id", r.PathValue("invite_id"), &inviteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "invite_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeAdminInvite(w, r, inviteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAdminMetrics operation middleware
 func (siw *ServerInterfaceWrapper) GetAdminMetrics(w http.ResponseWriter, r *http.Request) {
 
@@ -3627,6 +4791,294 @@ func (siw *ServerInterfaceWrapper) CreateAdminMetricsToken(w http.ResponseWriter
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateAdminMetricsToken(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAdminPairingRequests operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminPairingRequests(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAdminPairingRequestsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminPairingRequests(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AllowAdminPairingRequest operation middleware
+func (siw *ServerInterfaceWrapper) AllowAdminPairingRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "request_id" -------------
+	var requestId AdminRequestId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "request_id", r.PathValue("request_id"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "request_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AllowAdminPairingRequest(w, r, requestId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DenyAdminPairingRequest operation middleware
+func (siw *ServerInterfaceWrapper) DenyAdminPairingRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "request_id" -------------
+	var requestId AdminRequestId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "request_id", r.PathValue("request_id"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "request_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DenyAdminPairingRequest(w, r, requestId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InstallAdminIndexPlugin operation middleware
+func (siw *ServerInterfaceWrapper) InstallAdminIndexPlugin(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InstallAdminIndexPlugin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RefreshAdminPluginIndex operation middleware
+func (siw *ServerInterfaceWrapper) RefreshAdminPluginIndex(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RefreshAdminPluginIndex(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAdminPlugins operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminPlugins(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminPlugins(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StageAdminPlugin operation middleware
+func (siw *ServerInterfaceWrapper) StageAdminPlugin(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StageAdminPlugin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DiscardAdminPlugin operation middleware
+func (siw *ServerInterfaceWrapper) DiscardAdminPlugin(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "stage_id" -------------
+	var stageId AdminStageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "stage_id", r.PathValue("stage_id"), &stageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "stage_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DiscardAdminPlugin(w, r, stageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OfferAdminPlugin operation middleware
+func (siw *ServerInterfaceWrapper) OfferAdminPlugin(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "stage_id" -------------
+	var stageId AdminStageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "stage_id", r.PathValue("stage_id"), &stageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "stage_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OfferAdminPlugin(w, r, stageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveAdminPlugin operation middleware
+func (siw *ServerInterfaceWrapper) RemoveAdminPlugin(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "plugin_id" -------------
+	var pluginId PluginId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "plugin_id", r.PathValue("plugin_id"), &pluginId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "plugin_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "version" -------------
+	var version PluginVersion
+
+	err = runtime.BindStyledParameterWithOptions("simple", "version", r.PathValue("version"), &version, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveAdminPlugin(w, r, pluginId, version)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3884,6 +5336,386 @@ func (siw *ServerInterfaceWrapper) GetAdminStatusLog(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ListAdminSystems operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminSystems(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminSystems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAdminSystem operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAdminSystem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "system_id" -------------
+	var systemId AdminSystemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "system_id", r.PathValue("system_id"), &systemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "system_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAdminSystem(w, r, systemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveAdminCore operation middleware
+func (siw *ServerInterfaceWrapper) RemoveAdminCore(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "system_id" -------------
+	var systemId AdminSystemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "system_id", r.PathValue("system_id"), &systemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "system_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "core_id" -------------
+	var coreId CoreId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "core_id", r.PathValue("core_id"), &coreId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "core_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveAdminCore(w, r, systemId, coreId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAdminSystemCore operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAdminSystemCore(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "system_id" -------------
+	var systemId AdminSystemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "system_id", r.PathValue("system_id"), &systemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "system_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "core_id" -------------
+	var coreId CoreId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "core_id", r.PathValue("core_id"), &coreId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "core_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAdminSystemCore(w, r, systemId, coreId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InstallAdminCore operation middleware
+func (siw *ServerInterfaceWrapper) InstallAdminCore(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "system_id" -------------
+	var systemId AdminSystemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "system_id", r.PathValue("system_id"), &systemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "system_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "core_id" -------------
+	var coreId CoreId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "core_id", r.PathValue("core_id"), &coreId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "core_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InstallAdminCore(w, r, systemId, coreId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpgradeAdminCore operation middleware
+func (siw *ServerInterfaceWrapper) UpgradeAdminCore(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "system_id" -------------
+	var systemId AdminSystemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "system_id", r.PathValue("system_id"), &systemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "system_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "core_id" -------------
+	var coreId CoreId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "core_id", r.PathValue("core_id"), &coreId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "core_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpgradeAdminCore(w, r, systemId, coreId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveAdminFirmwareFile operation middleware
+func (siw *ServerInterfaceWrapper) RemoveAdminFirmwareFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "system_id" -------------
+	var systemId AdminSystemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "system_id", r.PathValue("system_id"), &systemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "system_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "file_id" -------------
+	var fileId AdminFirmwareId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "file_id", r.PathValue("file_id"), &fileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "file_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveAdminFirmwareFile(w, r, systemId, fileId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminFirmwareFile operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminFirmwareFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "system_id" -------------
+	var systemId AdminSystemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "system_id", r.PathValue("system_id"), &systemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "system_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "file_id" -------------
+	var fileId AdminFirmwareId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "file_id", r.PathValue("file_id"), &fileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "file_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminFirmwareFile(w, r, systemId, fileId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAdminFirmwareFile operation middleware
+func (siw *ServerInterfaceWrapper) PutAdminFirmwareFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "system_id" -------------
+	var systemId AdminSystemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "system_id", r.PathValue("system_id"), &systemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "system_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "file_id" -------------
+	var fileId AdminFirmwareId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "file_id", r.PathValue("file_id"), &fileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "file_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAdminFirmwareFile(w, r, systemId, fileId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PinAdminFirmwareFile operation middleware
+func (siw *ServerInterfaceWrapper) PinAdminFirmwareFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "system_id" -------------
+	var systemId AdminSystemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "system_id", r.PathValue("system_id"), &systemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "system_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "file_id" -------------
+	var fileId AdminFirmwareId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "file_id", r.PathValue("file_id"), &fileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "file_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PinAdminFirmwareFile(w, r, systemId, fileId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ResumeAdminUpdates operation middleware
 func (siw *ServerInterfaceWrapper) ResumeAdminUpdates(w http.ResponseWriter, r *http.Request) {
 
@@ -3935,6 +5767,238 @@ func (siw *ServerInterfaceWrapper) GetAdminUpdateVersions(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAdminUpdateVersions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAdminUsers operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminUsers(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAdminUser operation middleware
+func (siw *ServerInterfaceWrapper) CreateAdminUser(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAdminUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAdminUser operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdminUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user_id" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user_id", r.PathValue("user_id"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdminUser(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAdminUser operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAdminUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user_id" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user_id", r.PathValue("user_id"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAdminUser(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAdminUserCode operation middleware
+func (siw *ServerInterfaceWrapper) CreateAdminUserCode(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user_id" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user_id", r.PathValue("user_id"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAdminUserCode(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisableAdminUser operation middleware
+func (siw *ServerInterfaceWrapper) DisableAdminUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user_id" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user_id", r.PathValue("user_id"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisableAdminUser(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EnableAdminUser operation middleware
+func (siw *ServerInterfaceWrapper) EnableAdminUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user_id" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user_id", r.PathValue("user_id"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EnableAdminUser(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetAdminUserRole operation middleware
+func (siw *ServerInterfaceWrapper) SetAdminUserRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user_id" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user_id", r.PathValue("user_id"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAdminUserRole(w, r, userId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6365,9 +8429,28 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/backups/{name}", wrapper.DeleteAdminBackup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/backups/{name}/download", wrapper.DownloadAdminBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/backups/{name}/restore", wrapper.RestoreAdminBackup)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/v1/admin/cores/settings", wrapper.UpdateAdminCoreSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/cores/sync", wrapper.SyncAdminCores)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/devices", wrapper.ListAdminDevices)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/devices/{device_id}", wrapper.DeleteAdminDevice)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/v1/admin/devices/{device_id}", wrapper.RenameAdminDevice)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/devices/{device_id}/revoke", wrapper.RevokeAdminDevice)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/invites", wrapper.ListAdminInvites)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/invites", wrapper.CreateAdminInvite)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/invites/{invite_id}", wrapper.RevokeAdminInvite)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/metrics", wrapper.GetAdminMetrics)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/admin/metrics", wrapper.SetAdminMetrics)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/metrics/token", wrapper.CreateAdminMetricsToken)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/pairing-requests", wrapper.ListAdminPairingRequests)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/pairing-requests/{request_id}/allow", wrapper.AllowAdminPairingRequest)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/pairing-requests/{request_id}/deny", wrapper.DenyAdminPairingRequest)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/plugin-index/install", wrapper.InstallAdminIndexPlugin)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/plugin-index/refresh", wrapper.RefreshAdminPluginIndex)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/plugins", wrapper.ListAdminPlugins)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/plugins/stage", wrapper.StageAdminPlugin)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/plugins/stage/{stage_id}", wrapper.DiscardAdminPlugin)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/plugins/stage/{stage_id}/offer", wrapper.OfferAdminPlugin)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/plugins/{plugin_id}/{version}", wrapper.RemoveAdminPlugin)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/reports", wrapper.ListAdminReports)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/reports/{id}", wrapper.DeleteAdminReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/reports/{id}", wrapper.GetAdminReport)
@@ -6376,9 +8459,27 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/reports/{id}/seen", wrapper.MarkAdminReportSeen)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/status", wrapper.GetAdminStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/status/log", wrapper.GetAdminStatusLog)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/systems", wrapper.ListAdminSystems)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}", wrapper.UpdateAdminSystem)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}/cores/{core_id}", wrapper.RemoveAdminCore)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}/cores/{core_id}", wrapper.UpdateAdminSystemCore)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}/cores/{core_id}/install", wrapper.InstallAdminCore)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}/cores/{core_id}/update", wrapper.UpgradeAdminCore)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}/firmware/{file_id}", wrapper.RemoveAdminFirmwareFile)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}/firmware/{file_id}", wrapper.GetAdminFirmwareFile)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}/firmware/{file_id}", wrapper.PutAdminFirmwareFile)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}/firmware/{file_id}/pin", wrapper.PinAdminFirmwareFile)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/updates/resume", wrapper.ResumeAdminUpdates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/updates/rollback", wrapper.RollbackAdminUpdate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/updates/versions", wrapper.GetAdminUpdateVersions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/users", wrapper.ListAdminUsers)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users", wrapper.CreateAdminUser)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/users/{user_id}", wrapper.DeleteAdminUser)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/v1/admin/users/{user_id}", wrapper.UpdateAdminUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/code", wrapper.CreateAdminUserCode)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/disable", wrapper.DisableAdminUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/enable", wrapper.EnableAdminUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/role", wrapper.SetAdminUserRole)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}", wrapper.GetCorePackage)
@@ -6448,6 +8549,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 }
 
 type AdminBackupConflictJSONResponse Error
+
+type AdminConflictJSONResponse Error
 
 type AdminUpdateConflictJSONResponse Error
 
@@ -7120,6 +9223,535 @@ func (response RestoreAdminBackup409JSONResponse) VisitRestoreAdminBackupRespons
 	return err
 }
 
+type UpdateAdminCoreSettingsRequestObject struct {
+	Body *UpdateAdminCoreSettingsJSONRequestBody
+}
+
+type UpdateAdminCoreSettingsResponseObject interface {
+	VisitUpdateAdminCoreSettingsResponse(w http.ResponseWriter) error
+}
+
+type UpdateAdminCoreSettings200JSONResponse AdminCoreSource
+
+func (response UpdateAdminCoreSettings200JSONResponse) VisitUpdateAdminCoreSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminCoreSettings400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateAdminCoreSettings400JSONResponse) VisitUpdateAdminCoreSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminCoreSettings401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateAdminCoreSettings401JSONResponse) VisitUpdateAdminCoreSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminCoreSettings403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpdateAdminCoreSettings403JSONResponse) VisitUpdateAdminCoreSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncAdminCoresRequestObject struct {
+}
+
+type SyncAdminCoresResponseObject interface {
+	VisitSyncAdminCoresResponse(w http.ResponseWriter) error
+}
+
+type SyncAdminCores202Response struct {
+}
+
+func (response SyncAdminCores202Response) VisitSyncAdminCoresResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type SyncAdminCores401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SyncAdminCores401JSONResponse) VisitSyncAdminCoresResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncAdminCores403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response SyncAdminCores403JSONResponse) VisitSyncAdminCoresResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminDevicesRequestObject struct {
+}
+
+type ListAdminDevicesResponseObject interface {
+	VisitListAdminDevicesResponse(w http.ResponseWriter) error
+}
+
+type ListAdminDevices200JSONResponse AdminDeviceList
+
+func (response ListAdminDevices200JSONResponse) VisitListAdminDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminDevices401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminDevices401JSONResponse) VisitListAdminDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminDevices403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminDevices403JSONResponse) VisitListAdminDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminDeviceRequestObject struct {
+	DeviceId AdminDeviceId `json:"device_id"`
+}
+
+type DeleteAdminDeviceResponseObject interface {
+	VisitDeleteAdminDeviceResponse(w http.ResponseWriter) error
+}
+
+type DeleteAdminDevice204Response struct {
+}
+
+func (response DeleteAdminDevice204Response) VisitDeleteAdminDeviceResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAdminDevice401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteAdminDevice401JSONResponse) VisitDeleteAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminDevice403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeleteAdminDevice403JSONResponse) VisitDeleteAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminDevice404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteAdminDevice404JSONResponse) VisitDeleteAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameAdminDeviceRequestObject struct {
+	DeviceId AdminDeviceId `json:"device_id"`
+	Body     *RenameAdminDeviceJSONRequestBody
+}
+
+type RenameAdminDeviceResponseObject interface {
+	VisitRenameAdminDeviceResponse(w http.ResponseWriter) error
+}
+
+type RenameAdminDevice200JSONResponse AdminDevice
+
+func (response RenameAdminDevice200JSONResponse) VisitRenameAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameAdminDevice400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RenameAdminDevice400JSONResponse) VisitRenameAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameAdminDevice401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RenameAdminDevice401JSONResponse) VisitRenameAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameAdminDevice403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RenameAdminDevice403JSONResponse) VisitRenameAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameAdminDevice404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RenameAdminDevice404JSONResponse) VisitRenameAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeAdminDeviceRequestObject struct {
+	DeviceId AdminDeviceId `json:"device_id"`
+}
+
+type RevokeAdminDeviceResponseObject interface {
+	VisitRevokeAdminDeviceResponse(w http.ResponseWriter) error
+}
+
+type RevokeAdminDevice200JSONResponse AdminDevice
+
+func (response RevokeAdminDevice200JSONResponse) VisitRevokeAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeAdminDevice401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RevokeAdminDevice401JSONResponse) VisitRevokeAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeAdminDevice403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RevokeAdminDevice403JSONResponse) VisitRevokeAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeAdminDevice404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RevokeAdminDevice404JSONResponse) VisitRevokeAdminDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminInvitesRequestObject struct {
+	Params ListAdminInvitesParams
+}
+
+type ListAdminInvitesResponseObject interface {
+	VisitListAdminInvitesResponse(w http.ResponseWriter) error
+}
+
+type ListAdminInvites200JSONResponse AdminInviteList
+
+func (response ListAdminInvites200JSONResponse) VisitListAdminInvitesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminInvites401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminInvites401JSONResponse) VisitListAdminInvitesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminInvites403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminInvites403JSONResponse) VisitListAdminInvitesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminInviteRequestObject struct {
+	Body *CreateAdminInviteJSONRequestBody
+}
+
+type CreateAdminInviteResponseObject interface {
+	VisitCreateAdminInviteResponse(w http.ResponseWriter) error
+}
+
+type CreateAdminInvite201JSONResponse AdminInviteCreated
+
+func (response CreateAdminInvite201JSONResponse) VisitCreateAdminInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminInvite400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateAdminInvite400JSONResponse) VisitCreateAdminInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminInvite401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateAdminInvite401JSONResponse) VisitCreateAdminInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminInvite403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreateAdminInvite403JSONResponse) VisitCreateAdminInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeAdminInviteRequestObject struct {
+	InviteId AdminInviteId `json:"invite_id"`
+}
+
+type RevokeAdminInviteResponseObject interface {
+	VisitRevokeAdminInviteResponse(w http.ResponseWriter) error
+}
+
+type RevokeAdminInvite204Response struct {
+}
+
+func (response RevokeAdminInvite204Response) VisitRevokeAdminInviteResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RevokeAdminInvite401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RevokeAdminInvite401JSONResponse) VisitRevokeAdminInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeAdminInvite403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RevokeAdminInvite403JSONResponse) VisitRevokeAdminInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeAdminInvite404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RevokeAdminInvite404JSONResponse) VisitRevokeAdminInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetAdminMetricsRequestObject struct {
 }
 
@@ -7334,6 +9966,721 @@ func (response CreateAdminMetricsToken429JSONResponse) VisitCreateAdminMetricsTo
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminPairingRequestsRequestObject struct {
+	Params ListAdminPairingRequestsParams
+}
+
+type ListAdminPairingRequestsResponseObject interface {
+	VisitListAdminPairingRequestsResponse(w http.ResponseWriter) error
+}
+
+type ListAdminPairingRequests200JSONResponse AdminPairingRequestList
+
+func (response ListAdminPairingRequests200JSONResponse) VisitListAdminPairingRequestsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminPairingRequests400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListAdminPairingRequests400JSONResponse) VisitListAdminPairingRequestsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminPairingRequests401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminPairingRequests401JSONResponse) VisitListAdminPairingRequestsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminPairingRequests403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminPairingRequests403JSONResponse) VisitListAdminPairingRequestsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AllowAdminPairingRequestRequestObject struct {
+	RequestId AdminRequestId `json:"request_id"`
+	Body      *AllowAdminPairingRequestJSONRequestBody
+}
+
+type AllowAdminPairingRequestResponseObject interface {
+	VisitAllowAdminPairingRequestResponse(w http.ResponseWriter) error
+}
+
+type AllowAdminPairingRequest204Response struct {
+}
+
+func (response AllowAdminPairingRequest204Response) VisitAllowAdminPairingRequestResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AllowAdminPairingRequest400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AllowAdminPairingRequest400JSONResponse) VisitAllowAdminPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AllowAdminPairingRequest401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response AllowAdminPairingRequest401JSONResponse) VisitAllowAdminPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AllowAdminPairingRequest403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response AllowAdminPairingRequest403JSONResponse) VisitAllowAdminPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AllowAdminPairingRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AllowAdminPairingRequest404JSONResponse) VisitAllowAdminPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AllowAdminPairingRequest409JSONResponse struct{ AdminConflictJSONResponse }
+
+func (response AllowAdminPairingRequest409JSONResponse) VisitAllowAdminPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DenyAdminPairingRequestRequestObject struct {
+	RequestId AdminRequestId `json:"request_id"`
+}
+
+type DenyAdminPairingRequestResponseObject interface {
+	VisitDenyAdminPairingRequestResponse(w http.ResponseWriter) error
+}
+
+type DenyAdminPairingRequest204Response struct {
+}
+
+func (response DenyAdminPairingRequest204Response) VisitDenyAdminPairingRequestResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DenyAdminPairingRequest401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DenyAdminPairingRequest401JSONResponse) VisitDenyAdminPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DenyAdminPairingRequest403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DenyAdminPairingRequest403JSONResponse) VisitDenyAdminPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DenyAdminPairingRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DenyAdminPairingRequest404JSONResponse) VisitDenyAdminPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DenyAdminPairingRequest409JSONResponse struct{ AdminConflictJSONResponse }
+
+func (response DenyAdminPairingRequest409JSONResponse) VisitDenyAdminPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminIndexPluginRequestObject struct {
+	Body *InstallAdminIndexPluginJSONRequestBody
+}
+
+type InstallAdminIndexPluginResponseObject interface {
+	VisitInstallAdminIndexPluginResponse(w http.ResponseWriter) error
+}
+
+type InstallAdminIndexPlugin201JSONResponse AdminPlugin
+
+func (response InstallAdminIndexPlugin201JSONResponse) VisitInstallAdminIndexPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminIndexPlugin400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response InstallAdminIndexPlugin400JSONResponse) VisitInstallAdminIndexPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminIndexPlugin401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response InstallAdminIndexPlugin401JSONResponse) VisitInstallAdminIndexPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminIndexPlugin403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response InstallAdminIndexPlugin403JSONResponse) VisitInstallAdminIndexPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminIndexPlugin404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response InstallAdminIndexPlugin404JSONResponse) VisitInstallAdminIndexPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminIndexPlugin409JSONResponse struct{ AdminConflictJSONResponse }
+
+func (response InstallAdminIndexPlugin409JSONResponse) VisitInstallAdminIndexPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshAdminPluginIndexRequestObject struct {
+}
+
+type RefreshAdminPluginIndexResponseObject interface {
+	VisitRefreshAdminPluginIndexResponse(w http.ResponseWriter) error
+}
+
+type RefreshAdminPluginIndex200JSONResponse AdminPluginIndex
+
+func (response RefreshAdminPluginIndex200JSONResponse) VisitRefreshAdminPluginIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshAdminPluginIndex400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RefreshAdminPluginIndex400JSONResponse) VisitRefreshAdminPluginIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshAdminPluginIndex401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RefreshAdminPluginIndex401JSONResponse) VisitRefreshAdminPluginIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshAdminPluginIndex403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RefreshAdminPluginIndex403JSONResponse) VisitRefreshAdminPluginIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminPluginsRequestObject struct {
+}
+
+type ListAdminPluginsResponseObject interface {
+	VisitListAdminPluginsResponse(w http.ResponseWriter) error
+}
+
+type ListAdminPlugins200JSONResponse AdminPlugins
+
+func (response ListAdminPlugins200JSONResponse) VisitListAdminPluginsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminPlugins401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminPlugins401JSONResponse) VisitListAdminPluginsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminPlugins403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminPlugins403JSONResponse) VisitListAdminPluginsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StageAdminPluginRequestObject struct {
+	Body io.Reader
+}
+
+type StageAdminPluginResponseObject interface {
+	VisitStageAdminPluginResponse(w http.ResponseWriter) error
+}
+
+type StageAdminPlugin201JSONResponse AdminPluginStage
+
+func (response StageAdminPlugin201JSONResponse) VisitStageAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StageAdminPlugin400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response StageAdminPlugin400JSONResponse) VisitStageAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StageAdminPlugin401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response StageAdminPlugin401JSONResponse) VisitStageAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StageAdminPlugin403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response StageAdminPlugin403JSONResponse) VisitStageAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StageAdminPlugin413JSONResponse struct{ TooLargeJSONResponse }
+
+func (response StageAdminPlugin413JSONResponse) VisitStageAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscardAdminPluginRequestObject struct {
+	StageId AdminStageId `json:"stage_id"`
+}
+
+type DiscardAdminPluginResponseObject interface {
+	VisitDiscardAdminPluginResponse(w http.ResponseWriter) error
+}
+
+type DiscardAdminPlugin204Response struct {
+}
+
+func (response DiscardAdminPlugin204Response) VisitDiscardAdminPluginResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DiscardAdminPlugin401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DiscardAdminPlugin401JSONResponse) VisitDiscardAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscardAdminPlugin403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DiscardAdminPlugin403JSONResponse) VisitDiscardAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type OfferAdminPluginRequestObject struct {
+	StageId AdminStageId `json:"stage_id"`
+	Body    *OfferAdminPluginJSONRequestBody
+}
+
+type OfferAdminPluginResponseObject interface {
+	VisitOfferAdminPluginResponse(w http.ResponseWriter) error
+}
+
+type OfferAdminPlugin201JSONResponse AdminPlugin
+
+func (response OfferAdminPlugin201JSONResponse) VisitOfferAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type OfferAdminPlugin400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response OfferAdminPlugin400JSONResponse) VisitOfferAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type OfferAdminPlugin401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response OfferAdminPlugin401JSONResponse) VisitOfferAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type OfferAdminPlugin403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response OfferAdminPlugin403JSONResponse) VisitOfferAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type OfferAdminPlugin404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response OfferAdminPlugin404JSONResponse) VisitOfferAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type OfferAdminPlugin409JSONResponse struct{ AdminConflictJSONResponse }
+
+func (response OfferAdminPlugin409JSONResponse) VisitOfferAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminPluginRequestObject struct {
+	PluginId PluginId      `json:"plugin_id"`
+	Version  PluginVersion `json:"version"`
+}
+
+type RemoveAdminPluginResponseObject interface {
+	VisitRemoveAdminPluginResponse(w http.ResponseWriter) error
+}
+
+type RemoveAdminPlugin204Response struct {
+}
+
+func (response RemoveAdminPlugin204Response) VisitRemoveAdminPluginResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveAdminPlugin401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RemoveAdminPlugin401JSONResponse) VisitRemoveAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminPlugin403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RemoveAdminPlugin403JSONResponse) VisitRemoveAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminPlugin404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RemoveAdminPlugin404JSONResponse) VisitRemoveAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminPlugin409JSONResponse struct{ AdminConflictJSONResponse }
+
+func (response RemoveAdminPlugin409JSONResponse) VisitRemoveAdminPluginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -7966,6 +11313,789 @@ func (response GetAdminStatusLog429JSONResponse) VisitGetAdminStatusLogResponse(
 	return err
 }
 
+type ListAdminSystemsRequestObject struct {
+}
+
+type ListAdminSystemsResponseObject interface {
+	VisitListAdminSystemsResponse(w http.ResponseWriter) error
+}
+
+type ListAdminSystems200JSONResponse AdminSystems
+
+func (response ListAdminSystems200JSONResponse) VisitListAdminSystemsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminSystems401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminSystems401JSONResponse) VisitListAdminSystemsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminSystems403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminSystems403JSONResponse) VisitListAdminSystemsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminSystemRequestObject struct {
+	SystemId AdminSystemId `json:"system_id"`
+	Body     *UpdateAdminSystemJSONRequestBody
+}
+
+type UpdateAdminSystemResponseObject interface {
+	VisitUpdateAdminSystemResponse(w http.ResponseWriter) error
+}
+
+type UpdateAdminSystem200JSONResponse AdminSystem
+
+func (response UpdateAdminSystem200JSONResponse) VisitUpdateAdminSystemResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminSystem400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateAdminSystem400JSONResponse) VisitUpdateAdminSystemResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminSystem401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateAdminSystem401JSONResponse) VisitUpdateAdminSystemResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminSystem403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpdateAdminSystem403JSONResponse) VisitUpdateAdminSystemResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminSystem404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateAdminSystem404JSONResponse) VisitUpdateAdminSystemResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminCoreRequestObject struct {
+	SystemId AdminSystemId `json:"system_id"`
+	CoreId   CoreId        `json:"core_id"`
+}
+
+type RemoveAdminCoreResponseObject interface {
+	VisitRemoveAdminCoreResponse(w http.ResponseWriter) error
+}
+
+type RemoveAdminCore200JSONResponse AdminSystem
+
+func (response RemoveAdminCore200JSONResponse) VisitRemoveAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminCore400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RemoveAdminCore400JSONResponse) VisitRemoveAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminCore401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RemoveAdminCore401JSONResponse) VisitRemoveAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminCore403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RemoveAdminCore403JSONResponse) VisitRemoveAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminCore404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RemoveAdminCore404JSONResponse) VisitRemoveAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminCore409JSONResponse struct{ AdminConflictJSONResponse }
+
+func (response RemoveAdminCore409JSONResponse) VisitRemoveAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminSystemCoreRequestObject struct {
+	SystemId AdminSystemId `json:"system_id"`
+	CoreId   CoreId        `json:"core_id"`
+	Body     *UpdateAdminSystemCoreJSONRequestBody
+}
+
+type UpdateAdminSystemCoreResponseObject interface {
+	VisitUpdateAdminSystemCoreResponse(w http.ResponseWriter) error
+}
+
+type UpdateAdminSystemCore200JSONResponse AdminSystem
+
+func (response UpdateAdminSystemCore200JSONResponse) VisitUpdateAdminSystemCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminSystemCore400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateAdminSystemCore400JSONResponse) VisitUpdateAdminSystemCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminSystemCore401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateAdminSystemCore401JSONResponse) VisitUpdateAdminSystemCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminSystemCore403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpdateAdminSystemCore403JSONResponse) VisitUpdateAdminSystemCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminSystemCore404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateAdminSystemCore404JSONResponse) VisitUpdateAdminSystemCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminCoreRequestObject struct {
+	SystemId AdminSystemId `json:"system_id"`
+	CoreId   CoreId        `json:"core_id"`
+}
+
+type InstallAdminCoreResponseObject interface {
+	VisitInstallAdminCoreResponse(w http.ResponseWriter) error
+}
+
+type InstallAdminCore200JSONResponse AdminSystem
+
+func (response InstallAdminCore200JSONResponse) VisitInstallAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminCore400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response InstallAdminCore400JSONResponse) VisitInstallAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminCore401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response InstallAdminCore401JSONResponse) VisitInstallAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminCore403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response InstallAdminCore403JSONResponse) VisitInstallAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminCore404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response InstallAdminCore404JSONResponse) VisitInstallAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallAdminCore409JSONResponse struct{ AdminConflictJSONResponse }
+
+func (response InstallAdminCore409JSONResponse) VisitInstallAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeAdminCoreRequestObject struct {
+	SystemId AdminSystemId `json:"system_id"`
+	CoreId   CoreId        `json:"core_id"`
+}
+
+type UpgradeAdminCoreResponseObject interface {
+	VisitUpgradeAdminCoreResponse(w http.ResponseWriter) error
+}
+
+type UpgradeAdminCore200JSONResponse AdminSystem
+
+func (response UpgradeAdminCore200JSONResponse) VisitUpgradeAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeAdminCore400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpgradeAdminCore400JSONResponse) VisitUpgradeAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeAdminCore401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpgradeAdminCore401JSONResponse) VisitUpgradeAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeAdminCore403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpgradeAdminCore403JSONResponse) VisitUpgradeAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeAdminCore404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpgradeAdminCore404JSONResponse) VisitUpgradeAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeAdminCore409JSONResponse struct{ AdminConflictJSONResponse }
+
+func (response UpgradeAdminCore409JSONResponse) VisitUpgradeAdminCoreResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminFirmwareFileRequestObject struct {
+	SystemId AdminSystemId   `json:"system_id"`
+	FileId   AdminFirmwareId `json:"file_id"`
+}
+
+type RemoveAdminFirmwareFileResponseObject interface {
+	VisitRemoveAdminFirmwareFileResponse(w http.ResponseWriter) error
+}
+
+type RemoveAdminFirmwareFile200JSONResponse AdminSystem
+
+func (response RemoveAdminFirmwareFile200JSONResponse) VisitRemoveAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminFirmwareFile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RemoveAdminFirmwareFile401JSONResponse) VisitRemoveAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminFirmwareFile403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RemoveAdminFirmwareFile403JSONResponse) VisitRemoveAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAdminFirmwareFile404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RemoveAdminFirmwareFile404JSONResponse) VisitRemoveAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminFirmwareFileRequestObject struct {
+	SystemId AdminSystemId   `json:"system_id"`
+	FileId   AdminFirmwareId `json:"file_id"`
+}
+
+type GetAdminFirmwareFileResponseObject interface {
+	VisitGetAdminFirmwareFileResponse(w http.ResponseWriter) error
+}
+
+type GetAdminFirmwareFile200ApplicationoctetStreamResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response GetAdminFirmwareFile200ApplicationoctetStreamResponse) VisitGetAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetAdminFirmwareFile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminFirmwareFile401JSONResponse) VisitGetAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminFirmwareFile403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminFirmwareFile403JSONResponse) VisitGetAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminFirmwareFile404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetAdminFirmwareFile404JSONResponse) VisitGetAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAdminFirmwareFileRequestObject struct {
+	SystemId AdminSystemId   `json:"system_id"`
+	FileId   AdminFirmwareId `json:"file_id"`
+	Body     io.Reader
+}
+
+type PutAdminFirmwareFileResponseObject interface {
+	VisitPutAdminFirmwareFileResponse(w http.ResponseWriter) error
+}
+
+type PutAdminFirmwareFile200JSONResponse AdminSystem
+
+func (response PutAdminFirmwareFile200JSONResponse) VisitPutAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAdminFirmwareFile400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PutAdminFirmwareFile400JSONResponse) VisitPutAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAdminFirmwareFile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PutAdminFirmwareFile401JSONResponse) VisitPutAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAdminFirmwareFile403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response PutAdminFirmwareFile403JSONResponse) VisitPutAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAdminFirmwareFile404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PutAdminFirmwareFile404JSONResponse) VisitPutAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PinAdminFirmwareFileRequestObject struct {
+	SystemId AdminSystemId   `json:"system_id"`
+	FileId   AdminFirmwareId `json:"file_id"`
+	Body     *PinAdminFirmwareFileJSONRequestBody
+}
+
+type PinAdminFirmwareFileResponseObject interface {
+	VisitPinAdminFirmwareFileResponse(w http.ResponseWriter) error
+}
+
+type PinAdminFirmwareFile200JSONResponse AdminSystem
+
+func (response PinAdminFirmwareFile200JSONResponse) VisitPinAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PinAdminFirmwareFile400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PinAdminFirmwareFile400JSONResponse) VisitPinAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PinAdminFirmwareFile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PinAdminFirmwareFile401JSONResponse) VisitPinAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PinAdminFirmwareFile403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response PinAdminFirmwareFile403JSONResponse) VisitPinAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PinAdminFirmwareFile404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PinAdminFirmwareFile404JSONResponse) VisitPinAdminFirmwareFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ResumeAdminUpdatesRequestObject struct {
 }
 
@@ -8164,6 +12294,569 @@ func (response GetAdminUpdateVersions403JSONResponse) VisitGetAdminUpdateVersion
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminUsersRequestObject struct {
+}
+
+type ListAdminUsersResponseObject interface {
+	VisitListAdminUsersResponse(w http.ResponseWriter) error
+}
+
+type ListAdminUsers200JSONResponse AdminUserList
+
+func (response ListAdminUsers200JSONResponse) VisitListAdminUsersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminUsers401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminUsers401JSONResponse) VisitListAdminUsersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminUsers403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminUsers403JSONResponse) VisitListAdminUsersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserRequestObject struct {
+	Body *CreateAdminUserJSONRequestBody
+}
+
+type CreateAdminUserResponseObject interface {
+	VisitCreateAdminUserResponse(w http.ResponseWriter) error
+}
+
+type CreateAdminUser201JSONResponse AdminUserCreated
+
+func (response CreateAdminUser201JSONResponse) VisitCreateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUser400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateAdminUser400JSONResponse) VisitCreateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateAdminUser401JSONResponse) VisitCreateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreateAdminUser403JSONResponse) VisitCreateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUser409JSONResponse struct{ AdminConflictJSONResponse }
+
+func (response CreateAdminUser409JSONResponse) VisitCreateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUserRequestObject struct {
+	UserId UserId `json:"user_id"`
+}
+
+type DeleteAdminUserResponseObject interface {
+	VisitDeleteAdminUserResponse(w http.ResponseWriter) error
+}
+
+type DeleteAdminUser204Response struct {
+}
+
+func (response DeleteAdminUser204Response) VisitDeleteAdminUserResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteAdminUser401JSONResponse) VisitDeleteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeleteAdminUser403JSONResponse) VisitDeleteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteAdminUser404JSONResponse) VisitDeleteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserRequestObject struct {
+	UserId UserId `json:"user_id"`
+	Body   *UpdateAdminUserJSONRequestBody
+}
+
+type UpdateAdminUserResponseObject interface {
+	VisitUpdateAdminUserResponse(w http.ResponseWriter) error
+}
+
+type UpdateAdminUser200JSONResponse AdminUser
+
+func (response UpdateAdminUser200JSONResponse) VisitUpdateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUser400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateAdminUser400JSONResponse) VisitUpdateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateAdminUser401JSONResponse) VisitUpdateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpdateAdminUser403JSONResponse) VisitUpdateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateAdminUser404JSONResponse) VisitUpdateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUser409JSONResponse struct{ AdminConflictJSONResponse }
+
+func (response UpdateAdminUser409JSONResponse) VisitUpdateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserCodeRequestObject struct {
+	UserId UserId `json:"user_id"`
+}
+
+type CreateAdminUserCodeResponseObject interface {
+	VisitCreateAdminUserCodeResponse(w http.ResponseWriter) error
+}
+
+type CreateAdminUserCode201JSONResponse AdminCode
+
+func (response CreateAdminUserCode201JSONResponse) VisitCreateAdminUserCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserCode400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateAdminUserCode400JSONResponse) VisitCreateAdminUserCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserCode401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateAdminUserCode401JSONResponse) VisitCreateAdminUserCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserCode403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreateAdminUserCode403JSONResponse) VisitCreateAdminUserCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserCode404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateAdminUserCode404JSONResponse) VisitCreateAdminUserCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableAdminUserRequestObject struct {
+	UserId UserId `json:"user_id"`
+}
+
+type DisableAdminUserResponseObject interface {
+	VisitDisableAdminUserResponse(w http.ResponseWriter) error
+}
+
+type DisableAdminUser200JSONResponse AdminUser
+
+func (response DisableAdminUser200JSONResponse) VisitDisableAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DisableAdminUser401JSONResponse) VisitDisableAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DisableAdminUser403JSONResponse) VisitDisableAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableAdminUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DisableAdminUser404JSONResponse) VisitDisableAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableAdminUserRequestObject struct {
+	UserId UserId `json:"user_id"`
+}
+
+type EnableAdminUserResponseObject interface {
+	VisitEnableAdminUserResponse(w http.ResponseWriter) error
+}
+
+type EnableAdminUser200JSONResponse AdminUser
+
+func (response EnableAdminUser200JSONResponse) VisitEnableAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response EnableAdminUser401JSONResponse) VisitEnableAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response EnableAdminUser403JSONResponse) VisitEnableAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableAdminUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response EnableAdminUser404JSONResponse) VisitEnableAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminUserRoleRequestObject struct {
+	UserId UserId `json:"user_id"`
+	Body   *SetAdminUserRoleJSONRequestBody
+}
+
+type SetAdminUserRoleResponseObject interface {
+	VisitSetAdminUserRoleResponse(w http.ResponseWriter) error
+}
+
+type SetAdminUserRole200JSONResponse AdminUser
+
+func (response SetAdminUserRole200JSONResponse) VisitSetAdminUserRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminUserRole400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SetAdminUserRole400JSONResponse) VisitSetAdminUserRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminUserRole401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SetAdminUserRole401JSONResponse) VisitSetAdminUserRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminUserRole403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response SetAdminUserRole403JSONResponse) VisitSetAdminUserRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminUserRole404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response SetAdminUserRole404JSONResponse) VisitSetAdminUserRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -13156,6 +17849,33 @@ type StrictServerInterface interface {
 	// Restore a backup (admin)
 	// (POST /api/v1/admin/backups/{name}/restore)
 	RestoreAdminBackup(ctx context.Context, request RestoreAdminBackupRequestObject) (RestoreAdminBackupResponseObject, error)
+	// Change the server default of the automatic core update (admin)
+	// (PATCH /api/v1/admin/cores/settings)
+	UpdateAdminCoreSettings(ctx context.Context, request UpdateAdminCoreSettingsRequestObject) (UpdateAdminCoreSettingsResponseObject, error)
+	// Refresh the core catalog now (admin)
+	// (POST /api/v1/admin/cores/sync)
+	SyncAdminCores(ctx context.Context, request SyncAdminCoresRequestObject) (SyncAdminCoresResponseObject, error)
+	// List all devices of all users (admin)
+	// (GET /api/v1/admin/devices)
+	ListAdminDevices(ctx context.Context, request ListAdminDevicesRequestObject) (ListAdminDevicesResponseObject, error)
+	// Delete a device (admin)
+	// (DELETE /api/v1/admin/devices/{device_id})
+	DeleteAdminDevice(ctx context.Context, request DeleteAdminDeviceRequestObject) (DeleteAdminDeviceResponseObject, error)
+	// Rename a device (admin)
+	// (PATCH /api/v1/admin/devices/{device_id})
+	RenameAdminDevice(ctx context.Context, request RenameAdminDeviceRequestObject) (RenameAdminDeviceResponseObject, error)
+	// Revoke the access of a device (admin)
+	// (POST /api/v1/admin/devices/{device_id}/revoke)
+	RevokeAdminDevice(ctx context.Context, request RevokeAdminDeviceRequestObject) (RevokeAdminDeviceResponseObject, error)
+	// List invites and pairing codes (admin)
+	// (GET /api/v1/admin/invites)
+	ListAdminInvites(ctx context.Context, request ListAdminInvitesRequestObject) (ListAdminInvitesResponseObject, error)
+	// Create an invite (admin)
+	// (POST /api/v1/admin/invites)
+	CreateAdminInvite(ctx context.Context, request CreateAdminInviteRequestObject) (CreateAdminInviteResponseObject, error)
+	// Revoke an open invite (admin)
+	// (DELETE /api/v1/admin/invites/{invite_id})
+	RevokeAdminInvite(ctx context.Context, request RevokeAdminInviteRequestObject) (RevokeAdminInviteResponseObject, error)
 	// State of the Prometheus metrics endpoint (admin only)
 	// (GET /api/v1/admin/metrics)
 	GetAdminMetrics(ctx context.Context, request GetAdminMetricsRequestObject) (GetAdminMetricsResponseObject, error)
@@ -13165,6 +17885,36 @@ type StrictServerInterface interface {
 	// Create a new metrics token (admin only)
 	// (POST /api/v1/admin/metrics/token)
 	CreateAdminMetricsToken(ctx context.Context, request CreateAdminMetricsTokenRequestObject) (CreateAdminMetricsTokenResponseObject, error)
+	// List pairing requests of devices (admin)
+	// (GET /api/v1/admin/pairing-requests)
+	ListAdminPairingRequests(ctx context.Context, request ListAdminPairingRequestsRequestObject) (ListAdminPairingRequestsResponseObject, error)
+	// Allow a pairing request and assign it to a user (admin)
+	// (POST /api/v1/admin/pairing-requests/{request_id}/allow)
+	AllowAdminPairingRequest(ctx context.Context, request AllowAdminPairingRequestRequestObject) (AllowAdminPairingRequestResponseObject, error)
+	// Deny a pairing request (admin)
+	// (POST /api/v1/admin/pairing-requests/{request_id}/deny)
+	DenyAdminPairingRequest(ctx context.Context, request DenyAdminPairingRequestRequestObject) (DenyAdminPairingRequestResponseObject, error)
+	// Install a plugin version from the plugin index (admin)
+	// (POST /api/v1/admin/plugin-index/install)
+	InstallAdminIndexPlugin(ctx context.Context, request InstallAdminIndexPluginRequestObject) (InstallAdminIndexPluginResponseObject, error)
+	// Refresh the plugin index now (admin)
+	// (POST /api/v1/admin/plugin-index/refresh)
+	RefreshAdminPluginIndex(ctx context.Context, request RefreshAdminPluginIndexRequestObject) (RefreshAdminPluginIndexResponseObject, error)
+	// Offered plugin versions and the plugin index (admin)
+	// (GET /api/v1/admin/plugins)
+	ListAdminPlugins(ctx context.Context, request ListAdminPluginsRequestObject) (ListAdminPluginsResponseObject, error)
+	// Upload a plugin file for review (admin)
+	// (POST /api/v1/admin/plugins/stage)
+	StageAdminPlugin(ctx context.Context, request StageAdminPluginRequestObject) (StageAdminPluginResponseObject, error)
+	// Discard an uploaded plugin file (admin)
+	// (DELETE /api/v1/admin/plugins/stage/{stage_id})
+	DiscardAdminPlugin(ctx context.Context, request DiscardAdminPluginRequestObject) (DiscardAdminPluginResponseObject, error)
+	// Offer a reviewed plugin file to apps (admin)
+	// (POST /api/v1/admin/plugins/stage/{stage_id}/offer)
+	OfferAdminPlugin(ctx context.Context, request OfferAdminPluginRequestObject) (OfferAdminPluginResponseObject, error)
+	// Remove an offered plugin version (admin)
+	// (DELETE /api/v1/admin/plugins/{plugin_id}/{version})
+	RemoveAdminPlugin(ctx context.Context, request RemoveAdminPluginRequestObject) (RemoveAdminPluginResponseObject, error)
 	// List problem reports, newest first (admin only, `reports_v1`)
 	// (GET /api/v1/admin/reports)
 	ListAdminReports(ctx context.Context, request ListAdminReportsRequestObject) (ListAdminReportsResponseObject, error)
@@ -13189,6 +17939,36 @@ type StrictServerInterface interface {
 	// Download the recent server log (admin only)
 	// (GET /api/v1/admin/status/log)
 	GetAdminStatusLog(ctx context.Context, request GetAdminStatusLogRequestObject) (GetAdminStatusLogResponseObject, error)
+	// Systems, cores and firmware as the admin sees them (admin)
+	// (GET /api/v1/admin/systems)
+	ListAdminSystems(ctx context.Context, request ListAdminSystemsRequestObject) (ListAdminSystemsResponseObject, error)
+	// Change settings of a system (admin)
+	// (PATCH /api/v1/admin/systems/{system_id})
+	UpdateAdminSystem(ctx context.Context, request UpdateAdminSystemRequestObject) (UpdateAdminSystemResponseObject, error)
+	// Remove an installed core (admin)
+	// (DELETE /api/v1/admin/systems/{system_id}/cores/{core_id})
+	RemoveAdminCore(ctx context.Context, request RemoveAdminCoreRequestObject) (RemoveAdminCoreResponseObject, error)
+	// Pin an installed core or let it follow its system again (admin)
+	// (PATCH /api/v1/admin/systems/{system_id}/cores/{core_id})
+	UpdateAdminSystemCore(ctx context.Context, request UpdateAdminSystemCoreRequestObject) (UpdateAdminSystemCoreResponseObject, error)
+	// Install a core from the buildbot catalog (admin)
+	// (POST /api/v1/admin/systems/{system_id}/cores/{core_id}/install)
+	InstallAdminCore(ctx context.Context, request InstallAdminCoreRequestObject) (InstallAdminCoreResponseObject, error)
+	// Update an installed core to the newest catalog build (admin)
+	// (POST /api/v1/admin/systems/{system_id}/cores/{core_id}/update)
+	UpgradeAdminCore(ctx context.Context, request UpgradeAdminCoreRequestObject) (UpgradeAdminCoreResponseObject, error)
+	// Remove a provided firmware file (admin)
+	// (DELETE /api/v1/admin/systems/{system_id}/firmware/{file_id})
+	RemoveAdminFirmwareFile(ctx context.Context, request RemoveAdminFirmwareFileRequestObject) (RemoveAdminFirmwareFileResponseObject, error)
+	// Download a provided firmware file (admin; never logged)
+	// (GET /api/v1/admin/systems/{system_id}/firmware/{file_id})
+	GetAdminFirmwareFile(ctx context.Context, request GetAdminFirmwareFileRequestObject) (GetAdminFirmwareFileResponseObject, error)
+	// Provide a firmware file (admin; raw body, never logged)
+	// (PUT /api/v1/admin/systems/{system_id}/firmware/{file_id})
+	PutAdminFirmwareFile(ctx context.Context, request PutAdminFirmwareFileRequestObject) (PutAdminFirmwareFileResponseObject, error)
+	// Pin or unpin the expected SHA-256 of a firmware file (admin)
+	// (POST /api/v1/admin/systems/{system_id}/firmware/{file_id}/pin)
+	PinAdminFirmwareFile(ctx context.Context, request PinAdminFirmwareFileRequestObject) (PinAdminFirmwareFileResponseObject, error)
 	// Resume automatic updates after going back (admin)
 	// (POST /api/v1/admin/updates/resume)
 	ResumeAdminUpdates(ctx context.Context, request ResumeAdminUpdatesRequestObject) (ResumeAdminUpdatesResponseObject, error)
@@ -13198,6 +17978,30 @@ type StrictServerInterface interface {
 	// Earlier versions the server can go back to (admin)
 	// (GET /api/v1/admin/updates/versions)
 	GetAdminUpdateVersions(ctx context.Context, request GetAdminUpdateVersionsRequestObject) (GetAdminUpdateVersionsResponseObject, error)
+	// List all users (admin)
+	// (GET /api/v1/admin/users)
+	ListAdminUsers(ctx context.Context, request ListAdminUsersRequestObject) (ListAdminUsersResponseObject, error)
+	// Create a regular user with a pairing code (admin)
+	// (POST /api/v1/admin/users)
+	CreateAdminUser(ctx context.Context, request CreateAdminUserRequestObject) (CreateAdminUserResponseObject, error)
+	// Delete a user (admin)
+	// (DELETE /api/v1/admin/users/{user_id})
+	DeleteAdminUser(ctx context.Context, request DeleteAdminUserRequestObject) (DeleteAdminUserResponseObject, error)
+	// Rename a user (admin)
+	// (PATCH /api/v1/admin/users/{user_id})
+	UpdateAdminUser(ctx context.Context, request UpdateAdminUserRequestObject) (UpdateAdminUserResponseObject, error)
+	// Create a new pairing code for a user (admin)
+	// (POST /api/v1/admin/users/{user_id}/code)
+	CreateAdminUserCode(ctx context.Context, request CreateAdminUserCodeRequestObject) (CreateAdminUserCodeResponseObject, error)
+	// Disable a user (admin)
+	// (POST /api/v1/admin/users/{user_id}/disable)
+	DisableAdminUser(ctx context.Context, request DisableAdminUserRequestObject) (DisableAdminUserResponseObject, error)
+	// Enable a disabled user (admin)
+	// (POST /api/v1/admin/users/{user_id}/enable)
+	EnableAdminUser(ctx context.Context, request EnableAdminUserRequestObject) (EnableAdminUserResponseObject, error)
+	// Change the role of a user (admin)
+	// (POST /api/v1/admin/users/{user_id}/role)
+	SetAdminUserRole(ctx context.Context, request SetAdminUserRoleRequestObject) (SetAdminUserRoleResponseObject, error)
 	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(ctx context.Context, request RevokeSelfRequestObject) (RevokeSelfResponseObject, error)
@@ -13698,6 +18502,256 @@ func (sh *strictHandler) RestoreAdminBackup(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// UpdateAdminCoreSettings operation middleware
+func (sh *strictHandler) UpdateAdminCoreSettings(w http.ResponseWriter, r *http.Request) {
+	var request UpdateAdminCoreSettingsRequestObject
+
+	var body UpdateAdminCoreSettingsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAdminCoreSettings(ctx, request.(UpdateAdminCoreSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAdminCoreSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAdminCoreSettingsResponseObject); ok {
+		if err := validResponse.VisitUpdateAdminCoreSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SyncAdminCores operation middleware
+func (sh *strictHandler) SyncAdminCores(w http.ResponseWriter, r *http.Request) {
+	var request SyncAdminCoresRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SyncAdminCores(ctx, request.(SyncAdminCoresRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SyncAdminCores")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SyncAdminCoresResponseObject); ok {
+		if err := validResponse.VisitSyncAdminCoresResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAdminDevices operation middleware
+func (sh *strictHandler) ListAdminDevices(w http.ResponseWriter, r *http.Request) {
+	var request ListAdminDevicesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminDevices(ctx, request.(ListAdminDevicesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminDevices")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdminDevicesResponseObject); ok {
+		if err := validResponse.VisitListAdminDevicesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAdminDevice operation middleware
+func (sh *strictHandler) DeleteAdminDevice(w http.ResponseWriter, r *http.Request, deviceId AdminDeviceId) {
+	var request DeleteAdminDeviceRequestObject
+
+	request.DeviceId = deviceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAdminDevice(ctx, request.(DeleteAdminDeviceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAdminDevice")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteAdminDeviceResponseObject); ok {
+		if err := validResponse.VisitDeleteAdminDeviceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RenameAdminDevice operation middleware
+func (sh *strictHandler) RenameAdminDevice(w http.ResponseWriter, r *http.Request, deviceId AdminDeviceId) {
+	var request RenameAdminDeviceRequestObject
+
+	request.DeviceId = deviceId
+
+	var body RenameAdminDeviceJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RenameAdminDevice(ctx, request.(RenameAdminDeviceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RenameAdminDevice")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RenameAdminDeviceResponseObject); ok {
+		if err := validResponse.VisitRenameAdminDeviceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RevokeAdminDevice operation middleware
+func (sh *strictHandler) RevokeAdminDevice(w http.ResponseWriter, r *http.Request, deviceId AdminDeviceId) {
+	var request RevokeAdminDeviceRequestObject
+
+	request.DeviceId = deviceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RevokeAdminDevice(ctx, request.(RevokeAdminDeviceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevokeAdminDevice")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RevokeAdminDeviceResponseObject); ok {
+		if err := validResponse.VisitRevokeAdminDeviceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAdminInvites operation middleware
+func (sh *strictHandler) ListAdminInvites(w http.ResponseWriter, r *http.Request, params ListAdminInvitesParams) {
+	var request ListAdminInvitesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminInvites(ctx, request.(ListAdminInvitesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminInvites")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdminInvitesResponseObject); ok {
+		if err := validResponse.VisitListAdminInvitesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAdminInvite operation middleware
+func (sh *strictHandler) CreateAdminInvite(w http.ResponseWriter, r *http.Request) {
+	var request CreateAdminInviteRequestObject
+
+	var body CreateAdminInviteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAdminInvite(ctx, request.(CreateAdminInviteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAdminInvite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAdminInviteResponseObject); ok {
+		if err := validResponse.VisitCreateAdminInviteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RevokeAdminInvite operation middleware
+func (sh *strictHandler) RevokeAdminInvite(w http.ResponseWriter, r *http.Request, inviteId AdminInviteId) {
+	var request RevokeAdminInviteRequestObject
+
+	request.InviteId = inviteId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RevokeAdminInvite(ctx, request.(RevokeAdminInviteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevokeAdminInvite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RevokeAdminInviteResponseObject); ok {
+		if err := validResponse.VisitRevokeAdminInviteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetAdminMetrics operation middleware
 func (sh *strictHandler) GetAdminMetrics(w http.ResponseWriter, r *http.Request) {
 	var request GetAdminMetricsRequestObject
@@ -13770,6 +18824,282 @@ func (sh *strictHandler) CreateAdminMetricsToken(w http.ResponseWriter, r *http.
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateAdminMetricsTokenResponseObject); ok {
 		if err := validResponse.VisitCreateAdminMetricsTokenResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAdminPairingRequests operation middleware
+func (sh *strictHandler) ListAdminPairingRequests(w http.ResponseWriter, r *http.Request, params ListAdminPairingRequestsParams) {
+	var request ListAdminPairingRequestsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminPairingRequests(ctx, request.(ListAdminPairingRequestsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminPairingRequests")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdminPairingRequestsResponseObject); ok {
+		if err := validResponse.VisitListAdminPairingRequestsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AllowAdminPairingRequest operation middleware
+func (sh *strictHandler) AllowAdminPairingRequest(w http.ResponseWriter, r *http.Request, requestId AdminRequestId) {
+	var request AllowAdminPairingRequestRequestObject
+
+	request.RequestId = requestId
+
+	var body AllowAdminPairingRequestJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AllowAdminPairingRequest(ctx, request.(AllowAdminPairingRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AllowAdminPairingRequest")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AllowAdminPairingRequestResponseObject); ok {
+		if err := validResponse.VisitAllowAdminPairingRequestResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DenyAdminPairingRequest operation middleware
+func (sh *strictHandler) DenyAdminPairingRequest(w http.ResponseWriter, r *http.Request, requestId AdminRequestId) {
+	var request DenyAdminPairingRequestRequestObject
+
+	request.RequestId = requestId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DenyAdminPairingRequest(ctx, request.(DenyAdminPairingRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DenyAdminPairingRequest")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DenyAdminPairingRequestResponseObject); ok {
+		if err := validResponse.VisitDenyAdminPairingRequestResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// InstallAdminIndexPlugin operation middleware
+func (sh *strictHandler) InstallAdminIndexPlugin(w http.ResponseWriter, r *http.Request) {
+	var request InstallAdminIndexPluginRequestObject
+
+	var body InstallAdminIndexPluginJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InstallAdminIndexPlugin(ctx, request.(InstallAdminIndexPluginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InstallAdminIndexPlugin")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InstallAdminIndexPluginResponseObject); ok {
+		if err := validResponse.VisitInstallAdminIndexPluginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RefreshAdminPluginIndex operation middleware
+func (sh *strictHandler) RefreshAdminPluginIndex(w http.ResponseWriter, r *http.Request) {
+	var request RefreshAdminPluginIndexRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RefreshAdminPluginIndex(ctx, request.(RefreshAdminPluginIndexRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RefreshAdminPluginIndex")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RefreshAdminPluginIndexResponseObject); ok {
+		if err := validResponse.VisitRefreshAdminPluginIndexResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAdminPlugins operation middleware
+func (sh *strictHandler) ListAdminPlugins(w http.ResponseWriter, r *http.Request) {
+	var request ListAdminPluginsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminPlugins(ctx, request.(ListAdminPluginsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminPlugins")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdminPluginsResponseObject); ok {
+		if err := validResponse.VisitListAdminPluginsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StageAdminPlugin operation middleware
+func (sh *strictHandler) StageAdminPlugin(w http.ResponseWriter, r *http.Request) {
+	var request StageAdminPluginRequestObject
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StageAdminPlugin(ctx, request.(StageAdminPluginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StageAdminPlugin")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StageAdminPluginResponseObject); ok {
+		if err := validResponse.VisitStageAdminPluginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DiscardAdminPlugin operation middleware
+func (sh *strictHandler) DiscardAdminPlugin(w http.ResponseWriter, r *http.Request, stageId AdminStageId) {
+	var request DiscardAdminPluginRequestObject
+
+	request.StageId = stageId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DiscardAdminPlugin(ctx, request.(DiscardAdminPluginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DiscardAdminPlugin")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DiscardAdminPluginResponseObject); ok {
+		if err := validResponse.VisitDiscardAdminPluginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// OfferAdminPlugin operation middleware
+func (sh *strictHandler) OfferAdminPlugin(w http.ResponseWriter, r *http.Request, stageId AdminStageId) {
+	var request OfferAdminPluginRequestObject
+
+	request.StageId = stageId
+
+	var body OfferAdminPluginJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.OfferAdminPlugin(ctx, request.(OfferAdminPluginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "OfferAdminPlugin")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(OfferAdminPluginResponseObject); ok {
+		if err := validResponse.VisitOfferAdminPluginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveAdminPlugin operation middleware
+func (sh *strictHandler) RemoveAdminPlugin(w http.ResponseWriter, r *http.Request, pluginId PluginId, version PluginVersion) {
+	var request RemoveAdminPluginRequestObject
+
+	request.PluginId = pluginId
+	request.Version = version
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveAdminPlugin(ctx, request.(RemoveAdminPluginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveAdminPlugin")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveAdminPluginResponseObject); ok {
+		if err := validResponse.VisitRemoveAdminPluginResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -13982,6 +19312,295 @@ func (sh *strictHandler) GetAdminStatusLog(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// ListAdminSystems operation middleware
+func (sh *strictHandler) ListAdminSystems(w http.ResponseWriter, r *http.Request) {
+	var request ListAdminSystemsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminSystems(ctx, request.(ListAdminSystemsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminSystems")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdminSystemsResponseObject); ok {
+		if err := validResponse.VisitListAdminSystemsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAdminSystem operation middleware
+func (sh *strictHandler) UpdateAdminSystem(w http.ResponseWriter, r *http.Request, systemId AdminSystemId) {
+	var request UpdateAdminSystemRequestObject
+
+	request.SystemId = systemId
+
+	var body UpdateAdminSystemJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAdminSystem(ctx, request.(UpdateAdminSystemRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAdminSystem")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAdminSystemResponseObject); ok {
+		if err := validResponse.VisitUpdateAdminSystemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveAdminCore operation middleware
+func (sh *strictHandler) RemoveAdminCore(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, coreId CoreId) {
+	var request RemoveAdminCoreRequestObject
+
+	request.SystemId = systemId
+	request.CoreId = coreId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveAdminCore(ctx, request.(RemoveAdminCoreRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveAdminCore")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveAdminCoreResponseObject); ok {
+		if err := validResponse.VisitRemoveAdminCoreResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAdminSystemCore operation middleware
+func (sh *strictHandler) UpdateAdminSystemCore(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, coreId CoreId) {
+	var request UpdateAdminSystemCoreRequestObject
+
+	request.SystemId = systemId
+	request.CoreId = coreId
+
+	var body UpdateAdminSystemCoreJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAdminSystemCore(ctx, request.(UpdateAdminSystemCoreRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAdminSystemCore")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAdminSystemCoreResponseObject); ok {
+		if err := validResponse.VisitUpdateAdminSystemCoreResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// InstallAdminCore operation middleware
+func (sh *strictHandler) InstallAdminCore(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, coreId CoreId) {
+	var request InstallAdminCoreRequestObject
+
+	request.SystemId = systemId
+	request.CoreId = coreId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InstallAdminCore(ctx, request.(InstallAdminCoreRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InstallAdminCore")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InstallAdminCoreResponseObject); ok {
+		if err := validResponse.VisitInstallAdminCoreResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpgradeAdminCore operation middleware
+func (sh *strictHandler) UpgradeAdminCore(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, coreId CoreId) {
+	var request UpgradeAdminCoreRequestObject
+
+	request.SystemId = systemId
+	request.CoreId = coreId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpgradeAdminCore(ctx, request.(UpgradeAdminCoreRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpgradeAdminCore")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpgradeAdminCoreResponseObject); ok {
+		if err := validResponse.VisitUpgradeAdminCoreResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveAdminFirmwareFile operation middleware
+func (sh *strictHandler) RemoveAdminFirmwareFile(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, fileId AdminFirmwareId) {
+	var request RemoveAdminFirmwareFileRequestObject
+
+	request.SystemId = systemId
+	request.FileId = fileId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveAdminFirmwareFile(ctx, request.(RemoveAdminFirmwareFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveAdminFirmwareFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveAdminFirmwareFileResponseObject); ok {
+		if err := validResponse.VisitRemoveAdminFirmwareFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminFirmwareFile operation middleware
+func (sh *strictHandler) GetAdminFirmwareFile(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, fileId AdminFirmwareId) {
+	var request GetAdminFirmwareFileRequestObject
+
+	request.SystemId = systemId
+	request.FileId = fileId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminFirmwareFile(ctx, request.(GetAdminFirmwareFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminFirmwareFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminFirmwareFileResponseObject); ok {
+		if err := validResponse.VisitGetAdminFirmwareFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutAdminFirmwareFile operation middleware
+func (sh *strictHandler) PutAdminFirmwareFile(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, fileId AdminFirmwareId) {
+	var request PutAdminFirmwareFileRequestObject
+
+	request.SystemId = systemId
+	request.FileId = fileId
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutAdminFirmwareFile(ctx, request.(PutAdminFirmwareFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutAdminFirmwareFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutAdminFirmwareFileResponseObject); ok {
+		if err := validResponse.VisitPutAdminFirmwareFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PinAdminFirmwareFile operation middleware
+func (sh *strictHandler) PinAdminFirmwareFile(w http.ResponseWriter, r *http.Request, systemId AdminSystemId, fileId AdminFirmwareId) {
+	var request PinAdminFirmwareFileRequestObject
+
+	request.SystemId = systemId
+	request.FileId = fileId
+
+	var body PinAdminFirmwareFileJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PinAdminFirmwareFile(ctx, request.(PinAdminFirmwareFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PinAdminFirmwareFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PinAdminFirmwareFileResponseObject); ok {
+		if err := validResponse.VisitPinAdminFirmwareFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ResumeAdminUpdates operation middleware
 func (sh *strictHandler) ResumeAdminUpdates(w http.ResponseWriter, r *http.Request) {
 	var request ResumeAdminUpdatesRequestObject
@@ -14054,6 +19673,231 @@ func (sh *strictHandler) GetAdminUpdateVersions(w http.ResponseWriter, r *http.R
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetAdminUpdateVersionsResponseObject); ok {
 		if err := validResponse.VisitGetAdminUpdateVersionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAdminUsers operation middleware
+func (sh *strictHandler) ListAdminUsers(w http.ResponseWriter, r *http.Request) {
+	var request ListAdminUsersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminUsers(ctx, request.(ListAdminUsersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminUsers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdminUsersResponseObject); ok {
+		if err := validResponse.VisitListAdminUsersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAdminUser operation middleware
+func (sh *strictHandler) CreateAdminUser(w http.ResponseWriter, r *http.Request) {
+	var request CreateAdminUserRequestObject
+
+	var body CreateAdminUserJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAdminUser(ctx, request.(CreateAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAdminUser")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAdminUserResponseObject); ok {
+		if err := validResponse.VisitCreateAdminUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAdminUser operation middleware
+func (sh *strictHandler) DeleteAdminUser(w http.ResponseWriter, r *http.Request, userId UserId) {
+	var request DeleteAdminUserRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAdminUser(ctx, request.(DeleteAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAdminUser")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteAdminUserResponseObject); ok {
+		if err := validResponse.VisitDeleteAdminUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAdminUser operation middleware
+func (sh *strictHandler) UpdateAdminUser(w http.ResponseWriter, r *http.Request, userId UserId) {
+	var request UpdateAdminUserRequestObject
+
+	request.UserId = userId
+
+	var body UpdateAdminUserJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAdminUser(ctx, request.(UpdateAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAdminUser")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAdminUserResponseObject); ok {
+		if err := validResponse.VisitUpdateAdminUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAdminUserCode operation middleware
+func (sh *strictHandler) CreateAdminUserCode(w http.ResponseWriter, r *http.Request, userId UserId) {
+	var request CreateAdminUserCodeRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAdminUserCode(ctx, request.(CreateAdminUserCodeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAdminUserCode")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAdminUserCodeResponseObject); ok {
+		if err := validResponse.VisitCreateAdminUserCodeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DisableAdminUser operation middleware
+func (sh *strictHandler) DisableAdminUser(w http.ResponseWriter, r *http.Request, userId UserId) {
+	var request DisableAdminUserRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DisableAdminUser(ctx, request.(DisableAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DisableAdminUser")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DisableAdminUserResponseObject); ok {
+		if err := validResponse.VisitDisableAdminUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EnableAdminUser operation middleware
+func (sh *strictHandler) EnableAdminUser(w http.ResponseWriter, r *http.Request, userId UserId) {
+	var request EnableAdminUserRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EnableAdminUser(ctx, request.(EnableAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EnableAdminUser")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EnableAdminUserResponseObject); ok {
+		if err := validResponse.VisitEnableAdminUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetAdminUserRole operation middleware
+func (sh *strictHandler) SetAdminUserRole(w http.ResponseWriter, r *http.Request, userId UserId) {
+	var request SetAdminUserRoleRequestObject
+
+	request.UserId = userId
+
+	var body SetAdminUserRoleJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetAdminUserRole(ctx, request.(SetAdminUserRoleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetAdminUserRole")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetAdminUserRoleResponseObject); ok {
+		if err := validResponse.VisitSetAdminUserRoleResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
