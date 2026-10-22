@@ -74,6 +74,7 @@ func TestAdminUsersAPI(t *testing.T) {
 	adm := s.device(s.admin.ID, "Admin PC")
 	anna := s.device(s.anna.ID, "Annas PC")
 	tok := opt{token: adm.tok}
+	s.confirm(adm.tok)
 
 	// List: admin, anna, bob with device counts.
 	list := decode[struct{ Users []adminUserT }](t, s.do("GET", "/api/v1/admin/users", nil, tok)).Users
@@ -291,4 +292,25 @@ func TestAdminPairingAndDevicesAPI(t *testing.T) {
 		t.Fatal("device still exists")
 	}
 	wantStatus(t, s.do("DELETE", "/api/v1/admin/devices/"+d2.id, nil, tok), 404, "")
+}
+
+// The dangerous steps of the admin API answer 403 confirmation_required until the calling device confirmed.
+func TestAdminDangerousStepsNeedConfirmation(t *testing.T) {
+	s := newSessEnv(t, nil)
+	adm := s.device(s.admin.ID, "Admin PC")
+	tok := opt{token: adm.tok}
+	need := func(method, path string, body any) {
+		t.Helper()
+		wantStatus(t, s.do(method, path, body, tok), 403, "confirmation_required")
+	}
+	need("DELETE", "/api/v1/admin/games/"+s.game.ID, nil)
+	need("POST", "/api/v1/admin/users/"+s.anna.ID+"/disable", nil)
+	need("DELETE", "/api/v1/admin/users/"+s.anna.ID, nil)
+	need("POST", "/api/v1/admin/updates/install", map[string]any{})
+	need("DELETE", "/api/v1/admin/users/"+s.anna.ID+"/games/"+s.game.ID+"/saves/main?confirm_revision=1", nil)
+	need("POST", "/api/v1/admin/users/"+s.anna.ID+"/games/"+s.game.ID+"/saves/main/history/1/restore", map[string]any{"expected_revision": 1})
+	// Unguarded steps keep working without a confirmation.
+	wantStatus(t, s.do("GET", "/api/v1/admin/users", nil, tok), 200, "")
+	s.confirm(adm.tok)
+	wantStatus(t, s.do("POST", "/api/v1/admin/users/"+s.anna.ID+"/disable", nil, tok), 200, "")
 }

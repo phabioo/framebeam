@@ -184,6 +184,9 @@ func (s *Server) DeleteAdminBackup(ctx context.Context, req api.DeleteAdminBacku
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err
 	}
+	if err := s.requireConfirmed(ctx); err != nil {
+		return nil, err
+	}
 	if err := s.svc.DeleteBackup(ctx, req.Name); err != nil {
 		return nil, err
 	}
@@ -198,6 +201,9 @@ func (s *Server) DownloadAdminBackup(context.Context, api.DownloadAdminBackupReq
 
 func (s *Server) RestoreAdminBackup(ctx context.Context, req api.RestoreAdminBackupRequestObject) (api.RestoreAdminBackupResponseObject, error) {
 	if err := requireAdmin(ctx); err != nil {
+		return nil, err
+	}
+	if err := s.requireConfirmed(ctx); err != nil {
 		return nil, err
 	}
 	if err := s.svc.StartRestore(ctx, req.Name, principal(ctx).User.Username); err != nil {

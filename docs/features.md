@@ -15,6 +15,7 @@ What the server, the protocol and the app do today, by area. Status by version: 
 - Info endpoint `/.well-known/uzume` and handshake with `protocol_version`.
 - Sessions: session API (visibility "Private" / "Hub users" / "Invite only", invites, viewers), WSS presence and signaling relay, revoke on visibility change; a public default STUN server (`stun:stun.cloudflare.com:3478`) when none is configured, switched off with `-ice-servers none` / `UZUME_ICE_SERVERS` or "Use no external server" in Settings › Network (0.10.x); running apps pick up ICE changes via `ice_update_v1`.
 - Users and invites: Users page creates single-use invite codes (shown once, with "Copy link" to the public `/invite` page at creation), disable/enable users and delete them for good (confirmation page; removes their devices, invites, saves and save history, uploaded games stay), display names unique; Clients page assigns a pending device to a user and marks apps below the minimum protocol version as "Player too old".
+- Accounts (0.18, `accounts_v1`, [ADR 0030](adr/0030-one-app-one-server-uzume.md) D5): every user can have a password (admins must); a new device signs in with user name and password instead of waiting for approval; several users on one PC; "Confirm it's you" before dangerous admin steps; own device list with sign-out; admin password reset with a temporary password; no email recovery. The web admin is unchanged until package 12.
 - Settings: "Allow users to upload games" and Appearance (Light / Dark / System).
 - Systems & Cores page: installed cores per system (Update / Remove / Make default), cores available from the libretro buildbot (Install), reports from clients, firmware mode and firmware files per system (user-supplied, never shipped).
 - Nintendo 3DS (0.10, [ADR 0022](adr/0022-nintendo-3ds-with-azahar.md)): system `3ds` (`.3ds .cci .cxi .3dsx .zcci .zcxi .z3dsx`; decrypted dumps only), no default core until the admin installs `azahar` from the buildbot; no firmware required or shipped. The Systems page opens on the first system with an installed default core.
@@ -33,7 +34,7 @@ What the server, the protocol and the app do today, by area. Status by version: 
 
 **Protocol** (`protocol/`)
 
-- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.28.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `local_setup_v1`, `reports_v1`, `admin_v1` (admins only) and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
+- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.29.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `local_setup_v1`, `reports_v1`, `accounts_v1`, `admin_v1` (admins only) and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
 
 **Uzume app** (`client/`, [ADR 0003](adr/0003-player-phase2.md))
 

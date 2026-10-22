@@ -137,6 +137,7 @@ func TestAdminPartBRequiresAdmin(t *testing.T) {
 func TestAdminLibraryAPI(t *testing.T) {
 	s, h, adm, _ := newPartBEnv(t)
 	tok := opt{token: adm.tok}
+	s.confirm(adm.tok)
 
 	// An admin uploads a ROM with the member API; there is no admin variant.
 	rom := []byte("homebrew-rom-uploaded-by-admin")
@@ -215,6 +216,7 @@ func TestAdminSavesAPI(t *testing.T) {
 	s, _, adm, _ := newPartBEnv(t)
 	annaDev, bobDev := s.device(s.anna.ID, "Anna PC"), s.device(s.bob.ID, "Bob PC")
 	tok := opt{token: adm.tok}
+	s.confirm(adm.tok)
 	put := func(d dev, slot string, base int, data []byte) {
 		t.Helper()
 		rec := s.do("PUT", "/api/v1/games/"+s.game.ID+"/saves/"+slot, nil, opt{token: d.tok, data: data, ctype: "application/octet-stream",
@@ -457,6 +459,7 @@ func TestAdminRunInvitesAPI(t *testing.T) {
 func TestAdminSettingsAPI(t *testing.T) {
 	s, h, adm, _ := newPartBEnv(t)
 	tok := opt{token: adm.tok}
+	s.confirm(adm.tok)
 	type setting struct {
 		Key, Label, Value, Source string
 		RunningValue              string `json:"running_value"`
@@ -580,6 +583,7 @@ func TestAdminSettingsAPI(t *testing.T) {
 func TestAdminExternalTurnAPI(t *testing.T) {
 	s, _, adm, _ := newPartBEnv(t)
 	tok := opt{token: adm.tok}
+	s.confirm(adm.tok)
 	type ext struct {
 		Source  string
 		Active  bool

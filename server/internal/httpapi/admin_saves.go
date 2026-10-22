@@ -105,6 +105,11 @@ func (s *Server) RestoreAdminSaveVersion(ctx context.Context, req api.RestoreAdm
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err
 	}
+	if req.UserId != principal(ctx).User.ID {
+		if err := s.requireConfirmed(ctx); err != nil {
+			return nil, err
+		}
+	}
 	if req.Body == nil {
 		return nil, hub.ErrBadRequest
 	}
@@ -134,6 +139,11 @@ func (s *Server) CreateAdminSaveSnapshot(ctx context.Context, req api.CreateAdmi
 func (s *Server) DeleteAdminSaveVersion(ctx context.Context, req api.DeleteAdminSaveVersionRequestObject) (api.DeleteAdminSaveVersionResponseObject, error) {
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err
+	}
+	if req.UserId != principal(ctx).User.ID {
+		if err := s.requireConfirmed(ctx); err != nil {
+			return nil, err
+		}
 	}
 	if err := s.svc.DeleteSaveVersion(ctx, req.UserId, req.GameId.String(), req.Slot, req.Version); err != nil {
 		return nil, err
@@ -173,6 +183,11 @@ func (s *Server) RenameAdminSaveSlot(ctx context.Context, req api.RenameAdminSav
 func (s *Server) DeleteAdminSaveSlot(ctx context.Context, req api.DeleteAdminSaveSlotRequestObject) (api.DeleteAdminSaveSlotResponseObject, error) {
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err
+	}
+	if req.UserId != principal(ctx).User.ID {
+		if err := s.requireConfirmed(ctx); err != nil {
+			return nil, err
+		}
 	}
 	if req.Params.ConfirmRevision < 1 {
 		return nil, hub.ErrBadRequest

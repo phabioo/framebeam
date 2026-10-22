@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: Uzume server API
-  version: 1.28.0
+  version: 1.29.0
   description: |
-    HTTPS/JSON API of the Uzume server (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the server under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for app-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for an app on the same PC as the server (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected apps receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on app devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games); 0.17 adds problem reports (`reports_v1`: `POST /reports` from any paired device, the admin list, files, zip archive, seen mark and delete under `/admin/reports`); 0.18 adds the admin API under `/admin/...` (`admin_v1`: users and invites, pairing requests and devices, systems, cores and firmware, plugins and the plugin index; only advertised to admins). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the Uzume server (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the server under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for app-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for an app on the same PC as the server (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected apps receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on app devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games); 0.17 adds problem reports (`reports_v1`: `POST /reports` from any paired device, the admin list, files, zip archive, seen mark and delete under `/admin/reports`); 0.18 adds the admin API under `/admin/...` (`admin_v1`: users and invites, pairing requests and devices, systems, cores and firmware, plugins and the plugin index; only advertised to admins); 0.18 also adds server accounts (`accounts_v1`: sign in with user name and password under `auth`, the own account, password, "Confirm it's you" and devices under `account`, an admin password reset and the password policy under `admin`; dangerous admin steps answer 403 `confirmation_required` until the caller confirmed). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/uzume`.
     Compatibility: the app's protocol_version < the server's min_protocol_version -> player_too_old;
@@ -17,6 +17,7 @@ tags:
   - name: pairing
   - name: local
   - name: auth
+  - name: account
   - name: handshake
   - name: users
   - name: library
@@ -264,7 +265,8 @@ paths:
         request (poll via `getPairingRequest`; the request is pre-assigned to the new user).
         Invalid, expired, used and revoked codes all return 404 `invite_invalid` (no enumeration).
         Display names are unique per server (case-insensitive). Rate limited like pairing requests.
-        These are onboarding invites, not Session invites.
+        These are onboarding invites, not Session invites. The optional `password` gives the new user a password
+        (400 `bad_request` when shorter than 12 characters; the invite stays usable). The device gets the sign-in kind `invite`.
       security: []
       requestBody:
         required: true
@@ -422,7 +424,7 @@ paths:
                     min_protocol_version: 1
                     compatible: true
                     problems: []
-                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, saves_v6, cores_v2, local_setup_v1, ice_update_v1, plugins_v1, runs_v1, local_roms_v1]
+                    features: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, saves_v6, cores_v2, local_setup_v1, ice_update_v1, plugins_v1, runs_v1, local_roms_v1, accounts_v1]
                 core_missing:
                   description: Warning only, `compatible` stays true (launch allowed; the app shows the problem)
                   value:
@@ -2496,7 +2498,13 @@ paths:
       responses:
         '204': { description: Deleted }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/AdminBackupConflict' }
   /api/v1/admin/backups/{name}/download:
@@ -2536,7 +2544,13 @@ paths:
         '202': { description: Started }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/AdminBackupConflict' }
   /api/v1/admin/updates/versions:
@@ -2592,7 +2606,13 @@ paths:
               schema: { $ref: '#/components/schemas/AdminRollbackResult' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '409': { $ref: '#/components/responses/AdminUpdateConflict' }
   /api/v1/admin/updates/resume:
     post:
@@ -2607,6 +2627,404 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/AdminUpdateConflict' }
+  /api/v1/auth/sign-in:
+    post:
+      operationId: signIn
+      tags: [auth]
+      summary: Sign a device in with user name and password (no auth)
+      description: |
+        Replaces waiting for an admin's approval (`accounts_v1`). On success the device is trusted (sign-in kind
+        `password`) and the response has the shape of an approved pairing request: server id, user id and the device
+        credential, delivered once. The app then uses `createAccessToken`. Old access tokens of that `device_id` are
+        deleted. A trusted device of another user is never taken over (409 `conflict`). Use a separate `device_id` per
+        signed-in user and the same `install_id` when several users share one PC.
+
+        A wrong user name, a wrong password and a user without a password all give the same 401 `invalid_credentials`
+        (no user enumeration). Rate limited per remote IP (10 attempts a minute) and per user name: 10 failures lock
+        the sign-in for that name for 15 minutes (429 `rate_limited` with `retry_after`; the failure that locks already
+        answers 429). A correct password of a disabled user gives 401 `user_disabled`. When an admin reset the password,
+        sign-in still works and `getAccount` reports `must_change_password`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignInRequest' }
+            examples:
+              default:
+                value:
+                  username: anna
+                  password: PLACEHOLDER-PASSWORD
+                  device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  device_name: Anna-Laptop
+                  platform: linux
+                  arch: x86_64
+                  app_version: 0.18.0
+                  protocol_version: 1
+                  install_id: 2b1c0d9e-5f7a-4c3b-8e21-6d4f9a0b7c15
+      responses:
+        '200':
+          description: Signed in (credential delivered once)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingStatus' }
+              examples:
+                default:
+                  value:
+                    status: approved
+                    hub_id: 3f2b8c1e-5d4a-4b7e-9a10-0c1d2e3f4a5b
+                    user_id: u_placeholder_2
+                    device_credential: fbd_PLACEHOLDER_DEVICE_CREDENTIAL
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: invalid_credentials (one answer for every wrong combination) or user_disabled (correct password, user turned off)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                invalid: { value: { error: { code: invalid_credentials, message: Invalid credentials } } }
+                user_disabled: { value: { error: { code: user_disabled, message: User has been disabled } } }
+        '409':
+          description: The device ID already belongs to a trusted device of another user (`conflict`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: conflict, message: This device ID already belongs to a device of another user } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/account:
+    get:
+      operationId: getAccount
+      tags: [account]
+      summary: The signed-in user's account as seen from this device
+      description: |
+        `password_required` is true for admins and while the server requires passwords. `confirmed_until` is this
+        device's "Confirm it's you" state (null when none or expired); `confirm_locked_until` is set while confirming is
+        locked on this device.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Account' }
+              examples:
+                default:
+                  value:
+                    user_id: u_placeholder_2
+                    username: anna
+                    display_name: Anna
+                    role: user
+                    has_password: true
+                    password_required: false
+                    must_change_password: false
+                    confirmed_until: null
+                    confirm_locked_until: null
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      operationId: updateAccount
+      tags: [account]
+      summary: Rename yourself
+      description: Same rules as everywhere (1 to 32 characters, trimmed, unique per server, case-insensitive). 409 `display_name_taken` when the name is taken. Returns the account.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountUpdate' }
+            examples:
+              default: { value: { display_name: Anna } }
+      responses:
+        '200':
+          description: The account after the change
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Account' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: Display name already taken (case-insensitive)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: display_name_taken, message: Display name is already taken } } }
+  /api/v1/account/password:
+    put:
+      operationId: setAccountPassword
+      tags: [account]
+      summary: Set or change your password
+      description: |
+        `new_password` needs at least 12 characters and at most 1024 bytes (400 `bad_request`). `current_password` is
+        required when the account has a password; a wrong one answers 401 `invalid_credentials` and counts like a wrong
+        password of `confirmAccount` (3 wrong ones lock both for 5 minutes on this device: 429 `rate_limited`).
+        Clears `must_change_password`. The user's other devices stay signed in (use `signOutAllAccountDevices` to end them).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountPasswordSet' }
+            examples:
+              default: { value: { current_password: PLACEHOLDER-OLD-PASSWORD, new_password: PLACEHOLDER-NEW-PASSWORD } }
+      responses:
+        '204': { description: Password set }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Not authenticated (`unauthorized`) or the current password is wrong (`invalid_credentials`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: invalid_credentials, message: Invalid credentials } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      operationId: removeAccountPassword
+      tags: [account]
+      summary: Remove your password (members only)
+      description: |
+        Refused with 403 `password_required` for admins (an admin's password can never be removed) and while the server
+        requires passwords (`getAdminAccountSettings`). `current_password` is checked like in `setAccountPassword`.
+        A member without a password gets 204 and nothing changes. Ends the confirmation of the user's devices.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountPasswordRemove' }
+            examples:
+              default: { value: { current_password: PLACEHOLDER-PASSWORD } }
+      responses:
+        '204': { description: Password removed }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Not authenticated (`unauthorized`) or the current password is wrong (`invalid_credentials`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: invalid_credentials, message: Invalid credentials } } }
+        '403':
+          description: A password is required for this account (`password_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: password_required, message: An admin's password cannot be removed } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/account/confirm:
+    post:
+      operationId: confirmAccount
+      tags: [account]
+      summary: Confirm it's you
+      description: |
+        Checks the password and confirms this device for `duration_seconds` (120, 300 or 900, default 300). Dangerous
+        steps (restore or delete a backup, go back to an older version, reset a password, change the password policy)
+        answer 403 `confirmation_required` until then. 3 wrong passwords on this device lock confirming for 5 minutes:
+        the third already answers 429 `rate_limited` with `retry_after`; `getAccount` reports `confirm_locked_until`.
+        A success resets the count. 409 `password_not_set` when the account has no password.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountConfirm' }
+            examples:
+              default: { value: { password: PLACEHOLDER-PASSWORD, duration_seconds: 300 } }
+      responses:
+        '200':
+          description: Confirmed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountConfirmed' }
+              examples:
+                default: { value: { confirmed_until: '2026-10-22T12:05:00Z' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Not authenticated (`unauthorized`) or wrong password (`invalid_credentials`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: invalid_credentials, message: Invalid credentials } } }
+        '409':
+          description: The account has no password (`password_not_set`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: password_not_set, message: This account has no password } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      operationId: endAccountConfirmation
+      tags: [account]
+      summary: End the confirmation of this device early
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Ended (also when there was none) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/account/devices:
+    get:
+      operationId: listAccountDevices
+      tags: [account]
+      summary: Your own devices
+      description: All devices of the signed-in user, newest first, signed-out ones (`status` `revoked`) included. Devices of other users are never listed.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The devices
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountDeviceList' }
+              examples:
+                default:
+                  value:
+                    devices:
+                      - device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                        name: Anna-Laptop
+                        platform: linux
+                        arch: x86_64
+                        app_version: 0.18.0
+                        created_at: '2026-10-20T09:00:00Z'
+                        last_seen_at: '2026-10-22T11:58:00Z'
+                        sign_in_kind: password
+                        status: trusted
+                        install_id: 2b1c0d9e-5f7a-4c3b-8e21-6d4f9a0b7c15
+                        current: true
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/account/devices/sign-out-all:
+    post:
+      operationId: signOutAllAccountDevices
+      tags: [account]
+      summary: Sign out all your devices
+      description: Revokes every trusted device of the user like an admin revoke (access tokens die, live connections close). The calling device stays signed in unless `include_current` is true. Returns how many devices were signed out.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountSignOutAll' }
+            examples:
+              default: { value: { include_current: false } }
+      responses:
+        '200':
+          description: Signed out
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountSignOutAllResult' }
+              examples:
+                default: { value: { signed_out: 2 } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/account/devices/{device_id}:
+    delete:
+      operationId: signOutAccountDevice
+      tags: [account]
+      summary: Sign out one of your devices
+      description: Revokes the device like an admin revoke (access tokens die, live connections close). Can be the calling device. 404 `not_found` for a device of another user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Signed out }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/users/{user_id}/password-reset:
+    post:
+      operationId: resetAdminUserPassword
+      tags: [admin]
+      summary: Reset a user's password (admin, needs Confirm it's you)
+      description: |
+        Sets a one-time temporary password (four groups of four symbols, no ambiguous characters), returned once. The
+        user must change it (`must_change_password`); their devices stay signed in and a sign-in lockout ends. 403
+        `confirmation_required` without a valid confirmation of the caller's device, 403 `forbidden` for non-admins and
+        for the caller themself, 404 `not_found` for an unknown user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The temporary password (shown once)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPasswordReset' }
+              examples:
+                default: { value: { temporary_password: PLCH-OLDR-PASS-WORD, must_change_password: true } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Not allowed (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: forbidden, message: Not allowed } } }
+                confirmation: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/accounts/settings:
+    get:
+      operationId: getAdminAccountSettings
+      tags: [admin]
+      summary: Account policy (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The policy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAccountSettings' }
+              examples:
+                default: { value: { require_passwords: false } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      operationId: updateAdminAccountSettings
+      tags: [admin]
+      summary: Change the account policy (admin, needs Confirm it's you)
+      description: |
+        `require_passwords`: members cannot remove their password while it is on. Users without a password are not
+        touched and can still sign in by approval. 403 `confirmation_required` without a valid confirmation.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminAccountSettings' }
+            examples:
+              default: { value: { require_passwords: true } }
+      responses:
+        '200':
+          description: The policy after the change
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAccountSettings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
   /api/v1/admin/users:
     get:
       operationId: listAdminUsers
@@ -2687,7 +3105,13 @@ paths:
       responses:
         '204': { description: Deleted }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/admin/users/{user_id}/code:
     parameters:
@@ -2757,7 +3181,13 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AdminUser' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/admin/users/{user_id}/enable:
     parameters:
@@ -3438,7 +3868,13 @@ paths:
       responses:
         '204': { description: Deleted }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/admin/saves:
     get:
@@ -3501,7 +3937,13 @@ paths:
         '204': { description: Slot deleted }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/AdminConflict' }
   /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/history:
@@ -3603,7 +4045,13 @@ paths:
       responses:
         '204': { description: Version deleted }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/AdminConflict' }
   /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/history/{version}/restore:
@@ -3638,7 +4086,13 @@ paths:
               schema: { $ref: '#/components/schemas/SaveSlot' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/AdminConflict' }
   /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/snapshots:
@@ -4131,7 +4585,13 @@ paths:
               schema: { $ref: '#/components/schemas/AdminNetwork' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '404': { $ref: '#/components/responses/NotFound' }
     delete:
       operationId: resetAdminNetSetting
@@ -4148,7 +4608,13 @@ paths:
               schema: { $ref: '#/components/schemas/AdminNetwork' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/admin/settings/external-turn:
     put:
@@ -4173,7 +4639,13 @@ paths:
               schema: { $ref: '#/components/schemas/AdminExternalTurn' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
     delete:
       operationId: deleteAdminExternalTurn
       tags: [admin]
@@ -4193,7 +4665,13 @@ paths:
               schema: { $ref: '#/components/schemas/AdminExternalTurn' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
   /api/v1/admin/settings/external-turn/reset:
     post:
       operationId: resetAdminExternalTurn
@@ -4209,7 +4687,13 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AdminExternalTurn' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
   /api/v1/admin/updates/check:
     post:
       operationId: checkAdminUpdates
@@ -4245,7 +4729,13 @@ paths:
               schema: { $ref: '#/components/schemas/AdminUpdateStaged' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
+        '403':
+          description: Not an admin (`forbidden`) or the caller must confirm first (`confirmation_required`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: confirmation_required, message: Confirm it's you first } } }
         '409': { $ref: '#/components/responses/AdminConflict' }
   /api/v1/admin/security/renew-cert:
     post:
@@ -4633,7 +5123,7 @@ components:
     ErrorCode:
       type: string
       description: "`save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted)."
-      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, save_slot_exists, save_slot_protected, session_running, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available, import_dir_unreadable, run_not_active, state_conflict, too_large]
+      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, save_slot_exists, save_slot_protected, session_running, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available, import_dir_unreadable, run_not_active, state_conflict, too_large, confirmation_required, password_required, password_not_set]
     Error:
       type: object
       required: [error]
@@ -4644,6 +5134,7 @@ components:
           properties:
             code: { $ref: '#/components/schemas/ErrorCode' }
             message: { type: string }
+            retry_after: { type: integer, minimum: 1, description: 'Only on `rate_limited` when the next try is possible at a known time: seconds to wait (also sent as the `Retry-After` header)' }
     HubInfo:
       type: object
       required: [hub_id, name, hub_version, protocol_version, min_protocol_version, api_base]
@@ -4664,6 +5155,7 @@ components:
         arch: { type: string }
         player_version: { type: string }
         protocol_version: { type: integer, minimum: 1 }
+        install_id: { type: string, maxLength: 64, description: Optional. Groups the device rows of one app install (several users on one PC) }
     PairingRequestAccepted:
       type: object
       required: [request_id, poll_token, status, expires_in]
@@ -4903,6 +5395,8 @@ components:
         arch: { type: string }
         player_version: { type: string }
         protocol_version: { type: integer, minimum: 1 }
+        password: { type: string, minLength: 12, maxLength: 1024, description: 'Optional (`accounts_v1`). The new user gets this password (at least 12 characters; at most 1024 bytes). For an invite that belongs to an existing user it is used only while that user has no password' }
+        install_id: { type: string, maxLength: 64, description: Optional. Groups the device rows of one app install }
     InviteRedeemApproved:
       type: object
       required: [status, hub_id, user_id, device_credential]
@@ -5143,9 +5637,9 @@ components:
           items: { $ref: '#/components/schemas/HandshakeProblem' }
         features:
           type: array
-          description: Optional server feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the server (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the server pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only), `reports_v1` = problem reports (`POST /reports`; the admin endpoints under `/admin/reports`), `admin_v1` = the admin API under `/admin/...` (advertised only to admin users). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+          description: Optional server feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the server (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the server pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only), `reports_v1` = problem reports (`POST /reports`; the admin endpoints under `/admin/reports`), `accounts_v1` = server accounts (`POST /auth/sign-in`, `/account` with password, confirmation and own devices, `/admin/users/{user_id}/password-reset`, `/admin/accounts/settings`; the error codes `confirmation_required`, `password_required` and `password_not_set`), `admin_v1` = the admin API under `/admin/...` (advertised only to admin users). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
           items: { type: string }
-          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, saves_v6, cores_v2, local_setup_v1, ice_update_v1, plugins_v1, runs_v1, local_roms_v1, reports_v1]
+          example: [saves_v1, sessions_v1, users_v1, uploads_v1, firmware_v1, cores_v1, turn_v1, saves_v2, saves_v3, saves_v4, saves_v5, saves_v6, cores_v2, local_setup_v1, ice_update_v1, plugins_v1, runs_v1, local_roms_v1, reports_v1, accounts_v1]
         user:
           $ref: '#/components/schemas/HandshakeUser'
     HandshakeUser:
@@ -5790,6 +6284,102 @@ components:
         next: { type: string, format: date-time }
         restore: { $ref: '#/components/schemas/AdminRestoreResult' }
         can_restore: { type: boolean, description: 'This server can restart itself, so a restore from the API is possible' }
+    SignInRequest:
+      type: object
+      required: [username, password, device_id, device_name, platform, arch, app_version, protocol_version]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64, description: The sign-in name (case-insensitive; not the display name) }
+        password: { type: string, minLength: 1, maxLength: 1024 }
+        device_id: { type: string, format: uuid, description: Chosen by the app; use a separate one per signed-in user }
+        device_name: { type: string }
+        platform: { type: string }
+        arch: { type: string }
+        app_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+        install_id: { type: string, maxLength: 64, description: Optional. Groups the device rows of one app install (several users on one PC) }
+    Account:
+      type: object
+      required: [user_id, username, display_name, role, has_password, password_required, must_change_password, confirmed_until, confirm_locked_until]
+      properties:
+        user_id: { type: string }
+        username: { type: string }
+        display_name: { type: string }
+        role: { type: string, enum: [admin, user] }
+        has_password: { type: boolean }
+        password_required: { type: boolean, description: True for admins and while the server requires passwords }
+        must_change_password: { type: boolean, description: Set by an admin's password reset; cleared by `setAccountPassword` }
+        confirmed_until: { type: string, format: date-time, nullable: true, description: This device's "Confirm it's you" state; null when none or expired }
+        confirm_locked_until: { type: string, format: date-time, nullable: true, description: Confirming is locked on this device until then; null when not locked }
+    AccountUpdate:
+      type: object
+      required: [display_name]
+      properties:
+        display_name: { type: string, minLength: 1, maxLength: 32 }
+    AccountPasswordSet:
+      type: object
+      required: [new_password]
+      properties:
+        current_password: { type: string, maxLength: 1024, description: Required when the account has a password }
+        new_password: { type: string, minLength: 12, maxLength: 1024, description: 'At least 12 characters; at most 1024 bytes' }
+    AccountPasswordRemove:
+      type: object
+      required: [current_password]
+      properties:
+        current_password: { type: string, maxLength: 1024 }
+    AccountConfirm:
+      type: object
+      required: [password]
+      properties:
+        password: { type: string, maxLength: 1024 }
+        duration_seconds: { type: integer, enum: [120, 300, 900], default: 300 }
+    AccountConfirmed:
+      type: object
+      required: [confirmed_until]
+      properties:
+        confirmed_until: { type: string, format: date-time }
+    AccountDevice:
+      type: object
+      required: [device_id, name, platform, arch, app_version, created_at, last_seen_at, sign_in_kind, status, install_id, current]
+      properties:
+        device_id: { type: string, format: uuid }
+        name: { type: string }
+        platform: { type: string }
+        arch: { type: string }
+        app_version: { type: string }
+        created_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time, nullable: true }
+        sign_in_kind: { type: string, enum: [approval, invite, password, local], description: 'approval = an admin approved it, invite = onboarding invite or pairing code, password = user name and password, local = app on the same PC as the server' }
+        status: { type: string, enum: [trusted, revoked] }
+        install_id: { type: string, nullable: true }
+        current: { type: boolean, description: The device of this request }
+    AccountDeviceList:
+      type: object
+      required: [devices]
+      properties:
+        devices:
+          type: array
+          items: { $ref: '#/components/schemas/AccountDevice' }
+    AccountSignOutAll:
+      type: object
+      properties:
+        include_current: { type: boolean, default: false }
+    AccountSignOutAllResult:
+      type: object
+      required: [signed_out]
+      properties:
+        signed_out: { type: integer, minimum: 0 }
+    AdminPasswordReset:
+      type: object
+      required: [temporary_password, must_change_password]
+      properties:
+        temporary_password: { type: string, description: Shown once; never stored in plain text or logged }
+        must_change_password: { type: boolean }
+    AdminAccountSettings:
+      type: object
+      required: [require_passwords]
+      properties:
+        require_passwords: { type: boolean }
+
     AdminUser:
       type: object
       required: [id, username, display_name, role, disabled, created_at, devices]

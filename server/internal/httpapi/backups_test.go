@@ -79,6 +79,9 @@ func TestAdminBackupsAPI(t *testing.T) {
 
 	// Cancel with nothing running; restore without a restart function; a second backup while none runs is fine.
 	wantStatus(t, s.do("POST", "/api/v1/admin/backups/cancel", nil, opt{token: adminTok}), 409, "")
+	wantStatus(t, s.do("POST", "/api/v1/admin/backups/"+name+"/restore", nil, opt{token: adminTok}), 403, "confirmation_required")
+	wantStatus(t, s.do("DELETE", "/api/v1/admin/backups/"+name, nil, opt{token: adminTok}), 403, "confirmation_required")
+	s.confirm(adminTok)
 	wantStatus(t, s.do("POST", "/api/v1/admin/backups/"+name+"/restore", nil, opt{token: adminTok}), 400, "")
 	wantStatus(t, s.do("POST", "/api/v1/admin/backups/uzume-server-x-20261014T010000Z.tar/restore", nil, opt{token: adminTok}), 404, "")
 

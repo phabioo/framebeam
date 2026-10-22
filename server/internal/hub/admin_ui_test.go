@@ -55,8 +55,8 @@ func TestSetUserRoleNeedsPasswordAndKeepsAnAdmin(t *testing.T) {
 	if err := svc.SetUserRole(ctx, admin.ID, lena.ID, hub.RoleUser, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.VerifyPassword(ctx, "lena", "a-long-enough-pass"); !errors.Is(err, hub.ErrInvalidCredentials) {
-		t.Fatalf("password must be gone: %v", err)
+	if _, err := svc.VerifyPassword(ctx, "lena", "a-long-enough-pass"); err != nil { // a member keeps the password (ADR 0030 D5)
+		t.Fatalf("password must be kept: %v", err)
 	}
 	// The last admin cannot be demoted by anyone else either.
 	if err := svc.SetUserRole(ctx, lena.ID, admin.ID, hub.RoleUser, ""); !errors.Is(err, hub.ErrForbidden) {

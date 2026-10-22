@@ -142,6 +142,9 @@ func (s *Server) DisableAdminUser(ctx context.Context, req api.DisableAdminUserR
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err
 	}
+	if err := s.requireConfirmed(ctx); err != nil {
+		return nil, err
+	}
 	if req.UserId == principal(ctx).User.ID {
 		return nil, &hub.Error{Code: hub.CodeForbidden, Message: "You cannot disable yourself"}
 	}
@@ -171,6 +174,9 @@ func (s *Server) EnableAdminUser(ctx context.Context, req api.EnableAdminUserReq
 
 func (s *Server) DeleteAdminUser(ctx context.Context, req api.DeleteAdminUserRequestObject) (api.DeleteAdminUserResponseObject, error) {
 	if err := requireAdmin(ctx); err != nil {
+		return nil, err
+	}
+	if err := s.requireConfirmed(ctx); err != nil {
 		return nil, err
 	}
 	if err := s.svc.DeleteUser(ctx, req.UserId, principal(ctx).User.ID); err != nil {

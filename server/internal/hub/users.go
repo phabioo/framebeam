@@ -201,7 +201,8 @@ func (s *Service) ChangePassword(ctx context.Context, userID, newPassword string
 		return internal(err)
 	}
 	defer tx.Rollback()
-	res, err := tx.ExecContext(ctx, `UPDATE users SET password_hash = ? WHERE id = ? AND password_hash IS NOT NULL`, hash, userID)
+	res, err := tx.ExecContext(ctx, `UPDATE users SET password_hash = ?, password_changed_at = ?, must_change_password = 0
+		WHERE id = ? AND password_hash IS NOT NULL`, hash, s.now().Unix(), userID)
 	if err != nil {
 		return internal(err)
 	}

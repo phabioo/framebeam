@@ -81,6 +81,9 @@ func (s *Server) DeleteAdminGame(ctx context.Context, req api.DeleteAdminGameReq
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err
 	}
+	if err := s.requireConfirmed(ctx); err != nil {
+		return nil, err
+	}
 	if err := s.svc.DeleteGame(ctx, req.GameId.String()); err != nil {
 		return nil, err
 	}

@@ -211,6 +211,10 @@ type RedeemInput struct {
 	PlayerVersion   string
 	ProtocolVersion int
 	RemoteAddr      string
+	// InstallID optionally names the app install (see PairingInput).
+	InstallID string
+	// Password is optional: the new user gets it (an invite for an existing user sets it only while that user has none).
+	Password string
 }
 
 // RedeemResult is the result of a redemption. Approved: Credential is set (device trusted). Otherwise a pending
@@ -325,8 +329,13 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 		return RedeemResult{}, badRequest("device_id must be a UUID")
 	}
 	if !validPairingField(in.DeviceName, 100) || !validPairingField(in.Platform, 50) ||
-		!validPairingField(in.Arch, 50) || !validPairingField(in.PlayerVersion, 50) || in.ProtocolVersion < 1 {
+		!validPairingField(in.Arch, 50) || !validPairingField(in.PlayerVersion, 50) || in.ProtocolVersion < 1 || len(in.InstallID) > MaxInstallIDLen {
 		return RedeemResult{}, badRequest("Required field missing or too long")
+	}
+	if in.Password != "" {
+		if err := checkNewPassword(in.Password); err != nil {
+			return RedeemResult{}, err
+		}
 	}
 	name, err := cleanDisplayName(in.DisplayName)
 	if err != nil {
@@ -334,6 +343,13 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 	}
 	if err := s.rateLimitRedeem(in.RemoteAddr); err != nil {
 		return RedeemResult{}, err
+	}
+	// Hash before the transaction: the database has one connection and Argon2id is slow. The attempt is rate limited above.
+	pwHash := ""
+	if in.Password != "" {
+		if pwHash, err = auth.HashPassword(in.Password, s.params); err != nil {
+			return RedeemResult{}, internal(err)
+		}
 	}
 	code := normalizeInviteCode(in.Code)
 	now := s.now()
@@ -396,6 +412,12 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 			return RedeemResult{}, ErrInviteInvalid
 		}
 		userID = forUser
+		if pwHash != "" {
+			if _, err := tx.ExecContext(ctx, `UPDATE users SET password_hash = ?, password_changed_at = ?, must_change_password = 0
+				WHERE id = ? AND password_hash IS NULL`, pwHash, now.Unix(), userID); err != nil {
+				return RedeemResult{}, internal(err)
+			}
+		}
 	} else {
 		var taken int
 		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE display_name = ? COLLATE NOCASE`, name).Scan(&taken); err != nil {
@@ -417,8 +439,9 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 			username = base + "-" + strconv.Itoa(i)
 		}
 		userID = newUserID()
-		if _, err := tx.ExecContext(ctx, `INSERT INTO users(id, username, display_name, role, password_hash, created_at) VALUES (?,?,?, 'user', NULL, ?)`,
-			userID, username, name, now.Unix()); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO users(id, username, display_name, role, password_hash, password_changed_at, created_at)
+			VALUES (?,?,?, 'user', NULLIF(?,''), CASE WHEN ? = '' THEN NULL ELSE ? END, ?)`,
+			userID, username, name, pwHash, pwHash, now.Unix(), now.Unix()); err != nil {
 			if isUnique(err) {
 				return RedeemResult{}, ErrDisplayNameTaken
 			}
@@ -442,16 +465,9 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 		if err != nil {
 			return RedeemResult{}, internal(err)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO devices(id, user_id, name, platform, arch, player_version, credential_hash, status, created_at)
-			VALUES (?,?,?,?,?,?,?,'trusted',?)
-			ON CONFLICT(id) DO UPDATE SET user_id = excluded.user_id, name = excluded.name, platform = excluded.platform,
-				arch = excluded.arch, player_version = excluded.player_version, credential_hash = excluded.credential_hash,
-				status = 'trusted', revoked_at = NULL`,
-			in.DeviceID, userID, in.DeviceName, in.Platform, in.Arch, in.PlayerVersion, auth.HashToken(cred), now.Unix()); err != nil {
-			return RedeemResult{}, internal(err)
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM access_tokens WHERE device_id = ?`, in.DeviceID); err != nil {
-			return RedeemResult{}, internal(err)
+		if err := upsertTrustedDevice(ctx, tx, trustedDevice{ID: in.DeviceID, UserID: userID, Name: in.DeviceName, Platform: in.Platform,
+			Arch: in.Arch, Version: in.PlayerVersion, CredHash: auth.HashToken(cred), Kind: SignInInvite, InstallID: in.InstallID}, now.Unix()); err != nil {
+			return RedeemResult{}, err
 		}
 		out.Approved, out.Credential = true, cred
 	} else {
@@ -476,9 +492,10 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 		}
 		out.RequestID, out.PollToken, out.ExpiresIn = uuid.NewString(), poll, PairingTTL
 		if _, err := tx.ExecContext(ctx, `INSERT INTO pairing_requests(id, poll_token_hash, device_id, device_name, platform, arch,
-			player_version, protocol_version, remote_addr, status, user_id, created_at, expires_at) VALUES (?,?,?,?,?,?,?,?,?,'pending',?,?,?)`,
+			player_version, protocol_version, remote_addr, status, user_id, created_at, expires_at, sign_in_kind, install_id)
+			VALUES (?,?,?,?,?,?,?,?,?,'pending',?,?,?,?,NULLIF(?,''))`,
 			out.RequestID, auth.HashToken(poll), in.DeviceID, in.DeviceName, in.Platform, in.Arch, in.PlayerVersion, in.ProtocolVersion,
-			in.RemoteAddr, userID, now.Unix(), now.Add(PairingTTL).Unix()); err != nil {
+			in.RemoteAddr, userID, now.Unix(), now.Add(PairingTTL).Unix(), SignInInvite, in.InstallID); err != nil {
 			return RedeemResult{}, internal(err)
 		}
 	}

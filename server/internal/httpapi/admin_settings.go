@@ -238,6 +238,9 @@ func (s *Server) SetAdminNetSetting(ctx context.Context, req api.SetAdminNetSett
 	if err != nil {
 		return nil, err
 	}
+	if err := s.requireConfirmed(ctx); err != nil {
+		return nil, err
+	}
 	if req.Body == nil {
 		return nil, hub.ErrBadRequest
 	}
@@ -255,6 +258,9 @@ func (s *Server) SetAdminNetSetting(ctx context.Context, req api.SetAdminNetSett
 func (s *Server) ResetAdminNetSetting(ctx context.Context, req api.ResetAdminNetSettingRequestObject) (api.ResetAdminNetSettingResponseObject, error) {
 	h, err := s.adminHost(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.requireConfirmed(ctx); err != nil {
 		return nil, err
 	}
 	if err := h.ResetNet(ctx, req.Key); err != nil {
@@ -309,6 +315,9 @@ func (s *Server) SaveAdminExternalTurn(ctx context.Context, req api.SaveAdminExt
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err
 	}
+	if err := s.requireConfirmed(ctx); err != nil {
+		return nil, err
+	}
 	if req.Body == nil {
 		return nil, hub.ErrBadRequest
 	}
@@ -335,6 +344,9 @@ func (s *Server) DeleteAdminExternalTurn(ctx context.Context, req api.DeleteAdmi
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err
 	}
+	if err := s.requireConfirmed(ctx); err != nil {
+		return nil, err
+	}
 	if err := s.svc.DeleteExternalTURN(ctx, req.Params.Name); err != nil {
 		return nil, err
 	}
@@ -344,6 +356,9 @@ func (s *Server) DeleteAdminExternalTurn(ctx context.Context, req api.DeleteAdmi
 
 func (s *Server) ResetAdminExternalTurn(ctx context.Context, _ api.ResetAdminExternalTurnRequestObject) (api.ResetAdminExternalTurnResponseObject, error) {
 	if err := requireAdmin(ctx); err != nil {
+		return nil, err
+	}
+	if err := s.requireConfirmed(ctx); err != nil {
 		return nil, err
 	}
 	if err := s.svc.ResetExternalTURN(ctx); err != nil {
@@ -362,6 +377,9 @@ func (s *Server) CheckAdminUpdates(ctx context.Context, _ api.CheckAdminUpdatesR
 
 func (s *Server) InstallAdminUpdate(ctx context.Context, req api.InstallAdminUpdateRequestObject) (api.InstallAdminUpdateResponseObject, error) {
 	if err := requireAdmin(ctx); err != nil {
+		return nil, err
+	}
+	if err := s.requireConfirmed(ctx); err != nil {
 		return nil, err
 	}
 	confirm := req.Body != nil && req.Body.ConfirmBreaking != nil && *req.Body.ConfirmBreaking

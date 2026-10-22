@@ -43,7 +43,7 @@ func (s *Service) RenameUser(ctx context.Context, userID, displayName string) (e
 
 // SetUserRole changes the role of a user. Making a user an admin needs a password (the web interface signs in with
 // username and password, MinPasswordLen characters); the user must not be disabled. Making an admin a regular user
-// removes the password and ends their web sessions; the actor cannot demote themselves and the last admin stays.
+// keeps the password (a member may have one, ADR 0030 D5) and ends their web sessions; the actor cannot demote themselves and the last admin stays.
 func (s *Service) SetUserRole(ctx context.Context, actorID, userID string, role Role, password string) (err error) {
 	defer s.publishOK(&err, TopicUsers, TopicClients)
 	u, err := s.GetUser(ctx, userID)
@@ -65,7 +65,8 @@ func (s *Service) SetUserRole(ctx context.Context, actorID, userID string, role 
 		if err != nil {
 			return internal(err)
 		}
-		_, err = s.db.ExecContext(ctx, `UPDATE users SET role = 'admin', password_hash = ? WHERE id = ? AND role = 'user'`, hash, userID)
+		_, err = s.db.ExecContext(ctx, `UPDATE users SET role = 'admin', password_hash = ?, password_changed_at = ?, must_change_password = 0
+			WHERE id = ? AND role = 'user'`, hash, s.now().Unix(), userID)
 		return internal2(err)
 	case RoleUser:
 		if u.Role != RoleAdmin {
@@ -86,7 +87,7 @@ func (s *Service) SetUserRole(ctx context.Context, actorID, userID string, role 
 		if admins < 2 {
 			return &Error{Code: CodeForbidden, Message: "The last admin cannot be changed"}
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE users SET role = 'user', password_hash = NULL WHERE id = ?`, userID); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE users SET role = 'user' WHERE id = ?`, userID); err != nil {
 			return internal(err)
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM web_sessions WHERE user_id = ?`, userID); err != nil {

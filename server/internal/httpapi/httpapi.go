@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -170,6 +171,9 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"DismissAdminRestoreResult", "DeleteAdminBackup", "RestoreAdminBackup",
 			"CreateReport", "ListAdminReports", "GetAdminReport", "MarkAdminReportSeen", "DeleteAdminReport", "GetAdminReportFile", "GetAdminReportArchive",
 			"GetAdminUpdateVersions", "RollbackAdminUpdate", "ResumeAdminUpdates",
+			"GetAccount", "UpdateAccount", "SetAccountPassword", "RemoveAccountPassword", "ConfirmAccount", "EndAccountConfirmation",
+			"ListAccountDevices", "SignOutAccountDevice", "SignOutAllAccountDevices", "ResetAdminUserPassword",
+			"GetAdminAccountSettings", "UpdateAdminAccountSettings",
 			"ListAdminUsers", "CreateAdminUser", "UpdateAdminUser", "DeleteAdminUser", "CreateAdminUserCode", "SetAdminUserRole", "DisableAdminUser", "EnableAdminUser",
 			"ListAdminInvites", "CreateAdminInvite", "RevokeAdminInvite", "ListAdminPairingRequests", "AllowAdminPairingRequest", "DenyAdminPairingRequest",
 			"ListAdminDevices", "RenameAdminDevice", "RevokeAdminDevice", "DeleteAdminDevice",
@@ -242,7 +246,7 @@ func httpStatus(c hub.Code) int {
 		return http.StatusBadRequest
 	case hub.CodeUnauthorized, hub.CodeDeviceRevoked, hub.CodeInvalidCredentials, hub.CodeUserDisabled:
 		return http.StatusUnauthorized
-	case hub.CodeForbidden, hub.CodeUploadsDisabled:
+	case hub.CodeForbidden, hub.CodeUploadsDisabled, hub.CodeConfirmationRequired, hub.CodePasswordRequired:
 		return http.StatusForbidden
 	case hub.CodeNotFound, hub.CodeInviteInvalid, hub.CodeCorePackageNotFound, hub.CodeCoreFileNotAvailable:
 		return http.StatusNotFound
@@ -258,7 +262,7 @@ func httpStatus(c hub.Code) int {
 		return http.StatusRequestEntityTooLarge
 	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
 		hub.CodeSessionFull, hub.CodeCapabilityMissing, hub.CodeDisplayNameTaken,
-		hub.CodeSaveSlotExists, hub.CodeSessionRunning, hub.CodeSaveSlotProtected:
+		hub.CodeSaveSlotExists, hub.CodeSessionRunning, hub.CodeSaveSlotProtected, hub.CodePasswordNotSet:
 		return http.StatusConflict
 	case hub.CodePayloadTooLarge:
 		return http.StatusRequestEntityTooLarge
@@ -269,13 +273,22 @@ func httpStatus(c hub.Code) int {
 }
 
 func writeError(w http.ResponseWriter, status int, code hub.Code, msg string) {
+	writeErrorRetry(w, status, code, msg, 0)
+}
+
+// writeErrorRetry also names the wait of a rate_limited answer (retry_after in the body, Retry-After header).
+func writeErrorRetry(w http.ResponseWriter, status int, code hub.Code, msg string, retryAfter int) {
 	if status == http.StatusUnauthorized {
 		w.Header().Set("WWW-Authenticate", "Bearer")
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
 	var e api.Error
 	e.Error.Code, e.Error.Message = api.ErrorCode(code), msg
+	if retryAfter > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+		e.Error.RetryAfter = &retryAfter
+	}
+	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(e)
 }
 
@@ -294,7 +307,7 @@ func (s *Server) writeErr(w http.ResponseWriter, r *http.Request, err error) {
 		}
 		writeError(w, httpStatus(he.Code), he.Code, he.Message)
 	case errors.As(err, &he):
-		writeError(w, httpStatus(he.Code), he.Code, he.Message)
+		writeErrorRetry(w, httpStatus(he.Code), he.Code, he.Message, he.RetryAfter)
 	case errors.Is(err, errNotImplemented):
 		writeError(w, http.StatusNotImplemented, hub.CodeInternal, "Not implemented yet")
 	default:
@@ -326,8 +339,12 @@ func (s *Server) CreatePairingRequest(ctx context.Context, req api.CreatePairing
 	}
 	b := req.Body
 	ip, _ := ctx.Value(keyRemoteIP).(string)
-	c, err := s.svc.CreatePairingRequest(ctx, hub.PairingInput{DeviceID: b.DeviceId.String(), DeviceName: b.DeviceName,
-		Platform: b.Platform, Arch: b.Arch, PlayerVersion: b.PlayerVersion, ProtocolVersion: b.ProtocolVersion, RemoteAddr: ip})
+	in := hub.PairingInput{DeviceID: b.DeviceId.String(), DeviceName: b.DeviceName,
+		Platform: b.Platform, Arch: b.Arch, PlayerVersion: b.PlayerVersion, ProtocolVersion: b.ProtocolVersion, RemoteAddr: ip}
+	if b.InstallId != nil {
+		in.InstallID = *b.InstallId
+	}
+	c, err := s.svc.CreatePairingRequest(ctx, in)
 	if err != nil {
 		return nil, err
 	}

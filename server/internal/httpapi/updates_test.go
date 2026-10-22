@@ -93,6 +93,10 @@ func TestAdminUpdateRollbackAPI(t *testing.T) {
 		t.Fatalf("%+v", list.Versions)
 	}
 
+	// Going back needs "Confirm it's you" first.
+	wantStatus(t, s.do("POST", "/api/v1/admin/updates/rollback", map[string]any{"version": "0.3.0"}, opt{token: adminTok}), 403, "confirmation_required")
+	s.confirm(adminTok)
+
 	// Bad requests and refusals do nothing.
 	wantStatus(t, s.do("POST", "/api/v1/admin/updates/rollback", map[string]any{"version": "9.9.9"}, opt{token: adminTok}), 400, "")
 	wantStatus(t, s.do("POST", "/api/v1/admin/updates/rollback", map[string]any{"version": "0.2.0", "confirm_data_loss": true}, opt{token: adminTok}), 409, "")

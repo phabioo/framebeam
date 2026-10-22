@@ -25,6 +25,87 @@ const (
 	PollTokenAuthScopes pollTokenAuthContextKey = "pollTokenAuth.Scopes"
 )
 
+// Defines values for AccountRole.
+const (
+	AccountRoleAdmin AccountRole = "admin"
+	AccountRoleUser  AccountRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the AccountRole enum.
+func (e AccountRole) Valid() bool {
+	switch e {
+	case AccountRoleAdmin:
+		return true
+	case AccountRoleUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountConfirmDurationSeconds.
+const (
+	N120 AccountConfirmDurationSeconds = 120
+	N300 AccountConfirmDurationSeconds = 300
+	N900 AccountConfirmDurationSeconds = 900
+)
+
+// Valid indicates whether the value is a known member of the AccountConfirmDurationSeconds enum.
+func (e AccountConfirmDurationSeconds) Valid() bool {
+	switch e {
+	case N120:
+		return true
+	case N300:
+		return true
+	case N900:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountDeviceSignInKind.
+const (
+	Approval AccountDeviceSignInKind = "approval"
+	Invite   AccountDeviceSignInKind = "invite"
+	Local    AccountDeviceSignInKind = "local"
+	Password AccountDeviceSignInKind = "password"
+)
+
+// Valid indicates whether the value is a known member of the AccountDeviceSignInKind enum.
+func (e AccountDeviceSignInKind) Valid() bool {
+	switch e {
+	case Approval:
+		return true
+	case Invite:
+		return true
+	case Local:
+		return true
+	case Password:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountDeviceStatus.
+const (
+	AccountDeviceStatusRevoked AccountDeviceStatus = "revoked"
+	AccountDeviceStatusTrusted AccountDeviceStatus = "trusted"
+)
+
+// Valid indicates whether the value is a known member of the AccountDeviceStatus enum.
+func (e AccountDeviceStatus) Valid() bool {
+	switch e {
+	case AccountDeviceStatusRevoked:
+		return true
+	case AccountDeviceStatusTrusted:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminBackupProgressKind.
 const (
 	AdminBackupProgressKindBackup  AdminBackupProgressKind = "backup"
@@ -749,6 +830,7 @@ func (e CorePlatform) Valid() bool {
 const (
 	ErrorCodeBadRequest           ErrorCode = "bad_request"
 	ErrorCodeCapabilityMissing    ErrorCode = "capability_missing"
+	ErrorCodeConfirmationRequired ErrorCode = "confirmation_required"
 	ErrorCodeConflict             ErrorCode = "conflict"
 	ErrorCodeCoreFileNotAvailable ErrorCode = "core_file_not_available"
 	ErrorCodeCoreMissing          ErrorCode = "core_missing"
@@ -766,6 +848,8 @@ const (
 	ErrorCodePairingDenied        ErrorCode = "pairing_denied"
 	ErrorCodePairingExpired       ErrorCode = "pairing_expired"
 	ErrorCodePairingPending       ErrorCode = "pairing_pending"
+	ErrorCodePasswordNotSet       ErrorCode = "password_not_set"
+	ErrorCodePasswordRequired     ErrorCode = "password_required"
 	ErrorCodePayloadTooLarge      ErrorCode = "payload_too_large"
 	ErrorCodePlayerTooOld         ErrorCode = "player_too_old"
 	ErrorCodeRateLimited          ErrorCode = "rate_limited"
@@ -793,6 +877,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeBadRequest:
 		return true
 	case ErrorCodeCapabilityMissing:
+		return true
+	case ErrorCodeConfirmationRequired:
 		return true
 	case ErrorCodeConflict:
 		return true
@@ -827,6 +913,10 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodePairingExpired:
 		return true
 	case ErrorCodePairingPending:
+		return true
+	case ErrorCodePasswordNotSet:
+		return true
+	case ErrorCodePasswordRequired:
 		return true
 	case ErrorCodePayloadTooLarge:
 		return true
@@ -945,16 +1035,16 @@ func (e HandshakeProblemCode) Valid() bool {
 
 // Defines values for HandshakeUserRole.
 const (
-	Admin HandshakeUserRole = "admin"
-	User  HandshakeUserRole = "user"
+	HandshakeUserRoleAdmin HandshakeUserRole = "admin"
+	HandshakeUserRoleUser  HandshakeUserRole = "user"
 )
 
 // Valid indicates whether the value is a known member of the HandshakeUserRole enum.
 func (e HandshakeUserRole) Valid() bool {
 	switch e {
-	case Admin:
+	case HandshakeUserRoleAdmin:
 		return true
-	case User:
+	case HandshakeUserRoleUser:
 		return true
 	default:
 		return false
@@ -963,13 +1053,13 @@ func (e HandshakeUserRole) Valid() bool {
 
 // Defines values for InviteRedeemApprovedStatus.
 const (
-	InviteRedeemApprovedStatusApproved InviteRedeemApprovedStatus = "approved"
+	Approved InviteRedeemApprovedStatus = "approved"
 )
 
 // Valid indicates whether the value is a known member of the InviteRedeemApprovedStatus enum.
 func (e InviteRedeemApprovedStatus) Valid() bool {
 	switch e {
-	case InviteRedeemApprovedStatusApproved:
+	case Approved:
 		return true
 	default:
 		return false
@@ -1355,6 +1445,107 @@ func (e ListAdminReportsParamsStatus) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// Account defines model for Account.
+type Account struct {
+	// ConfirmLockedUntil Confirming is locked on this device until then; null when not locked
+	ConfirmLockedUntil *time.Time `json:"confirm_locked_until"`
+
+	// ConfirmedUntil This device's "Confirm it's you" state; null when none or expired
+	ConfirmedUntil *time.Time `json:"confirmed_until"`
+	DisplayName    string     `json:"display_name"`
+	HasPassword    bool       `json:"has_password"`
+
+	// MustChangePassword Set by an admin's password reset; cleared by `setAccountPassword`
+	MustChangePassword bool `json:"must_change_password"`
+
+	// PasswordRequired True for admins and while the server requires passwords
+	PasswordRequired bool        `json:"password_required"`
+	Role             AccountRole `json:"role"`
+	UserId           string      `json:"user_id"`
+	Username         string      `json:"username"`
+}
+
+// AccountRole defines model for Account.Role.
+type AccountRole string
+
+// AccountConfirm defines model for AccountConfirm.
+type AccountConfirm struct {
+	DurationSeconds *AccountConfirmDurationSeconds `json:"duration_seconds,omitempty"`
+	Password        string                         `json:"password"`
+}
+
+// AccountConfirmDurationSeconds defines model for AccountConfirm.DurationSeconds.
+type AccountConfirmDurationSeconds int
+
+// AccountConfirmed defines model for AccountConfirmed.
+type AccountConfirmed struct {
+	ConfirmedUntil time.Time `json:"confirmed_until"`
+}
+
+// AccountDevice defines model for AccountDevice.
+type AccountDevice struct {
+	AppVersion string    `json:"app_version"`
+	Arch       string    `json:"arch"`
+	CreatedAt  time.Time `json:"created_at"`
+
+	// Current The device of this request
+	Current    bool               `json:"current"`
+	DeviceId   openapi_types.UUID `json:"device_id"`
+	InstallId  *string            `json:"install_id"`
+	LastSeenAt *time.Time         `json:"last_seen_at"`
+	Name       string             `json:"name"`
+	Platform   string             `json:"platform"`
+
+	// SignInKind approval = an admin approved it, invite = onboarding invite or pairing code, password = user name and password, local = app on the same PC as the server
+	SignInKind AccountDeviceSignInKind `json:"sign_in_kind"`
+	Status     AccountDeviceStatus     `json:"status"`
+}
+
+// AccountDeviceSignInKind approval = an admin approved it, invite = onboarding invite or pairing code, password = user name and password, local = app on the same PC as the server
+type AccountDeviceSignInKind string
+
+// AccountDeviceStatus defines model for AccountDevice.Status.
+type AccountDeviceStatus string
+
+// AccountDeviceList defines model for AccountDeviceList.
+type AccountDeviceList struct {
+	Devices []AccountDevice `json:"devices"`
+}
+
+// AccountPasswordRemove defines model for AccountPasswordRemove.
+type AccountPasswordRemove struct {
+	CurrentPassword string `json:"current_password"`
+}
+
+// AccountPasswordSet defines model for AccountPasswordSet.
+type AccountPasswordSet struct {
+	// CurrentPassword Required when the account has a password
+	CurrentPassword *string `json:"current_password,omitempty"`
+
+	// NewPassword At least 12 characters; at most 1024 bytes
+	NewPassword string `json:"new_password"`
+}
+
+// AccountSignOutAll defines model for AccountSignOutAll.
+type AccountSignOutAll struct {
+	IncludeCurrent *bool `json:"include_current,omitempty"`
+}
+
+// AccountSignOutAllResult defines model for AccountSignOutAllResult.
+type AccountSignOutAllResult struct {
+	SignedOut int `json:"signed_out"`
+}
+
+// AccountUpdate defines model for AccountUpdate.
+type AccountUpdate struct {
+	DisplayName string `json:"display_name"`
+}
+
+// AdminAccountSettings defines model for AdminAccountSettings.
+type AdminAccountSettings struct {
+	RequirePasswords bool `json:"require_passwords"`
 }
 
 // AdminAvailableCore defines model for AdminAvailableCore.
@@ -1829,6 +2020,14 @@ type AdminPairingRequestList struct {
 	// MinProtocolVersion A request with a lower `protocol_version` comes from an app that is too old
 	MinProtocolVersion int                   `json:"min_protocol_version"`
 	Requests           []AdminPairingRequest `json:"requests"`
+}
+
+// AdminPasswordReset defines model for AdminPasswordReset.
+type AdminPasswordReset struct {
+	MustChangePassword bool `json:"must_change_password"`
+
+	// TemporaryPassword Shown once; never stored in plain text or logged
+	TemporaryPassword string `json:"temporary_password"`
 }
 
 // AdminPlugin defines model for AdminPlugin.
@@ -2608,6 +2807,9 @@ type DuplicateGameError struct {
 		// Code `save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted).
 		Code    ErrorCode `json:"code"`
 		Message string    `json:"message"`
+
+		// RetryAfter Only on `rate_limited` when the next try is possible at a known time: seconds to wait (also sent as the `Retry-After` header)
+		RetryAfter *int `json:"retry_after,omitempty"`
 	} `json:"error"`
 	ExistingGameId openapi_types.UUID `json:"existing_game_id"`
 }
@@ -2618,6 +2820,9 @@ type Error struct {
 		// Code `save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted).
 		Code    ErrorCode `json:"code"`
 		Message string    `json:"message"`
+
+		// RetryAfter Only on `rate_limited` when the next try is possible at a known time: seconds to wait (also sent as the `Retry-After` header)
+		RetryAfter *int `json:"retry_after,omitempty"`
 	} `json:"error"`
 }
 
@@ -2724,7 +2929,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional server feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the server (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the server pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only), `reports_v1` = problem reports (`POST /reports`; the admin endpoints under `/admin/reports`), `admin_v1` = the admin API under `/admin/...` (advertised only to admin users). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+	// Features Optional server feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the server (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the server pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only), `reports_v1` = problem reports (`POST /reports`; the admin endpoints under `/admin/reports`), `accounts_v1` = server accounts (`POST /auth/sign-in`, `/account` with password, confirmation and own devices, `/admin/users/{user_id}/password-reset`, `/admin/accounts/settings`; the error codes `confirmation_required`, `password_required` and `password_not_set`), `admin_v1` = the admin API under `/admin/...` (advertised only to admin users). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -2781,10 +2986,16 @@ type InviteRedeemRequest struct {
 	DeviceName string             `json:"device_name"`
 
 	// DisplayName Trimmed; unique per server (case-insensitive)
-	DisplayName     string `json:"display_name"`
-	Platform        string `json:"platform"`
-	PlayerVersion   string `json:"player_version"`
-	ProtocolVersion int    `json:"protocol_version"`
+	DisplayName string `json:"display_name"`
+
+	// InstallId Optional. Groups the device rows of one app install
+	InstallId *string `json:"install_id,omitempty"`
+
+	// Password Optional (`accounts_v1`). The new user gets this password (at least 12 characters; at most 1024 bytes). For an invite that belongs to an existing user it is used only while that user has no password
+	Password        *string `json:"password,omitempty"`
+	Platform        string  `json:"platform"`
+	PlayerVersion   string  `json:"player_version"`
+	ProtocolVersion int     `json:"protocol_version"`
 }
 
 // LocalPairRequest defines model for LocalPairRequest.
@@ -2834,12 +3045,15 @@ type PairingRequestAcceptedStatus string
 
 // PairingRequestCreate defines model for PairingRequestCreate.
 type PairingRequestCreate struct {
-	Arch            string             `json:"arch"`
-	DeviceId        openapi_types.UUID `json:"device_id"`
-	DeviceName      string             `json:"device_name"`
-	Platform        string             `json:"platform"`
-	PlayerVersion   string             `json:"player_version"`
-	ProtocolVersion int                `json:"protocol_version"`
+	Arch       string             `json:"arch"`
+	DeviceId   openapi_types.UUID `json:"device_id"`
+	DeviceName string             `json:"device_name"`
+
+	// InstallId Optional. Groups the device rows of one app install (several users on one PC)
+	InstallId       *string `json:"install_id,omitempty"`
+	Platform        string  `json:"platform"`
+	PlayerVersion   string  `json:"player_version"`
+	ProtocolVersion int     `json:"protocol_version"`
 }
 
 // PairingStatus defines model for PairingStatus.
@@ -3410,6 +3624,25 @@ type SessionViewerInfo struct {
 // `invite_only`: devices of the owner user plus invited users who have not declined.
 type SessionVisibility string
 
+// SignInRequest defines model for SignInRequest.
+type SignInRequest struct {
+	AppVersion string `json:"app_version"`
+	Arch       string `json:"arch"`
+
+	// DeviceId Chosen by the app; use a separate one per signed-in user
+	DeviceId   openapi_types.UUID `json:"device_id"`
+	DeviceName string             `json:"device_name"`
+
+	// InstallId Optional. Groups the device rows of one app install (several users on one PC)
+	InstallId       *string `json:"install_id,omitempty"`
+	Password        string  `json:"password"`
+	Platform        string  `json:"platform"`
+	ProtocolVersion int     `json:"protocol_version"`
+
+	// Username The sign-in name (case-insensitive; not the display name)
+	Username string `json:"username"`
+}
+
 // SystemCore defines model for SystemCore.
 type SystemCore struct {
 	// BuildDate Date of the upstream build
@@ -3746,6 +3979,24 @@ type PutUploadChunkParams struct {
 	ContentRange string `json:"Content-Range"`
 }
 
+// UpdateAccountJSONRequestBody defines body for UpdateAccount for application/json ContentType.
+type UpdateAccountJSONRequestBody = AccountUpdate
+
+// ConfirmAccountJSONRequestBody defines body for ConfirmAccount for application/json ContentType.
+type ConfirmAccountJSONRequestBody = AccountConfirm
+
+// SignOutAllAccountDevicesJSONRequestBody defines body for SignOutAllAccountDevices for application/json ContentType.
+type SignOutAllAccountDevicesJSONRequestBody = AccountSignOutAll
+
+// RemoveAccountPasswordJSONRequestBody defines body for RemoveAccountPassword for application/json ContentType.
+type RemoveAccountPasswordJSONRequestBody = AccountPasswordRemove
+
+// SetAccountPasswordJSONRequestBody defines body for SetAccountPassword for application/json ContentType.
+type SetAccountPasswordJSONRequestBody = AccountPasswordSet
+
+// UpdateAdminAccountSettingsJSONRequestBody defines body for UpdateAdminAccountSettings for application/json ContentType.
+type UpdateAdminAccountSettingsJSONRequestBody = AdminAccountSettings
+
 // UpdateAdminBackupSettingsJSONRequestBody defines body for UpdateAdminBackupSettings for application/json ContentType.
 type UpdateAdminBackupSettingsJSONRequestBody = AdminBackupSettingsUpdate
 
@@ -3823,6 +4074,9 @@ type CreateAdminSaveSnapshotJSONRequestBody = SaveSnapshotRequest
 
 // SetAdminUserRoleJSONRequestBody defines body for SetAdminUserRole for application/json ContentType.
 type SetAdminUserRoleJSONRequestBody = AdminUserRoleChange
+
+// SignInJSONRequestBody defines body for SignIn for application/json ContentType.
+type SignInJSONRequestBody = SignInRequest
 
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = TokenRequest
@@ -4371,6 +4625,39 @@ type ServerInterface interface {
 	// Server info (no auth, grants no rights)
 	// (GET /.well-known/uzume)
 	GetHubInfo(w http.ResponseWriter, r *http.Request)
+	// The signed-in user's account as seen from this device
+	// (GET /api/v1/account)
+	GetAccount(w http.ResponseWriter, r *http.Request)
+	// Rename yourself
+	// (PATCH /api/v1/account)
+	UpdateAccount(w http.ResponseWriter, r *http.Request)
+	// End the confirmation of this device early
+	// (DELETE /api/v1/account/confirm)
+	EndAccountConfirmation(w http.ResponseWriter, r *http.Request)
+	// Confirm it's you
+	// (POST /api/v1/account/confirm)
+	ConfirmAccount(w http.ResponseWriter, r *http.Request)
+	// Your own devices
+	// (GET /api/v1/account/devices)
+	ListAccountDevices(w http.ResponseWriter, r *http.Request)
+	// Sign out all your devices
+	// (POST /api/v1/account/devices/sign-out-all)
+	SignOutAllAccountDevices(w http.ResponseWriter, r *http.Request)
+	// Sign out one of your devices
+	// (DELETE /api/v1/account/devices/{device_id})
+	SignOutAccountDevice(w http.ResponseWriter, r *http.Request, deviceId openapi_types.UUID)
+	// Remove your password (members only)
+	// (DELETE /api/v1/account/password)
+	RemoveAccountPassword(w http.ResponseWriter, r *http.Request)
+	// Set or change your password
+	// (PUT /api/v1/account/password)
+	SetAccountPassword(w http.ResponseWriter, r *http.Request)
+	// Account policy (admin)
+	// (GET /api/v1/admin/accounts/settings)
+	GetAdminAccountSettings(w http.ResponseWriter, r *http.Request)
+	// Change the account policy (admin, needs Confirm it's you)
+	// (PUT /api/v1/admin/accounts/settings)
+	UpdateAdminAccountSettings(w http.ResponseWriter, r *http.Request)
 	// List the backup files of the backup folder (admin)
 	// (GET /api/v1/admin/backups)
 	ListAdminBackups(w http.ResponseWriter, r *http.Request)
@@ -4677,12 +4964,18 @@ type ServerInterface interface {
 	// Upload a save file into a user's slot (admin; raw body)
 	// (POST /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/upload)
 	UploadAdminSaveFile(w http.ResponseWriter, r *http.Request, userId UserId, gameId GameId, slot SaveSlotName, params UploadAdminSaveFileParams)
+	// Reset a user's password (admin, needs Confirm it's you)
+	// (POST /api/v1/admin/users/{user_id}/password-reset)
+	ResetAdminUserPassword(w http.ResponseWriter, r *http.Request, userId string)
 	// Change the role of a user (admin)
 	// (POST /api/v1/admin/users/{user_id}/role)
 	SetAdminUserRole(w http.ResponseWriter, r *http.Request, userId UserId)
 	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(w http.ResponseWriter, r *http.Request)
+	// Sign a device in with user name and password (no auth)
+	// (POST /api/v1/auth/sign-in)
+	SignIn(w http.ResponseWriter, r *http.Request)
 	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(w http.ResponseWriter, r *http.Request)
@@ -4888,6 +5181,238 @@ func (siw *ServerInterfaceWrapper) GetHubInfo(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHubInfo(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAccount operation middleware
+func (siw *ServerInterfaceWrapper) GetAccount(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAccount operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAccount(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EndAccountConfirmation operation middleware
+func (siw *ServerInterfaceWrapper) EndAccountConfirmation(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EndAccountConfirmation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmAccount operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmAccount(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAccountDevices operation middleware
+func (siw *ServerInterfaceWrapper) ListAccountDevices(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAccountDevices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SignOutAllAccountDevices operation middleware
+func (siw *ServerInterfaceWrapper) SignOutAllAccountDevices(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SignOutAllAccountDevices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SignOutAccountDevice operation middleware
+func (siw *ServerInterfaceWrapper) SignOutAccountDevice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "device_id" -------------
+	var deviceId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "device_id", r.PathValue("device_id"), &deviceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "device_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SignOutAccountDevice(w, r, deviceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveAccountPassword operation middleware
+func (siw *ServerInterfaceWrapper) RemoveAccountPassword(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveAccountPassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetAccountPassword operation middleware
+func (siw *ServerInterfaceWrapper) SetAccountPassword(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAccountPassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminAccountSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminAccountSettings(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminAccountSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAdminAccountSettings operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAdminAccountSettings(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAdminAccountSettings(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8180,6 +8705,38 @@ func (siw *ServerInterfaceWrapper) UploadAdminSaveFile(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// ResetAdminUserPassword operation middleware
+func (siw *ServerInterfaceWrapper) ResetAdminUserPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user_id" -------------
+	var userId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user_id", r.PathValue("user_id"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetAdminUserPassword(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetAdminUserRole operation middleware
 func (siw *ServerInterfaceWrapper) SetAdminUserRole(w http.ResponseWriter, r *http.Request) {
 
@@ -8223,6 +8780,20 @@ func (siw *ServerInterfaceWrapper) RevokeSelf(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeSelf(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SignIn operation middleware
+func (siw *ServerInterfaceWrapper) SignIn(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SignIn(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10623,6 +11194,17 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/.well-known/uzume", wrapper.GetHubInfo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/account", wrapper.GetAccount)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/v1/account", wrapper.UpdateAccount)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/account/confirm", wrapper.EndAccountConfirmation)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/account/confirm", wrapper.ConfirmAccount)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/account/devices", wrapper.ListAccountDevices)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/account/devices/sign-out-all", wrapper.SignOutAllAccountDevices)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/account/devices/{device_id}", wrapper.SignOutAccountDevice)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/account/password", wrapper.RemoveAccountPassword)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/account/password", wrapper.SetAccountPassword)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/accounts/settings", wrapper.GetAdminAccountSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/admin/accounts/settings", wrapper.UpdateAdminAccountSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/backups", wrapper.ListAdminBackups)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/backups", wrapper.StartAdminBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/backups/cancel", wrapper.CancelAdminBackup)
@@ -10725,8 +11307,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/slots", wrapper.CreateAdminSaveSlot)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/snapshots", wrapper.CreateAdminSaveSnapshot)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/upload", wrapper.UploadAdminSaveFile)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/password-reset", wrapper.ResetAdminUserPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/role", wrapper.SetAdminUserRole)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/sign-in", wrapper.SignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}", wrapper.GetCorePackage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}", wrapper.GetCorePackageFile)
@@ -10847,6 +11431,584 @@ func (response GetHubInfo200JSONResponse) VisitGetHubInfoResponse(w http.Respons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAccountRequestObject struct {
+}
+
+type GetAccountResponseObject interface {
+	VisitGetAccountResponse(w http.ResponseWriter) error
+}
+
+type GetAccount200JSONResponse Account
+
+func (response GetAccount200JSONResponse) VisitGetAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAccount401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAccount401JSONResponse) VisitGetAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccountRequestObject struct {
+	Body *UpdateAccountJSONRequestBody
+}
+
+type UpdateAccountResponseObject interface {
+	VisitUpdateAccountResponse(w http.ResponseWriter) error
+}
+
+type UpdateAccount200JSONResponse Account
+
+func (response UpdateAccount200JSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccount400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateAccount400JSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccount401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateAccount401JSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccount409JSONResponse Error
+
+func (response UpdateAccount409JSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EndAccountConfirmationRequestObject struct {
+}
+
+type EndAccountConfirmationResponseObject interface {
+	VisitEndAccountConfirmationResponse(w http.ResponseWriter) error
+}
+
+type EndAccountConfirmation204Response struct {
+}
+
+func (response EndAccountConfirmation204Response) VisitEndAccountConfirmationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type EndAccountConfirmation401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response EndAccountConfirmation401JSONResponse) VisitEndAccountConfirmationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmAccountRequestObject struct {
+	Body *ConfirmAccountJSONRequestBody
+}
+
+type ConfirmAccountResponseObject interface {
+	VisitConfirmAccountResponse(w http.ResponseWriter) error
+}
+
+type ConfirmAccount200JSONResponse AccountConfirmed
+
+func (response ConfirmAccount200JSONResponse) VisitConfirmAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmAccount400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ConfirmAccount400JSONResponse) VisitConfirmAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmAccount401JSONResponse Error
+
+func (response ConfirmAccount401JSONResponse) VisitConfirmAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmAccount409JSONResponse Error
+
+func (response ConfirmAccount409JSONResponse) VisitConfirmAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmAccount429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response ConfirmAccount429JSONResponse) VisitConfirmAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAccountDevicesRequestObject struct {
+}
+
+type ListAccountDevicesResponseObject interface {
+	VisitListAccountDevicesResponse(w http.ResponseWriter) error
+}
+
+type ListAccountDevices200JSONResponse AccountDeviceList
+
+func (response ListAccountDevices200JSONResponse) VisitListAccountDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAccountDevices401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAccountDevices401JSONResponse) VisitListAccountDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignOutAllAccountDevicesRequestObject struct {
+	Body *SignOutAllAccountDevicesJSONRequestBody
+}
+
+type SignOutAllAccountDevicesResponseObject interface {
+	VisitSignOutAllAccountDevicesResponse(w http.ResponseWriter) error
+}
+
+type SignOutAllAccountDevices200JSONResponse AccountSignOutAllResult
+
+func (response SignOutAllAccountDevices200JSONResponse) VisitSignOutAllAccountDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignOutAllAccountDevices400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SignOutAllAccountDevices400JSONResponse) VisitSignOutAllAccountDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignOutAllAccountDevices401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SignOutAllAccountDevices401JSONResponse) VisitSignOutAllAccountDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignOutAccountDeviceRequestObject struct {
+	DeviceId openapi_types.UUID `json:"device_id"`
+}
+
+type SignOutAccountDeviceResponseObject interface {
+	VisitSignOutAccountDeviceResponse(w http.ResponseWriter) error
+}
+
+type SignOutAccountDevice204Response struct {
+}
+
+func (response SignOutAccountDevice204Response) VisitSignOutAccountDeviceResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type SignOutAccountDevice401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SignOutAccountDevice401JSONResponse) VisitSignOutAccountDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignOutAccountDevice404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response SignOutAccountDevice404JSONResponse) VisitSignOutAccountDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAccountPasswordRequestObject struct {
+	Body *RemoveAccountPasswordJSONRequestBody
+}
+
+type RemoveAccountPasswordResponseObject interface {
+	VisitRemoveAccountPasswordResponse(w http.ResponseWriter) error
+}
+
+type RemoveAccountPassword204Response struct {
+}
+
+func (response RemoveAccountPassword204Response) VisitRemoveAccountPasswordResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveAccountPassword400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RemoveAccountPassword400JSONResponse) VisitRemoveAccountPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAccountPassword401JSONResponse Error
+
+func (response RemoveAccountPassword401JSONResponse) VisitRemoveAccountPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAccountPassword403JSONResponse Error
+
+func (response RemoveAccountPassword403JSONResponse) VisitRemoveAccountPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveAccountPassword429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response RemoveAccountPassword429JSONResponse) VisitRemoveAccountPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAccountPasswordRequestObject struct {
+	Body *SetAccountPasswordJSONRequestBody
+}
+
+type SetAccountPasswordResponseObject interface {
+	VisitSetAccountPasswordResponse(w http.ResponseWriter) error
+}
+
+type SetAccountPassword204Response struct {
+}
+
+func (response SetAccountPassword204Response) VisitSetAccountPasswordResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type SetAccountPassword400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SetAccountPassword400JSONResponse) VisitSetAccountPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAccountPassword401JSONResponse Error
+
+func (response SetAccountPassword401JSONResponse) VisitSetAccountPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAccountPassword429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response SetAccountPassword429JSONResponse) VisitSetAccountPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminAccountSettingsRequestObject struct {
+}
+
+type GetAdminAccountSettingsResponseObject interface {
+	VisitGetAdminAccountSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetAdminAccountSettings200JSONResponse AdminAccountSettings
+
+func (response GetAdminAccountSettings200JSONResponse) VisitGetAdminAccountSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminAccountSettings401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminAccountSettings401JSONResponse) VisitGetAdminAccountSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminAccountSettings403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminAccountSettings403JSONResponse) VisitGetAdminAccountSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminAccountSettingsRequestObject struct {
+	Body *UpdateAdminAccountSettingsJSONRequestBody
+}
+
+type UpdateAdminAccountSettingsResponseObject interface {
+	VisitUpdateAdminAccountSettingsResponse(w http.ResponseWriter) error
+}
+
+type UpdateAdminAccountSettings200JSONResponse AdminAccountSettings
+
+func (response UpdateAdminAccountSettings200JSONResponse) VisitUpdateAdminAccountSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminAccountSettings400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateAdminAccountSettings400JSONResponse) VisitUpdateAdminAccountSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminAccountSettings401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateAdminAccountSettings401JSONResponse) VisitUpdateAdminAccountSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminAccountSettings403JSONResponse Error
+
+func (response UpdateAdminAccountSettings403JSONResponse) VisitUpdateAdminAccountSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -11267,7 +12429,7 @@ func (response DeleteAdminBackup401JSONResponse) VisitDeleteAdminBackupResponse(
 	return err
 }
 
-type DeleteAdminBackup403JSONResponse struct{ ForbiddenJSONResponse }
+type DeleteAdminBackup403JSONResponse Error
 
 func (response DeleteAdminBackup403JSONResponse) VisitDeleteAdminBackupResponse(w http.ResponseWriter) error {
 
@@ -11425,7 +12587,7 @@ func (response RestoreAdminBackup401JSONResponse) VisitRestoreAdminBackupRespons
 	return err
 }
 
-type RestoreAdminBackup403JSONResponse struct{ ForbiddenJSONResponse }
+type RestoreAdminBackup403JSONResponse Error
 
 func (response RestoreAdminBackup403JSONResponse) VisitRestoreAdminBackupResponse(w http.ResponseWriter) error {
 
@@ -11919,7 +13081,7 @@ func (response DeleteAdminGame401JSONResponse) VisitDeleteAdminGameResponse(w ht
 	return err
 }
 
-type DeleteAdminGame403JSONResponse struct{ ForbiddenJSONResponse }
+type DeleteAdminGame403JSONResponse Error
 
 func (response DeleteAdminGame403JSONResponse) VisitDeleteAdminGameResponse(w http.ResponseWriter) error {
 
@@ -14966,7 +16128,7 @@ func (response DeleteAdminExternalTurn401JSONResponse) VisitDeleteAdminExternalT
 	return err
 }
 
-type DeleteAdminExternalTurn403JSONResponse struct{ ForbiddenJSONResponse }
+type DeleteAdminExternalTurn403JSONResponse Error
 
 func (response DeleteAdminExternalTurn403JSONResponse) VisitDeleteAdminExternalTurnResponse(w http.ResponseWriter) error {
 
@@ -15030,7 +16192,7 @@ func (response SaveAdminExternalTurn401JSONResponse) VisitSaveAdminExternalTurnR
 	return err
 }
 
-type SaveAdminExternalTurn403JSONResponse struct{ ForbiddenJSONResponse }
+type SaveAdminExternalTurn403JSONResponse Error
 
 func (response SaveAdminExternalTurn403JSONResponse) VisitSaveAdminExternalTurnResponse(w http.ResponseWriter) error {
 
@@ -15079,7 +16241,7 @@ func (response ResetAdminExternalTurn401JSONResponse) VisitResetAdminExternalTur
 	return err
 }
 
-type ResetAdminExternalTurn403JSONResponse struct{ ForbiddenJSONResponse }
+type ResetAdminExternalTurn403JSONResponse Error
 
 func (response ResetAdminExternalTurn403JSONResponse) VisitResetAdminExternalTurnResponse(w http.ResponseWriter) error {
 
@@ -15206,7 +16368,7 @@ func (response ResetAdminNetSetting401JSONResponse) VisitResetAdminNetSettingRes
 	return err
 }
 
-type ResetAdminNetSetting403JSONResponse struct{ ForbiddenJSONResponse }
+type ResetAdminNetSetting403JSONResponse Error
 
 func (response ResetAdminNetSetting403JSONResponse) VisitResetAdminNetSettingResponse(w http.ResponseWriter) error {
 
@@ -15285,7 +16447,7 @@ func (response SetAdminNetSetting401JSONResponse) VisitSetAdminNetSettingRespons
 	return err
 }
 
-type SetAdminNetSetting403JSONResponse struct{ ForbiddenJSONResponse }
+type SetAdminNetSetting403JSONResponse Error
 
 func (response SetAdminNetSetting403JSONResponse) VisitSetAdminNetSettingResponse(w http.ResponseWriter) error {
 
@@ -16322,7 +17484,7 @@ func (response InstallAdminUpdate401JSONResponse) VisitInstallAdminUpdateRespons
 	return err
 }
 
-type InstallAdminUpdate403JSONResponse struct{ ForbiddenJSONResponse }
+type InstallAdminUpdate403JSONResponse Error
 
 func (response InstallAdminUpdate403JSONResponse) VisitInstallAdminUpdateResponse(w http.ResponseWriter) error {
 
@@ -16459,7 +17621,7 @@ func (response RollbackAdminUpdate401JSONResponse) VisitRollbackAdminUpdateRespo
 	return err
 }
 
-type RollbackAdminUpdate403JSONResponse struct{ ForbiddenJSONResponse }
+type RollbackAdminUpdate403JSONResponse Error
 
 func (response RollbackAdminUpdate403JSONResponse) VisitRollbackAdminUpdateResponse(w http.ResponseWriter) error {
 
@@ -16709,7 +17871,7 @@ func (response DeleteAdminUser401JSONResponse) VisitDeleteAdminUserResponse(w ht
 	return err
 }
 
-type DeleteAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+type DeleteAdminUser403JSONResponse Error
 
 func (response DeleteAdminUser403JSONResponse) VisitDeleteAdminUserResponse(w http.ResponseWriter) error {
 
@@ -16944,7 +18106,7 @@ func (response DisableAdminUser401JSONResponse) VisitDisableAdminUserResponse(w 
 	return err
 }
 
-type DisableAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+type DisableAdminUser403JSONResponse Error
 
 func (response DisableAdminUser403JSONResponse) VisitDisableAdminUserResponse(w http.ResponseWriter) error {
 
@@ -17083,7 +18245,7 @@ func (response DeleteAdminSaveSlot401JSONResponse) VisitDeleteAdminSaveSlotRespo
 	return err
 }
 
-type DeleteAdminSaveSlot403JSONResponse struct{ ForbiddenJSONResponse }
+type DeleteAdminSaveSlot403JSONResponse Error
 
 func (response DeleteAdminSaveSlot403JSONResponse) VisitDeleteAdminSaveSlotResponse(w http.ResponseWriter) error {
 
@@ -17476,7 +18638,7 @@ func (response DeleteAdminSaveVersion401JSONResponse) VisitDeleteAdminSaveVersio
 	return err
 }
 
-type DeleteAdminSaveVersion403JSONResponse struct{ ForbiddenJSONResponse }
+type DeleteAdminSaveVersion403JSONResponse Error
 
 func (response DeleteAdminSaveVersion403JSONResponse) VisitDeleteAdminSaveVersionResponse(w http.ResponseWriter) error {
 
@@ -17661,7 +18823,7 @@ func (response RestoreAdminSaveVersion401JSONResponse) VisitRestoreAdminSaveVers
 	return err
 }
 
-type RestoreAdminSaveVersion403JSONResponse struct{ ForbiddenJSONResponse }
+type RestoreAdminSaveVersion403JSONResponse Error
 
 func (response RestoreAdminSaveVersion403JSONResponse) VisitRestoreAdminSaveVersionResponse(w http.ResponseWriter) error {
 
@@ -18084,6 +19246,70 @@ func (response UploadAdminSaveFile413JSONResponse) VisitUploadAdminSaveFileRespo
 	return err
 }
 
+type ResetAdminUserPasswordRequestObject struct {
+	UserId string `json:"user_id"`
+}
+
+type ResetAdminUserPasswordResponseObject interface {
+	VisitResetAdminUserPasswordResponse(w http.ResponseWriter) error
+}
+
+type ResetAdminUserPassword200JSONResponse AdminPasswordReset
+
+func (response ResetAdminUserPassword200JSONResponse) VisitResetAdminUserPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAdminUserPassword401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ResetAdminUserPassword401JSONResponse) VisitResetAdminUserPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAdminUserPassword403JSONResponse Error
+
+func (response ResetAdminUserPassword403JSONResponse) VisitResetAdminUserPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAdminUserPassword404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ResetAdminUserPassword404JSONResponse) VisitResetAdminUserPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type SetAdminUserRoleRequestObject struct {
 	UserId UserId `json:"user_id"`
 	Body   *SetAdminUserRoleJSONRequestBody
@@ -18188,6 +19414,98 @@ func (response RevokeSelf401JSONResponse) VisitRevokeSelfResponse(w http.Respons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignInRequestObject struct {
+	Body *SignInJSONRequestBody
+}
+
+type SignInResponseObject interface {
+	VisitSignInResponse(w http.ResponseWriter) error
+}
+
+type SignIn200JSONResponse PairingStatus
+
+func (response SignIn200JSONResponse) VisitSignInResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignIn400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SignIn400JSONResponse) VisitSignInResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignIn401JSONResponse Error
+
+func (response SignIn401JSONResponse) VisitSignInResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignIn409JSONResponse Error
+
+func (response SignIn409JSONResponse) VisitSignInResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignIn413JSONResponse struct{ TooLargeJSONResponse }
+
+func (response SignIn413JSONResponse) VisitSignInResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignIn429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response SignIn429JSONResponse) VisitSignInResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -23121,6 +24439,39 @@ type StrictServerInterface interface {
 	// Server info (no auth, grants no rights)
 	// (GET /.well-known/uzume)
 	GetHubInfo(ctx context.Context, request GetHubInfoRequestObject) (GetHubInfoResponseObject, error)
+	// The signed-in user's account as seen from this device
+	// (GET /api/v1/account)
+	GetAccount(ctx context.Context, request GetAccountRequestObject) (GetAccountResponseObject, error)
+	// Rename yourself
+	// (PATCH /api/v1/account)
+	UpdateAccount(ctx context.Context, request UpdateAccountRequestObject) (UpdateAccountResponseObject, error)
+	// End the confirmation of this device early
+	// (DELETE /api/v1/account/confirm)
+	EndAccountConfirmation(ctx context.Context, request EndAccountConfirmationRequestObject) (EndAccountConfirmationResponseObject, error)
+	// Confirm it's you
+	// (POST /api/v1/account/confirm)
+	ConfirmAccount(ctx context.Context, request ConfirmAccountRequestObject) (ConfirmAccountResponseObject, error)
+	// Your own devices
+	// (GET /api/v1/account/devices)
+	ListAccountDevices(ctx context.Context, request ListAccountDevicesRequestObject) (ListAccountDevicesResponseObject, error)
+	// Sign out all your devices
+	// (POST /api/v1/account/devices/sign-out-all)
+	SignOutAllAccountDevices(ctx context.Context, request SignOutAllAccountDevicesRequestObject) (SignOutAllAccountDevicesResponseObject, error)
+	// Sign out one of your devices
+	// (DELETE /api/v1/account/devices/{device_id})
+	SignOutAccountDevice(ctx context.Context, request SignOutAccountDeviceRequestObject) (SignOutAccountDeviceResponseObject, error)
+	// Remove your password (members only)
+	// (DELETE /api/v1/account/password)
+	RemoveAccountPassword(ctx context.Context, request RemoveAccountPasswordRequestObject) (RemoveAccountPasswordResponseObject, error)
+	// Set or change your password
+	// (PUT /api/v1/account/password)
+	SetAccountPassword(ctx context.Context, request SetAccountPasswordRequestObject) (SetAccountPasswordResponseObject, error)
+	// Account policy (admin)
+	// (GET /api/v1/admin/accounts/settings)
+	GetAdminAccountSettings(ctx context.Context, request GetAdminAccountSettingsRequestObject) (GetAdminAccountSettingsResponseObject, error)
+	// Change the account policy (admin, needs Confirm it's you)
+	// (PUT /api/v1/admin/accounts/settings)
+	UpdateAdminAccountSettings(ctx context.Context, request UpdateAdminAccountSettingsRequestObject) (UpdateAdminAccountSettingsResponseObject, error)
 	// List the backup files of the backup folder (admin)
 	// (GET /api/v1/admin/backups)
 	ListAdminBackups(ctx context.Context, request ListAdminBackupsRequestObject) (ListAdminBackupsResponseObject, error)
@@ -23427,12 +24778,18 @@ type StrictServerInterface interface {
 	// Upload a save file into a user's slot (admin; raw body)
 	// (POST /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/upload)
 	UploadAdminSaveFile(ctx context.Context, request UploadAdminSaveFileRequestObject) (UploadAdminSaveFileResponseObject, error)
+	// Reset a user's password (admin, needs Confirm it's you)
+	// (POST /api/v1/admin/users/{user_id}/password-reset)
+	ResetAdminUserPassword(ctx context.Context, request ResetAdminUserPasswordRequestObject) (ResetAdminUserPasswordResponseObject, error)
 	// Change the role of a user (admin)
 	// (POST /api/v1/admin/users/{user_id}/role)
 	SetAdminUserRole(ctx context.Context, request SetAdminUserRoleRequestObject) (SetAdminUserRoleResponseObject, error)
 	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(ctx context.Context, request RevokeSelfRequestObject) (RevokeSelfResponseObject, error)
+	// Sign a device in with user name and password (no auth)
+	// (POST /api/v1/auth/sign-in)
+	SignIn(ctx context.Context, request SignInRequestObject) (SignInResponseObject, error)
 	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(ctx context.Context, request CreateAccessTokenRequestObject) (CreateAccessTokenResponseObject, error)
@@ -23670,6 +25027,317 @@ func (sh *strictHandler) GetHubInfo(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetHubInfoResponseObject); ok {
 		if err := validResponse.VisitGetHubInfoResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAccount operation middleware
+func (sh *strictHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
+	var request GetAccountRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAccount(ctx, request.(GetAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAccountResponseObject); ok {
+		if err := validResponse.VisitGetAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAccount operation middleware
+func (sh *strictHandler) UpdateAccount(w http.ResponseWriter, r *http.Request) {
+	var request UpdateAccountRequestObject
+
+	var body UpdateAccountJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAccount(ctx, request.(UpdateAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAccountResponseObject); ok {
+		if err := validResponse.VisitUpdateAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EndAccountConfirmation operation middleware
+func (sh *strictHandler) EndAccountConfirmation(w http.ResponseWriter, r *http.Request) {
+	var request EndAccountConfirmationRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EndAccountConfirmation(ctx, request.(EndAccountConfirmationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EndAccountConfirmation")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EndAccountConfirmationResponseObject); ok {
+		if err := validResponse.VisitEndAccountConfirmationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ConfirmAccount operation middleware
+func (sh *strictHandler) ConfirmAccount(w http.ResponseWriter, r *http.Request) {
+	var request ConfirmAccountRequestObject
+
+	var body ConfirmAccountJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConfirmAccount(ctx, request.(ConfirmAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConfirmAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConfirmAccountResponseObject); ok {
+		if err := validResponse.VisitConfirmAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAccountDevices operation middleware
+func (sh *strictHandler) ListAccountDevices(w http.ResponseWriter, r *http.Request) {
+	var request ListAccountDevicesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAccountDevices(ctx, request.(ListAccountDevicesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAccountDevices")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAccountDevicesResponseObject); ok {
+		if err := validResponse.VisitListAccountDevicesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SignOutAllAccountDevices operation middleware
+func (sh *strictHandler) SignOutAllAccountDevices(w http.ResponseWriter, r *http.Request) {
+	var request SignOutAllAccountDevicesRequestObject
+
+	var body SignOutAllAccountDevicesJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SignOutAllAccountDevices(ctx, request.(SignOutAllAccountDevicesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SignOutAllAccountDevices")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SignOutAllAccountDevicesResponseObject); ok {
+		if err := validResponse.VisitSignOutAllAccountDevicesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SignOutAccountDevice operation middleware
+func (sh *strictHandler) SignOutAccountDevice(w http.ResponseWriter, r *http.Request, deviceId openapi_types.UUID) {
+	var request SignOutAccountDeviceRequestObject
+
+	request.DeviceId = deviceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SignOutAccountDevice(ctx, request.(SignOutAccountDeviceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SignOutAccountDevice")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SignOutAccountDeviceResponseObject); ok {
+		if err := validResponse.VisitSignOutAccountDeviceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveAccountPassword operation middleware
+func (sh *strictHandler) RemoveAccountPassword(w http.ResponseWriter, r *http.Request) {
+	var request RemoveAccountPasswordRequestObject
+
+	var body RemoveAccountPasswordJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveAccountPassword(ctx, request.(RemoveAccountPasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveAccountPassword")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveAccountPasswordResponseObject); ok {
+		if err := validResponse.VisitRemoveAccountPasswordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetAccountPassword operation middleware
+func (sh *strictHandler) SetAccountPassword(w http.ResponseWriter, r *http.Request) {
+	var request SetAccountPasswordRequestObject
+
+	var body SetAccountPasswordJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetAccountPassword(ctx, request.(SetAccountPasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetAccountPassword")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetAccountPasswordResponseObject); ok {
+		if err := validResponse.VisitSetAccountPasswordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminAccountSettings operation middleware
+func (sh *strictHandler) GetAdminAccountSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetAdminAccountSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminAccountSettings(ctx, request.(GetAdminAccountSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminAccountSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminAccountSettingsResponseObject); ok {
+		if err := validResponse.VisitGetAdminAccountSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAdminAccountSettings operation middleware
+func (sh *strictHandler) UpdateAdminAccountSettings(w http.ResponseWriter, r *http.Request) {
+	var request UpdateAdminAccountSettingsRequestObject
+
+	var body UpdateAdminAccountSettingsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAdminAccountSettings(ctx, request.(UpdateAdminAccountSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAdminAccountSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAdminAccountSettingsResponseObject); ok {
+		if err := validResponse.VisitUpdateAdminAccountSettingsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -26488,6 +28156,32 @@ func (sh *strictHandler) UploadAdminSaveFile(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// ResetAdminUserPassword operation middleware
+func (sh *strictHandler) ResetAdminUserPassword(w http.ResponseWriter, r *http.Request, userId string) {
+	var request ResetAdminUserPasswordRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResetAdminUserPassword(ctx, request.(ResetAdminUserPasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResetAdminUserPassword")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResetAdminUserPasswordResponseObject); ok {
+		if err := validResponse.VisitResetAdminUserPasswordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // SetAdminUserRole operation middleware
 func (sh *strictHandler) SetAdminUserRole(w http.ResponseWriter, r *http.Request, userId UserId) {
 	var request SetAdminUserRoleRequestObject
@@ -26538,6 +28232,37 @@ func (sh *strictHandler) RevokeSelf(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RevokeSelfResponseObject); ok {
 		if err := validResponse.VisitRevokeSelfResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SignIn operation middleware
+func (sh *strictHandler) SignIn(w http.ResponseWriter, r *http.Request) {
+	var request SignInRequestObject
+
+	var body SignInJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SignIn(ctx, request.(SignInRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SignIn")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SignInResponseObject); ok {
+		if err := validResponse.VisitSignInResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

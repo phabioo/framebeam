@@ -136,6 +136,8 @@ type Service struct {
 	redeemHits  map[string][]time.Time
 	redeemFails []redeemFail // failed attempts of the last minute, oldest first
 
+	acct accountState // sign-in rate limits
+
 	upMu   sync.Mutex // resumable uploads: sessions with a chunk in flight
 	upBusy map[string]bool
 }

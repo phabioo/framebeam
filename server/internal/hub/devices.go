@@ -31,18 +31,22 @@ type Device struct {
 	CreatedAt     time.Time
 	LastSeenAt    *time.Time
 	RevokedAt     *time.Time
+	// SignInKind is how the device was signed in: approval, invite, password or local.
+	SignInKind string
+	// InstallID groups the device rows of one app install ("" = unknown).
+	InstallID string
 }
 
 // lastSeenWriteInterval is the minimum age (seconds) of the stored last_seen_at before Authenticate rewrites it.
 const lastSeenWriteInterval = 60
 
-const deviceCols = `id, user_id, name, platform, arch, player_version, status, created_at, last_seen_at, revoked_at`
+const deviceCols = `id, user_id, name, platform, arch, player_version, status, created_at, last_seen_at, revoked_at, sign_in_kind, COALESCE(install_id,'')`
 
 func scanDevice(r scanner) (Device, error) {
 	var d Device
 	var created int64
 	var seen, rev sql.NullInt64
-	if err := r.Scan(&d.ID, &d.UserID, &d.Name, &d.Platform, &d.Arch, &d.PlayerVersion, &d.Status, &created, &seen, &rev); err != nil {
+	if err := r.Scan(&d.ID, &d.UserID, &d.Name, &d.Platform, &d.Arch, &d.PlayerVersion, &d.Status, &created, &seen, &rev, &d.SignInKind, &d.InstallID); err != nil {
 		return Device{}, err
 	}
 	d.CreatedAt = time.Unix(created, 0).UTC()
