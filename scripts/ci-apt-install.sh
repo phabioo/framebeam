@@ -3,6 +3,8 @@
 # is limited (update 120 s, install 240 s, max 6 min), apt retries/timeouts are set, and
 # up to 3 attempts are made so a hanging mirror cannot block a job for long.
 # A timed-out apt/dpkg is killed hard (timeout -k) and dpkg is repaired (dpkg --configure -a) before the next attempt.
+# After a failed attempt the runner's Azure mirror is swapped for archive.ubuntu.com, because a mirror outage
+# outlasts all retries against the same host.
 # Usage: scripts/ci-apt-install.sh <packages...>
 set -euo pipefail
 
@@ -19,6 +21,17 @@ attempt_once() {
     timeout -k 10 240 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${opts[@]}" "$@"
 }
 
+switch_mirror() {
+  local f
+  for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+    [ -f "$f" ] || continue
+    if grep -q 'azure\.archive\.ubuntu\.com' "$f"; then
+      sudo sed -i 's#azure\.archive\.ubuntu\.com#archive.ubuntu.com#g' "$f"
+      echo "switched apt mirror to archive.ubuntu.com in $f"
+    fi
+  done
+}
+
 for ((i = 1; i <= attempts; i++)); do
   if attempt_once "$@"; then
     exit 0
@@ -27,6 +40,7 @@ for ((i = 1; i <= attempts; i++)); do
   if [ "$i" -lt "$attempts" ]; then
     # A killed apt may have left dpkg half-configured ("dpkg was interrupted"); without this the retries cannot succeed.
     timeout -k 10 120 sudo DEBIAN_FRONTEND=noninteractive dpkg --configure -a || true
+    switch_mirror
     sleep 10
   fi
 done
