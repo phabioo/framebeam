@@ -828,6 +828,7 @@ func (e CorePlatform) Valid() bool {
 
 // Defines values for ErrorCode.
 const (
+	ErrorCodeAlreadySetUp         ErrorCode = "already_set_up"
 	ErrorCodeBadRequest           ErrorCode = "bad_request"
 	ErrorCodeCapabilityMissing    ErrorCode = "capability_missing"
 	ErrorCodeConfirmationRequired ErrorCode = "confirmation_required"
@@ -843,6 +844,7 @@ const (
 	ErrorCodeImportDirUnreadable  ErrorCode = "import_dir_unreadable"
 	ErrorCodeInternal             ErrorCode = "internal"
 	ErrorCodeInvalidCredentials   ErrorCode = "invalid_credentials"
+	ErrorCodeInvalidSetupCode     ErrorCode = "invalid_setup_code"
 	ErrorCodeInviteInvalid        ErrorCode = "invite_invalid"
 	ErrorCodeNotFound             ErrorCode = "not_found"
 	ErrorCodePairingDenied        ErrorCode = "pairing_denied"
@@ -864,6 +866,7 @@ const (
 	ErrorCodeSessionFull          ErrorCode = "session_full"
 	ErrorCodeSessionNotFound      ErrorCode = "session_not_found"
 	ErrorCodeSessionRunning       ErrorCode = "session_running"
+	ErrorCodeSetupCodeExpired     ErrorCode = "setup_code_expired"
 	ErrorCodeStateConflict        ErrorCode = "state_conflict"
 	ErrorCodeTooLarge             ErrorCode = "too_large"
 	ErrorCodeUnauthorized         ErrorCode = "unauthorized"
@@ -874,6 +877,8 @@ const (
 // Valid indicates whether the value is a known member of the ErrorCode enum.
 func (e ErrorCode) Valid() bool {
 	switch e {
+	case ErrorCodeAlreadySetUp:
+		return true
 	case ErrorCodeBadRequest:
 		return true
 	case ErrorCodeCapabilityMissing:
@@ -903,6 +908,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeInternal:
 		return true
 	case ErrorCodeInvalidCredentials:
+		return true
+	case ErrorCodeInvalidSetupCode:
 		return true
 	case ErrorCodeInviteInvalid:
 		return true
@@ -945,6 +952,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeSessionNotFound:
 		return true
 	case ErrorCodeSessionRunning:
+		return true
+	case ErrorCodeSetupCodeExpired:
 		return true
 	case ErrorCodeStateConflict:
 		return true
@@ -2960,6 +2969,9 @@ type HubInfo struct {
 	MinProtocolVersion int                `json:"min_protocol_version"`
 	Name               string             `json:"name"`
 	ProtocolVersion    int                `json:"protocol_version"`
+
+	// SetupRequired true while the server has no admin yet: it waits for `setupWithCode` (feature `setup_code_v1`). Servers before 0.18 do not send it (read as false)
+	SetupRequired bool `json:"setup_required"`
 }
 
 // InviteRedeemApproved defines model for InviteRedeemApproved.
@@ -3624,6 +3636,24 @@ type SessionViewerInfo struct {
 // `invite_only`: devices of the owner user plus invited users who have not declined.
 type SessionVisibility string
 
+// SetupRequest defines model for SetupRequest.
+type SetupRequest struct {
+	Arch       string             `json:"arch"`
+	DeviceId   openapi_types.UUID `json:"device_id"`
+	DeviceName string             `json:"device_name"`
+
+	// InstallId Optional. Groups the device rows of one app install
+	InstallId       *string `json:"install_id,omitempty"`
+	Password        string  `json:"password"`
+	Platform        string  `json:"platform"`
+	PlayerVersion   string  `json:"player_version"`
+	ProtocolVersion int     `json:"protocol_version"`
+
+	// SetupCode The setup code as typed, for example `7H4K-2Q`; spaces, hyphens and case do not matter
+	SetupCode string `json:"setup_code"`
+	Username  string `json:"username"`
+}
+
 // SignInRequest defines model for SignInRequest.
 type SignInRequest struct {
 	AppVersion string `json:"app_version"`
@@ -4143,6 +4173,9 @@ type PublishSessionJSONRequestBody = SessionPublishRequest
 
 // UpdateSessionJSONRequestBody defines body for UpdateSession for application/json ContentType.
 type UpdateSessionJSONRequestBody = SessionUpdateRequest
+
+// SetupWithCodeJSONRequestBody defines body for SetupWithCode for application/json ContentType.
+type SetupWithCodeJSONRequestBody = SetupRequest
 
 // CreateUploadJSONRequestBody defines body for CreateUpload for application/json ContentType.
 type CreateUploadJSONRequestBody = CreateUploadRequest
@@ -5141,6 +5174,9 @@ type ServerInterface interface {
 	// Remove a viewer (owner device) or leave (the viewer's own device)
 	// (DELETE /api/v1/sessions/{session_id}/viewers/{viewer_id})
 	RemoveSessionViewer(w http.ResponseWriter, r *http.Request, sessionId SessionId, viewerId openapi_types.UUID)
+	// Set up a server with its setup code (`setup_code_v1`, no auth, any address)
+	// (POST /api/v1/setup)
+	SetupWithCode(w http.ResponseWriter, r *http.Request)
 	// Systems registry with firmware status
 	// (GET /api/v1/systems)
 	ListSystems(w http.ResponseWriter, r *http.Request)
@@ -10828,6 +10864,20 @@ func (siw *ServerInterfaceWrapper) RemoveSessionViewer(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// SetupWithCode operation middleware
+func (siw *ServerInterfaceWrapper) SetupWithCode(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetupWithCode(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSystems operation middleware
 func (siw *ServerInterfaceWrapper) ListSystems(w http.ResponseWriter, r *http.Request) {
 
@@ -11366,6 +11416,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/sessions/{session_id}/invites/{user_id}", wrapper.InviteSessionUser)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/sessions/{session_id}/join", wrapper.JoinSession)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/sessions/{session_id}/viewers/{viewer_id}", wrapper.RemoveSessionViewer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/setup", wrapper.SetupWithCode)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/systems", wrapper.ListSystems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/systems/{system_id}/firmware/{file_id}", wrapper.GetFirmwareFile)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/uploads", wrapper.CreateUpload)
@@ -23940,6 +23991,112 @@ func (response RemoveSessionViewer410JSONResponse) VisitRemoveSessionViewerRespo
 	return err
 }
 
+type SetupWithCodeRequestObject struct {
+	Body *SetupWithCodeJSONRequestBody
+}
+
+type SetupWithCodeResponseObject interface {
+	VisitSetupWithCodeResponse(w http.ResponseWriter) error
+}
+
+type SetupWithCode200JSONResponse PairingStatus
+
+func (response SetupWithCode200JSONResponse) VisitSetupWithCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupWithCode400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SetupWithCode400JSONResponse) VisitSetupWithCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupWithCode401JSONResponse Error
+
+func (response SetupWithCode401JSONResponse) VisitSetupWithCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupWithCode409JSONResponse Error
+
+func (response SetupWithCode409JSONResponse) VisitSetupWithCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupWithCode410JSONResponse Error
+
+func (response SetupWithCode410JSONResponse) VisitSetupWithCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupWithCode413JSONResponse struct{ TooLargeJSONResponse }
+
+func (response SetupWithCode413JSONResponse) VisitSetupWithCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupWithCode429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response SetupWithCode429JSONResponse) VisitSetupWithCodeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListSystemsRequestObject struct {
 }
 
@@ -24955,6 +25112,9 @@ type StrictServerInterface interface {
 	// Remove a viewer (owner device) or leave (the viewer's own device)
 	// (DELETE /api/v1/sessions/{session_id}/viewers/{viewer_id})
 	RemoveSessionViewer(ctx context.Context, request RemoveSessionViewerRequestObject) (RemoveSessionViewerResponseObject, error)
+	// Set up a server with its setup code (`setup_code_v1`, no auth, any address)
+	// (POST /api/v1/setup)
+	SetupWithCode(ctx context.Context, request SetupWithCodeRequestObject) (SetupWithCodeResponseObject, error)
 	// Systems registry with firmware status
 	// (GET /api/v1/systems)
 	ListSystems(ctx context.Context, request ListSystemsRequestObject) (ListSystemsResponseObject, error)
@@ -29856,6 +30016,37 @@ func (sh *strictHandler) RemoveSessionViewer(w http.ResponseWriter, r *http.Requ
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RemoveSessionViewerResponseObject); ok {
 		if err := validResponse.VisitRemoveSessionViewerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetupWithCode operation middleware
+func (sh *strictHandler) SetupWithCode(w http.ResponseWriter, r *http.Request) {
+	var request SetupWithCodeRequestObject
+
+	var body SetupWithCodeJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetupWithCode(ctx, request.(SetupWithCodeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetupWithCode")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetupWithCodeResponseObject); ok {
+		if err := validResponse.VisitSetupWithCodeResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

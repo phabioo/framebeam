@@ -62,11 +62,15 @@ func runVersion(args []string, out io.Writer) error {
 // applyTimeout bounds one installation (dpkg or msiexec).
 const applyTimeout = 15 * time.Minute
 
-const updateUsage = "usage: uzume-server update check|stage|apply-staged|watch [flags]"
+const updateUsage = "usage: uzume-server update [-check] [-yes] | update check|stage|apply-staged|watch [flags]"
 
 func runUpdate(args []string, out io.Writer) error {
-	if len(args) == 0 {
-		return errors.New(updateUsage)
+	return runUpdateIO(args, os.Stdin, out)
+}
+
+func runUpdateIO(args []string, in io.Reader, out io.Writer) error {
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		return runUpdateNow(args, in, out)
 	}
 	switch args[0] {
 	case "check":
@@ -129,41 +133,51 @@ func runUpdateCheck(args []string, out io.Writer, stage bool) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
-	keys, err := cfg.TrustedCoreKeys()
+	res, err := loadUpdateCheck(cfg, *channel, stage)
 	if err != nil {
 		return err
 	}
-	ch := *channel
+	return json.NewEncoder(out).Encode(res)
+}
+
+// loadUpdateCheck selects the update on a channel ("" = the server setting, else the build channel); with stage it
+// also downloads, verifies and stages it and creates the request file.
+func loadUpdateCheck(cfg *config.Config, channel string, stage bool) (updateCheckJSON, error) {
+	keys, err := cfg.TrustedCoreKeys()
+	if err != nil {
+		return updateCheckJSON{}, err
+	}
+	ch := channel
 	if ch == "" {
 		ch = updates.NormalizeChannel(version.Channel) // without a server database the build channel applies
 	}
-	if _, serr := os.Stat(filepath.Join(cfg.DataDir, "uzume.db")); *channel == "" && serr == nil {
+	if _, serr := os.Stat(filepath.Join(cfg.DataDir, "uzume.db")); channel == "" && serr == nil {
 		ctx := context.Background()
 		svc, closeFn, err := openService(ctx, cfg, false)
 		if err != nil {
-			return err
+			return updateCheckJSON{}, err
 		}
 		set, err := svc.UpdateSettings(ctx)
 		closeFn()
 		if err != nil {
-			return err
+			return updateCheckJSON{}, err
 		}
 		ch = set.Channel
 	}
 	if !updates.ValidSelectableChannel(ch) {
-		return errors.New("updates are off for this build; pass -channel stable|beta")
+		return updateCheckJSON{}, errors.New("updates are off for this build; pass -channel stable|beta")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Minute)
 	defer cancel()
 	platform := updates.Platform()
 	f, err := updates.Source{IndexURL: cfg.UpdateIndexURL}.LoadIndex(ctx, keys)
 	if err != nil {
-		return err
+		return updateCheckJSON{}, err
 	}
 	sel, err := updates.Select(f.Index, updates.Query{Product: updates.ProductHub, Channel: ch, Platform: platform,
 		Kind: updates.KindFor(platform), Current: version.Version})
 	if err != nil {
-		return err
+		return updateCheckJSON{}, err
 	}
 	res := updateCheckJSON{Current: version.Version, Channel: ch, Platform: platform, UpToDate: sel.Release == nil, Skipped: len(f.Skipped)}
 	if sel.Release != nil {
@@ -173,19 +187,19 @@ func runUpdateCheck(args []string, out io.Writer, stage bool) error {
 			Artifact: updateArtifactJSON{Name: a.Name, Size: a.Size, SHA256: a.SHA256, URL: a.URL}}
 		if stage {
 			if !updates.RequestDirWritable(cfg.UpdateRequestDir) {
-				return fmt.Errorf("request directory %s does not exist or is not writable: not a packaged install?", cfg.UpdateRequestDir)
+				return updateCheckJSON{}, fmt.Errorf("request directory %s does not exist or is not writable: not a packaged install?", cfg.UpdateRequestDir)
 			}
 			st, err := updates.Stage(ctx, f, *r, *a, cfg.DataDir)
 			if err != nil {
-				return err
+				return updateCheckJSON{}, err
 			}
 			if err := updates.WriteRequest(cfg.UpdateRequestDir, st.Version); err != nil {
-				return err
+				return updateCheckJSON{}, err
 			}
 			res.Staged, res.Request = &st, updates.RequestPath(cfg.UpdateRequestDir)
 		}
 	}
-	return json.NewEncoder(out).Encode(res)
+	return res, nil
 }
 
 // execRunner runs a command and returns its combined output.

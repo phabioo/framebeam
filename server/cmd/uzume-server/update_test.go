@@ -215,3 +215,54 @@ func TestApplyStagedCommand(t *testing.T) {
 		t.Fatal("installer failure must fail")
 	}
 }
+
+func TestUpdateWithoutSubcommand(t *testing.T) {
+	setVersion(t, "0.3.0-beta.5", "beta", "")
+	f := newCLIFeed(t, "0.3.0-beta.6")
+	data, req := t.TempDir(), t.TempDir()
+	run := func(in string, args ...string) (string, error) {
+		var out bytes.Buffer
+		err := runUpdateIO(append(args, f.flags(data, req)...), strings.NewReader(in), &out)
+		return out.String(), err
+	}
+
+	out, err := run("", "-check", "-channel", "beta")
+	if err != nil || !strings.Contains(out, "Newer version: 0.3.0-beta.6") || !strings.Contains(out, "Install it with: uzume-server update") {
+		t.Fatalf("%v %s", err, out)
+	}
+	if updates.RequestPending(req) {
+		t.Fatal("-check must not create a request")
+	}
+	if _, err := run("", "-channel", "beta"); err == nil || !strings.Contains(err.Error(), "-channel works with -check only") {
+		t.Fatalf("channel without -check: %v", err)
+	}
+
+	// Installing needs a packaged install: a test binary is none, so the manual command is shown.
+	out, err = run("y\n", "-yes")
+	if err == nil || !strings.Contains(out, "Newer version: 0.3.0-beta.6") {
+		t.Fatalf("%v %s", err, out)
+	}
+	if updates.RequestPending(req) {
+		t.Fatal("an unpackaged install must not create a request")
+	}
+
+	// A container is pointed at the image tag instead.
+	t.Setenv(updates.ContainerEnv, "1")
+	out, err = run("", "-yes")
+	if err != nil || !strings.Contains(out, "docker pull ghcr.io/phabioo/uzume-server:0.3.0-beta.6") {
+		t.Fatalf("%v %s", err, out)
+	}
+
+	// Up to date.
+	t.Setenv(updates.ContainerEnv, "")
+	setVersion(t, "0.3.0-beta.6", "beta", "")
+	out, err = run("", "-check", "-channel", "beta")
+	if err != nil || !strings.Contains(out, "newest version") {
+		t.Fatalf("%v %s", err, out)
+	}
+	// The sub-commands still work next to it.
+	var j bytes.Buffer
+	if err := runUpdate(append([]string{"check", "-channel", "beta"}, f.flags(data, req)...), &j); err != nil || !strings.Contains(j.String(), `"up_to_date":true`) {
+		t.Fatalf("%v %s", err, j.String())
+	}
+}

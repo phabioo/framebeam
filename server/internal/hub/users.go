@@ -64,23 +64,54 @@ func (s *Service) HasAdmin(ctx context.Context) (bool, error) {
 	return n > 0, nil
 }
 
-// CreateAdmin creates the first admin; if one already exists, it fails with ErrAdminExists.
+// CreateAdmin creates the first admin; if one already exists, it fails with ErrAdminExists. A pending setup code is
+// removed with it.
 func (s *Service) CreateAdmin(ctx context.Context, username, password string) (User, error) {
-	if !usernameRe.MatchString(username) {
-		return User{}, badRequest("Username: 1 to 64 characters from A-Z, a-z, 0-9, '.', '_', '-'")
+	if err := checkAdminFields(username, password); err != nil {
+		return User{}, err
 	}
-	if len(password) < MinPasswordLen {
-		return User{}, badRequest("Password must be at least %d characters long", MinPasswordLen)
-	}
-	hash, err := auth.HashPassword(password, s.params)
+	hash, err := s.hashPassword(password)
 	if err != nil {
-		return User{}, internal(err)
+		return User{}, err
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return User{}, internal(err)
 	}
 	defer tx.Rollback()
+	u, err := s.createAdminTx(ctx, tx, username, hash)
+	if err != nil {
+		return User{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return User{}, internal(err)
+	}
+	return u, nil
+}
+
+// checkAdminFields applies the admin rules for user name and password (cheap, no hashing).
+func checkAdminFields(username, password string) error {
+	if !usernameRe.MatchString(username) {
+		return badRequest("Username: 1 to 64 characters from A-Z, a-z, 0-9, '.', '_', '-'")
+	}
+	if len(password) < MinPasswordLen {
+		return badRequest("Password must be at least %d characters long", MinPasswordLen)
+	}
+	return nil
+}
+
+// hashPassword hashes a password with the server's Argon2id parameters. Call it before a transaction when possible:
+// the database has one connection and Argon2id is slow.
+func (s *Service) hashPassword(password string) (string, error) {
+	hash, err := auth.HashPassword(password, s.params)
+	if err != nil {
+		return "", internal(err)
+	}
+	return hash, nil
+}
+
+// createAdminTx inserts the first admin inside tx (ErrAdminExists when one exists) and drops the setup code.
+func (s *Service) createAdminTx(ctx context.Context, tx *sql.Tx, username, hash string) (User, error) {
 	var n int
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE role = 'admin'`).Scan(&n); err != nil {
 		return User{}, internal(err)
@@ -96,7 +127,7 @@ func (s *Service) CreateAdmin(ctx context.Context, username, password string) (U
 		}
 		return User{}, internal(err)
 	}
-	if err := tx.Commit(); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM settings WHERE key = ?`, settingSetupCode); err != nil {
 		return User{}, internal(err)
 	}
 	return u, nil

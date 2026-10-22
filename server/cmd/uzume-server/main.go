@@ -1,6 +1,12 @@
 // Command uzume-server is the Uzume server.
 //
 //	uzume-server [flags]                      start the server (API + info endpoint)
+//	uzume-server setup-code [-json]           print a new setup code (set up this server from the app)
+//	uzume-server code [-json]                 print the security code of the certificate the server serves
+//	uzume-server reset-admin [-user NAME]     print a one-time password for an admin (nothing else is touched)
+//	uzume-server status [-json]               version, address, codes, set up or not
+//	uzume-server reset [-confirm NAME]        delete all data and start fresh (the server must be stopped)
+//	uzume-server help                         list all commands
 //	uzume-server setup-admin -username <name> create the first admin (password from stdin)
 //	uzume-server grant-folder <path>          Windows: let the server service account read a folder (needs administrator)
 //	uzume-server renew-cert                   renew the self-generated TLS certificate now and exit
@@ -10,6 +16,7 @@
 //	uzume-server backup [--out DIR]           make a backup now; also: backup list | config | verify <file>
 //	uzume-server restore <file>               restore a backup (the server must be stopped; makes a safety backup first)
 //	uzume-server version [--json]            print the version (JSON: product, version, channel, commit, protocol and schema versions)
+//	uzume-server update [-check]              install the newest version of the channel (-check only looks)
 //	uzume-server update check [-channel c]    print the update selection as JSON
 //	uzume-server update stage [-channel c]    check, download, verify and stage the update, create the request file
 //	uzume-server update apply-staged          root helper of the update unit: verify and install the staged .deb (Windows: .msi)
@@ -25,6 +32,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
@@ -51,39 +59,18 @@ import (
 
 func main() {
 	args := os.Args[1:]
-	var err error
-	if len(args) > 0 && args[0] == "setup-admin" {
-		err = runSetupAdmin(args[1:], os.Stdin, os.Stdout)
-	} else if len(args) > 0 && args[0] == "grant-folder" {
-		err = runGrantFolder(args[1:], os.Stdout)
-		if errors.Is(err, errGrantUnsupported) {
-			fmt.Fprintln(os.Stderr, "not supported")
-			os.Exit(2)
-		}
-	} else if len(args) > 0 && args[0] == "renew-cert" {
-		err = runRenewCert(args[1:], os.Stdout)
-	} else if len(args) > 0 && args[0] == "import-cores" {
-		err = runImportCores(args[1:], os.Stdout)
-	} else if len(args) > 0 && args[0] == "import-plugins" {
-		err = runImportPlugins(args[1:], os.Stdout)
-	} else if len(args) > 0 && args[0] == "diagnostics" {
-		err = runDiagnostics(args[1:], os.Stdout)
-	} else if len(args) > 0 && args[0] == "backup" {
-		err = runBackup(args[1:], os.Stdout)
-	} else if len(args) > 0 && args[0] == "restore" {
-		err = runRestore(args[1:], os.Stdout)
-	} else if len(args) > 0 && args[0] == "version" {
-		err = runVersion(args[1:], os.Stdout)
-	} else if len(args) > 0 && args[0] == "rollback" {
-		err = runRollback(args[1:], os.Stdin, os.Stdout)
-	} else if len(args) > 0 && args[0] == "update" {
-		err = runUpdate(args[1:], os.Stdout)
-	} else {
-		err = runServer(args)
-		if errors.Is(err, errRestart) {
-			// runServer returned: the server, TURN and the database are closed. Replace this process.
-			err = reexec()
-		}
+	err := dispatch(args)
+	if errors.Is(err, errRestart) {
+		// runServer returned: the server, TURN and the database are closed. Replace this process.
+		err = reexec()
+	}
+	if errors.Is(err, flag.ErrHelp) {
+		os.Exit(0) // the flag package printed the usage
+	}
+	var ue *usageError
+	if errors.As(err, &ue) {
+		fmt.Fprintln(os.Stderr, "Error:", ue.Error())
+		os.Exit(2)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
@@ -91,12 +78,80 @@ func main() {
 	}
 }
 
+// usageError is an unknown command (exit status 2).
+type usageError struct{ msg string }
+
+func (e *usageError) Error() string { return e.msg }
+
+// dispatch runs the command named by args[0], else the server.
+func dispatch(args []string) error {
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		return runServer(args)
+	}
+	cmd, rest := args[0], args[1:]
+	switch cmd {
+	case "help":
+		printHelp(os.Stdout)
+		return nil
+	case "version":
+		return runVersion(rest, os.Stdout)
+	case "grant-folder":
+		err := runGrantFolder(rest, os.Stdout)
+		if errors.Is(err, errGrantUnsupported) {
+			fmt.Fprintln(os.Stderr, "not supported")
+			os.Exit(2)
+		}
+		return err
+	}
+	// The commands read the settings of the service (on Linux /etc/uzume/server.env) like the service does.
+	loadServerEnv()
+	switch cmd {
+	case "setup-admin":
+		return runSetupAdmin(rest, os.Stdin, os.Stdout)
+	case "setup-code":
+		return runSetupCode(rest, os.Stdout)
+	case "code":
+		return runCode(rest, os.Stdout)
+	case "reset-admin":
+		return runResetAdmin(rest, os.Stdout)
+	case "status":
+		return runStatus(rest, os.Stdout)
+	case "reset":
+		return runReset(rest, os.Stdin, os.Stdout)
+	case "renew-cert":
+		return runRenewCert(rest, os.Stdout)
+	case "import-cores":
+		return runImportCores(rest, os.Stdout)
+	case "import-plugins":
+		return runImportPlugins(rest, os.Stdout)
+	case "diagnostics":
+		return runDiagnostics(rest, os.Stdout)
+	case "backup":
+		return runBackup(rest, os.Stdout)
+	case "restore":
+		return runRestore(rest, os.Stdout)
+	case "rollback":
+		return runRollback(rest, os.Stdin, os.Stdout)
+	case "update":
+		return runUpdateIO(rest, os.Stdin, os.Stdout)
+	}
+	return &usageError{msg: fmt.Sprintf("unknown command %q; run 'uzume-server help' for the list of commands", cmd)}
+}
+
 // openService opens the database and service in the data directory.
 // serving is true only for the server process: it alone cleans the staging area in <data>/tmp, because the CLI
 // sub-commands run next to the running service.
 func openService(ctx context.Context, cfg *config.Config, serving bool) (*hub.Service, func(), error) {
 	if err := os.MkdirAll(cfg.DataDir, 0o750); err != nil {
+		if errors.Is(err, fs.ErrPermission) {
+			return nil, nil, accessError(cfg.DataDir, err)
+		}
 		return nil, nil, err
+	}
+	if !serving {
+		if err := probeWritable(cfg.DataDir); err != nil {
+			return nil, nil, err
+		}
 	}
 	db, err := store.Open(filepath.Join(cfg.DataDir, "uzume.db"))
 	if err != nil {
@@ -319,6 +374,12 @@ func runServer(args []string) error {
 	fs := flag.NewFlagSet("uzume-server", flag.ContinueOnError)
 	cfg := config.Register(fs, os.Getenv)
 	showVersion := fs.Bool("version", false, "print version and exit")
+	fs.Usage = func() {
+		out := fs.Output()
+		fmt.Fprintln(out, "Usage: uzume-server [flags]       start the server\n       uzume-server <command>     run 'uzume-server help' for the commands")
+		fmt.Fprintln(out, "\nFlags:")
+		fs.PrintDefaults()
+	}
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -430,7 +491,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	svc.SetSaveRetention(eff.SaveKeepRecent, eff.SaveKeepDaily, eff.SaveKeepWeekly)
 	svc.SetICEServers(eff.ICEServers)
 	if has, err := svc.HasAdmin(ctx); err == nil && !has {
-		log.Warn("no admin present: run 'uzume-server setup-admin -username <name>' or open /setup in a browser on this machine")
+		log.Warn("no admin yet: set up the server from Uzume with the setup code printed below, or run 'uzume-server setup-admin -username <name>'")
 	}
 
 	trusted, err := clientip.ParseList(cfg.TrustedProxy)
@@ -489,6 +550,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	svc.StartExternalTURN(ctx, externalTURNServers(cfg, specs, log), hub.ExternalTURNOptions{Disabled: !eff.NetworkSharing})
 
 	var tlsConf *tls.Config
+	securityCode := ""
 	if cfg.UseTLS() {
 		var cert tls.Certificate
 		if cfg.TLSCert != "" {
@@ -514,7 +576,8 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			webCfg.RenewCert = func() (string, time.Time, error) { return holder.renew(cfg.DataDir, time.Now()) }
 		}
 		webCfg.CertState = holder.state
-		log.Info("TLS certificate", "sha256_fingerprint", tlsutil.Fingerprint(cert))
+		securityCode = tlsutil.SecurityCode(cert)
+		log.Info("TLS certificate", "sha256_fingerprint", tlsutil.Fingerprint(cert), "security_code", securityCode)
 	} else {
 		log.Warn("Development mode: HTTP without TLS", "loopback", cfg.ListenIsLoopback())
 	}
@@ -559,6 +622,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	info := svc.Info()
 	log.Info("Uzume server started", "version", version.String(), "hub_id", info.HubID, "name", info.Name,
 		"listen", ln.Addr().String(), "network_sharing", eff.NetworkSharing, "tls", cfg.UseTLS(), "protocol_version", info.ProtocolVersion)
+	announceSetup(ctx, svc, eff, securityCode, log, os.Stdout)
 
 	bg.Add(2)
 	go func() {
@@ -652,6 +716,25 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return errRestart
 	}
 	return nil
+}
+
+// announceSetup creates a fresh setup code and prints the setup banner while the server has no admin. A restart
+// replaces the code ("server restarted, new setup code needed"). The banner goes to stdout (terminal, journal,
+// docker logs) and to the log; the code is written to the log deliberately and nowhere else.
+func announceSetup(ctx context.Context, svc *hub.Service, eff config.Config, securityCode string, log *slog.Logger, out io.Writer) {
+	has, err := svc.HasAdmin(ctx)
+	if err != nil || has {
+		return
+	}
+	code, err := svc.NewSetupCode(ctx)
+	if err != nil {
+		log.Error("cannot create the setup code", "err", err)
+		return
+	}
+	addrs := serverAddresses(eff, inContainer(), net.InterfaceAddrs)
+	fmt.Fprintln(out, setupBanner(version.String(), addrs, securityCode, code))
+	log.Warn("waiting for setup", "addresses", addrs, "security_code", securityCode, "setup_code", code.Code,
+		"setup_code_valid_until", code.Expires.Format(time.RFC3339), "hint", "enter the setup code in Uzume: Set up a server > On another device; new code: uzume-server setup-code")
 }
 
 // waitGroup waits for wg for at most d (a loop stuck in a download must not block the shutdown).

@@ -133,6 +133,7 @@ type Service struct {
 	localMu     sync.Mutex // local setup defaults
 	localDef    LocalDefaults
 	redeemMu    sync.Mutex // invite redemption rate limits
+	setupMu     sync.Mutex // setup code redemption (one at a time: a code is used once)
 	redeemHits  map[string][]time.Time
 	redeemFails []redeemFail // failed attempts of the last minute, oldest first
 

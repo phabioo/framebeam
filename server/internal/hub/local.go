@@ -111,7 +111,12 @@ func (s *Service) UpdateLocalSettings(ctx context.Context, sharing *bool, import
 // pairLocally registers the device for userID the way an approved pairing request does: the request is created,
 // approved and polled in one go, so devices, tokens and the pairing table are handled by the normal code.
 func (s *Service) pairLocally(ctx context.Context, userID string, in PairingInput) (PairingResult, error) {
-	in.kind = SignInLocal
+	return s.pairAs(ctx, userID, in, SignInLocal)
+}
+
+// pairAs is pairLocally with the sign-in kind the device row gets.
+func (s *Service) pairAs(ctx context.Context, userID string, in PairingInput, kind string) (PairingResult, error) {
+	in.kind = kind
 	c, err := s.CreatePairingRequest(ctx, in)
 	if err != nil {
 		return PairingResult{}, err

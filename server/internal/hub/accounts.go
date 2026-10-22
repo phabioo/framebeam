@@ -696,6 +696,12 @@ func (s *Service) ResetPassword(ctx context.Context, actorID, actorDeviceID, use
 	if err := s.RequireConfirmed(ctx, actorID, actorDeviceID); err != nil {
 		return "", err
 	}
+	return s.setTempPassword(ctx, userID)
+}
+
+// setTempPassword gives the user a new one-time temporary password (they must change it), ends their sign-in
+// lockout and keeps their devices signed in. The password is returned only here.
+func (s *Service) setTempPassword(ctx context.Context, userID string) (string, error) {
 	if _, err := s.GetUser(ctx, userID); err != nil {
 		return "", err
 	}
@@ -711,4 +717,37 @@ func (s *Service) ResetPassword(ctx context.Context, actorID, actorDeviceID, use
 		return "", err
 	}
 	return temp, nil
+}
+
+// ListAdmins returns the admins, oldest first.
+func (s *Service) ListAdmins(ctx context.Context) ([]User, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+userCols+` FROM users WHERE role = 'admin' ORDER BY created_at, username`)
+	if err != nil {
+		return nil, internal(err)
+	}
+	defer rows.Close()
+	var out []User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, internal(err)
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// ResetAdminPasswordOnServer is the emergency reset of `uzume-server reset-admin`: whoever can run it on the server
+// owns the data directory, so no "Confirm it's you" is asked. It changes the password of one admin only (users,
+// games, saves and devices stay untouched) and returns the temporary password.
+func (s *Service) ResetAdminPasswordOnServer(ctx context.Context, adminID string) (_ string, err error) {
+	defer s.publishOK(&err, TopicUsers)
+	u, err := s.GetUser(ctx, adminID)
+	if err != nil {
+		return "", err
+	}
+	if u.Role != RoleAdmin {
+		return "", ErrForbidden
+	}
+	return s.setTempPassword(ctx, adminID)
 }

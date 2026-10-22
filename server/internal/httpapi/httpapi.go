@@ -244,7 +244,7 @@ func httpStatus(c hub.Code) int {
 	switch c {
 	case hub.CodeBadRequest, hub.CodeImportDirUnreadable:
 		return http.StatusBadRequest
-	case hub.CodeUnauthorized, hub.CodeDeviceRevoked, hub.CodeInvalidCredentials, hub.CodeUserDisabled:
+	case hub.CodeUnauthorized, hub.CodeDeviceRevoked, hub.CodeInvalidCredentials, hub.CodeUserDisabled, hub.CodeInvalidSetupCode:
 		return http.StatusUnauthorized
 	case hub.CodeForbidden, hub.CodeUploadsDisabled, hub.CodeConfirmationRequired, hub.CodePasswordRequired:
 		return http.StatusForbidden
@@ -254,7 +254,7 @@ func httpStatus(c hub.Code) int {
 		return http.StatusForbidden
 	case hub.CodeSessionNotFound:
 		return http.StatusNotFound
-	case hub.CodeSessionEnded:
+	case hub.CodeSessionEnded, hub.CodeSetupCodeExpired:
 		return http.StatusGone
 	case hub.CodeRunNotActive, hub.CodeStateConflict:
 		return http.StatusConflict
@@ -262,7 +262,7 @@ func httpStatus(c hub.Code) int {
 		return http.StatusRequestEntityTooLarge
 	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
 		hub.CodeSessionFull, hub.CodeCapabilityMissing, hub.CodeDisplayNameTaken,
-		hub.CodeSaveSlotExists, hub.CodeSessionRunning, hub.CodeSaveSlotProtected, hub.CodePasswordNotSet:
+		hub.CodeSaveSlotExists, hub.CodeSessionRunning, hub.CodeSaveSlotProtected, hub.CodePasswordNotSet, hub.CodeAlreadySetUp:
 		return http.StatusConflict
 	case hub.CodePayloadTooLarge:
 		return http.StatusRequestEntityTooLarge
@@ -323,14 +323,18 @@ func (s *Server) writeErr(w http.ResponseWriter, r *http.Request, err error) {
 
 // ---- StrictServerInterface ----
 
-func (s *Server) GetHubInfo(_ context.Context, _ api.GetHubInfoRequestObject) (api.GetHubInfoResponseObject, error) {
+func (s *Server) GetHubInfo(ctx context.Context, _ api.GetHubInfoRequestObject) (api.GetHubInfoResponseObject, error) {
 	i := s.svc.Info()
+	setup, err := s.svc.SetupRequired(ctx)
+	if err != nil {
+		return nil, err
+	}
 	id, err := uuid.Parse(i.HubID)
 	if err != nil {
 		return nil, err
 	}
 	return api.GetHubInfo200JSONResponse{HubId: id, Name: i.Name, HubVersion: i.HubVersion,
-		ProtocolVersion: i.ProtocolVersion, MinProtocolVersion: i.MinProtocolVersion, ApiBase: "/api/v1"}, nil
+		ProtocolVersion: i.ProtocolVersion, MinProtocolVersion: i.MinProtocolVersion, ApiBase: "/api/v1", SetupRequired: setup}, nil
 }
 
 func (s *Server) CreatePairingRequest(ctx context.Context, req api.CreatePairingRequestRequestObject) (api.CreatePairingRequestResponseObject, error) {
