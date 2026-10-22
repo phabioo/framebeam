@@ -35,6 +35,7 @@ jobs:
     permissions:
       contents: write   # create/delete releases, upload assets
       actions: read     # download the artifacts of the CI run
+      packages: write   # push the Hub image to ghcr.io (ADR 0029 D1)
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -156,6 +157,27 @@ jobs:
             gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
           fi
           gh release upload "$TAG" "$rel"/* --clobber
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Push the Hub image (multi-arch, from the CI binaries, no rebuild)
+        run: |
+          set -euo pipefail
+          # The image only copies the linux binaries that CI built and tested (target hub-prebuilt), so it carries exactly
+          # the version of the .deb files. :X.Y.Z and :beta; promote.yml adds :stable and :latest to the same manifest.
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/framebeam-hub"
+          docker buildx build --push --provenance=false --sbom=false \
+            --platform linux/amd64,linux/arm64 \
+            -f packaging/docker/Dockerfile --target hub-prebuilt \
+            --build-context prebuilt-bin="$RUNNER_TEMP/artifacts/framebeam-hub-linux" \
+            --build-arg HUB_VERSION="$VERSION" --build-arg HUB_COMMIT="$COMMIT" \
+            -t "$image:$VERSION" -t "$image:beta" .
+          docker buildx imagetools inspect "$image:$VERSION"
       - name: Prune old prereleases (keep the newest 5, no leftover test ones)
         run: |
           set -euo pipefail

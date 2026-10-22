@@ -14,6 +14,13 @@ const MSIMarkerName = "framebeam-hub.msi-installed"
 // MSILogName is the msiexec log, copied to <data>/updates after the installation.
 const MSILogName = "msiexec.log"
 
+// ContainerEnv is set to "1" in the official Docker image (packaging/docker/Dockerfile). A Hub in a container never
+// installs updates itself: it shows that one is available and the admin pulls a newer image.
+const ContainerEnv = "FRAMEBEAM_HUB_CONTAINER"
+
+// InContainer reports whether the Hub runs in the official container image.
+func InContainer() bool { return os.Getenv(ContainerEnv) == "1" }
+
 // Platform is the platform string of this binary, e.g. linux-amd64 or windows-amd64 (Hub naming; the Player's
 // Windows platform in the index is windows-x64).
 func Platform() string { return runtime.GOOS + "-" + runtime.GOARCH }
@@ -30,8 +37,11 @@ func KindFor(platform string) string {
 
 // IsPackaged reports whether executable belongs to a package install that the update helper can replace: on
 // Linux the .deb path, on Windows the MSI marker file next to the executable; in both cases requestDir must be
-// writable.
+// writable. A Hub in the container image (InContainer) is never packaged.
 func IsPackaged(platform, executable, requestDir string) bool {
+	if InContainer() {
+		return false
+	}
 	if isWindowsPlatform(platform) {
 		if executable == "" {
 			return false

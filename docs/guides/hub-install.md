@@ -1,6 +1,6 @@
 # Install the Hub on Linux
 
-Two ways to run the FrameBeam Hub as a systemd service: the Debian package (recommended on Debian / Raspberry Pi OS, the only type that can update itself) or the script `packaging/linux/install-hub.sh` (any systemd Linux). For flags and environment variables see [hub-configuration.md](hub-configuration.md); for Players outside your LAN see [sessions-over-the-internet.md](sessions-over-the-internet.md).
+Two ways to run the FrameBeam Hub as a systemd service: the Debian package (recommended on Debian / Raspberry Pi OS, the only type that can update itself) or the script `packaging/linux/install-hub.sh` (any systemd Linux). For flags and environment variables see [hub-configuration.md](hub-configuration.md); for Players outside your LAN see [sessions-over-the-internet.md](sessions-over-the-internet.md). Already running Docker? Use the official image instead: [hub-docker.md](hub-docker.md).
 
 ## Install the Debian package (recommended)
 

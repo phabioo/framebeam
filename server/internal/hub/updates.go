@@ -482,6 +482,9 @@ func shellQuote(s string) string {
 
 // manualCommand is what an admin does by hand when the Hub cannot install the update itself.
 func manualCommand(platform string, a *UpdateAvailable) string {
+	if updates.InContainer() {
+		return "This Hub runs in a container. Update by pulling the new image and recreating the container (docker compose pull && docker compose up -d); see docs/guides/hub-docker.md."
+	}
 	if updates.KindFor(platform) == updates.KindMSI {
 		return "Download " + a.URL + " and run " + a.Artifact + " as Administrator."
 	}

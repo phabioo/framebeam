@@ -6,6 +6,7 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
 
 - [Using the Player](guides/player.md): install, pairing, playing, data directory, CLI and environment
 - [Hub installation](guides/hub-install.md): Debian package and systemd script on Linux / Raspberry Pi
+- [Hub in Docker](guides/hub-docker.md): official image (amd64, arm64), volumes, compose, upgrade by pulling
 - [Hub configuration](guides/hub-configuration.md): commands, all flags and environment variables, certificates
 - [Sessions: LAN and internet](guides/sessions-over-the-internet.md): testing on a LAN, port forwards, TURN relay
 - [coturn on a VPS](guides/coturn-on-a-vps.md): own external TURN relay for the Hub
@@ -60,7 +61,8 @@ Start with the [root README](../README.md) for what FrameBeam is and a quick sta
   [0025 local ROMs](adr/0025-local-roms.md),
   [0026 UI gaps and Multiview](adr/0026-ui-gaps-and-multiview.md),
   [0027 GPU paths](adr/0027-gpu-paths.md),
-  [0028 release notes and changelogs](adr/0028-release-notes-and-changelogs.md)
+  [0028 release notes and changelogs](adr/0028-release-notes-and-changelogs.md),
+  [0029 operations and safety](adr/0029-operations-and-safety.md)
 
 ## Conventions
 
