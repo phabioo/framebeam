@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3s-app-4 Saves · states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">SAVES · STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 STATES">Saves</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3S-4A · ALL USERS · SAM (REMOVED)</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Delete Sam’s saves?</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">Deletes for good: Paper Wizards · Main (3 versions) and Pocket Comet · Slot 2 (1 version).</x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">Delete 2 saves</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">They stay in the last 7 backups until those are replaced. Asks you to confirm it’s you first.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3S-4B · CONFLICT RESOLVED</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Kept v15 from Jonas-Laptop</span>
+        <x-import component-from-global-scope="Uzume.Toast" kind="done" action="Undo">The other v15 is in the history as “Not kept”.</x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3S-4C · ALL USERS · EMPTY</span>
+        <x-import component-from-global-scope="Uzume.StateBlock" kind="empty" title="No saves yet" text="Saves appear here when someone plays a game for the first time."></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3S-4D · SERVER OFFLINE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Showing saves on this PC</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Home server is unreachable. All users, restore and conflict choices need it.</x-import>
+        <x-import component-from-global-scope="Uzume.Segmented" items="{{ filter }}" active="Mine" label="Show saves of"></x-import>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">All users is off until Home server is back.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3S-4E · STATE FROM AN OLDER CORE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">State 2 may not load</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Made with melonDS DS 1.0. The server now uses 1.1.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" size="sm">Download</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">OK</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">States can be downloaded, not uploaded.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3S-4F · RESTORE WHILE THE GAME RUNS</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Quit Lumen Drift first</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Restoring changes the save the game is using.</span>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm" disabled="{{ yes }}">Restore</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Lumen Drift is running on Lena-PC.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme ?? 'sumi', n1: 1, yes: true, filter: ['Mine', 'All users'] }; }
+}
+</script>
+</body>
+</html>

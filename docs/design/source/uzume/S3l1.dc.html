@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3l-app-1 Systems &amp; cores › Cores</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Systems &amp; cores" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="width:220px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:16px">
+    <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim);padding:0 12px">SYSTEMS</span>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Same for everyone on Home server.</span>
+    <nav aria-label="Systems" style="display:flex;flex-direction:column">
+      <a href="#gb" style="min-height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none"><x-import component-from-global-scope="Uzume.SystemChip" system="GB"></x-import>Gambatte</a>
+      <a href="#gbc" style="min-height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none"><x-import component-from-global-scope="Uzume.SystemChip" system="GBC"></x-import>Gambatte</a>
+      <a href="#gba" style="min-height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none"><x-import component-from-global-scope="Uzume.SystemChip" system="GBA"></x-import>mGBA</a>
+      <a href="#nds" aria-current="page" style="min-height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;box-shadow:var(--marker-start)"><x-import component-from-global-scope="Uzume.SystemChip" system="NDS"></x-import>No core<span style="margin-left:auto"><x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm"></x-import></span></a>
+      <a href="#3ds" style="min-height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none"><x-import component-from-global-scope="Uzume.SystemChip" system="3DS"></x-import>Azahar</a>
+    </nav>
+  </div>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:48px;padding:0 48px">
+    <div style="padding:48px 0 24px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="NINTENDO DS">Systems &amp; cores</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">NDS</h1>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="Cores" size="lg"></x-import>
+      </div>
+      <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">No core picked. NDS games can’t start until you pick one.</x-import>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="CHECKED TODAY 09:00">Cores from the buildbot</x-import>
+        <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+          <div role="row" style="display:grid;grid-template-columns:110px 56px 64px minmax(0,1fr) 88px;column-gap:12px;padding:0 0 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>CORE</span><span>VERSION</span><span>SIZE</span><span>GOOD TO KNOW</span><span></span></div>
+          <div role="row" style="display:grid;grid-template-columns:110px 56px 64px minmax(0,1fr) 88px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">melonDS DS</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">1.1</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">4.2 MB</span><span style="font-size:12px;color:var(--muted)">Accurate. Uses DS firmware if you add it.</span><x-import component-from-global-scope="Uzume.Button" size="sm">Use this</x-import></div>
+          <div role="row" style="display:grid;grid-template-columns:110px 56px 64px minmax(0,1fr) 88px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="font-weight:500">DeSmuME</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">0.9.13</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">6.0 MB</span><span style="font-size:12px;color:var(--muted)">Older, lighter on slow PCs.</span><x-import component-from-global-scope="Uzume.Button" size="sm">Use this</x-import></div>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.SettingsRow" label="Update cores automatically" help="Checks every night. A core update never changes saves; states from an older core may not load."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}"></x-import></x-import></div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · SYSTEMS · HOME SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return { theme: this.props.theme ?? 'sumi', n1: 1, n2: 2, three: 3, yes: true, tabs: ['Cores', 'Firmware · 1'], badges: { Users: 1, Reports: 2 },
+      online: [{ name: 'Lena', person: 'momo', playing: 'Lumen Drift' }],
+      max: { name: 'Max', role: 'Admin', person: 'wasurenagusa' } };
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, help: [{ title: "Here vs Emulation", text: "Here: which core each system uses, versions, firmware. Same for everyone." }, { text: "Emulation: display, controls and core options per system and game. Only that PC." }, { text: "Nothing is preselected; the list comes from buildbot.libretro.com." }] });
+  }
+}
+</script>
+</body>
+</html>

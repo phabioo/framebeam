@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8j-2 On this PC · Backups</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" server="{{ no }}" active="Settings" user="{{ local }}"></x-import>
+  <div style="width:240px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:16px">
+    <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim);padding:0 12px">THIS PC</span>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Only affects this PC.</span>
+    <nav aria-label="This PC settings" style="display:flex;flex-direction:column"><a href="#account" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Your name<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">MAX</span></a><a href="#appearance" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Appearance</a><a href="#folders" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Library folders<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">1</span></a><a href="#plugins" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Plugins<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">2</span></a><a href="#notifications" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Notifications</a><a href="#backups" aria-current="page" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;box-shadow:var(--marker-start)">Backups<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">03:00</span></a><a href="#storage" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Storage<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">41 GB</span></a><a href="#servers" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Servers<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">SHARE…</span></a><a href="#updates" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Updates<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">0.17.0</span></a><a href="#diag" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Diagnostics</a></nav>
+  </div>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:48px;padding:0 48px">
+    <div style="position:relative;padding:48px 0px 24px;display:flex;flex-direction:column;gap:16px;min-width:0">
+      
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="THIS PC">Settings</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Backups</h1><div style="margin-left:auto;display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary">Back up now</x-import></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Schedule" help="Runs when Uzume is open; otherwise at the next start."><x-import component-from-global-scope="Uzume.Segmented" items="{{ sch }}" active="Daily" label="Schedule"></x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Keep the last" help="Older backups are replaced."><x-import component-from-global-scope="Uzume.Select" options="{{ keep }}" default-value="7 backups" style="width:160px"></x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Include game files" help="About +38 GB per backup."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ no }}"></x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Folder" help="D:\Backups\Uzume"><x-import component-from-global-scope="Uzume.Button" size="sm">Change…</x-import></x-import>
+      </div>
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="2 OF 7">Recent backups</x-import>
+      <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+        <div role="row" style="display:grid;grid-template-columns:150px 80px minmax(0,1fr) 100px;column-gap:12px;padding:0 0 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>WHEN</span><span>SIZE</span><span>KIND</span><span></span></div>
+        <div role="row" style="display:grid;grid-template-columns:150px 80px minmax(0,1fr) 100px;column-gap:12px;align-items:center;min-height:44px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;color:var(--ink)">Today 03:00</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">220 MB</span><span style="font-size:13px;color:var(--muted)">Scheduled</span><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Restore…</x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:150px 80px minmax(0,1fr) 100px;column-gap:12px;align-items:center;min-height:44px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;color:var(--ink)">Yesterday 03:00</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">218 MB</span><span style="font-size:13px;color:var(--muted)">Scheduled</span><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Restore…</x-import></div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · SETTINGS · THIS PC" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "sch": ["Off", "Daily", "Weekly"], "keep": ["3 backups", "7 backups", "14 backups"]}, { noop: () => {}, help: [{ title: 'Backups and Storage', text: 'Without a server they live under This PC. After Share with others they move to Settings › Server.' }, { text: 'Restore… makes a safety backup first.' }] });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8b-5 Sign in · every state</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:1040px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">JOIN A SERVER · SIGN IN STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px 40px">
+    <div style="position:relative;padding:40px 24px 24px;display:flex;flex-direction:column;gap:28px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="9 STATES">Sign in</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Every sign-in state</h1>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8B-5A · SIGNING IN</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Sign in</span>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px">
+            <x-import component-from-global-scope="Uzume.TextField" label="Name" default-value="Lena" disabled="{{ yes }}"></x-import>
+            <x-import component-from-global-scope="Uzume.TextField" label="Password" type="password" default-value="abcdefghijkl" disabled="{{ yes }}"></x-import>
+          </div>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm" disabled="{{ yes }}">Signing in…</x-import></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8B-5B · WRONG PASSWORD</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Sign in</span>
+          <x-import component-from-global-scope="Uzume.TextField" label="Password for Lena" type="password" placeholder="Password" error="Wrong name or password. 4 tries left before a short wait."></x-import>
+          <div style="display:flex;align-items:center;gap:16px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Sign in</x-import><a href="#forgot" style="font-size:12px;line-height:18px;color:var(--accent-text);text-decoration:none">Forgot password?</a></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8B-5C · TOO MANY TRIES</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Sign in</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Too many wrong tries for Lena on this PC. Try again in 4:52.</x-import>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm" disabled="{{ yes }}">Sign in</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Wait 4:52, or ask Max to reset your password.</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8B-5D · ACCOUNT TURNED OFF</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Jonas is turned off</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">Max has turned off the account Jonas on Home server. Your saves are kept.</x-import>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Back</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Ask Max to turn it back on in Users.</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8B-5E · SERVER OFFLINE</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Can’t reach Home server</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">No answer from server.example.com:8443 after 10 seconds.</x-import>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Try again</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Change address</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Games on this PC still run in the meantime.</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8B-5F · SERVER TOO OLD</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Home server needs an update</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Home server runs 0.15.2. This version of Uzume needs 0.17.0 or newer.</x-import>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Back</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Ask Max to update it. Max: Settings › Server › Updates, or <span style="font:400 11px/16px var(--font-mono);color:var(--ink-2)">uzume-server update</span>.</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8B-5G · NO PASSWORD · ASK FOR APPROVAL</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Lena has no password</span>
+          <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Ask Max to approve this PC once. After that you’re signed in here.</span>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-top:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Lena-PC</span><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">WINDOWS · NEW DEVICE</span></div>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Ask Max to approve</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Back</x-import></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0;border-left:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8B-5H · WAITING FOR APPROVAL</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Waiting for Max</span>
+          <div style="display:flex;align-items:center;gap:12px"><x-import component-from-global-scope="Uzume.Enso" size="{{ enso }}" label="Waiting for Max"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">Max sees your request in Users › Devices and gets a notification.</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-top:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Lena-PC</span><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">REQUESTED 14:02 · FOR LENA</span></div>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel request</x-import></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+          <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">8B-5I · REQUEST DECLINED</span>
+          <span style="font-size:16px;line-height:24px;font-weight:500;color:var(--ink)">Max declined this PC</span>
+          <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">Lena-PC was not approved for Lena.</x-import>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" size="sm">Ask again</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Back</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">If this is a mistake, talk to Max. A new request is possible after 10 minutes.</span>
+        </div>
+
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · SIGN IN · STATES" lines="{{ oc }}"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, yes: true, enso: 48, oc: ['DISABLED · ALWAYS A REASON', 'WAITING · ENSŌ', 'ERROR · SQUARE ✕'] };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3j-app-1 Library · admin</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Library" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="128 GAMES · 5 SYSTEMS">Library</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Library</h1><div style="margin-left:auto;display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Button" size="sm">Rescan folders</x-import><x-import component-from-global-scope="Uzume.Button" variant="primary">Add games…</x-import></div></div>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="Games" size="lg"></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--rule-2)">
+        <div style="display:flex;align-items:center;gap:12px"><span style="font-size:13px;line-height:18px;font-weight:500">Uploading Tide &amp; Lantern.nds</span><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">41 OF 128 MB · 2.4 MB/S</span><div style="margin-left:auto;display:flex;gap:4px"><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Pause</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Cancel</x-import></div></div>
+        <x-import component-from-global-scope="Uzume.Progress" value="{{ up }}" size="thin" label="Upload Tide &amp; Lantern"></x-import>
+      </div>
+      <div class="uz-table">
+        <x-import component-from-global-scope="Uzume.TableHead"></x-import>
+        <x-import component-from-global-scope="Uzume.TableRow" no="01" title="Harbor Rally" system="NDS" played="14 h" last="Yesterday" state="selected"></x-import>
+        <x-import component-from-global-scope="Uzume.TableRow" no="02" title="Lumen Drift" system="GBA" played="6 h" last="2 days ago"></x-import>
+        <x-import component-from-global-scope="Uzume.TableRow" no="03" title="Coral Saga: Ember" system="3DS" played="22 h" last="Last week"></x-import>
+        <x-import component-from-global-scope="Uzume.TableRow" no="04" title="Copper Courier" system="GBA" played="1 h" last="Today" status="On this PC only"></x-import>
+        <x-import component-from-global-scope="Uzume.TableRow" no="05" title="Tide &amp; Lantern" system="NDS" played="—" last="—" state="disabled" status="Uploading 32 %" progress="{{ up }}"></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="VISIBLE TO ADMINS">Harbor Rally · details</x-import>
+        <div style="display:grid;grid-template-columns:86px minmax(0,1fr) 72px minmax(0,1fr);column-gap:16px;border-top:1px solid var(--rule);font-size:12px;line-height:18px">
+          <span style="padding:7px 0;border-bottom:1px solid var(--rule-2);color:var(--muted)">Uploaded by</span><span style="padding:7px 0;border-bottom:1px solid var(--rule-2)">Max · 3 Oct 2026</span>
+          <span style="padding:7px 0;border-bottom:1px solid var(--rule-2);color:var(--muted)">File</span><span style="padding:7px 0;border-bottom:1px solid var(--rule-2);font:400 11px/18px var(--font-mono)">/roms/nds/harbor-rally.nds</span>
+          <span style="padding:7px 0;border-bottom:1px solid var(--rule-2);color:var(--muted)">SHA-256</span><span style="padding:7px 0;border-bottom:1px solid var(--rule-2);font:400 11px/18px var(--font-mono)">4f1a9b2c…77d1c09e</span>
+          <span style="padding:7px 0;border-bottom:1px solid var(--rule-2);color:var(--muted)">Saves</span><span style="padding:7px 0;border-bottom:1px solid var(--rule-2)">3 people · 41 versions</span>
+        </div>
+        <div style="display:flex;gap:8px;padding-top:4px"><x-import component-from-global-scope="Uzume.Button" size="sm">Rename…</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Copy SHA-256</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Rescan folder</x-import><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">Delete game…</x-import></div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · LIBRARY · HOME SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, three: 3, up: 0.32, tabs: ['Games', 'Saves · 1', 'Screenshots'], badges: { Users: 1, Reports: 2 },
+      online: [{ name: 'Lena', person: 'momo', playing: 'Harbor Rally' }, { name: 'Jonas', person: 'moegi', playing: 'Lumen Drift' }],
+      max: { name: 'Max', role: 'Admin', person: 'wasurenagusa' } };
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, help: [{ text: "Deleting a game keeps every save. They come back when the same file (same SHA-256) is added again." }, { text: "Uploads resume where they stopped if the connection drops." }, { text: "Copper Courier is only on this PC; Upload… sits in its row ⋯." }] });
+  }
+}
+</script>
+</body>
+</html>

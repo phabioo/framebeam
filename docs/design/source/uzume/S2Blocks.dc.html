@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>2 · Ma blocks</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:1040px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">BATCH 2 · MA BLOCKS · UPDATED IN BATCH 3</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:8px 56px 40px;display:flex;flex-direction:column;gap:32px">
+    <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em">Ma blocks</h1>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 220px;column-gap:40px">
+        <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6F-APP-1">Metrics</x-import>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--rule);border-bottom:1px solid var(--rule-2)">
+        <div style="display:flex;flex-direction:column;gap:6px;padding:14px 16px 14px 0"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">CPU</span><span style="font-weight:300;font-size:28px;line-height:32px;color:var(--ink)">18 %</span><x-import component-from-global-scope="Uzume.Progress" value="{{ cpu }}" size="thin" label="CPU"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">Last hour 11 %</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-left:1px solid var(--rule-2)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">MEMORY</span><span style="font-weight:300;font-size:28px;line-height:32px;color:var(--ink)">1.2 GB</span><x-import component-from-global-scope="Uzume.Progress" value="{{ mem }}" size="thin" label="Memory"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">of 4 GB</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-left:1px solid var(--rule-2)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">DISK</span><span style="font-weight:300;font-size:28px;line-height:32px;color:var(--ink)">61 %</span><x-import component-from-global-scope="Uzume.Progress" value="{{ disk }}" size="thin" label="Disk"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">1.1 of 1.8 TB</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:14px 0 14px 16px;border-left:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px;font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)"><x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm"></x-import>BACKUP DISK</span><span style="font-weight:300;font-size:28px;line-height:32px;color:var(--ink)">92 %</span><x-import component-from-global-scope="Uzume.Progress" value="{{ backup }}" size="thin" label="Backup disk"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">4.1 GB free</span></div>
+      </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;padding-top:32px"><p style="margin:0;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">Four columns split by rule-2 lines; no boxes.</p><p style="margin:0;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">Mono label, Light 28/32 value, thin Progress, one muted line.</p><p style="margin:0;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">A warning puts the “!” square before the label. No coloured bars.</p></div>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 220px;column-gap:40px">
+        <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="3Q-APP-6">Storage bar</x-import>
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px">
+        <div style="display:flex;align-items:baseline;gap:12px"><span style="font-weight:300;font-size:28px;line-height:32px">1.1 <span style="color:var(--muted)">of 1.8 TB</span></span><span style="font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)">/SRV · 61 %</span></div>
+        <div role="img" aria-label="Storage use by kind" style="display:flex;height:8px;background:var(--rule-2)"><span title="Games" style="width:42%;background:color-mix(in srgb, var(--ink) 72%, transparent)"></span><span title="Saves and snapshots" style="width:8%;background:color-mix(in srgb, var(--ink) 52%, transparent)"></span><span title="Save states" style="width:5%;background:color-mix(in srgb, var(--ink) 36%, transparent)"></span><span title="Screenshots" style="width:6%;background:color-mix(in srgb, var(--ink) 24%, transparent)"></span><span title="Cores and firmware" style="width:3%;background:color-mix(in srgb, var(--ink) 14%, transparent)"></span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:32px;border-top:1px solid var(--rule)"><div style="display:grid;grid-template-columns:12px minmax(0,1fr) 80px;column-gap:10px;align-items:center;min-height:32px;border-bottom:1px solid var(--rule-2)"><span style="width:10px;height:10px;background:color-mix(in srgb, var(--ink) 72%, transparent)"></span><span style="font-size:13px">Games</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted);text-align:right">38 GB</span></div><div style="display:grid;grid-template-columns:12px minmax(0,1fr) 80px;column-gap:10px;align-items:center;min-height:32px;border-bottom:1px solid var(--rule-2)"><span style="width:10px;height:10px;background:color-mix(in srgb, var(--ink) 52%, transparent)"></span><span style="font-size:13px">Saves and snapshots</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted);text-align:right">2.1 GB</span></div><div style="display:grid;grid-template-columns:12px minmax(0,1fr) 80px;column-gap:10px;align-items:center;min-height:32px;border-bottom:1px solid var(--rule-2)"><span style="width:10px;height:10px;background:color-mix(in srgb, var(--ink) 36%, transparent)"></span><span style="font-size:13px">Save states</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted);text-align:right">0.8 GB</span></div><div style="display:grid;grid-template-columns:12px minmax(0,1fr) 80px;column-gap:10px;align-items:center;min-height:32px;border-bottom:1px solid var(--rule-2)"><span style="width:10px;height:10px;background:color-mix(in srgb, var(--ink) 24%, transparent)"></span><span style="font-size:13px">Screenshots</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted);text-align:right">1.4 GB</span></div><div style="display:grid;grid-template-columns:12px minmax(0,1fr) 80px;column-gap:10px;align-items:center;min-height:32px;border-bottom:1px solid var(--rule-2)"><span style="width:10px;height:10px;background:color-mix(in srgb, var(--ink) 14%, transparent)"></span><span style="font-size:13px">Cores and firmware</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted);text-align:right">0.3 GB</span></div></div>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Backup disk /mnt/backup is 92 % full.</x-import>
+      </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;padding-top:32px"><p style="margin:0;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">One 8 px bar on rule-2. Kinds are ink tints (72 / 52 / 36 / 24 / 14 %), never hues.</p><p style="margin:0;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">The legend is a hairline list carrying the values, so the bar never has to be read alone.</p></div>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 220px;column-gap:40px">
+        <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="4JH-APP · LATER BATCH">Lanes</x-import>
+          <div style="display:flex;flex-direction:column"><div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:16px;padding-bottom:6px;border-bottom:1px solid var(--rule)"><span></span><span style="display:flex;justify-content:space-between;font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)"><span>ROUTE 1</span><span>FOREST</span><span>CAVE</span><span>HARBOR</span><span>TOWER</span></span></div><div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:16px;align-items:center;height:48px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px;font-size:13px"><x-import component-from-global-scope="Uzume.Avatar" name="Max" person="wasurenagusa" size="{{ s20 }}"></x-import>Max</span><div style="position:relative;height:48px;background:linear-gradient(var(--rule-2),var(--rule-2)) center/100% 1px no-repeat"><span title="catch" style="position:absolute;left:8%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--ink)">■</span><span title="catch" style="position:absolute;left:30%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--ink)">■</span><span title="badge" style="position:absolute;left:52%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--ink)">◆</span><span title="screenshot" style="position:absolute;left:70%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--ink)">▣</span></div></div><div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:16px;align-items:center;height:48px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px;font-size:13px"><x-import component-from-global-scope="Uzume.Avatar" name="Lena" person="momo" size="{{ s20 }}"></x-import>Lena</span><div style="position:relative;height:48px;background:linear-gradient(var(--rule-2),var(--rule-2)) center/100% 1px no-repeat"><span title="catch" style="position:absolute;left:10%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--ink)">■</span><span title="lost" style="position:absolute;left:28%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--ink)">✕</span><span title="badge" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--ink)">◆</span><span title="note" style="position:absolute;left:64%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--muted)">□</span></div></div><div style="display:grid;grid-template-columns:120px minmax(0,1fr);column-gap:16px;align-items:center;height:48px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px;font-size:13px"><x-import component-from-global-scope="Uzume.Avatar" name="Jonas" person="moegi" size="{{ s20 }}"></x-import>Jonas</span><div style="position:relative;height:48px;background:linear-gradient(var(--rule-2),var(--rule-2)) center/100% 1px no-repeat"><span title="catch" style="position:absolute;left:12%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--ink)">■</span><span title="catch" style="position:absolute;left:33%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--ink)">■</span><span title="lost" style="position:absolute;left:46%;top:50%;transform:translate(-50%,-50%);font:500 12px/12px var(--font-mono);color:var(--ink)">✕</span></div></div></div>
+          <div style="display:flex;gap:20px;font:400 11px/16px var(--font-mono);color:var(--muted)"><span>■ catch</span><span>✕ lost</span><span>◆ badge</span><span>□ note</span><span>▣ screenshot</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;padding-top:32px"><p style="margin:0;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">One 48 px lane per person on a rule-2 track. Markers are square Mono glyphs (nothing round but the ensō) in ink; notes in muted.</p><p style="margin:0;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">Used on the run recap, 4jh-app-2 (batch 3).</p></div>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 220px;column-gap:40px">
+        <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n4 }}" meta="ALL DIALOGS">Dialog frame</x-import>
+          <div style="position:relative;height:264px;background:var(--stage);overflow:hidden"><div style="position:absolute;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center"><x-import component-from-global-scope="Uzume.Dialog" label="Plugins · Home server" title="Remove Item Helper?" text="People keep their copy until they uninstall it." actions="{{ actd }}"></x-import></div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;padding-top:32px"><p style="margin:0;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">The system Dialog (400 / 560 px) over the scrim token. No radius, no shadow.</p><p style="margin:0;padding-top:10px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">Label · title · text · content · actions; danger actions sit at the far right of the row.</p></div>
+      </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":1040}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "s20": 20, "cpu": 0.18, "mem": 0.3, "disk": 0.61, "backup": 0.92});
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, actd: [B('Remove', 'danger'), B('Cancel')] });
+  }
+}
+</script>
+</body>
+</html>

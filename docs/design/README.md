@@ -1,5 +1,26 @@
 # Design specification
 
+## Uzume design (valid from 0.18)
+
+The **Uzume design** ([uzume/README.md](uzume/README.md)) is the valid design from milestone 0.18 on. It supersedes the FrameBeam design Rounds 1 to 4 below in look (tokens, type, components, themes Sumi and Kinari) and in every screen it draws: first start, join, accounts, the admin area inside the app, runs, the running game, Multiview, Settings, the plugin screens and the installers. Implementation agents read the design system once and then only the spec of the screen they build:
+
+| File | Content |
+|---|---|
+| [uzume/README.md](uzume/README.md) | Overview: source, how to read the boards, sheet table, roadmap packages |
+| [uzume/design-system.md](uzume/design-system.md) | Tokens for Sumi and Kinari, type, spacing, sizes, focus ring, markers, components, layout rules |
+| [uzume/frame.md](uzume/frame.md) | Sheet 1: frame (0-4), first start (8a), join (8b), invite link (8c) |
+| [uzume/accounts-and-server.md](uzume/accounts-and-server.md) | Sheet 2: accounts (8d-8g) and the admin screens in the app |
+| [uzume/runs-and-server.md](uzume/runs-and-server.md) | Sheet 3: runs, what the server shows, sharing, On this PC, server problems, installers |
+| [uzume/play-and-plugins.md](uzume/play-and-plugins.md) | Sheet 4: library and game page, running game, Multiview, Settings › This PC, developer console, SoulLink & Nuzlocke |
+| [uzume/decisions.md](uzume/decisions.md) | Decisions, accepted review results and open points |
+
+The handoff (boards and design system) is stored unchanged in `source/uzume/`; the boards need the Claude Design runtime `support.js`, which is not in the repository, so they do not render standalone.
+
+## FrameBeam design (Rounds 1-4, legacy reference)
+
+This part describes the FrameBeam design of Rounds 1 to 4 (Player dark, Hub light). It stays in place because code and ADRs link to it, and it stays valid **only for behaviour the Uzume boards do not cover**; wherever an Uzume board draws a screen, the Uzume spec wins. "Player" and "Hub" below are the app and the server of the Uzume design. Files: [tokens.md](tokens.md), [player.md](player.md), [hub.md](hub.md), [plugins.md](plugins.md), [logo.md](logo.md), [decisions.md](decisions.md).
+
+
 Purpose: token-efficient preparation of the UI prototype, so that implementation agents read only the necessary part per screen. The prototype is a mock-up; where it contradicts, the architecture applies (`../architecture/09-ui-and-navigation.md`), deviations see below. Mock values (e.g. core version "1.2.0", user names, device names, versions, addresses) are illustrative; the seeded registry expects melonDS DS 1.4.0. Hosts in the mock are generic placeholders (`hub.example.com`, `hub.local`, `lena.example.net`).
 
 Source: Claude Design handoff "FrameBeam Designs v3" (second round, accepted by Fabio on 2026-10-07; the diagnostics screens 3t-3y and the updated 3g/3h come from a later handoff, accepted by Fabio on 2026-10-08); `source/framebeam-designs-v3.dc.html` is the current state, older versions are not carried over. Two further sources belong to it: `source/framebeam-logo.dc.html` (logo sheet) and `source/framebeam-mark.dc.html` (mark component), see [logo.md](logo.md). The files stay unchanged and do not render standalone (runtime `support.js` is missing from the repository). 25 screens (3a-3y) at 1440 x 900 plus an intro block for 3t-3y (line 669); mock data in the script from line 1362 (`renderVals` at line 1626; the diagnostics mock data are in `dgVals` at line 1573).
@@ -17,7 +38,7 @@ Reading note: read only the necessary file or section. Open the source HTML only
 - `logo.md`: logo concept, tones, sizes, wordmark.
 - `decisions.md`: decisions (incl. Round 3: decisions 20-23, open points bg-bk; Round 4: decisions 24-35, open points bl-bq), deviations from the architecture, open points per handoff round (incl. the defaults decided for the revision handoff of 2026-10-08).
 
-## Screens
+### Screens
 
 | Screen | Specification | Source (anchor, lines) | Phase / version |
 |---|---|---|---|
@@ -47,7 +68,7 @@ Reading note: read only the necessary file or section. Open the source HTML only
 | 3o Hub Settings (superseded by 3q) | [hub.md](hub.md#3o-hub-settings-superseded-by-3q) | `#3o`, 1223-1251 | 1 (parts), 5; reference only |
 | 3q Hub Settings revised (new) | [hub.md](hub.md#3q-hub-settings-revised) | `#3q`, 1257-1356 | 0.7 Hub UI pass (implemented); Network section (relay, public address): 0.4 feature, UI implemented in 0.7 |
 
-### Revision screens (v4, 08.10.2026)
+#### Revision screens (v4, 08.10.2026)
 
 Lines refer to `source/framebeam-designs-v4.dc.html`; anchors `#id` are block IDs. Each revised screen supersedes the v3 original named in the last column; the original rows above stay valid for everything the revision does not change.
 
@@ -72,7 +93,7 @@ Lines refer to `source/framebeam-designs-v4.dc.html`; anchors `#id` are block ID
 
 Turn 3 inside v4 (the unchanged v3 screens) starts at line 1164 (3a); the v3 line ranges in the table above refer to `framebeam-designs-v3.dc.html` and stay correct for that file.
 
-### Round 3 screens (2026-10-12, 0.14 UI gaps and Multiview)
+#### Round 3 screens (2026-10-12, 0.14 UI gaps and Multiview)
 
 Claude Design handoff "Round 3", answering the 0.14 UI scan (finding IDs H = Hub, P = Player, D = design gap). Files in `source/`: `round-3-hub.dc.html` (479 lines), `round-3-player-a.dc.html` (289), `round-3-player-b.dc.html` (253), the sheet `round-3-sheet.dc.html` (cross-cutting rules 0-2, per-screen handoff table, new tokens, open questions in its script) and the nav components `hub-nav.dc.html` and `player-nav.dc.html`. Anchors `#id` are block IDs; the "Fixes" column repeats the sheet's handoff table. The older sections stay valid for everything Round 3 does not change and carry a "superseded" line. Decisions 20-23 and open points bg-bk: [decisions.md](decisions.md#decisions-fabio-2026-10-12-round-3-014-ui-gaps-and-multiview); new tokens: [tokens.md](tokens.md#additions-of-round-3-2026-10-12). The existing copies of v4, the plugin sheets and the components were re-imported from this handoff; after renaming the `dc-import` names they are identical to the earlier copies.
 
@@ -105,7 +126,7 @@ Claude Design handoff "Round 3", answering the 0.14 UI scan (finding IDs H = Hub
 
 Not drawn separately: Player Settings at 3840 (follows 3p-3, decision bi). Reference only and not copied: the SoulLink artboards (5a-5i, 5e-5g, `SoulLinkPanel`, `RunScreen`, `HubRunWizard`) belong to the `framebeam-plugin-soullink` repository.
 
-### Round 4 screens (2026-10-21, features before 1.0)
+#### Round 4 screens (2026-10-21, features before 1.0)
 
 Claude Design handoff "Round 4", answering the briefs for the feature waves 0-6 (milestones 0.16 to 0.22 in [../roadmap.md](../roadmap.md); wave n = 0.(16+n)). Files in `source/`: `round-4-a.dc.html` (571 lines, waves 0-1), `round-4-b.dc.html` (490, wave 2), `round-4-c.dc.html` (308, wave 3), `round-4-d.dc.html` (435, wave 4), `round-4-e.dc.html` (329, waves 5-6), the sheet `round-4-sheet.dc.html` (space plan 0-3 A-E, full handoff table in its script `handoff` at 411-459, tokens at 459, open questions `open` at 460), the new component `r4-header.dc.html` and the changed nav components `hub-nav.dc.html` and `player-nav.dc.html`. Anchors `#id` are block IDs; screens drawn from a data list (`sc-for`) show the template range and the data lines. Block IDs and labels differ in four places: `#6b-states` is labelled 6b-4, `#6d-states` 6d-2, `#3c-8-states` 3c-8-3, `#7b-states` 7b-2. v4, Round 3 and plugin tokens stay; the rules 0-2 of Round 3 apply. Decisions 24-35 and open points bl-bq: [decisions.md](decisions.md#decisions-fabio-2026-10-21-round-4-features-before-10); the only new color value: [tokens.md](tokens.md#additions-of-round-4-2026-10-21). Mock values (Lumen Drift, Harbor Rally, Coral Saga: Ember, people, devices, `hub.example.com`, versions 0.16.x) are placeholders. The sheet's `place` table, `strips` and `osd` data are the source for the space plan sections in [player.md](player.md#space-plan-0-3-round-4).
 
@@ -193,11 +214,11 @@ Component notes (Round 4):
 - `source/hub-nav.dc.html` and `source/player-nav.dc.html` gained the opt-in prop `r4` (default off: the Round 3 screens render unchanged). HubNav with `r4`: groups Play / SETUP / ADMIN, new props `member`, `savesBadge`, `statusBadge`, `reportsBadge`, `ver` (default "0.16.4"), footer link "What's new". PlayerNav with `r4`: Online block (`online`: `full` | `compact`, `offline`), bell in the user row (`bell`, `bellOpen`). Specification: [hub.md](hub.md#0-3-e-hub-navigation-round-4), [player.md](player.md#0-3-d-player-sidebar-online-block-and-bell).
 - The imported Round 4 files `dc-import` HubNav, PlayerNav, R4Header, SettingsRow and SaveRow under their repository names (`hub-nav`, `player-nav`, `r4-header`, `settings-row`, `save-row`); the links inside them point to the repository file names.
 
-### Component sheets
+#### Component sheets
 
 Shared parts of the revision are real components (imported by the v4 file as `dc-import`, names renamed to the file names): `source/settings-row.dc.html` (SettingsRow), `source/save-row.dc.html` (SaveRow, dark and light), `source/pad-glyph.dc.html` (PadGlyph), `source/input-test.dc.html` (InputTest), `source/hub-nav.dc.html` and `source/player-nav.dc.html` (sidebars; with the `r4` option since Round 4), `source/r4-header.dc.html` (in-game header of Round 4), `source/game-header.dc.html` (GameHeader), `source/game-panel.dc.html` (GamePanel), `source/diag-overlay.dc.html` (DiagOverlay), `source/support.js` (design runtime shared by all `.dc.html` files, not product code) and the existing `source/framebeam-mark.dc.html`. Sheets in v4: in-game components (GameHeader variants, anchored popovers, GamePanel, tiles and Now running) at lines 229-289; SettingsRow, core-agnostic options, SaveRow, sort and Ready first, D-pad and glyphs at lines 1001-1101. Specs per component: [player.md](player.md#components-revision-v4); new tokens: [tokens.md](tokens.md).
 
-### Plugin screens (2026-10-11)
+#### Plugin screens (2026-10-11)
 
 Claude Design handoff "Plugins + SoulLink" (round 1, then correction round 2; accepted by Fabio on 2026-10-11). Only the platform part is imported, the SoulLink screens (5a-5i) belong to the `framebeam-plugin-soullink` repository. Files in `source/`: `plugins-4a-4d.dc.html`, `plugins-4e-4h.dc.html`, `plugins-4i-4j-sheet.dc.html` (round 1), `plugins-round-2.dc.html` (round 2) and the components `plugin-settings-screen`, `block-sheet`, `region-map`, `creature-icon` (plus the existing `game-header`, `game-panel`, `diag-overlay`, `framebeam-mark`). **Ids with `-2` supersede the round-1 id**; round-1 artboards marked "reference only" still show DS screens or old wording. Specification: [plugins.md](plugins.md); decisions (items 6-19) and open points (ao-bf): [decisions.md](decisions.md); new tokens: [tokens.md](tokens.md). Mock values (3DS game "Coral Saga: Ember", creatures, players, plugins, `hub.example.com`, versions 0.11.0) are placeholders. Version: 0.11 (plugins), after plugin API v1.
 

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3s-app-3 Saves · member</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" role="member" active="Library" notifications="{{ zero }}" online="{{ online }}" user="{{ lena }}"></x-import>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:24px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="YOUR SAVES · 3">Library</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Library</h1>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="Saves" size="lg"></x-import>
+      </div>
+      <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 80px 120px;column-gap:12px;padding:0 12px 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>GAME</span><span>SLOT</span><span>LATEST</span></div>
+        <div role="row" aria-selected="true" style="display:grid;grid-template-columns:minmax(0,1fr) 80px 120px;column-gap:12px;align-items:center;min-height:44px;padding:0 12px;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start)"><span style="font-weight:500">Lumen Drift <span style="font:500 10px/14px var(--font-mono);color:var(--muted)">GBA</span></span><span style="color:var(--muted)">Main</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">v8 · 2 h</span></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 80px 120px;column-gap:12px;align-items:center;min-height:44px;padding:0 12px;border-bottom:1px solid var(--rule-2)"><span>Harbor Rally <span style="font:500 10px/14px var(--font-mono);color:var(--muted)">NDS</span></span><span style="color:var(--muted)">Main</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">v9</span></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 80px 120px;column-gap:12px;align-items:center;min-height:44px;padding:0 12px;border-bottom:1px solid var(--rule-2)"><span>Harbor Rally <span style="font:500 10px/14px var(--font-mono);color:var(--muted)">NDS</span></span><span style="color:var(--muted)">Slot 2</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">v2</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="MAIN · STATES 2">Lumen Drift · history</x-import>
+        <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px;border-top:1px solid var(--rule)">
+          <div role="row" style="display:grid;grid-template-columns:56px minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono)">v8</span><span style="display:flex;flex-direction:column"><span>Today 12:02</span><span style="font-size:12px;color:var(--muted)">Lena-PC · current</span></span><span></span></div>
+          <div role="row" style="display:grid;grid-template-columns:56px minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono)">v7</span><span>Yesterday</span><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Restore…</x-import></div>
+          <div role="row" style="display:grid;grid-template-columns:56px minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono)">v6</span><span>19 Oct</span><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Restore…</x-import></div>
+        </div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Restoring your own save never deletes anything; the current version stays as “Before restore”.</span>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · SAVES · LENA" lines="{{ oc }}"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, tabs: ['Games', 'Saves', 'Screenshots'],
+      online: [{ name: 'Max', person: 'wasurenagusa', playing: 'Coral Saga: Ember' }],
+      lena: { name: 'Lena', role: 'Member', person: 'momo' }, oc: ['3 SAVES', 'OWN SAVES ONLY'] };
+  }
+}
+</script>
+</body>
+</html>

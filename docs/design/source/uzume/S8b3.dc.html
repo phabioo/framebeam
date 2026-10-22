@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8b-3 Join · with an invite</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--accent-text)}a:hover{color:var(--accent-hover)}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">JOIN A SERVER · 3 OF 3</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:40px 24px 24px;display:grid;grid-template-columns:440px minmax(0,1fr);column-gap:64px;align-items:start;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:24px">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="3 OF 3">Home server</x-import>
+          <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Join Home server</h1>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px;line-height:22px;color:var(--ink-2)"><x-import component-from-global-scope="Uzume.Avatar" name="Max" person="wasurenagusa" size="{{ av }}"></x-import>Max invited you. Pick the name others will see.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <x-import component-from-global-scope="Uzume.TextField" label="Invite code" default-value="UZ-8XK2-M4QD"></x-import>
+            <x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm">Valid · 1 use · until 29 Oct 2026</x-import>
+          </div>
+          <x-import component-from-global-scope="Uzume.TextField" label="Your name" default-value="Jonas" state="focus" hint="Shown to everyone on Home server."></x-import>
+          <x-import component-from-global-scope="Uzume.TextField" label="Password (optional)" type="password" placeholder="Choose a password" hint="Recommended. Lets you sign in on another PC without waiting for Max."></x-import>
+        </div>
+        <div style="display:flex;gap:8px">
+          <x-import component-from-global-scope="Uzume.Button" variant="primary">Join</x-import>
+          <x-import component-from-global-scope="Uzume.Button" variant="ghost">I already have an account</x-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}">Variants</x-import>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+          <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Password required</span><span style="font-size:12px;line-height:18px;color:var(--muted)">When the server says “Password required for everyone”, the label drops “(optional)” and the hint reads “Required on Home server.”</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Name taken</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Error under the name: “Someone on Home server is already called Jonas. Add a letter or pick another name.”</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">PIN</span><span style="font-size:12px;line-height:18px;color:var(--muted)">A PIN for this PC can be added later in My account (8e).</span></div>
+        </div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · JOIN · HOME SERVER" lines="{{ oc }}"></x-import>
+  </div>
+  <div style="height:44px;flex:none;border-top:1px solid var(--rule-2);display:flex;align-items:center;justify-content:flex-end;gap:24px;padding:0 56px">
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="A" label="Choose"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="Y" label="Keyboard"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="B" label="Back"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, av: 20, oc: ['HOME SERVER', 'INVITED BY MAX', 'PASSWORD OPTIONAL'] };
+  }
+}
+</script>
+</body>
+</html>

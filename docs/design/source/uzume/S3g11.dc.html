@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3g-11 In game · notices</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">IN GAME · NOTICES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 KINDS · BOTTOM LEFT OF THE STAGE">Notices in game</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3G-11A · VOLUME</span>
+        <x-import component-from-global-scope="Uzume.Toast" kind="done" on-close="{{ no }}">Volume 72 %</x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">Replaces itself while you change it · 1.5 s</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3G-11B · STATES</span>
+        <x-import component-from-global-scope="Uzume.Toast" kind="done" shortcut="F6" on-close="{{ no }}">State 2 saved</x-import><x-import component-from-global-scope="Uzume.Toast" kind="done" action="Undo" shortcut="Shift+F8">State 1 loaded</x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">With an action: 6 s</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3G-11C · REWIND AND SPEED</span>
+        <x-import component-from-global-scope="Uzume.Toast" kind="done" on-close="{{ no }}">Rewinding · 18 s left</x-import><x-import component-from-global-scope="Uzume.Toast" kind="done" on-close="{{ no }}">Speed-up 4×</x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">Stay while held or on</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0;min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3G-11D · TOGETHER</span>
+        <x-import component-from-global-scope="Uzume.Toast" kind="warning" on-close="{{ no }}">Lena paused for everyone</x-import><x-import component-from-global-scope="Uzume.Toast" kind="done" on-close="{{ no }}">Jonas joined voice</x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">Pause stays until resumed</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 24px;border-left:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3G-11E · RUN RULES</span>
+        <x-import component-from-global-scope="Uzume.Toast" kind="warning">Save states are off in this run · rule set by Max</x-import><x-import component-from-global-scope="Uzume.Toast" kind="warning">Rewind is off in this run</x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">3 s each time the key is pressed</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">3G-11F · PLUGINS</span>
+        <x-import component-from-global-scope="Uzume.Toast" kind="done">SoulLink saved a snapshot · before Gym 3</x-import><x-import component-from-global-scope="Uzume.Toast" kind="warning" action="Undo">Creature Editor changed game memory</x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">Plugin notices name the plugin</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}]}, { noop: () => {},  });
+  }
+}
+</script>
+</body>
+</html>

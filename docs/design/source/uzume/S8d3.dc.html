@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8d-3 PIN wrong</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">SWITCH USER · PIN</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:40px 24px 24px;display:grid;grid-template-columns:360px minmax(0,1fr);column-gap:64px;align-items:start;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:24px">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="TRY 2 OF 3">PIN for this PC</x-import>
+          <div style="display:flex;align-items:center;gap:16px"><x-import component-from-global-scope="Uzume.Avatar" name="Lena" person="momo" size="{{ s40 }}"></x-import><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Lena</h1></div>
+          <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Enter your PIN for this PC.</p>
+        </div>
+        <div role="img" aria-label="4 digits, wrong" style="display:flex;gap:16px">
+          <span style="width:16px;height:16px;background:var(--danger)"></span><span style="width:16px;height:16px;background:var(--danger)"></span><span style="width:16px;height:16px;background:var(--danger)"></span><span style="width:16px;height:16px;background:var(--danger)"></span>
+        </div>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">Wrong PIN. 1 try left, then your password is needed.</x-import>
+        <div style="display:grid;grid-template-columns:repeat(3,72px);gap:8px">
+          <button type="button" style="height:56px;border:1px solid var(--rule);font:500 20px/1 var(--font-mono);color:var(--ink)">1</button>
+          <button type="button" style="height:56px;border:1px solid var(--rule);font:500 20px/1 var(--font-mono);color:var(--ink)">2</button>
+          <button type="button" style="height:56px;border:1px solid var(--rule);font:500 20px/1 var(--font-mono);color:var(--ink)">3</button>
+          <button type="button" style="height:56px;border:1px solid var(--rule);font:500 20px/1 var(--font-mono);color:var(--ink)">4</button>
+          <button type="button" style="height:56px;border:1px solid var(--rule);font:500 20px/1 var(--font-mono);color:var(--ink)">5</button>
+          <button type="button" style="height:56px;border:1px solid var(--rule);font:500 20px/1 var(--font-mono);color:var(--ink)">6</button>
+          <button type="button" style="height:56px;border:1px solid var(--rule);font:500 20px/1 var(--font-mono);color:var(--ink)">7</button>
+          <button type="button" style="height:56px;border:1px solid var(--rule);font:500 20px/1 var(--font-mono);color:var(--ink)">8</button>
+          <button type="button" style="height:56px;border:1px solid var(--rule);font:500 20px/1 var(--font-mono);color:var(--ink)">9</button>
+          <button type="button" aria-label="Delete" style="height:56px;border:1px solid var(--rule);font:500 16px/1 var(--font-mono);color:var(--ink);background:var(--hover);box-shadow:var(--focus-ring);position:relative;z-index:1">⌫</button>
+          <button type="button" style="height:56px;border:1px solid var(--rule);font:500 20px/1 var(--font-mono);color:var(--ink)">0</button>
+          <button type="button" style="height:56px;background:var(--accent);font:500 14px/1 var(--font-sans);color:var(--on-accent)">OK</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}">After the third try</x-import>
+        <p style="margin:0;padding-top:12px;border-top:1px solid var(--rule);font-size:12px;line-height:18px;color:var(--muted)">The PIN locks for Lena on this PC and the screen asks for her password once (8d-7e). Nobody else is affected.</p>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · SWITCH USER · LENA" lines="{{ oc }}"></x-import>
+  </div>
+  <div style="height:44px;flex:none;border-top:1px solid var(--rule-2);display:flex;align-items:center;justify-content:flex-end;gap:24px;padding:0 56px">
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="A" label="Press"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="B" label="Delete"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, s40: 40, oc: ['1 TRY LEFT', 'THEN PASSWORD'] };
+  }
+}
+</script>
+</body>
+</html>

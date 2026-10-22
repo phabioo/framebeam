@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>6r-2 Notifications · bell</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;overflow:hidden;font-family:var(--font-sans)">
+  <dc-import name="S3c0" theme="{{ theme }}" hint-size="1280px,800px"></dc-import>
+  <div style="position:absolute;left:188px;top:26px;z-index:9"><x-import component-from-global-scope="Uzume.Popover" open="{{ yes }}" trigger="{{ btrig }}" label="Notifications" width="{{ w380 }}" placement="right" align="start" actions="{{ bact }}"><div class="uz-note"><span class="uz-note-sq"></span><span class="uz-note-text">Lena invited you to watch Harbor Rally.</span><span class="uz-note-meta">JUST NOW · WATCH</span></div><div class="uz-note"><span class="uz-note-sq"></span><span class="uz-note-text">Lena’s Tidepup fainted · your Mossling is linked.</span><span class="uz-note-meta">5 MIN · OPEN RUN</span></div><div class="uz-note"><span class="uz-note-sq"></span><span class="uz-note-text">Uzume 0.17.1 is available.</span><span class="uz-note-meta">1 H · WHAT’S NEW</span></div><div class="uz-note"><span class="uz-note-sq read"></span><span class="uz-note-text" style="color:var(--muted)">Jonas started a session · Clocktower Kids.</span><span class="uz-note-meta">YESTERDAY · WATCH</span></div><div class="uz-note"><span class="uz-note-sq read"></span><span class="uz-note-text" style="color:var(--muted)">Backup failed on Home server · not enough space.</span><span class="uz-note-meta">03:00 · OPEN STATUS</span></div></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "w380": 380}, { noop: () => {}, btrig: (o) => h(U.IconButton, { icon: 'bell', label: 'Notifications, 3 new', count: 3, on: o.open, expanded: o.open, onClick: o.toggle }), bact: [B('Mark all read', 'ghost', { size: 'sm' }), B('Notification settings', 'ghost', { size: 'sm' })] });
+  }
+}
+</script>
+</body>
+</html>

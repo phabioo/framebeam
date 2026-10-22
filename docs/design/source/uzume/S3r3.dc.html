@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3r-3 Multiview · 2 × 2</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.RunHeader" back="Library" title="Multiview" sub="Home server · 4 people" layout="{{ lay }}" watchers="{{ mvw }}" watch-label="Audio · Lena" actions="{{ mvact }}"></x-import>
+  <div style="flex:1;min-height:0;padding:24px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:24px">
+    <x-import component-from-global-scope="Uzume.MultiviewTile" name="Max" person="wasurenagusa" system="GBA" game="LUMEN DRIFT" screen-width="{{ w420 }}" screen-height="{{ h220 }}" right="YOU"></x-import><x-import component-from-global-scope="Uzume.MultiviewTile" name="Lena" person="momo" system="NDS" game="HARBOR RALLY" screen-width="{{ w420 }}" screen-height="{{ h220 }}" voice="speaking" still="{{ yes }}" audio="{{ yes }}"></x-import><x-import component-from-global-scope="Uzume.MultiviewTile" name="Jonas" person="moegi" system="3DS" game="CORAL SAGA: EMBER" screen-width="{{ w420 }}" screen-height="{{ h220 }}" voice="micOff" still="{{ yes }}" right="PAUSED BY LENA"></x-import><x-import component-from-global-scope="Uzume.MultiviewTile" name="Sam" person="fuji" system="GBC" game="PAPER WIZARDS" screen-width="{{ w420 }}" screen-height="{{ h220 }}" waiting="{{ yes }}"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "w120": 120, "h120": 120, "w160": 160, "h160": 160, "w180": 180, "h180": 180, "w200": 200, "h200": 200, "w220": 220, "h220": 220, "w240": 240, "h240": 240, "w260": 260, "h260": 260, "w300": 300, "h300": 300, "w340": 340, "h340": 340, "w380": 380, "h380": 380, "w420": 420, "h420": 420, "w460": 460, "h460": 460, "w520": 520, "h520": 520, "w560": 560, "h560": 560, "w640": 640, "h640": 640, "w700": 700, "h700": 700, "mvw": [{"name": "Lena", "person": "momo"}, {"name": "Jonas", "person": "moegi"}, {"name": "Sam", "person": "fuji"}]}, { noop: () => {}, lay: h(U.Segmented, { items: ['2', '3', '2 × 2', 'Focus'], active: '2 × 2', size: 'sm', label: 'Layout' }), mvact: [B('Add tile', '', { size: 'sm' }), h(U.Popover, { key: 'mix', open: true, title: 'Mixer', label: 'Multiview', width: 340, align: 'end', trigger: (o) => h(U.IconButton, { icon: 'volume', label: 'Mixer', on: o.open, expanded: o.open, onClick: o.toggle }), actions: [h(U.Toggle, { key: 't', label: 'Mix all tiles', defaultChecked: false })], hints: [G('LeftRight', 'Volume'), G('UpDown', 'Next'), G('B', 'Close')] }, ...[['Max', 'wasurenagusa', 80, false], ['Lena', 'momo', 100, false], ['Jonas', 'moegi', 60, true], ['Sam', 'fuji', 70, false]].map((r) => h(U.Slider, { key: r[0], ariaLabel: r[0] + ' volume', defaultValue: r[2], muted: r[3], lead: h('span', { className: 'uz-mixrow', style: { gridTemplateColumns: '8px 56px' } }, h('span', { className: 'uz-persontag-sq', style: { width: 8, height: 8, background: 'var(--person-' + r[1] + ')' } }), h('span', { className: 'uz-mixrow-name' }, r[0])) }))), B('Leave', '', { size: 'sm' })] });
+  }
+}
+</script>
+</body>
+</html>

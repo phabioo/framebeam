@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8b-1 Join · address or code</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--accent-text)}a:hover{color:var(--accent-hover)}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">JOIN A SERVER · 1 OF 3</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:40px 24px 24px;display:grid;grid-template-columns:440px minmax(0,1fr);column-gap:64px;align-items:start;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:32px">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="1 OF 3">Join a server</x-import>
+          <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Where do you want to go?</h1>
+          <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Type the address your friend gave you, or their invite code.</p>
+        </div>
+        <x-import component-from-global-scope="Uzume.TextField" label="Address or invite code" default-value="server.example.com:8443" state="focus"></x-import>
+        <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary">Continue</x-import></div>
+        <p style="margin:0;padding-top:16px;border-top:1px solid var(--rule-2);font-size:12px;line-height:18px;color:var(--muted)">An invite code looks like <span style="font:400 11px/16px var(--font-mono);color:var(--ink-2)">UZ-8XK2-M4QD</span>; spaces, hyphens or none all work. A link starting with <span style="font:400 11px/16px var(--font-mono);color:var(--ink-2)">uzume://</span> fills this in for you.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}">Notes</x-import>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+          <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Recent servers</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Servers you joined before appear above the field as 44 px rows: name, address in Mono, last used.</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">No port</span><span style="font-size:12px;line-height:18px;color:var(--muted)">An address without a port gets :8443.</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Invite code typed</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Skips straight to the invite (8b-3); the code already names the server.</span></div>
+        </div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · JOIN A SERVER" lines="{{ oc }}"></x-import>
+  </div>
+  <div style="height:44px;flex:none;border-top:1px solid var(--rule-2);display:flex;align-items:center;justify-content:flex-end;gap:24px;padding:0 56px">
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="A" label="Choose"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="Y" label="Keyboard"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="B" label="Back"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, oc: ['3 STEPS', 'DEFAULT PORT 8443', 'INVITE · ONE USE'] };
+  }
+}
+</script>
+</body>
+</html>

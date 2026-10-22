@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3g-2 In game · Saves tab</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.RunHeader" back="Library" title="Lumen Drift" system="GBA" sub="Shared · 2 watching" actions="{{ hdr }}" watchers="{{ watchers }}" watch-label="2 watching"></x-import>
+  <div style="flex:1;min-height:0;display:flex">
+    <div style="position:relative;flex:1;min-width:0;display:flex;align-items:center;justify-content:center;background:var(--stage);overflow:hidden">
+      <x-import component-from-global-scope="Uzume.GameStage" system="GBA" width="{{ sw }}" height="{{ sh }}" labels="{{ glabels }}" caption="GBA · 240 × 160 · ×3 · 60 FPS · 18 MS" toast="{{ tst }}"></x-import>
+
+    </div>
+    <div style="width:320px;flex:none;border-left:1px solid var(--rule);display:flex;flex-direction:column;min-height:0;background:var(--ground)">
+      <x-import component-from-global-scope="Uzume.RunTabs" items="{{ gtabs }}" active="Saves"></x-import>
+      <div style="flex:1;min-height:0;padding:20px 24px;display:flex;flex-direction:column;gap:16px;overflow:hidden">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="3 OF 4 · ON HOME SERVER">States</x-import>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+          <div style="display:grid;grid-template-columns:56px minmax(0,1fr);column-gap:12px;align-items:center;padding:8px 8px 8px 8px;border-bottom:1px solid var(--rule-2);"><span style="height:38px;border:1px solid var(--placeholder-rule);background:var(--placeholder);display:grid;place-items:center;font:500 10px/1 var(--font-mono);color:var(--muted)">A</span><span style="display:flex;flex-direction:column;min-width:0"><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;">Auto<x-import component-from-global-scope="Uzume.Tag">Auto</x-import></span><span style="font-size:12px;line-height:18px;color:var(--muted)">before loading state 1 · 17:40</span></span></div>
+          <div style="display:grid;grid-template-columns:56px minmax(0,1fr);column-gap:12px;align-items:center;padding:8px 8px 8px 8px;border-bottom:1px solid var(--rule-2);"><span style="height:38px;border:1px solid var(--placeholder-rule);background:var(--placeholder);display:grid;place-items:center;font:500 10px/1 var(--font-mono);color:var(--muted)">1</span><span style="display:flex;flex-direction:column;min-width:0"><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;">Slot 1</span><span style="font-size:12px;line-height:18px;color:var(--muted)">today 17:02 · game time 11 h 21 min</span></span></div>
+          <div style="display:grid;grid-template-columns:56px minmax(0,1fr);column-gap:12px;align-items:center;padding:8px 8px 8px 8px;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start);"><span style="height:38px;border:1px solid var(--placeholder-rule);background:var(--placeholder);display:grid;place-items:center;font:500 10px/1 var(--font-mono);color:var(--muted)">2</span><span style="display:flex;flex-direction:column;min-width:0"><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;font-weight:500;">Slot 2 · “Lighthouse”<x-import component-from-global-scope="Uzume.Tag" tone="accent" variant="plane">New</x-import></span><span style="font-size:12px;line-height:18px;color:var(--muted)">just now · 12 h 40 min</span></span></div>
+          <div style="display:grid;grid-template-columns:56px minmax(0,1fr);column-gap:12px;align-items:center;padding:8px 8px 8px 8px;border-bottom:1px solid var(--rule-2);"><span style="height:38px;border:1px solid var(--placeholder-rule);background:var(--placeholder);display:grid;place-items:center;font:500 10px/1 var(--font-mono);color:var(--muted)">3</span><span style="display:flex;flex-direction:column;min-width:0"><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;">Slot 3</span><span style="font-size:12px;line-height:18px;color:var(--muted)">16 Oct · 8 h 02 min</span></span></div>
+          <div style="display:grid;grid-template-columns:56px minmax(0,1fr);column-gap:12px;align-items:center;padding:8px;border-bottom:1px solid var(--rule-2)"><span style="height:38px;border:1px dashed var(--placeholder-rule)"></span><span style="font-size:12px;line-height:18px;color:var(--muted)">Slot 4 · empty · select and press F6</span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Save to 2</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Load 2</x-import><x-import component-from-global-scope="Uzume.Menu" items="{{ smenu }}" label="State 2"></x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">States are not your save. Main v14 changes only when the game saves.</span>
+      </div>
+      <div style="padding:12px 24px;border-top:1px solid var(--rule-2);display:flex;gap:16px;flex-wrap:wrap"><x-import component-from-global-scope="Uzume.Kbd" keys="F6" label="Save"></x-import><x-import component-from-global-scope="Uzume.Kbd" keys="F8" label="Load"></x-import><x-import component-from-global-scope="Uzume.Kbd" keys="Shift+F6" label="Next slot"></x-import></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "watchers": [{"name": "Lena", "person": "momo"}, {"name": "Jonas", "person": "moegi"}], "gtabs": ["Session", "People · 3", "Chat · 2", "Saves"], "gtabsSL": ["Run", "Chat · 2", "Saves", "SoulLink"], "sw": 720, "sh": 480, "glabels": ["240 × 160 · ×3"], "smenu": [{"label": "Rename…"}, {"label": "Download"}, {"separator": true}, {"label": "Delete state…", "danger": true}]}, { noop: () => {}, hdr: [B('Pause', '', { size: 'sm' }), B('Speed-up 4×', '', { size: 'sm' }), B('Volume 72', '', { size: 'sm' }), B('Multiview', '', { size: 'sm' }), B('Panel', '', { size: 'sm', state: 'on' }), h(U.Menu, { key: 'm', items: ([{ heading: 'This game' }, { label: 'Save state', shortcut: 'F6' }, { label: 'Load state', shortcut: 'F8' }, { label: 'Take screenshot', shortcut: 'F12' }, { label: 'Settings for this game…' }, { label: 'Reset Lumen Drift…' },
+      { separator: true }, { heading: 'Together' }, { label: 'Ready check…' }, { label: 'Pause for everyone', shortcut: 'Shift+Esc' },
+      { separator: true }, { heading: 'Help' }, { label: 'Hotkeys…' }, { label: 'Report a problem…' }]), label: 'More' })], tst: h(U.Toast, { kind: 'done', shortcut: 'F6', action: undefined, onClose: false }, "State 2 saved") });
+  }
+}
+</script>
+</body>
+</html>

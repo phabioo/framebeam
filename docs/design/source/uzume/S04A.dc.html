@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>0-4 A Name, mark, server glyph</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="uz" data-theme="sumi" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">0-4 · A</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:24px 56px 40px;display:flex;flex-direction:column;gap:28px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="LOGO 03A RISE">Name and mark</x-import>
+      <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">One Uzume</h1>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+      <div style="display:flex;flex-direction:column;gap:20px;padding:20px 24px 24px 0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">MARK AND LOCKUP · SUMI</span>
+        <div style="display:flex;align-items:flex-end;gap:20px"><x-import component-from-global-scope="Uzume.Mark" size="{{ m96 }}"></x-import><x-import component-from-global-scope="Uzume.Mark" size="{{ m52 }}"></x-import><x-import component-from-global-scope="Uzume.Mark" size="{{ m20 }}"></x-import><x-import component-from-global-scope="Uzume.AppIcon" size="{{ m96 }}" tone="sumi"></x-import></div>
+        <x-import component-from-global-scope="Uzume.Lockup" variant="display" jp="{{ yes }}"></x-import>
+      </div>
+      <div data-theme="kinari" style="display:flex;flex-direction:column;gap:20px;padding:20px 24px 24px;background:var(--ground);color:var(--ink);border-left:1px solid var(--rule)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">MARK AND LOCKUP · KINARI</span>
+        <div style="display:flex;align-items:flex-end;gap:20px"><x-import component-from-global-scope="Uzume.Mark" size="{{ m96 }}"></x-import><x-import component-from-global-scope="Uzume.Mark" size="{{ m52 }}"></x-import><x-import component-from-global-scope="Uzume.Mark" size="{{ m20 }}"></x-import><x-import component-from-global-scope="Uzume.AppIcon" size="{{ m96 }}" tone="kinari"></x-import></div>
+        <x-import component-from-global-scope="Uzume.Lockup" variant="display" jp="{{ yes }}"></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:20px;padding:20px 0 24px 24px;border-left:1px solid var(--rule)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">SERVER GLYPH · 48 / 24 / 16 · INSTALLER TILE</span>
+        <div style="display:flex;align-items:flex-end;gap:20px"><x-import component-from-global-scope="Uzume.ServerGlyph" size="{{ m48 }}"></x-import><x-import component-from-global-scope="Uzume.ServerGlyph" size="{{ m24 }}"></x-import><x-import component-from-global-scope="Uzume.ServerGlyph" size="{{ m16 }}"></x-import><x-import component-from-global-scope="Uzume.AppIcon" size="{{ m96 }}" tone="sumi" server="{{ yes }}"></x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Two stacked units, the top one lit. Only on the installer tile, the server’s tray icon and the server’s About — never as the app icon, never in app rows.</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column">
+      <div style="display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:24px;padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:20px"><span style="font-weight:500;color:var(--ink)">One mark</span><span style="color:var(--ink-2)">Logo 03a Rise replaces the FrameBeam frame-and-beam mark. The play-triangle Player mark stays retired.</span></div>
+      <div style="display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:24px;padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:20px"><span style="font-weight:500;color:var(--ink)">Wordmark</span><span style="color:var(--ink-2)">“Uzume”, Plex Sans 600. No suffix anywhere: title bar, sidebar, installer, About, tray. ウズメ only on About, splash and installer welcome.</span></div>
+      <div style="display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:24px;padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:20px"><span style="font-weight:500;color:var(--ink)">App icon · installer</span><span style="color:var(--ink-2)">AppIcon tile (22.5 %), tone sumi or kinari, fixed brand colours. The server installer adds the server glyph at 40 % bottom-right. Below 64 px: Pixel tiles.</span></div>
+      <div style="display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:24px;padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:20px"><span style="font-weight:500;color:var(--ink)">Tray (background service)</span><span style="color:var(--ink-2)">Server glyph, lit square Yamabuki while running, dim when stopped. Needs attention: the tray menu leads with the Yamabuki “!” square and a sentence. No amber.</span></div>
+      <div style="display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:24px;padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:13px;line-height:20px"><span style="font-weight:500;color:var(--ink)">Sidebar</span><span style="color:var(--ink-2)">Lockup nav: mark 20, 17/20 600, gap 10, 32 px from the top and 28 px from the left. Same for every role, and on the no-sidebar first-start screens.</span></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { n1: 1, yes: true, m96: 96, m52: 52, m48: 48, m24: 24, m20: 20, m16: 16 };
+  }
+}
+</script>
+</body>
+</html>

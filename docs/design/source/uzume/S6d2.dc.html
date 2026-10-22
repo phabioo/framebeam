@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>6d-app-2 Reports · states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">REPORTS · STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="3 STATES">Reports</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--rule)">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">6D-2A · EMPTY</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">No reports</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">When someone sends a problem report from their app, it shows up here and Reports gets a count.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">6D-2B · MEMBER · WHERE REPORTS GO</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Reports go to admins</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Send one from Settings › This PC › Diagnostics or from any error.</span><div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm">Report a problem…</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">6D-2C · ATTACHMENTS EXPIRED</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Attachments deleted</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Attachments are kept 30 days. The description stays.</span><div style="display:flex"><x-import component-from-global-scope="Uzume.Button" size="sm" disabled="{{ yes }}">Download all</x-import></div><span style="font-size:12px;line-height:18px;color:var(--muted)">Ask Lena to send a new report.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "zero": 0, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}});
+  }
+}
+</script>
+</body>
+</html>

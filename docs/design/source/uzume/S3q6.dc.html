@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3q-app-6 Server › Storage</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Settings" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="width:240px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:16px">
+    <x-import component-from-global-scope="Uzume.Segmented" items="{{ scope }}" active="Server" label="Settings for"></x-import>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Affects everyone on Home server.</span>
+    <nav aria-label="Server settings" style="display:flex;flex-direction:column">
+      <a href="#general" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">General</a>
+      <a href="#network" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Network &amp; sharing<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">INTERNET</span></a>
+      <a href="#signin" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Sign-in<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">PASSWORD</span></a>
+      <a href="#updates" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Updates<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">0.17.0</span></a>
+      <a href="#backups" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Backups<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">03:00</span></a>
+      <a href="#storage" aria-current="page" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;box-shadow:var(--marker-start)">Storage<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">92 % BACKUP</span></a>
+      <a href="#diag" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Diagnostics</a>
+    </nav>
+  </div>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:48px;padding:0 48px">
+    <div style="padding:48px 0 24px;display:flex;flex-direction:column;gap:18px;min-width:0">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="SERVER · HOME SERVER">Server</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Storage</h1>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px">
+        <div style="display:flex;align-items:baseline;gap:12px"><span style="font-weight:300;font-size:28px;line-height:32px">1.1 <span style="color:var(--muted)">of 1.8 TB</span></span><span style="font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)">/SRV · 61 %</span></div>
+        <div role="img" aria-label="Storage use by kind" style="display:flex;height:8px;background:var(--rule-2)"><span title="Games" style="width:42%;background:color-mix(in srgb, var(--ink) 72%, transparent)"></span><span title="Saves and snapshots" style="width:8%;background:color-mix(in srgb, var(--ink) 52%, transparent)"></span><span title="Save states" style="width:5%;background:color-mix(in srgb, var(--ink) 36%, transparent)"></span><span title="Screenshots" style="width:6%;background:color-mix(in srgb, var(--ink) 24%, transparent)"></span><span title="Cores and firmware" style="width:3%;background:color-mix(in srgb, var(--ink) 14%, transparent)"></span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:32px;border-top:1px solid var(--rule)"><div style="display:grid;grid-template-columns:12px minmax(0,1fr) 80px;column-gap:10px;align-items:center;min-height:32px;border-bottom:1px solid var(--rule-2)"><span style="width:10px;height:10px;background:color-mix(in srgb, var(--ink) 72%, transparent)"></span><span style="font-size:13px">Games</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted);text-align:right">38 GB</span></div><div style="display:grid;grid-template-columns:12px minmax(0,1fr) 80px;column-gap:10px;align-items:center;min-height:32px;border-bottom:1px solid var(--rule-2)"><span style="width:10px;height:10px;background:color-mix(in srgb, var(--ink) 52%, transparent)"></span><span style="font-size:13px">Saves and snapshots</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted);text-align:right">2.1 GB</span></div><div style="display:grid;grid-template-columns:12px minmax(0,1fr) 80px;column-gap:10px;align-items:center;min-height:32px;border-bottom:1px solid var(--rule-2)"><span style="width:10px;height:10px;background:color-mix(in srgb, var(--ink) 36%, transparent)"></span><span style="font-size:13px">Save states</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted);text-align:right">0.8 GB</span></div><div style="display:grid;grid-template-columns:12px minmax(0,1fr) 80px;column-gap:10px;align-items:center;min-height:32px;border-bottom:1px solid var(--rule-2)"><span style="width:10px;height:10px;background:color-mix(in srgb, var(--ink) 24%, transparent)"></span><span style="font-size:13px">Screenshots</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted);text-align:right">1.4 GB</span></div><div style="display:grid;grid-template-columns:12px minmax(0,1fr) 80px;column-gap:10px;align-items:center;min-height:32px;border-bottom:1px solid var(--rule-2)"><span style="width:10px;height:10px;background:color-mix(in srgb, var(--ink) 14%, transparent)"></span><span style="font-size:13px">Cores and firmware</span><span style="font:400 12px/18px var(--font-mono);color:var(--muted);text-align:right">0.3 GB</span></div></div>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Backup disk /mnt/backup is 92 % full.</x-import>
+      </div>
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="3 SUGGESTIONS">Clean-up</x-import>
+      <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 80px 110px;column-gap:12px;padding:0 0 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>WHAT</span><span>SIZE</span><span></span></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 80px 110px;column-gap:12px;align-items:center;min-height:52px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="display:flex;flex-direction:column"><span>Snapshots older than 90 days</span><span style="font-size:12px;line-height:18px;color:var(--muted)">214 snapshots · plugin snapshots excluded</span></span><span style="font:400 12px/18px var(--font-mono);color:var(--muted)">1.2 GB</span><x-import component-from-global-scope="Uzume.Button" size="sm">Clean up…</x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 80px 110px;column-gap:12px;align-items:center;min-height:52px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="display:flex;flex-direction:column"><span>Upload leftovers</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Unfinished uploads older than 7 days</span></span><span style="font:400 12px/18px var(--font-mono);color:var(--muted)">640 MB</span><x-import component-from-global-scope="Uzume.Button" size="sm">Clean up…</x-import></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 80px 110px;column-gap:12px;align-items:center;min-height:52px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="display:flex;flex-direction:column"><span>Unused cores</span><span style="font-size:12px;line-height:18px;color:var(--muted)">No system uses them</span></span><span style="font:400 12px/18px var(--font-mono);color:var(--muted)">22 MB</span><x-import component-from-global-scope="Uzume.Button" size="sm">Clean up…</x-import></div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · SETTINGS · SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "three": 3, "yes": true, "no": false, "scope": ["This PC", "Server"], "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}});
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, help: [{ text: "Each clean-up names what goes, what stays, and that the last 7 backups still have it." }, { text: "Saves are never part of a clean-up." }] });
+  }
+}
+</script>
+</body>
+</html>

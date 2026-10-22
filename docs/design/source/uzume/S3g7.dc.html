@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3g-7 In game · Chat tab</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.RunHeader" back="Library" title="Coral Saga: Ember" system="3DS" sub="Run: Ember Route" actions="{{ hdr }}" watchers="{{ watchers }}" watch-label="2 watching"></x-import>
+  <div style="flex:1;min-height:0;display:flex">
+    <div style="position:relative;flex:1;min-width:0;display:flex;align-items:center;justify-content:center;background:var(--stage);overflow:hidden">
+      <x-import component-from-global-scope="Uzume.GameStage" system="3DS" width="{{ sw3 }}" height="{{ sh3 }}" labels="{{ l3 }}" caption="3DS · 400 × 240 + 320 × 240 · 60 FPS · 21 MS"></x-import>
+
+    </div>
+    <div style="width:320px;flex:none;border-left:1px solid var(--rule);display:flex;flex-direction:column;min-height:0;background:var(--ground)">
+      <x-import component-from-global-scope="Uzume.RunTabs" items="{{ gtabsSL }}" active="Chat · 2"></x-import>
+      <div style="flex:1;min-height:0;padding:20px 24px;display:flex;flex-direction:column;gap:16px;overflow:hidden">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="RUN CHAT · EMBER ROUTE · 4 PEOPLE">Chat</x-import>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Today 18:02 · Jonas joined</span>
+          <x-import component-from-global-scope="Uzume.ChatMessage" name="Jonas" person="moegi" time="18:20">Down!</x-import>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">SoulLink · Lena’s Tidepup fainted · Mossling linked</span>
+          <x-import component-from-global-scope="Uzume.ChatMessage" name="Sam" person="fuji" time="18:24">Gym next</x-import>
+          <x-import component-from-global-scope="Uzume.ChatMessage" name="Lena" person="momo" time="18:25"><span style="color:var(--accent-text)">@Max</span> heal first, then gym</x-import>
+          <x-import component-from-global-scope="Uzume.ChatMessage" name="Max" person="wasurenagusa" time="18:25">ok 2 min</x-import>
+        </div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><x-import component-from-global-scope="Uzume.Button" size="sm">Down! · 1</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Gym next · 2</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Wait · 3</x-import></div>
+          <x-import component-from-global-scope="Uzume.TextField" placeholder="Message" default-value="heal first, then gym" state="focus" shortcut="ENTER" aria-label="Message"></x-import>
+        </div>
+      </div>
+      <div style="padding:12px 24px;border-top:1px solid var(--rule-2);display:flex;gap:16px;flex-wrap:wrap"><x-import component-from-global-scope="Uzume.Kbd" keys="Enter" label="Send"></x-import><x-import component-from-global-scope="Uzume.Kbd" keys="Esc" label="Back to game"></x-import></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "watchers": [{"name": "Lena", "person": "momo"}, {"name": "Jonas", "person": "moegi"}], "gtabs": ["Session", "People · 3", "Chat · 2", "Saves"], "gtabsSL": ["Run", "Chat · 2", "Saves", "SoulLink"], "sw3": 520, "sh3": 640, "l3": ["400 × 240 · TOP", "320 × 240 · TOUCH"]}, { noop: () => {}, hdr: [B('Pause', '', { size: 'sm' }), B('Speed-up 4×', '', { size: 'sm' }), B('Volume 72', '', { size: 'sm' }), B('Multiview', '', { size: 'sm' }), B('Panel', '', { size: 'sm', state: 'on' }), h(U.Menu, { key: 'm', items: ([{ heading: 'This game' }, { label: 'Save state', shortcut: 'F6' }, { label: 'Load state', shortcut: 'F8' }, { label: 'Take screenshot', shortcut: 'F12' }, { label: 'Settings for this game…' }, { label: 'Reset Lumen Drift…' },
+      { separator: true }, { heading: 'Together' }, { label: 'Ready check…' }, { label: 'Pause for everyone', shortcut: 'Shift+Esc' },
+      { separator: true }, { heading: 'Help' }, { label: 'Hotkeys…' }, { label: 'Report a problem…' }]), label: 'More' })] });
+  }
+}
+</script>
+</body>
+</html>

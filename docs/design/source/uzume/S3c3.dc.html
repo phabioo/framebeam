@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3c-3 Settings for this game</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;overflow:hidden;font-family:var(--font-sans)">
+  <dc-import name="S3c1" theme="{{ theme }}" hint-size="1280px,800px"></dc-import>
+  <div style="position:absolute;inset:0;z-index:8;background:var(--scrim);display:flex;align-items:center;justify-content:center;gap:24px">
+    <x-import component-from-global-scope="Uzume.Dialog" label="GBA · mGBA · 3 changes from your defaults" title="Settings for Lumen Drift" size="lg" actions="{{ act }}" danger-action="{{ dang }}" on-close="{{ noop }}"><x-import component-from-global-scope="Uzume.Tabs" items="{{ ptabs }}" active="Display · 2"></x-import><div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.SettingsRow" label="Integer scaling" help="Uses your default (On)."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Aspect ratio" help="Changed for this game." changed="{{ yes }}" default-label="Core"><x-import component-from-global-scope="Uzume.Segmented" items="{{ aspect }}" active="Stretch" size="sm" label="Aspect ratio"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Run-ahead" help="Changed for this game." changed="{{ yes }}" default-label="2 frames"><x-import component-from-global-scope="Uzume.Segmented" items="{{ ahead }}" active="Off" size="sm" label="Run-ahead"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Speed-up speed" help="Uses your default (4×)."><x-import component-from-global-scope="Uzume.Segmented" items="{{ speed }}" active="4×" size="sm" label="Speed-up speed"></x-import></x-import></div><span style="font-size:12px;line-height:18px;color:var(--muted)">Reset goes back to your default for GBA in Emulation.</span></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "ptabs": ["Display · 2", "Controls · 1", "Screen layout"], "aspect": ["Core", "4:3", "Stretch"], "ahead": ["Off", "1 frame", "2 frames"], "speed": ["2×", "4×", "8×"]}, { noop: () => {}, act: [B('Done', 'primary')], dang: B('Reset all 3', 'ghost') });
+  }
+}
+</script>
+</body>
+</html>

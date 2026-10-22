@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8f-2 Confirmed · time left</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Users" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:24px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="3 PEOPLE">Users</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Users</h1><div style="margin-left:auto;display:flex;align-items:center;gap:16px"><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm">Confirmed · 4:12 left</x-import><x-import component-from-global-scope="Uzume.Button" variant="primary">Create invite…</x-import></div></div>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ tabs }}" active="People" size="lg"></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="1 TURNED OFF">People</x-import>
+        <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+          <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px 140px 56px 76px;column-gap:12px;padding:0 12px 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>PERSON</span><span>ROLE</span><span>STATUS</span><span>PLAY</span><span>PASSWORD</span></div>
+          <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px 140px 56px 76px;column-gap:12px;align-items:center;min-height:44px;padding:4px 12px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:10px"><x-import component-from-global-scope="Uzume.Avatar" name="Max" person="wasurenagusa" size="{{ s28 }}"></x-import>Max</span><span style="color:var(--muted)">Admin</span><span style="display:flex;align-items:center;gap:8px;font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)"><span style="width:6px;height:6px;background:var(--ok)"></span>ONLINE</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">212 h</span><span style="color:var(--muted)">Set</span></div>
+          <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) 72px 140px 56px 76px;column-gap:12px;align-items:center;min-height:44px;padding:4px 12px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:10px"><x-import component-from-global-scope="Uzume.Avatar" name="Lena" person="momo" size="{{ s28 }}"></x-import>Lena</span><span style="color:var(--muted)">Member</span><span style="display:flex;align-items:center;gap:8px;font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)"><span style="width:6px;height:6px;background:var(--ok)"></span>PLAYING</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">96 h</span><span style="color:var(--muted)">Not set</span></div>
+          <div role="row" aria-selected="true" style="display:grid;grid-template-columns:minmax(0,1fr) 72px 140px 56px 76px;column-gap:12px;align-items:center;min-height:44px;padding:4px 12px;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start)"><span style="display:flex;align-items:center;gap:10px"><x-import component-from-global-scope="Uzume.Avatar" name="Jonas" person="moegi" size="{{ s28 }}"></x-import><span style="display:flex;flex-direction:column"><span style="font-weight:500">Jonas</span><span style="font-size:12px;color:var(--muted)">Turned off · saves kept</span></span></span><span style="color:var(--muted)">Off</span><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)">CAN’T SIGN IN</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">41 h</span><span style="color:var(--muted)">Set</span></div>
+        </div>
+      </div>
+      <x-import component-from-global-scope="Uzume.Toast" kind="done" action="Undo">Jonas is turned off. Saves, play time and devices stay.</x-import>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · USERS · HOME SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, three: 3, s28: 28, tabs: ['People', 'Invites', 'Devices · 1'], badges: { Users: 1, Reports: 2 },
+      online: [{ name: 'Lena', person: 'momo', playing: 'Harbor Rally' }],
+      max: { name: 'Max', role: 'Admin', person: 'wasurenagusa' } };
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, help: [{ text: "The time left shows on every admin page while it runs. Length: My account › Ask for my password (2 / 5 / 15 min)." }, { text: "Turn Jonas back on from his row ⋯." }] });
+  }
+}
+</script>
+</body>
+</html>

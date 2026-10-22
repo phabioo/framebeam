@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8e-2 My account · member</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" role="member" active="Settings" notifications="{{ zero }}" online="{{ online }}" user="{{ lena }}"></x-import>
+  <div style="width:240px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:16px">
+    <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim);padding:0 12px">THIS PC</span>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Only affects this PC and your account.</span>
+    <nav aria-label="This PC settings" style="display:flex;flex-direction:column">
+      <a href="#account" aria-current="page" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;box-shadow:var(--marker-start)">My account<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">LENA</span></a>
+      <a href="#appearance" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Appearance</a>
+      <a href="#folders" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Library folders</a>
+      <a href="#plugins" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Plugins<span style="font:400 11px/16px var(--font-mono);color:var(--dim)">2</span></a>
+      <a href="#voice" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Voice</a>
+      <a href="#notifications" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Notifications</a>
+      <a href="#servers" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Servers<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">1 SAVED</span></a>
+      <a href="#updates" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Updates</a>
+      <a href="#diag" style="height:32px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Diagnostics</a>
+    </nav>
+  </div>
+  <div style="flex:1;min-width:0;padding:48px 56px 24px;display:flex;flex-direction:column;gap:24px">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="THIS PC · ACCOUNT">My account</x-import>
+      <div style="display:flex;align-items:center;gap:16px"><x-import component-from-global-scope="Uzume.Avatar" name="Lena" person="momo" size="{{ s40 }}" status="online"></x-import><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Lena</h1><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:14px">MEMBER · HOME SERVER</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+      <x-import component-from-global-scope="Uzume.SettingsRow" label="Display name" help="Lena · shown to everyone on Home server."><x-import component-from-global-scope="Uzume.Button" size="sm">Rename…</x-import></x-import>
+      <x-import component-from-global-scope="Uzume.SettingsRow" label="Password" help="Not set. Optional on Home server. With a password you can sign in on another PC without waiting for Max."><x-import component-from-global-scope="Uzume.Button" size="sm">Set password…</x-import></x-import>
+      <x-import component-from-global-scope="Uzume.SettingsRow" label="PIN for this PC" help="Set. Asked when someone switches to you on Lena-PC."><div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" size="sm">Change…</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Remove</x-import></div></x-import>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="WHAT OTHERS SEE">Privacy</x-import>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Show what I play" help="Off: people on Home server see Online, Idle or Offline, never the game."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ no }}"></x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Discord status" help="Shows the game or run in the Discord app on this PC. Nothing is sent when Discord isn’t running."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ no }}"></x-import></x-import>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between"><x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="1">My devices</x-import><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">Sign out everywhere…</x-import></div>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 130px auto;column-gap:16px;align-items:center;min-height:44px;padding:4px 0;border-bottom:1px solid var(--rule-2)"><span style="display:flex;flex-direction:column"><span style="font-size:14px;line-height:22px;color:var(--ink)">Lena-PC <span style="font:600 10px/16px var(--font-mono);letter-spacing:.1em;color:var(--muted)">· THIS PC</span></span><span style="font:400 11px/16px var(--font-mono);color:var(--dim)">Windows 11 · approved by Max</span></span><span style="font-size:12px;color:var(--muted)">Now</span><span style="font-size:12px;color:var(--muted)">Approved device</span><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Sign out</x-import></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', no: false, n3: 3, n1: 1, n2: 2, zero: 0, s40: 40,
+      online: [{ name: 'Max', person: 'wasurenagusa', playing: 'Coral Saga: Ember' }, { name: 'Jonas', person: 'moegi', playing: 'Harbor Rally' }],
+      lena: { name: 'Lena', role: 'Member', person: 'momo' } };
+  }
+}
+</script>
+</body>
+</html>

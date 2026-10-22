@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>3e-2 Emulation · 3DS · Display</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Emulation" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="width:232px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:14px">
+    <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim);padding:0 12px">Emulation</span>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Saved on this PC only. Cores come from Systems &amp; cores.</span>
+    <nav aria-label="Emulation" style="display:flex;flex-direction:column"><a href="#defaults" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Defaults<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">1 CHANGED</span></a><a href="#gb" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">GB · mGBA</a><a href="#gbc" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">GBC · mGBA</a><a href="#gba" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">GBA · mGBA</a><a href="#nds" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">NDS · melonDS DS<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">2</span></a><a href="#3ds" aria-current="page" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);box-shadow:var(--marker-start);text-decoration:none">3DS · Azahar</a></nav>
+  </div>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:48px;padding:0 48px">
+    <div style="position:relative;padding:48px 0px 24px;display:flex;flex-direction:column;gap:14px;min-width:0">
+      
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="AZAHAR 2125.0 · THIS PC ONLY">Emulation</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">3DS</h1><div style="margin-left:auto;display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="ghost">Reset all to default</x-import></div></div>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ etabs }}" active="Display" size="lg"></x-import>
+      </div>
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="ROWS THE CORE OFFERS">Run-ahead and rewind</x-import>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.SettingsRow" label="Run-ahead" help="Azahar can’t run ahead: 3DS games are too heavy to run twice." disabled="{{ yes }}"><x-import component-from-global-scope="Uzume.Segmented" items="{{ ahead }}" active="Off" size="sm" label="Run-ahead"></x-import></x-import><x-import component-from-global-scope="Uzume.SettingsRow" label="Rewind length" help="About 1.1 GB memory at 10 s."><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Tag" tone="danger" icon="warn">High memory</x-import><x-import component-from-global-scope="Uzume.Segmented" items="{{ rlen }}" active="10 s" size="sm" label="Rewind length"></x-import></span></x-import></div>
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}">Renderer</x-import>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.SettingsRow" label="Renderer" help="Vulkan is faster on most graphics cards." changed="{{ yes }}" default-label="OpenGL"><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Tag">Next start</x-import><x-import component-from-global-scope="Uzume.Segmented" items="{{ rend }}" active="Vulkan" size="sm" label="Renderer"></x-import></span></x-import></div>
+      <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n4 }}" meta="GB · GBC · GBA · MGBA">One screen</x-import>
+      <span style="font-size:12px;line-height:18px;color:var(--muted)">One-screen systems have no Screen layout row; mGBA draws in software, so Renderer is hidden. Aspect Core is 10:9 for GB and 3:2 for GBA.</span>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · EMULATION · THIS PC" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "etabs": ["Display", "Core options", "Firmware", "Audio"], "aspect": ["Core", "4:3", "Stretch"], "ahead": ["Off", "1 frame", "2 frames"], "rlen": ["10 s", "30 s", "60 s"], "rend": ["OpenGL", "Vulkan"], "layouts": ["Stacked", "Side by side", "Large top, small bottom", "Top only", "Bottom only"]}, { noop: () => {}, help: [{ title: 'Only what the core offers', text: 'Rows a core can’t use are disabled with the reason, or left out when they never apply.' }] });
+  }
+}
+</script>
+</body>
+</html>

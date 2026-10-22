@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8a-4 Set up a server · steps 1–3</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--accent-text)}a:hover{color:var(--accent-hover)}
+</style>
+</helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">SET UP A SERVER · 1–3 OF 4</span>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:40px 24px 24px;display:flex;flex-direction:column;gap:28px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="ON ANOTHER DEVICE">Set up a server</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Set up a server</h1>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr);border-top:1px solid var(--rule);flex:1;min-height:0">
+        <div style="display:flex;flex-direction:column;gap:20px;padding:20px 24px 0 0">
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">STEP 1 OF 4</span><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Where should it run?</span></div>
+          <div role="radiogroup" aria-label="Where should it run?" style="display:flex;flex-direction:column;border-top:1px solid var(--rule-2)">
+            <div role="radio" aria-checked="false" style="display:flex;flex-direction:column;gap:2px;padding:12px 12px;border-bottom:1px solid var(--rule-2)"><span style="font-size:14px;line-height:22px;color:var(--ink)">On this PC</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Runs in the background, also when Uzume is closed. Needs admin rights once.</span></div>
+            <div role="radio" aria-checked="true" style="display:flex;flex-direction:column;gap:2px;padding:12px 12px;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start), var(--focus-ring);position:relative;z-index:1"><span style="font-size:14px;line-height:22px;font-weight:500;color:var(--ink)">On another device</span><span style="font-size:12px;line-height:18px;color:var(--muted)">A Raspberry Pi, a NAS with Docker or a Windows server. No screen needed.</span></div>
+          </div>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary">Continue</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">On this PC skips steps 2 and 3.</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:20px;padding:20px 24px 0 24px;border-left:1px solid var(--rule-2)">
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">STEP 2 OF 4</span><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Connect to the device</span></div>
+          <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Install the Uzume server on the device and start it. It shows its address, a setup code and a security code.</p>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <x-import component-from-global-scope="Uzume.TextField" label="Address" default-value="192.0.2.10:8443"></x-import>
+            <x-import component-from-global-scope="Uzume.TextField" label="Setup code" default-value="7H4K-2Q" state="focus" hint="Or run uzume-server setup-code on the device."></x-import>
+          </div>
+          <div style="display:flex"><x-import component-from-global-scope="Uzume.Button" variant="primary">Connect</x-import></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:20px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">STEP 3 OF 4 · SECURITY CHECK</span><span style="font-size:20px;line-height:28px;letter-spacing:-0.01em;color:var(--ink)">Is this really pi-livingroom?</span></div>
+          <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Compare with the security code the device shows next to the setup code.</p>
+          <div style="display:flex;flex-direction:column;gap:4px;padding:16px 0;border-top:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+            <div class="uz-invite" style="color:var(--ink)">R2M8-X4TQ-7KDW</div>
+            <span style="font:400 11px/16px var(--font-mono);color:var(--dim)">192.0.2.10:8443</span>
+          </div>
+          <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary">It matches</x-import><x-import component-from-global-scope="Uzume.Button">It doesn’t</x-import></div>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Also shown by <span style="font:400 11px/16px var(--font-mono);color:var(--ink-2)">uzume-server code</span>. Same check as 8b-2.</span>
+        </div>
+      </div>
+    </div>
+    <x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · SET UP A SERVER" lines="{{ oc }}"></x-import>
+  </div>
+  <div style="height:44px;flex:none;border-top:1px solid var(--rule-2);display:flex;align-items:center;justify-content:flex-end;gap:24px;padding:0 56px">
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="A" label="Choose"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="Y" label="Keyboard"></x-import>
+    <x-import component-from-global-scope="Uzume.GamepadHint" k="B" label="Back"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, oc: ['4 STEPS', 'SETUP CODE 6 CHARACTERS', '0 AND O COUNT AS ONE'] };
+  }
+}
+</script>
+</body>
+</html>

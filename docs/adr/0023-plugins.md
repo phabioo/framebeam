@@ -1,6 +1,7 @@
 # ADR 0023: Plugins (0.11)
 
 - Status: proposed (D1 and D2 are implemented in 0.11 package 1, D6 in package 2, D8 to D10 on the Hub side and in the Player's plugin delivery in package 3; the Player side of runs is implemented; the rest is design only)
+- Superseded in part: plugins get no sidebar entries, their screens become run tabs, and the official plugin IDs become `uzume.*` ([ADR 0030](0030-one-app-one-server-uzume.md) D7).
 - Date: 2026-10-11
 - Deciders: Fabio (plugins as 0.11, 2026-10-11); proposal by the orchestrator
 - Builds on: [ADR 0013](0013-opengl-hardware-rendering.md), [ADR 0020](0020-cores-from-the-libretro-buildbot.md) (SHA-256 pin, buildbot cores), [ADR 0022](0022-nintendo-3ds-with-azahar.md) (3DS with Azahar). Interface description: [12-plugins.md](../architecture/12-plugins.md).

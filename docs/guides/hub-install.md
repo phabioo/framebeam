@@ -1,6 +1,6 @@
-# Install the Hub on Linux
+# Install the server on Linux
 
-Two ways to run the FrameBeam Hub as a systemd service: the Debian package (recommended on Debian / Raspberry Pi OS, the only type that can update itself) or the script `packaging/linux/install-hub.sh` (any systemd Linux). For flags and environment variables see [hub-configuration.md](hub-configuration.md); for Players outside your LAN see [sessions-over-the-internet.md](sessions-over-the-internet.md). Already running Docker? Use the official image instead: [hub-docker.md](hub-docker.md).
+Two ways to run the Uzume server as a systemd service: the Debian package (recommended on Debian / Raspberry Pi OS, the only type that can update itself) or the script `packaging/linux/install-hub.sh` (any systemd Linux). For flags and environment variables see [hub-configuration.md](hub-configuration.md); for apps outside your LAN see [sessions-over-the-internet.md](sessions-over-the-internet.md). Already running Docker? Use the official image instead: [hub-docker.md](hub-docker.md).
 
 ## Install the Debian package (recommended)
 
@@ -12,29 +12,29 @@ sudo apt install ./framebeam-hub_<version>_arm64.deb
 
 The package installs
 `/usr/bin/framebeam-hub`, the units `framebeam-hub.service`, `framebeam-hub-update.path` and
-`framebeam-hub-update.service` (in `/lib/systemd/system`) and is the only install type the Hub can update itself
+`framebeam-hub-update.service` (in `/lib/systemd/system`) and is the only install type the server can update itself
 (Settings > Updates). Configure flags (port, admin) in `/etc/framebeam/hub.env`, which an existing install keeps. Create the admin account as described under [Admin account](#admin-account).
 
 Package details:
 
 - Published betas and releases have a plain version (`framebeam-hub_0.8.3_arm64.deb`). The control Version field uses `~` for other pre-release versions (`0.8.3~dev.57`, legacy `0.3.0~beta.57`), so they sort before the release; file names keep the SemVer because GitHub rewrites special characters in asset names.
 - The postinst creates the `framebeam` user, `/var/lib/framebeam` (only if missing) and `/etc/framebeam/hub.env` (only
-  if missing: an existing file is never overwritten), then enables and (re)starts the Hub and the update path unit.
+  if missing: an existing file is never overwritten), then enables and (re)starts the server and the update path unit.
 - Migration from `install-hub.sh`: the old unit in `/etc/systemd/system` is moved to
   `/etc/framebeam/framebeam-hub.service.pre-deb`, `/usr/local/bin/framebeam-hub` is removed; drop-ins in
   `framebeam-hub.service.d/`, `hub.env` and the data directory are kept.
 - Remove keeps config and data; purge removes `/etc/framebeam` only. The data directory (database, saves, ROM library)
   and the `framebeam` user are never deleted by the package.
-- Updates: the Hub (user `framebeam`) stages a verified `.deb` and creates `/run/framebeam/update-request`; the path
+- Updates: the server (user `framebeam`) stages a verified `.deb` and creates `/run/framebeam/update-request`; the path
   unit starts `framebeam-hub update apply-staged` as root, which verifies the staged package again and runs `dpkg -i`.
 - Build (dpkg-deb only): `packaging/linux/build-deb.sh --binary PATH --arch amd64|arm64 --version X.Y.Z[-pre] --out DIR`;
   all of it: `make build-hub package-hub-deb HUB_VERSION=...`. Checked by `make check-hub` (control, contents, units,
   shellcheck of the maintainer scripts in `deb/`).
-- `scripts/e2e-hub-update.sh` installs and updates a Hub on a real systemd host (CI only; skips without root/systemd).
+- `scripts/e2e-hub-update.sh` installs and updates a server on a real systemd host (CI only; skips without root/systemd).
 
 ## Install with `install-hub.sh`
 
-`install-hub.sh` installs the Hub as a persistent service. Primary target: Raspberry Pi 5 (64-bit Raspberry Pi OS / Debian, aarch64); amd64 works too. It installs a local binary and downloads nothing.
+`install-hub.sh` installs the server as a persistent service. Primary target: Raspberry Pi 5 (64-bit Raspberry Pi OS / Debian, aarch64); amd64 works too. It installs a local binary and downloads nothing.
 
 ## 1. Get the binary
 
@@ -67,11 +67,11 @@ At the end the script prints the service status, the URL (`https://<ip>:<port>/`
 
 ## Admin account
 
-`--admin USER` asks for the password twice (or reads one line from stdin when not a terminal, e.g. `echo ... | sudo ./install-hub.sh ...`). It runs `framebeam-hub setup-admin` as the `framebeam` user and is skipped if an admin already exists. On a headless Pi this is needed because the web setup form only accepts connections from localhost. Without the script (for example after the `.deb` install) run `setup-admin` as the `framebeam` user with the data directory from `hub.env`, for example `sudo runuser -u framebeam -- env FRAMEBEAM_DATA_DIR=/var/lib/framebeam framebeam-hub setup-admin -username <name>` (use the `FRAMEBEAM_DATA_DIR` value from `/etc/framebeam/hub.env` if you changed it), or open `/setup` in a browser on the Hub host itself.
+`--admin USER` asks for the password twice (or reads one line from stdin when not a terminal, e.g. `echo ... | sudo ./install-hub.sh ...`). It runs `framebeam-hub setup-admin` as the `framebeam` user and is skipped if an admin already exists. On a headless Pi this is needed because the web setup form only accepts connections from localhost. Without the script (for example after the `.deb` install) run `setup-admin` as the `framebeam` user with the data directory from `hub.env`, for example `sudo runuser -u framebeam -- env FRAMEBEAM_DATA_DIR=/var/lib/framebeam framebeam-hub setup-admin -username <name>` (use the `FRAMEBEAM_DATA_DIR` value from `/etc/framebeam/hub.env` if you changed it), or open `/setup` in a browser on the server host itself.
 
 ## TLS fingerprint
 
-The Hub creates a self-signed certificate under `<data dir>/tls/` and logs its SHA-256 fingerprint at startup. The Player asks you to confirm it on first contact:
+The server creates a self-signed certificate under `<data dir>/tls/` and logs its SHA-256 fingerprint at startup. The app asks you to confirm it on first contact:
 
 ```sh
 journalctl -u framebeam-hub | grep -i fingerprint
@@ -99,7 +99,7 @@ Renews the self-generated TLS certificate as the `framebeam` user in the service
 sudo ./install-hub.sh import-cores /path/to/dir
 ```
 
-For a Hub that cannot reach the libretro buildbot. `dir` holds buildbot core zips as `<platform>/<core>_libretro.<suffix>.zip` (platform `linux-x64` or `windows-x64`, for example `linux-x64/desmume_libretro.so.zip`), optionally `info.zip` and `<platform>/.index-extended`. The script copies the directory to a temporary location the service user can read and runs `framebeam-hub import-cores` as the `framebeam` user in the service's data dir (read from `/etc/framebeam/hub.env`, like `renew-cert`). Cores are not signed; the SHA-256 is pinned at import. The service keeps running. Details: [hub-configuration.md](hub-configuration.md).
+For a server that cannot reach the libretro buildbot. `dir` holds buildbot core zips as `<platform>/<core>_libretro.<suffix>.zip` (platform `linux-x64` or `windows-x64`, for example `linux-x64/desmume_libretro.so.zip`), optionally `info.zip` and `<platform>/.index-extended`. The script copies the directory to a temporary location the service user can read and runs `framebeam-hub import-cores` as the `framebeam` user in the service's data dir (read from `/etc/framebeam/hub.env`, like `renew-cert`). Cores are not signed; the SHA-256 is pinned at import. The service keeps running. Details: [hub-configuration.md](hub-configuration.md).
 
 ## Uninstall
 
@@ -114,7 +114,7 @@ The `framebeam` system user is kept. `status` shows the service state and URL.
 
 | Path | Purpose |
 | --- | --- |
-| `/usr/local/bin/framebeam-hub` | Hub binary |
+| `/usr/local/bin/framebeam-hub` | Server binary |
 | `/etc/framebeam/hub.env` | Config (`FRAMEBEAM_LISTEN`, `FRAMEBEAM_DATA_DIR`, optional `FRAMEBEAM_NAME`), `0640 root:framebeam` |
 | `/var/lib/framebeam` | Default data dir (database, saves, `tls/`), `0750 framebeam:framebeam` |
 | `/etc/systemd/system/framebeam-hub.service` | Service unit |
@@ -125,7 +125,7 @@ The `framebeam` system user is kept. `status` shows the service state and URL.
 Do not point `--data-dir` into `/home` or `/root` (the script refuses it): home directories are typically `0700`, so the `framebeam` user cannot reach them, and `ProtectHome` applies as well. Copy the data into the default location instead:
 
 ```sh
-# 1. stop the old, manually started Hub process
+# 1. stop the old, manually started server process
 sudo ./install-hub.sh install --binary ./framebeam-hub-linux-arm64 --no-start
 sudo cp -a /home/pi/framebeam-data/. /var/lib/framebeam/
 sudo ./install-hub.sh install --binary ./framebeam-hub-linux-arm64   # fixes ownership, starts the service

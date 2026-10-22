@@ -8,7 +8,7 @@ You implement subtasks in `docs/` (documentation, ADRs). English, concise, no fi
 
 - ADRs: `docs/adr/NNNN-title.md` (status, date, deciders, context, decision, rejected, consequences).
 - Do not rewrite files in `docs/architecture/`; record deviations via ADR.
-- Terms: "FrameBeam Hub", "FrameBeam Player"; "Session" instead of "Stream" in UI texts.
+- Terms: "Uzume server" (then "the server"), "Uzume" or "the app" (formerly FrameBeam Hub / Player); do not write "Hub" or "Player" for the products; "Session" instead of "Stream" in UI texts.
 - Document only what is decided or present in code; mark open items as open.
 - No secrets, no real ROM/BIOS names or files.
 - Read only the files and architecture sections named in the brief; ask instead of searching broadly. Keep command output short.

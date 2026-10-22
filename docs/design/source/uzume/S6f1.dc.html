@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>6f-app-1 Server status</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Status" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:24px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="0.17.0 · UP 12 DAYS 4 H · PI-LIVINGROOM">Home server</x-import>
+        <div style="display:flex;align-items:flex-end;gap:16px"><h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Status</h1><div style="margin-left:auto;display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" size="sm">Connection check</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Collect server logs…</x-import></div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px"><x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Backup disk is 92 % full. Tonight’s backup may not fit.</x-import><a href="#storage" style="font-size:12px;line-height:18px;font-weight:500;color:var(--accent-text);text-decoration:none">Open Storage</a></div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--rule);border-bottom:1px solid var(--rule-2)">
+        <div style="display:flex;flex-direction:column;gap:6px;padding:14px 16px 14px 0"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">CPU</span><span style="font-weight:300;font-size:28px;line-height:32px;color:var(--ink)">18 %</span><x-import component-from-global-scope="Uzume.Progress" value="{{ cpu }}" size="thin" label="CPU"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">Last hour 11 %</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-left:1px solid var(--rule-2)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">MEMORY</span><span style="font-weight:300;font-size:28px;line-height:32px;color:var(--ink)">1.2 GB</span><x-import component-from-global-scope="Uzume.Progress" value="{{ mem }}" size="thin" label="Memory"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">of 4 GB</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-left:1px solid var(--rule-2)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">DISK</span><span style="font-weight:300;font-size:28px;line-height:32px;color:var(--ink)">61 %</span><x-import component-from-global-scope="Uzume.Progress" value="{{ disk }}" size="thin" label="Disk"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">1.1 of 1.8 TB</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:14px 0 14px 16px;border-left:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px;font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)"><x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm"></x-import>BACKUP DISK</span><span style="font-weight:300;font-size:28px;line-height:32px;color:var(--ink)">92 %</span><x-import component-from-global-scope="Uzume.Progress" value="{{ backup }}" size="thin" label="Backup disk"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">4.1 GB free</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="RELAY 3.1 OF 20 MBIT/S">Sessions · 2</x-import>
+        <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+          <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) 64px 170px 64px;column-gap:12px;padding:0 0 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>HOST</span><span>GAME</span><span>VIEWERS</span><span>CONNECTION</span><span>SINCE</span></div>
+          <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) 64px 170px 64px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Lena" person="momo" size="{{ s20 }}"></x-import>Lena</span><span>Harbor Rally <span style="font:500 10px/14px var(--font-mono);color:var(--muted)">NDS</span></span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">2</span><span style="color:var(--muted)">Direct</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">21 min</span></div>
+          <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) 64px 170px 64px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Jonas" person="moegi" size="{{ s20 }}"></x-import>Jonas</span><span>Lumen Drift <span style="font:500 10px/14px var(--font-mono);color:var(--muted)">GBA</span></span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">1</span><span style="color:var(--muted)">Relayed · 1.8 Mbit/s</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">4 min</span></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="1 UPDATE OFFERED">Connected apps · 3</x-import>
+        <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+          <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) 170px 64px;column-gap:12px;padding:0 0 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>PERSON</span><span>DEVICE</span><span>APP</span><span>SINCE</span></div>
+          <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) 170px 64px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Max" person="wasurenagusa" size="{{ s20 }}"></x-import>Max</span><span>Desktop-LivingRoom</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">0.17.0</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">Now</span></div>
+          <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) 170px 64px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Lena" person="momo" size="{{ s20 }}"></x-import>Lena</span><span>Lena-PC</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">0.17.0</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">2 h</span></div>
+          <div role="row" style="display:grid;grid-template-columns:120px minmax(0,1fr) 170px 64px;column-gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.Avatar" name="Jonas" person="moegi" size="{{ s20 }}"></x-import>Jonas</span><span>Jonas-Laptop</span><span style="display:flex;align-items:center;gap:8px"><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">0.16.4</span><x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Update offered</x-import></span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">35 min</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · STATUS · HOME SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  baseVals() {
+    return { theme: this.props.theme ?? 'sumi', zero: 0, n1: 1, n2: 2, n3: 3, three: 3, s20: 20, cpu: 0.18, mem: 0.3, disk: 0.61, backup: 0.92, badges: { Users: 1, Reports: 2, Status: { warning: 'Backup disk' } },
+      online: [{ name: 'Lena', person: 'momo', playing: 'Harbor Rally' }, { name: 'Jonas', person: 'moegi', playing: 'Lumen Drift' }],
+      max: { name: 'Max', role: 'Admin', person: 'wasurenagusa' } };
+  }
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign(this.baseVals(), { noop: () => {}, help: [
+      { title: 'Last errors', text: h('span', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+          T(M('03:00'), ' Backup: only 4.1 GB free on /mnt/backup.'), T(M('YESTERDAY 21:14'), ' Jonas-Laptop: relay dropped, back after 6 s.'), T(M('20 OCT 09:02'), ' Core download timed out, retried fine.')) },
+      { text: h('a', { href: '#log' }, 'Open server log') },
+      { text: T('Metrics for your own monitoring: ', M('/metrics'), ', turned on in Settings › Server › Diagnostics.') }] });
+  }
+}
+</script>
+</body>
+</html>

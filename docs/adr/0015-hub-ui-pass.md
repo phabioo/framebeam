@@ -1,6 +1,7 @@
 # ADR 0015: Hub UI pass (0.7)
 
 - Status: accepted (Fabio, 2026-10-08)
+- Superseded in part: the Hub web admin is removed in 0.18 and administration moves into the app ([ADR 0030](0030-one-app-one-server-uzume.md) D2); D4, D5, D7 and D8 keep applying to the server.
 - Date: 2026-10-07
 - Decided by: Fabio (precedence and restart decided on 2026-10-07; self-restart without root, ports below 1024 refused on the web and reachability derived from configuration accepted on 2026-10-07)
 

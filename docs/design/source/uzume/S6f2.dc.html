@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>6f-app-2 Status · states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">STATUS · STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 STATES · ADMIN AND MEMBER">Server status</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">6F-2A · ALL FINE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Everything is fine</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm">No open problems. Last backup today 03:00 (1.4 GB).</x-import>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">The sidebar shows nothing extra.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">6F-2B · SERVER UNREACHABLE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Can’t reach Home server</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">No answer since 14:02. Last known: 0.17.0, up 12 days.</x-import>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" variant="primary" size="sm">Try again</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Connection check</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">If it runs on another device, check it is on. On the device: <span style="font:400 11px/16px var(--font-mono);color:var(--ink-2)">uzume-server status</span></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">6F-2C · RESTARTING AFTER UPDATE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Home server is restarting</span>
+        <div style="display:flex;align-items:center;gap:16px"><x-import component-from-global-scope="Uzume.Enso" size="{{ enso }}" label="Restarting"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">Updating to 0.17.1 · about 1 minute. Games keep running; saves upload after.</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">6F-2D · LOADING</span>
+        <x-import component-from-global-scope="Uzume.StateBlock" kind="loading" title="Loading status…" text="CPU, memory and disk in a moment"></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">6F-2E · MEMBER · FROM A LINK</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Only admins see server status</span>
+        <span style="font-size:14px;line-height:22px;color:var(--ink-2)">Something wrong? Tell Max, or send a problem report.</span>
+        <div style="display:flex;gap:8px"><x-import component-from-global-scope="Uzume.Button" size="sm">Report a problem…</x-import><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Back to Library</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Members never see Status in the sidebar; this shows only for old links and notifications.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2)">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">6F-2F · APP OUT OF DATE</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">1 app is older than the server</span>
+        <div style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;column-gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)"><x-import component-from-global-scope="Uzume.Avatar" name="Jonas" person="moegi" size="{{ s28 }}"></x-import><span style="display:flex;flex-direction:column"><span style="font-size:13px;line-height:18px;font-weight:500">Jonas-Laptop</span><span style="font:400 11px/16px var(--font-mono);color:var(--dim)">0.16.4 · Jonas</span></span><x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Update offered</x-import></div>
+        <span style="font-size:12px;line-height:18px;color:var(--muted)">Jonas sees “Home server needs a newer app” until he updates.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme ?? 'sumi', n1: 1, enso: 48, s28: 28 }; }
+}
+</script>
+</body>
+</html>

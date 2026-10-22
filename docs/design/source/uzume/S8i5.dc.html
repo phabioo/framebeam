@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8i-5 Stop sharing</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Settings" badges="{{ badges0 }}" notifications="{{ zero }}" online="{{ nobody }}" server-status="{{ srv }}" user="{{ max }}"></x-import>
+  <div style="width:240px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:16px">
+    <x-import component-from-global-scope="Uzume.Segmented" items="{{ scope }}" active="Server" label="Settings for"></x-import>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Affects everyone on Home server.</span>
+    <nav aria-label="Server settings" style="display:flex;flex-direction:column"><a href="#general" aria-current="page" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);box-shadow:var(--marker-start);text-decoration:none">General</a><a href="#network" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Network &amp; sharing<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">HOME</span></a><a href="#signin" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Sign-in</a><a href="#updates" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Updates</a><a href="#backups" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Backups</a><a href="#storage" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Storage</a><a href="#diag" style="height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Diagnostics</a></nav>
+  </div>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:48px;padding:0 48px">
+    <div style="position:relative;padding:48px 0px 24px;display:flex;flex-direction:column;gap:20px;min-width:0">
+      
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="SERVER · HOME SERVER">Server</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">General</h1>
+      </div>
+      <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)">
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Server name" help="Home server"><x-import component-from-global-scope="Uzume.Button" size="sm">Rename…</x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Runs on" help="This PC · Windows service"><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Open Status</x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Stop sharing" help="Back to On this PC. Removes the service."><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">Stop sharing…</x-import></x-import>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · SETTINGS · SERVER" items="{{ help }}"></x-import></div>
+  </div>
+  <div style="position:absolute;inset:0;z-index:8;background:var(--scrim);display:flex;align-items:center;justify-content:center;gap:24px">
+    <x-import component-from-global-scope="Uzume.Dialog" label="Home server" title="Stop sharing?" text="Home server stops and Uzume goes back to On this PC." actions="{{ act }}"><div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div style="display:flex;flex-direction:column;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Lena and Jonas can’t connect</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Their apps show “Can’t reach Home server”.</span></div><div style="display:flex;flex-direction:column;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Their accounts and saves are kept</span><span style="font-size:12px;line-height:18px;color:var(--muted)">In C:\ProgramData\Uzume\server. They come back if you share again.</span></div><div style="display:flex;flex-direction:column;padding:8px 0;border-bottom:1px solid var(--rule-2)"><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--ink)">Your library and saves stay on this PC</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Nothing to copy back.</span></div></div><span style="font-size:12px;line-height:18px;color:var(--muted)">Asks “Confirm it’s you” and admin rights to remove the service.</span></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "scope": ["This PC", "Server"], "badges0": {}, "nobody": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}], "srv": {"status": "online", "name": "Home server", "address": "192.0.2.10:8443"}}, { noop: () => {}, act: [B('Stop sharing', 'danger'), B('Cancel')], help: [{ title: 'Nobody’s saves are deleted', text: 'To delete their data for good, run uzume-server reset on this PC. It deletes everything and asks for the server name.' }] });
+  }
+}
+</script>
+</body>
+</html>
