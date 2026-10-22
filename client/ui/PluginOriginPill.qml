@@ -27,6 +27,6 @@ Rectangle {
         text: root.text
         font.pixelSize: Theme.fontMono
         font.weight: Font.DemiBold
-        color: root.official ? Theme.accent : (root.unverified ? Theme.pluginWarn : Theme.textMuted)
+        color: root.official ? Theme.accentText : (root.unverified ? Theme.pluginWarn : Theme.textMuted)
     }
 }

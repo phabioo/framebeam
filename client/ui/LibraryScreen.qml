@@ -69,12 +69,13 @@ Rectangle {
                 readonly property int searchMin: 140
                 readonly property real buttonSpace: uploadShown ? uploadButton.implicitWidth + Theme.space12 : 0
                 readonly property bool wrapped: width < libraryTitle.implicitWidth + Theme.space16 + searchMin + buttonSpace
-                implicitHeight: wrapped ? 36 + Theme.space8 + 36 : 36
-                FbLabel {
+                readonly property real rowH: Math.max(36, libraryTitle.implicitHeight)
+                implicitHeight: wrapped ? rowH + Theme.space8 + 36 : rowH
+                UzLabel {
                     id: libraryTitle
                     objectName: "libraryTitle"
                     anchors.left: parent.left
-                    y: (36 - height) / 2
+                    y: (header.rowH - height) / 2
                     width: Math.max(0, Math.min(implicitWidth, header.width - header.buttonSpace))
                     elide: Text.ElideRight
                     text: qsTr("Library")
@@ -82,22 +83,22 @@ Rectangle {
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.4
                 }
-                FbButton {
+                UzButton {
                     id: uploadButton
                     objectName: "uploadButton"
                     visible: header.uploadShown
                     anchors.right: parent.right
-                    y: 0
+                    y: (header.rowH - 36) / 2
                     enabled: !root.player.upload.active
                     implicitHeight: 36
                     text: qsTr("Upload ROM")
                     onClicked: root.openUploadDialog()
                 }
-                FbField {
+                UzField {
                     id: search
                     objectName: "searchField"
                     x: header.wrapped ? 0 : header.width - header.buttonSpace - width
-                    y: header.wrapped ? 36 + Theme.space8 : 0
+                    y: header.wrapped ? header.rowH + Theme.space8 : (header.rowH - 36) / 2
                     // 220 at 1280, 280 on a wide window; shrinks to the room the title and button leave; full width
                     // when wrapped onto its own line.
                     width: header.wrapped ? header.width
@@ -143,7 +144,7 @@ Rectangle {
                             { name: "filterAttention", value: "attention", label: qsTr("Needs attention") },
                             { name: "filterDownload", value: "download", label: qsTr("Not downloaded") }
                         ]
-                        delegate: FbChip {
+                        delegate: UzChip {
                             required property var modelData
                             objectName: modelData.name
                             text: modelData.label
@@ -184,7 +185,7 @@ Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 32
                                 height: 18
-                                radius: 9
+                                radius: 0
                                 color: readyFirst.on ? Theme.accent : Theme.borderInput
                                 border.width: readyFirst.activeFocus ? 1.5 : 0
                                 border.color: Theme.accent
@@ -194,7 +195,7 @@ Rectangle {
                                     y: 2
                                     width: 14
                                     height: 14
-                                    radius: 7
+                                    radius: 0
                                     color: readyFirst.on ? Theme.textOnAccent : Theme.text
                                     Behavior on x { NumberAnimation { duration: Theme.durFast; easing.type: Easing.OutCubic } }
                                 }
@@ -218,7 +219,7 @@ Rectangle {
                 }
             }
             // "3 of 10 games": only while a chip or the search narrows the list; the unfiltered count lives in "All · 10".
-            FbLabel {
+            UzLabel {
                 id: countLabel
                 objectName: "libraryCount"
                 readonly property bool narrowed: root.player.library.filter !== "all" || root.player.library.filterText.trim() !== ""
@@ -244,7 +245,7 @@ Rectangle {
                     readonly property bool dismissible: modelData.code === "core_download"
                     Layout.fillWidth: true
                     implicitHeight: warnRow.implicitHeight + 20
-                    radius: 8
+                    radius: 0
                     color: warn.info ? Theme.infoBg : Theme.warnBg
                     border.width: 1
                     border.color: warn.info ? Theme.infoBorder : Theme.accentBorder
@@ -254,7 +255,7 @@ Rectangle {
                         anchors.margins: 10
                         anchors.leftMargin: 14
                         spacing: Theme.space12
-                        FbLabel {
+                        UzLabel {
                             id: warnText
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -263,7 +264,7 @@ Rectangle {
                             color: warn.info ? Theme.infoText : Theme.warn
                             font.pixelSize: Theme.fontSmall
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "coreWarningDismiss"
                             visible: warn.dismissible
                             kind: "link"
@@ -279,7 +280,7 @@ Rectangle {
                 Layout.fillWidth: true
                 visible: root.pathPromptOpen && root.player.canUpload
                 spacing: 10
-                FbField {
+                UzField {
                     id: uploadPath
                     objectName: "uploadPathField"
                     Layout.fillWidth: true
@@ -287,7 +288,7 @@ Rectangle {
                     placeholderText: qsTr("Path of the ROM file to upload")
                     onAccepted: uploadPathButton.clicked()
                 }
-                FbButton {
+                UzButton {
                     id: uploadPathButton
                     objectName: "uploadPathButton"
                     implicitHeight: 34
@@ -302,14 +303,14 @@ Rectangle {
                 Layout.fillWidth: true
                 visible: root.player.upload.active || root.player.upload.message !== ""
                 implicitHeight: 34
-                radius: 8
+                radius: 0
                 color: root.player.upload.isError ? Theme.errorBg : Theme.surfaceRaised
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     anchors.rightMargin: 8
                     spacing: 10
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         text: root.player.upload.active
                               ? qsTr("Uploading %1 · %2 %").arg(root.player.upload.fileName).arg(Math.round(root.player.upload.progress * 100))
@@ -322,16 +323,16 @@ Rectangle {
                         visible: root.player.upload.active
                         Layout.preferredWidth: 120
                         Layout.preferredHeight: 4
-                        radius: 2
+                        radius: 0
                         color: Theme.borderInput
                         Rectangle {
                             width: parent.width * root.player.upload.progress
                             height: parent.height
-                            radius: 2
+                            radius: 0
                             color: Theme.accent
                         }
                     }
-                    FbButton {
+                    UzButton {
                         visible: !root.player.upload.active
                         kind: "link"
                         text: qsTr("Dismiss")
@@ -346,14 +347,14 @@ Rectangle {
                 Layout.fillWidth: true
                 visible: root.player.stopSaveError !== ""
                 implicitHeight: stopSaveText.implicitHeight + 20
-                radius: 8
+                radius: 0
                 color: Theme.errorBg
                 RowLayout {
                     anchors.fill: parent
                     anchors.margins: 10
                     anchors.leftMargin: 12
                     spacing: 10
-                    FbLabel {
+                    UzLabel {
                         id: stopSaveText
                         Layout.fillWidth: true
                         text: root.player.stopSaveError
@@ -361,7 +362,7 @@ Rectangle {
                         color: Theme.errorText
                         font.pixelSize: Theme.fontSmall
                     }
-                    FbButton { objectName: "stopSaveErrorDismiss"; kind: "link"; text: qsTr("Dismiss"); onClicked: root.player.dismissStopSaveError() }
+                    UzButton { objectName: "stopSaveErrorDismiss"; kind: "link"; text: qsTr("Dismiss"); onClicked: root.player.dismissStopSaveError() }
                 }
             }
 
@@ -370,11 +371,11 @@ Rectangle {
                 Layout.fillWidth: true
                 visible: root.player.sessions.available && root.player.hubLink !== "online"
                 implicitHeight: 34
-                radius: 8
+                radius: 0
                 // Lost link: amber (needs your attention, tokens.md "Status"); connecting: the accent info tone.
                 readonly property bool lost: root.player.hubLink === "offline"
                 color: lost ? Theme.pluginWarnBg : Theme.warnBg
-                FbLabel {
+                UzLabel {
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     verticalAlignment: Text.AlignVCenter
@@ -391,20 +392,20 @@ Rectangle {
                 Layout.fillWidth: true
                 visible: root.player.sessions.message !== ""
                 implicitHeight: 34
-                radius: 8
+                radius: 0
                 color: root.player.sessions.messageIsError ? Theme.errorBg : Theme.surfaceRaised
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     anchors.rightMargin: 8
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         text: root.player.sessions.message
                         color: root.player.sessions.messageIsError ? Theme.errorText : Theme.text
                         font.pixelSize: Theme.fontSmall
                         elide: Text.ElideRight
                     }
-                    FbButton { kind: "link"; text: qsTr("Dismiss"); onClicked: root.player.sessions.dismissMessage() }
+                    UzButton { kind: "link"; text: qsTr("Dismiss"); onClicked: root.player.sessions.dismissMessage() }
                 }
             }
 
@@ -495,12 +496,12 @@ Rectangle {
                     width: Math.min(parent.width, 420)
                     spacing: 12
                     visible: !gridScroll.visible
-                    FbSpinner {
+                    UzSpinner {
                         Layout.alignment: Qt.AlignHCenter
                         visible: root.player.libraryState === "loading"
                         size: 22
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "libraryEmptyText"
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
@@ -519,7 +520,7 @@ Rectangle {
                               : chip === "attention" ? qsTr("Nothing needs attention.")
                               : qsTr("No results.")
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "libraryEmptyHint"
                         visible: root.player.libraryState === "ready" && root.player.library.outsideFilter.count !== undefined
                         Layout.fillWidth: true
@@ -537,20 +538,20 @@ Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         visible: root.player.libraryState === "ready" && root.player.library.totalCount > 0
                         spacing: 10
-                        FbButton {
+                        UzButton {
                             objectName: "emptyClearSearch"
                             visible: root.player.library.filterText.trim() !== ""
                             text: qsTr("Clear search")
                             onClicked: search.text = ""
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "emptyShowAll"
                             visible: root.player.library.filter !== "all"
                             text: qsTr("Show in All")
                             onClicked: root.player.library.filter = "all"
                         }
                     }
-                    FbButton {
+                    UzButton {
                         Layout.alignment: Qt.AlignHCenter
                         visible: root.player.libraryState === "error"
                         busyOnClick: true

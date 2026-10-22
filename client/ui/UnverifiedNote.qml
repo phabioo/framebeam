@@ -12,7 +12,7 @@ Rectangle {
     color: Theme.pluginWarnBg
     border.width: 1
     border.color: Theme.pluginWarnLine
-    FbLabel {
+    UzLabel {
         id: label
         anchors.left: parent.left
         anchors.right: parent.right

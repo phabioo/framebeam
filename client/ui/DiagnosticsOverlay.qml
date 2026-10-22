@@ -25,7 +25,7 @@ Rectangle {
 
     width: 340
     implicitHeight: col.implicitHeight + (docked ? 0 : 28)
-    radius: 10
+    radius: 0
     color: docked ? "transparent" : Theme.gameOverlayBg
     border.width: docked ? 0 : 1
     border.color: Theme.gameDivider
@@ -44,7 +44,7 @@ Rectangle {
             expanded: root.model.emulationOpen
             onToggled: root.model.toggleEmulation()
 
-            FbLabel {
+            UzLabel {
                 objectName: "diagNoGame"
                 visible: root.emu.valid !== true
                 text: qsTr("No game running")
@@ -57,7 +57,7 @@ Rectangle {
                 Layout.fillWidth: true
                 visible: root.emu.fallback === true && !root.multi
                 implicitHeight: hintRow.implicitHeight + 18
-                radius: 8
+                radius: 0
                 color: Theme.infoBg
                 border.width: 1
                 border.color: Theme.infoBorder
@@ -68,8 +68,8 @@ Rectangle {
                     anchors.leftMargin: 10
                     anchors.rightMargin: 10
                     spacing: 8
-                    FbLabel { text: "ⓘ"; font.pixelSize: 12; color: Theme.gameAccent; Layout.alignment: Qt.AlignTop }
-                    FbLabel {
+                    UzLabel { text: "ⓘ"; font.pixelSize: 12; color: Theme.gameAccent; Layout.alignment: Qt.AlignTop }
+                    UzLabel {
                         objectName: "diagFallbackText"
                         Layout.fillWidth: true
                         text: root.emu.fallbackText || ""
@@ -119,13 +119,13 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 8
                     Rectangle {
-                        Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 4
+                        Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 0
                         color: Theme.gameBadge
-                        FbMono { anchors.centerIn: parent; text: String(root.localTile ? root.localTile.index : ""); font.pixelSize: 11; color: Theme.gameBadgeText }
+                        UzMono { anchors.centerIn: parent; text: String(root.localTile ? root.localTile.index : ""); font.pixelSize: 11; color: Theme.gameBadgeText }
                     }
-                    FbLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: root.localTile ? root.localTile.title : ""; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.gameText }
+                    UzLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: root.localTile ? root.localTile.title : ""; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.gameText }
                 }
-                FbMono {
+                UzMono {
                     objectName: "diagTileLine1"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -135,7 +135,7 @@ Rectangle {
                     visible: root.localTile !== null && root.localTile.emulation.valid === true
                     text: root.localTile && root.localTile.emulation.lines ? root.localTile.emulation.lines[2] + " · " + root.localTile.emulation.lines[3] : ""
                 }
-                FbMono {
+                UzMono {
                     objectName: "diagTileLine2"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -146,7 +146,7 @@ Rectangle {
                     text: root.localTile && root.localTile.emulation.lines ? root.localTile.emulation.lines[1] + " · " + root.localTile.emulation.lines[4] : ""
                 }
             }
-            FbLabel {
+            UzLabel {
                 objectName: "diagOnlyYourTile"
                 Layout.fillWidth: true
                 visible: root.multi
@@ -168,7 +168,7 @@ Rectangle {
             DiagParticipants { Layout.fillWidth: true; groups: root.model.streaming; grouped: root.multi; badges: root.tileBadges }
         }
 
-        FbLabel {
+        UzLabel {
             objectName: "diagDockedNote"
             Layout.fillWidth: true
             visible: root.docked

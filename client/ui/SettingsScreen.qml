@@ -135,13 +135,13 @@ Rectangle {
                     objectName: "section_" + modelData.id
                     selected: root.currentSection === modelData.id
                     onClicked: root.jumpTo(sec.modelData.id)
-                    FbLabel { text: sec.modelData.name; font.weight: Font.DemiBold }
-                    FbLabel {
+                    UzLabel { text: sec.modelData.name; font.weight: Font.DemiBold }
+                    UzLabel {
                         objectName: "sectionStatus_" + sec.modelData.id
                         Layout.fillWidth: true
                         font.pixelSize: Theme.fontMeta
                         elide: Text.ElideRight
-                        color: sec.modelData.id === "updates" && root.updates.updateAvailable ? Theme.accent : Theme.textMuted
+                        color: sec.modelData.id === "updates" && root.updates.updateAvailable ? Theme.accentText : Theme.textMuted
                         text: sec.modelData.id === "updates" ? root.updatesLine()
                               : sec.modelData.id === "hubs" ? (root.activeHubName !== ""
                                                                ? qsTr("%1 saved · %2 active").arg(root.savedHubs.length).arg(root.activeHubName)
@@ -185,8 +185,8 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 2
-                    FbLabel { Layout.fillWidth: true; text: qsTr("Settings"); elide: Text.ElideRight; font.pixelSize: Theme.fontPage; font.weight: Font.DemiBold; font.letterSpacing: -0.4 }
-                    FbLabel {
+                    UzLabel { Layout.fillWidth: true; text: qsTr("Settings"); elide: Text.ElideRight; font.pixelSize: Theme.fontPage; font.weight: Font.DemiBold; font.letterSpacing: -0.4 }
+                    UzLabel {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         text: qsTr("Saved on this device only")
@@ -206,7 +206,7 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         Eyebrow { text: qsTr("Updates"); Layout.fillWidth: true }
-                        FbPill {
+                        UzTag {
                             objectName: "updatesPill"
                             visible: root.updates.state === "up_to_date" && !root.updates.updateAvailable
                             tone: "ok"
@@ -232,7 +232,7 @@ Rectangle {
                             anchors.fill: parent
                             anchors.margins: 18
                             spacing: Theme.space10
-                            FbLabel {
+                            UzLabel {
                                 objectName: "updatesPausedTitle"
                                 Layout.fillWidth: true
                                 text: root.updates.pausedTitle
@@ -241,7 +241,7 @@ Rectangle {
                                 color: Theme.pluginWarnText
                                 wrapMode: Text.WordWrap
                             }
-                            FbLabel {
+                            UzLabel {
                                 objectName: "updatesPausedDetail"
                                 Layout.fillWidth: true
                                 text: root.updates.pausedDetail
@@ -251,7 +251,7 @@ Rectangle {
                             }
                             RowLayout {
                                 spacing: Theme.space10
-                                FbButton {
+                                UzButton {
                                     objectName: "updatesUpdateToSkipped"
                                     visible: root.updates.skippedVersion !== "" && root.updates.canInstall
                                     implicitHeight: 36
@@ -260,7 +260,7 @@ Rectangle {
                                     text: qsTr("Update to %1").arg(root.updates.skippedVersion)
                                     onClicked: root.updates.updateToSkipped()
                                 }
-                                FbButton {
+                                UzButton {
                                     objectName: "updatesResume"
                                     implicitHeight: 36
                                     text: qsTr("Resume updates")
@@ -290,7 +290,7 @@ Rectangle {
 
                             RowLayout {
                                 spacing: Theme.space10
-                                FbLabel {
+                                UzLabel {
                                     objectName: "updateCardTitle"
                                     text: root.updates.updateAvailable ? qsTr("▲ Update available")
                                           : (root.updates.state === "checking" ? qsTr("Checking for updates…")
@@ -300,7 +300,7 @@ Rectangle {
                                     font.weight: Font.DemiBold
                                     color: root.updates.updateAvailable ? Theme.warn : Theme.text
                                 }
-                                FbMono {
+                                UzMono {
                                     objectName: "updatesAvailableVersion"
                                     visible: root.updates.updateAvailable
                                     text: root.updates.availableVersion
@@ -308,9 +308,9 @@ Rectangle {
                                     font.pixelSize: Theme.fontSmall
                                 }
                                 Item { Layout.fillWidth: true }
-                                FbSpinner { visible: root.updates.checking; size: 14 }
+                                UzSpinner { visible: root.updates.checking; size: 14 }
                             }
-                            FbLabel {
+                            UzLabel {
                                 objectName: "updatesStatus"
                                 Layout.fillWidth: true
                                 text: root.updates.updateAvailable
@@ -327,13 +327,13 @@ Rectangle {
                             Rectangle {
                                 Layout.fillWidth: true
                                 implicitHeight: 6
-                                radius: 3
+                                radius: 0
                                 visible: root.updates.state === "downloading"
                                 color: Theme.borderRow
                                 Rectangle {
                                     width: parent.width * root.updates.progress
                                     height: parent.height
-                                    radius: 3
+                                    radius: 0
                                     color: Theme.accent
                                     Behavior on width { NumberAnimation { duration: Theme.durFast } }
                                 }
@@ -341,14 +341,14 @@ Rectangle {
                             RowLayout {
                                 spacing: Theme.space10
                                 visible: root.updates.notesUrl !== "" || root.updates.canInstall
-                                FbButton {
+                                UzButton {
                                     objectName: "updatesNotes"
                                     visible: root.updates.notesUrl !== ""
                                     implicitHeight: 36
                                     text: qsTr("What's new")
                                     onClicked: root.updates.openNotes()
                                 }
-                                FbButton {
+                                UzButton {
                                     objectName: "updatesInstall"
                                     visible: root.updates.canInstall
                                     implicitHeight: 36
@@ -368,7 +368,7 @@ Rectangle {
                         spacing: 0
                         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
 
-                        SettingsRow {
+                        UzSettingsRow {
                             objectName: "updateChannelRow"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -388,7 +388,7 @@ Rectangle {
                             onValuePicked: value => root.updates.setChannel(value)
                         }
 
-                        SettingsRow {
+                        UzSettingsRow {
                             objectName: "updateAutoInstallRow"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -406,7 +406,7 @@ Rectangle {
                             onToggled: on => root.updates.setAutoInstall(on)
                         }
 
-                        SettingsRow {
+                        UzSettingsRow {
                             objectName: "updatesLastCheckRow"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -422,7 +422,7 @@ Rectangle {
                             onButtonClicked: root.updates.checkNow()
                         }
 
-                        SettingsRow {
+                        UzSettingsRow {
                             objectName: "versionRow"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -445,14 +445,14 @@ Rectangle {
                         spacing: Theme.space10
 
                         Eyebrow { text: qsTr("Earlier versions · %1").arg(root.updates.earlierCount) }
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             text: qsTr("Go back if something stopped working after an update. Settings stay; saves and states are on your Hub and are not touched. The list shows the last %1 releases.").arg(5)
                             wrapMode: Text.WordWrap
                             font.pixelSize: Theme.fontSmall
                             color: Theme.textSecondary
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "earlierUnavailable"
                             visible: !root.updates.canGoBack && root.updates.earlierCount > 0
                             Layout.fillWidth: true
@@ -461,7 +461,7 @@ Rectangle {
                             font.pixelSize: Theme.fontSmall
                             color: Theme.pluginWarn
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "earlierEmpty"
                             visible: root.updates.earlierCount === 0
                             Layout.fillWidth: true
@@ -491,12 +491,12 @@ Rectangle {
                                     anchors.leftMargin: 16
                                     anchors.rightMargin: 12
                                     spacing: Theme.space12
-                                    FbMono {
+                                    UzMono {
                                         text: earlierRow.modelData.version
                                         color: Theme.text
                                         font.pixelSize: Theme.fontBody
                                     }
-                                    FbLabel {
+                                    UzLabel {
                                         objectName: "earlierState-" + earlierRow.modelData.version
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
@@ -506,14 +506,14 @@ Rectangle {
                                         font.pixelSize: Theme.fontSmall
                                         color: earlierRow.modelData.kind === "skipped" ? Theme.pluginWarn : Theme.textMuted
                                     }
-                                    FbButton {
+                                    UzButton {
                                         objectName: "earlierGoBack-" + earlierRow.modelData.version
                                         visible: earlierRow.modelData.kind === "earlier" && root.updates.canGoBack
                                         implicitHeight: 34
                                         text: qsTr("Go back…")
                                         onClicked: rollbackDialog.openFor(earlierRow.modelData.version)
                                     }
-                                    FbButton {
+                                    UzButton {
                                         objectName: "earlierRelease-" + earlierRow.modelData.version
                                         visible: earlierRow.modelData.kind !== "running" && !(earlierRow.modelData.kind === "earlier" && root.updates.canGoBack)
                                                  && earlierRow.modelData.notesUrl !== ""
@@ -540,7 +540,7 @@ Rectangle {
                         Layout.minimumWidth: 0
                         Layout.rightMargin: content.wide ? Theme.settingsResetWidth - 8 : 0   // "+ Add hub" ends where the controls end (P1)
                         Eyebrow { objectName: "hubsEyebrow"; text: qsTr("Hubs · %1").arg(root.savedHubs.length); Layout.fillWidth: true }
-                        FbButton {
+                        UzButton {
                             objectName: "settingsAddHubButton"
                             kind: "link"
                             text: qsTr("+ Add Hub")
@@ -549,7 +549,7 @@ Rectangle {
                     }
 
                     // Own row (not in the header): a long label must never widen the settings column.
-                    FbButton {
+                    UzButton {
                         objectName: "settingsLocalHubButton"
                         visible: root.player.localHub.available && !root.player.localHub.onThisPc
                         Layout.alignment: Qt.AlignLeft
@@ -561,7 +561,7 @@ Rectangle {
                     }
 
                     // Settings > Network does not exist yet: the connection check lives next to the Hubs it checks.
-                    FbButton {
+                    UzButton {
                         objectName: "settingsConnectionCheckButton"
                         visible: root.player.connectionCheck.available
                         Layout.alignment: Qt.AlignLeft
@@ -643,7 +643,7 @@ Rectangle {
                                         spacing: 2
                                         RowLayout {
                                             spacing: Theme.space8
-                                            FbLabel {
+                                            UzLabel {
                                                 objectName: "hubName_" + hubRow.modelData.hubId
                                                 text: hubRow.modelData.name
                                                 font.pixelSize: Theme.fontSection
@@ -651,7 +651,7 @@ Rectangle {
                                                 elide: Text.ElideRight
                                                 Layout.maximumWidth: 280
                                             }
-                                            FbPill {
+                                            UzTag {
                                                 objectName: "hubState_" + hubRow.modelData.hubId
                                                 small: true
                                                 tone: hubRow.modelData.connected ? "ok" : (hubRow.lost ? "amber" : (hubRow.modelData.tone === "neutral" ? "neutral" : hubRow.modelData.tone))
@@ -660,7 +660,7 @@ Rectangle {
                                                       : (hubRow.modelData.status === "idle" ? qsTr("Not connected") : hubRow.modelData.statusText)
                                             }
                                         }
-                                        FbMono {
+                                        UzMono {
                                             Layout.fillWidth: true
                                             text: hubRow.modelData.detail
                                             elide: Text.ElideRight
@@ -677,7 +677,7 @@ Rectangle {
                                         spacing: 6
                                         visible: !hubRow.confirmRemove
                                         Item { Layout.fillWidth: true }
-                                        FbButton {
+                                        UzButton {
                                             objectName: "hubSwitch_" + hubRow.modelData.hubId
                                             visible: !hubRow.modelData.connected && !hubRow.lost
                                             implicitHeight: 32
@@ -688,7 +688,7 @@ Rectangle {
                                             enabled: hubRow.modelData.status !== "connecting"
                                             onClicked: root.player.switchToHub(hubRow.modelData.hubId)
                                         }
-                                        FbButton {
+                                        UzButton {
                                             objectName: "hubPairAgain_" + hubRow.modelData.hubId
                                             visible: hubRow.lost
                                             implicitHeight: 32
@@ -697,7 +697,7 @@ Rectangle {
                                             text: qsTr("Pair again")
                                             onClicked: root.player.switchToHub(hubRow.modelData.hubId)
                                         }
-                                        FbButton {
+                                        UzButton {
                                             objectName: "hubEdit_" + hubRow.modelData.hubId
                                             implicitHeight: 32
                                             hPadding: 24
@@ -732,10 +732,10 @@ Rectangle {
                                         anchors.rightMargin: 24
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 2
-                                        FbLabel { text: qsTr("Connect automatically on startup"); font.pixelSize: Theme.fontBody; Layout.fillWidth: true }
-                                        FbLabel { text: qsTr("Uses this Hub when the Player starts."); color: Theme.textMuted; font.pixelSize: Theme.fontMeta; Layout.fillWidth: true }
+                                        UzLabel { text: qsTr("Connect automatically on startup"); font.pixelSize: Theme.fontBody; Layout.fillWidth: true }
+                                        UzLabel { text: qsTr("Uses this Hub when the Player starts."); color: Theme.textMuted; font.pixelSize: Theme.fontMeta; Layout.fillWidth: true }
                                     }
-                                    FbToggle {
+                                    UzToggle {
                                         id: autoToggle
                                         objectName: "settingsAutoConnectToggle"
                                         implicitWidth: 40   // the track only: a Switch without text still reserves indicator + spacing
@@ -770,8 +770,8 @@ Rectangle {
                                     RowLayout {
                                         Layout.fillWidth: true
                                         spacing: Theme.space10
-                                        FbLabel { text: qsTr("Address"); color: Theme.textMuted; font.pixelSize: Theme.fontSmall; Layout.preferredWidth: 70 }
-                                        FbField {
+                                        UzLabel { text: qsTr("Address"); color: Theme.textMuted; font.pixelSize: Theme.fontSmall; Layout.preferredWidth: 70 }
+                                        UzField {
                                             id: hubEditAddress
                                             objectName: "hubEditAddress_" + hubRow.modelData.hubId
                                             Layout.fillWidth: true
@@ -783,13 +783,13 @@ Rectangle {
                                             onAccepted: hubEditSave.clicked()
                                             Keys.onEscapePressed: root.editingHubId = ""   // Esc cancels the inline edit (R-P4)
                                         }
-                                        FbButton {
+                                        UzButton {
                                             objectName: "hubEditCancel_" + hubRow.modelData.hubId
                                             implicitHeight: 36
                                             text: qsTr("Cancel")
                                             onClicked: root.editingHubId = ""
                                         }
-                                        FbButton {
+                                        UzButton {
                                             id: hubEditSave
                                             objectName: "hubEditSave_" + hubRow.modelData.hubId
                                             implicitHeight: 36
@@ -810,7 +810,7 @@ Rectangle {
                                             }
                                         }
                                     }
-                                    FbLabel {
+                                    UzLabel {
                                         id: hubEditError
                                         objectName: "hubEditError_" + hubRow.modelData.hubId
                                         property string extra: ""
@@ -821,7 +821,7 @@ Rectangle {
                                         font.pixelSize: Theme.fontMeta
                                         color: Theme.error
                                     }
-                                    FbLabel {
+                                    UzLabel {
                                         objectName: "hubEditHint_" + hubRow.modelData.hubId
                                         Layout.fillWidth: true
                                         wrapMode: Text.WordWrap
@@ -836,7 +836,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     spacing: Theme.space10
                                     visible: hubRow.confirmRemove
-                                    FbLabel {
+                                    UzLabel {
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
                                         wrapMode: Text.WordWrap
@@ -846,13 +846,13 @@ Rectangle {
                                               ? qsTr("Remove %1 from the Player? Running Sessions end and you return to the connection screen. Saves on the Hub are not deleted.").arg(hubRow.modelData.name)
                                               : qsTr("Remove %1 from the Player? Saves on the Hub are not deleted.").arg(hubRow.modelData.name)
                                     }
-                                    FbButton {
+                                    UzButton {
                                         objectName: "hubRemoveCancel_" + hubRow.modelData.hubId
                                         implicitHeight: 32
                                         text: qsTr("Cancel")
                                         onClicked: hubRow.confirmRemove = false
                                     }
-                                    FbButton {
+                                    UzButton {
                                         objectName: "hubRemoveConfirmButton_" + hubRow.modelData.hubId
                                         implicitHeight: 32
                                         kind: "primary"
@@ -865,7 +865,7 @@ Rectangle {
                         }
                     }
 
-                    FbLabel {
+                    UzLabel {
                         objectName: "hubsEmpty"
                         visible: root.player.hubs.length === 0
                         Layout.fillWidth: true
@@ -882,7 +882,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: Theme.space12
                     Eyebrow { text: qsTr("Appearance") }
-                    SettingsRow {
+                    UzSettingsRow {
                         objectName: "themeRow"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
@@ -918,7 +918,7 @@ Rectangle {
                     property bool confirmClear: false
                     property string clearResult: ""
                     Eyebrow { text: qsTr("ROM cache") }
-                    SettingsRow {
+                    UzSettingsRow {
                         objectName: "romCacheLimitRow"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
@@ -933,7 +933,7 @@ Rectangle {
                         current: String(root.player.romCache.limitBytes)
                         onValuePicked: value => root.player.setRomCacheLimit(Number(value))
                     }
-                    SettingsRow {
+                    UzSettingsRow {
                         objectName: "romCacheClearRow"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
@@ -951,7 +951,7 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: Theme.space10
                         visible: secStorage.confirmClear
-                        FbLabel {
+                        UzLabel {
                             objectName: "romCacheClearConfirmText"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -960,13 +960,13 @@ Rectangle {
                             color: Theme.text
                             text: qsTr("Remove cached ROMs and free %1? Games are downloaded again when you play them. Saves are not deleted.").arg(root.player.romCache.clearableText)
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "romCacheClearCancel"
                             implicitHeight: 32
                             text: qsTr("Cancel")
                             onClicked: secStorage.confirmClear = false
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "romCacheClearConfirmButton"
                             implicitHeight: 32
                             kind: "primary"
@@ -996,7 +996,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: Theme.space12
                     Eyebrow { text: qsTr("Diagnostics") }
-                    SettingsRow {
+                    UzSettingsRow {
                         objectName: "logFileRow"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
@@ -1022,7 +1022,7 @@ Rectangle {
                         Timer { id: copied; interval: 1500 }
                     }
                     TextEdit { id: clip; visible: false }
-                    SettingsRow {
+                    UzSettingsRow {
                         objectName: "collectLogsRow"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
@@ -1047,7 +1047,7 @@ Rectangle {
                             }
                         }
                     }
-                    SettingsRow {
+                    UzSettingsRow {
                         objectName: "connectionCheckRow"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
@@ -1062,7 +1062,7 @@ Rectangle {
                         ]
                         onButtonClicked: name => { if (name === "connectionCheck") root.player.connectionCheck.show() }
                     }
-                    SettingsRow {
+                    UzSettingsRow {
                         objectName: "reportProblemRow"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0

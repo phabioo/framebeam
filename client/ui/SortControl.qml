@@ -130,7 +130,7 @@ Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: item.modelData.value === root.current ? "✓" : ""
                                     font.pixelSize: Theme.fontSmall
-                                    color: Theme.accent
+                                    color: Theme.accentText
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter

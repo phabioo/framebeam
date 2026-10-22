@@ -27,7 +27,7 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        FbLabel {
+        UzLabel {
             objectName: "multiviewListTitle"
             Layout.fillWidth: true
             Layout.minimumWidth: 0
@@ -37,7 +37,7 @@ ColumnLayout {
             font.weight: Font.DemiBold
             color: Theme.gameText
         }
-        FbMono {
+        UzMono {
             objectName: "multiviewListCount"
             // The counter keeps its full width; the "Running sessions" title (fillWidth, elides) gives way first (R-P8)
             Layout.minimumWidth: implicitWidth
@@ -53,7 +53,7 @@ ColumnLayout {
         Layout.minimumWidth: 0
         visible: root.list.length === 0
         implicitHeight: emptyCol.implicitHeight + 28
-        radius: 8
+        radius: 0
         color: Theme.gameGroupBg
         border.width: 1
         border.color: Theme.gameDivider
@@ -63,8 +63,8 @@ ColumnLayout {
             anchors.margins: 14
             anchors.topMargin: 14
             spacing: 4
-            FbLabel { Layout.fillWidth: true; text: qsTr("No other sessions right now"); font.pixelSize: 13; color: Theme.gameBadgeText; wrapMode: Text.WordWrap }
-            FbLabel {
+            UzLabel { Layout.fillWidth: true; text: qsTr("No other sessions right now"); font.pixelSize: 13; color: Theme.gameBadgeText; wrapMode: Text.WordWrap }
+            UzLabel {
                 Layout.fillWidth: true
                 text: qsTr("Sessions appear here when someone on %1 shares a game with Hub users or invites you.").arg(root.player.hubAddress || qsTr("your Hub"))
                 font.pixelSize: 12
@@ -79,7 +79,7 @@ ColumnLayout {
         Layout.minimumWidth: 0
         visible: root.list.length > 0
         implicitHeight: pickView.height + 2
-        radius: 8
+        radius: 0
         color: Theme.gameGroupBg
         border.width: 1
         border.color: Theme.gameGroupBorder
@@ -120,9 +120,9 @@ ColumnLayout {
                     Rectangle {
                         Layout.preferredWidth: 26
                         Layout.preferredHeight: 26
-                        radius: 13
+                        radius: 0
                         color: Theme.gameSegmentOn
-                        FbLabel {
+                        UzLabel {
                             anchors.centerIn: parent
                             text: ((prow.modelData.who || prow.modelData.title || "?").charAt(0)).toUpperCase()
                             font.pixelSize: 12
@@ -135,8 +135,8 @@ ColumnLayout {
                         Layout.minimumWidth: 0
                         Layout.preferredWidth: 0
                         spacing: 0
-                        FbLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.title; font.pixelSize: 13; color: Theme.gameText }
-                        FbLabel {
+                        UzLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.title; font.pixelSize: 13; color: Theme.gameText }
+                        UzLabel {
                             Layout.fillWidth: true
                             elide: Text.ElideRight
                             text: prow.isShown ? prow.modelData.meta + qsTr(" · in tile %1").arg(prow.tileNo) : prow.modelData.meta
@@ -144,14 +144,14 @@ ColumnLayout {
                             color: prow.modelData.invited && !prow.isShown ? Theme.gameAccent : Theme.gameMeta
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "multiviewAdded_" + prow.modelData.sessionId
                         visible: prow.isShown
                         text: qsTr("✓ Added")
                         font.pixelSize: 12
                         color: Theme.gameOk
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "multiviewAddButton_" + prow.modelData.sessionId
                         visible: !prow.isShown
                         implicitHeight: 28
@@ -170,7 +170,7 @@ ColumnLayout {
                             font: parent.font
                             color: parent.enabled ? Theme.textOnAccent : Theme.gameFaint
                         }
-                        background: Rectangle { radius: 5; color: parent.enabled ? Theme.gameAccent : Theme.gameTrack }
+                        background: Rectangle { radius: 0; color: parent.enabled ? Theme.gameAccent : Theme.gameTrack }
                         onClicked: root.ctl.watch(prow.modelData.sessionId)
                     }
                 }
@@ -184,9 +184,9 @@ ColumnLayout {
         Layout.minimumWidth: 0
         visible: root.full
         implicitHeight: fullText.implicitHeight + 20
-        radius: 8
+        radius: 0
         color: Theme.neutralPillBg
-        FbLabel {
+        UzLabel {
             id: fullText
             anchors.fill: parent
             anchors.margins: 10
@@ -197,7 +197,7 @@ ColumnLayout {
                                           : qsTr("Multiview is full. Remove a tile to add another session.")
         }
     }
-    FbLabel {
+    UzLabel {
         objectName: "multiviewListNote"
         Layout.fillWidth: true
         Layout.minimumWidth: 0

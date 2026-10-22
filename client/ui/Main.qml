@@ -36,14 +36,14 @@ ApplicationWindow {
             anchors.rightMargin: 20
             spacing: 12
             StatusDot { tone: "ok" }
-            FbLabel {
+            UzLabel {
                 objectName: "updateBannerText"
                 Layout.fillWidth: true
                 text: window.player.updates.bannerText
                 font.pixelSize: Theme.fontSmall
                 elide: Text.ElideRight
             }
-            FbButton {
+            UzButton {
                 objectName: "updateBannerAction"
                 visible: window.player.updates.bannerAction !== "none"
                 implicitHeight: 30
@@ -52,7 +52,7 @@ ApplicationWindow {
                 onClicked: window.player.updates.bannerAction === "link" ? window.player.updates.openNotes()
                                                                          : window.player.updates.install()
             }
-            FbButton {
+            UzButton {
                 objectName: "updateBannerDismiss"
                 implicitHeight: 30
                 kind: "link"

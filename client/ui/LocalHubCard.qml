@@ -39,9 +39,9 @@ Rectangle {
         anchors.margins: 14
         spacing: Theme.space10
 
-        FbLabel { text: qsTr("This PC's Hub"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
+        UzLabel { text: qsTr("This PC's Hub"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
 
-        FbToggle {
+        UzToggle {
             objectName: "localNetworkSharingToggle"
             Layout.fillWidth: true
             text: qsTr("Network sharing")
@@ -49,7 +49,7 @@ Rectangle {
             enabled: !root.local.settingsBusy
             onToggled: root.local.setNetworkSharing(checked)
         }
-        FbLabel {
+        UzLabel {
             Layout.fillWidth: true
             text: qsTr("Off: only this PC can reach the Hub. On: other devices in your network can connect too (Windows may ask to allow it in the firewall).")
             color: Theme.textMuted
@@ -61,14 +61,14 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.space10
-            FbMono {
+            UzMono {
                 objectName: "localImportDir"
                 Layout.fillWidth: true
                 text: root.local.importDir !== "" ? root.local.importDir : qsTr("No folder chosen")
                 elide: Text.ElideMiddle
                 color: root.local.importDir !== "" ? Theme.text : Theme.textMuted
             }
-            FbButton {
+            UzButton {
                 objectName: "localChooseFolderButton"
                 implicitHeight: 32
                 busy: root.local.settingsBusy
@@ -81,14 +81,14 @@ Rectangle {
             visible: root.pathPromptOpen
             Layout.fillWidth: true
             spacing: Theme.space10
-            FbField {
+            UzField {
                 id: pathField
                 objectName: "localFolderPathField"
                 Layout.fillWidth: true
                 placeholderText: qsTr("Folder path, e.g. D:\\Games\\ROMs")
                 onAccepted: applyPath.clicked()
             }
-            FbButton {
+            UzButton {
                 id: applyPath
                 objectName: "localFolderApplyButton"
                 implicitHeight: 44
@@ -96,7 +96,7 @@ Rectangle {
                 onClicked: root.local.chooseFolder(pathField.text)
             }
         }
-        FbLabel {
+        UzLabel {
             objectName: "localSettingsNotice"
             visible: root.local.settingsNotice !== ""
             Layout.fillWidth: true
@@ -105,7 +105,7 @@ Rectangle {
             font.pixelSize: Theme.fontMeta
             wrapMode: Text.WordWrap
         }
-        FbLabel {
+        UzLabel {
             objectName: "localSettingsError"
             visible: root.local.settingsError !== ""
             Layout.fillWidth: true
@@ -114,7 +114,7 @@ Rectangle {
             font.pixelSize: Theme.fontMeta
             wrapMode: Text.WordWrap
         }
-        FbButton {
+        UzButton {
             kind: "link"
             text: qsTr("Open the Hub web page")
             onClicked: root.local.openHubWebUi()

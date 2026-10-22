@@ -34,7 +34,7 @@ Rectangle {
                 anchors.fill: parent
                 anchors.leftMargin: 10
                 anchors.rightMargin: 10
-                FbLabel {
+                UzLabel {
                     Layout.fillWidth: true
                     text: navItem.modelData.label
                     font.weight: navItem.active ? Font.Medium : Font.Normal
@@ -47,7 +47,7 @@ Rectangle {
                     visible: navItem.modelData.target === "settings" && root.player.updates.updateAvailable
                     Layout.preferredWidth: 7
                     Layout.preferredHeight: 7
-                    radius: 3.5
+                    radius: 0
                     color: Theme.accent
                 }
             }
@@ -99,18 +99,8 @@ Rectangle {
             // The header must never widen the column (and with it every fillWidth block below, e.g. the Now running
             // strip) when the font is wide: the title elides instead.
             Layout.minimumWidth: 0
-            Logo { size: 22 }
-            FbLabel {
-                Layout.fillWidth: true
-                text: qsTr("Uzume")
-                elide: Text.ElideRight
-                font.pixelSize: Theme.fontCard
-                font.weight: Font.DemiBold
-                HoverHandler { id: brandHover }
-                ToolTip.visible: brandHover.hovered && truncated
-                ToolTip.text: text
-                ToolTip.delay: 400
-            }
+            UzLockup { objectName: "sidebarLockup" }
+            Item { Layout.fillWidth: true }
         }
 
         ColumnLayout {
@@ -135,7 +125,7 @@ Rectangle {
                     anchors.fill: parent
                     anchors.leftMargin: 10
                     anchors.rightMargin: 10
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         text: qsTr("Runs")
                         font.weight: runsItem.active ? Font.Medium : Font.Normal
@@ -146,9 +136,9 @@ Rectangle {
                         visible: root.player.runs.pendingInvites > 0
                         Layout.preferredWidth: Math.max(18, runsBadgeText.implicitWidth + 10)
                         Layout.preferredHeight: 18
-                        radius: 9
+                        radius: 0
                         color: Theme.accentChipBg
-                        FbLabel { id: runsBadgeText; anchors.centerIn: parent; text: root.player.runs.pendingInvites; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.accent }
+                        UzLabel { id: runsBadgeText; anchors.centerIn: parent; text: root.player.runs.pendingInvites; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.accentText }
                     }
                 }
                 Accessible.role: Accessible.Button
@@ -199,7 +189,7 @@ Rectangle {
                             name: plugItem.modelData.name || plugItem.modelData.title
                             icon: plugItem.modelData.icon || ""
                         }
-                        FbLabel {
+                        UzLabel {
                             Layout.fillWidth: true
                             text: plugItem.modelData.title
                             elide: Text.ElideRight
@@ -211,9 +201,9 @@ Rectangle {
                             visible: plugItem.modelData.badge > 0
                             Layout.preferredWidth: Math.max(18, badgeText.implicitWidth + 10)
                             Layout.preferredHeight: 18
-                            radius: 9
+                            radius: 0
                             color: Theme.accentChipBg
-                            FbLabel { id: badgeText; anchors.centerIn: parent; text: plugItem.modelData.badge; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.accent }
+                            UzLabel { id: badgeText; anchors.centerIn: parent; text: plugItem.modelData.badge; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.accentText }
                         }
                     }
                     Accessible.role: Accessible.Button
@@ -277,16 +267,16 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 6
-                    FbMono {
+                    UzMono {
                         Layout.minimumWidth: 0
                         text: qsTr("NOW RUNNING")
                         font.pixelSize: 10
                         font.letterSpacing: 0.8
                         font.weight: Font.Medium
-                        color: Theme.accent
+                        color: Theme.accentText
                     }
                     Item { Layout.fillWidth: true }
-                    FbLabel {
+                    UzLabel {
                         objectName: "nowRunningTime"
                         Layout.minimumWidth: 0
                         elide: Text.ElideRight
@@ -295,7 +285,7 @@ Rectangle {
                         color: Theme.textMeta
                     }
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "nowRunningTitle"
                     Layout.fillWidth: true
                     text: nowRunning.game.title || ""
@@ -303,7 +293,7 @@ Rectangle {
                     font.pixelSize: Theme.fontBody
                     font.weight: Font.DemiBold
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "nowRunningStatus"
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -318,7 +308,7 @@ Rectangle {
                     Layout.topMargin: 4
                     spacing: 6
                     visible: !nowRunning.quitting
-                    FbButton {
+                    UzButton {
                         objectName: "nowRunningResume"
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
@@ -329,7 +319,7 @@ Rectangle {
                         text: qsTr("▶ Resume")
                         onClicked: root.player.resumeGame()
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "nowRunningQuit"
                         implicitHeight: 30
                         implicitWidth: 0
@@ -373,7 +363,7 @@ Rectangle {
                         Accessible.name: root.player.hubLink === "online" ? qsTr("Connected")
                                          : (root.player.hubLink === "connecting" ? qsTr("Connecting") : qsTr("Not reachable"))
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         text: root.player.hubName
                         font.weight: Font.Medium
@@ -383,7 +373,7 @@ Rectangle {
                         ToolTip.text: text
                         ToolTip.delay: 400
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "switchHubButton"
                         kind: "link"
                         text: qsTr("switch")
@@ -391,7 +381,7 @@ Rectangle {
                         onClicked: root.player.switchHub()
                     }
                 }
-                FbMono {
+                UzMono {
                     objectName: "hubCardAddress"
                     Layout.fillWidth: true
                     text: root.player.hubAddress
@@ -402,12 +392,12 @@ Rectangle {
                     ToolTip.text: root.player.hubAddress
                     ToolTip.delay: 400
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "hubCardLinkNote"
                     visible: root.player.hubLink !== "online"
                     Layout.fillWidth: true
                     text: root.player.hubLink === "connecting" ? qsTr("Connecting…") : qsTr("Not reachable · reconnecting…")
-                    color: root.player.hubLink === "connecting" ? Theme.accent : Theme.pluginWarn
+                    color: root.player.hubLink === "connecting" ? Theme.accentText : Theme.pluginWarn
                     font.pixelSize: Theme.fontMeta
                     elide: Text.ElideRight
                 }
@@ -423,7 +413,7 @@ Rectangle {
             Rectangle {
                 Layout.preferredWidth: 28
                 Layout.preferredHeight: 28
-                radius: 14
+                radius: 0
                 color: Theme.surfaceRaised
                 border.width: 1
                 border.color: Theme.borderInput
@@ -445,7 +435,7 @@ Rectangle {
                 Layout.minimumWidth: 0
                 spacing: 0
                 readonly property bool hasUser: root.player.userName !== ""
-                FbLabel {
+                UzLabel {
                     id: userNameLabel
                     objectName: "userName"
                     Layout.fillWidth: true
@@ -455,7 +445,7 @@ Rectangle {
                     font.weight: Font.Medium
                     elide: Text.ElideRight
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "userDevice"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0

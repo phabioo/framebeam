@@ -1,10 +1,10 @@
 import QtQuick
 
-// Status dot; tone: ok | warn | error | neutral
+// Status mark: a 6 px square (never a disc). tone: ok | warn | error | neutral
 Rectangle {
     property string tone: "neutral"
-    implicitWidth: 8
-    implicitHeight: 8
-    radius: width / 2
-    color: tone === "neutral" ? Theme.textDisabled : Theme.toneColor(tone)
+    implicitWidth: 6
+    implicitHeight: 6
+    radius: 0
+    color: tone === "neutral" ? Theme.disabledInk : Theme.toneColor(tone)
 }

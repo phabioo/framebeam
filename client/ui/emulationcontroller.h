@@ -71,7 +71,7 @@ class EmulationController : public QObject {
   Q_PROPERTY(QVariantMap game READ game NOTIFY gameSelectionChanged)
   Q_PROPERTY(bool gameSelected READ gameSelected NOTIFY levelChanged)
   Q_PROPERTY(int gameOverrideCount READ gameOverrideCount NOTIFY gamesChanged)
-  Q_PROPERTY(QAbstractItemModel* gamePicker READ gamePicker CONSTANT)  // rows for the game picker (FbModelSelect)
+  Q_PROPERTY(QAbstractItemModel* gamePicker READ gamePicker CONSTANT)  // rows for the game picker (UzModelSelect)
   Q_PROPERTY(int gameCount READ gameCount NOTIFY gamesChanged)  // cheap stand-in for games.length in bindings
   // [{id, title, subtitle, note, options:[{key, label, description, category, values:[{value,label}], value,
   //   valueLabel, isSet, origin, restart}]}]

@@ -48,14 +48,14 @@ Item {
                 opacity: 0.55
             }
         }
-        FbMono {
+        UzMono {
             x: 12
             y: 10
             text: tile.system
             font.pixelSize: Theme.fontMono
             color: Theme.textTile
         }
-        FbLabel {
+        UzLabel {
             anchors.left: parent.left
             anchors.bottom: parent.bottom
             anchors.margins: 12
@@ -91,7 +91,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     font.pixelSize: Theme.fontMono
                     font.weight: Font.DemiBold
-                    color: Theme.accent
+                    color: Theme.accentText
                 }
             }
         }
@@ -114,7 +114,7 @@ Item {
                 text: tile.onHub ? qsTr("Local · on Hub") : qsTr("Local")
                 font.pixelSize: Theme.fontMono
                 font.weight: Font.DemiBold
-                color: tile.onHub ? Theme.accent : Theme.textMuted
+                color: tile.onHub ? Theme.accentText : Theme.textMuted
             }
         }
         Rectangle {
@@ -145,7 +145,7 @@ Item {
         anchors.left: cover.left
         anchors.right: cover.right
         spacing: 3
-        FbLabel {
+        UzLabel {
             Layout.fillWidth: true
             text: tile.title
             font.weight: Font.Medium
@@ -155,20 +155,20 @@ Item {
             ToolTip.text: text
             ToolTip.delay: 400
         }
-        FbLabel {
+        UzLabel {
             objectName: "tileStatus"
             Layout.fillWidth: true
             text: tile.running ? qsTr("❚❚ Running · paused") : tile.tileText
             font.pixelSize: Theme.fontMeta
             font.weight: Font.Medium
-            color: tile.running ? Theme.accent : tile.tileTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.tileTone)
+            color: tile.running ? Theme.accentText : tile.tileTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.tileTone)
             elide: Text.ElideRight
             HoverHandler { id: statusHover }
             ToolTip.visible: statusHover.hovered && truncated
             ToolTip.text: text
             ToolTip.delay: 400
         }
-        FbLabel {
+        UzLabel {
             objectName: "tileAdded"
             visible: tile.showAdded && tile.addedText !== ""
             Layout.fillWidth: true

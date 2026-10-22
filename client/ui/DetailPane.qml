@@ -63,7 +63,7 @@ Rectangle {
         color: Theme.borderSidebar
     }
 
-    FbLabel {
+    UzLabel {
         objectName: "detailEmptyHint"
         // An empty Library already says what to do in its own column: no second hint with nothing to select (R-P14).
         visible: !root.hasGame && root.player.library.totalCount > 0
@@ -104,7 +104,7 @@ Rectangle {
                         implicitHeight: root.running ? 96 : 112
                         radius: Theme.radius8
                         color: Theme.tile
-                        FbLabel {
+                        UzLabel {
                             anchors.left: parent.left
                             anchors.bottom: parent.bottom
                             anchors.margins: 10
@@ -120,17 +120,17 @@ Rectangle {
                         Layout.preferredWidth: 1
                         Layout.alignment: Qt.AlignTop
                         spacing: Theme.space6
-                        FbMono {
+                        UzMono {
                             objectName: "detailCaption"
                             visible: root.game.localFile === true && !root.running
                             Layout.fillWidth: true
                             text: root.game.onHub ? qsTr("LOCAL COPY OF A HUB GAME") : qsTr("LOCAL FILE · NOT ON HUB")
-                            color: Theme.accent
+                            color: Theme.accentText
                             font.pixelSize: Theme.fontMono
                             Layout.preferredWidth: 1
                             wrapMode: Text.WordWrap   // wraps instead of "LOCAL COPY OF A HUB GA…" at 960 (R-P22)
                         }
-                        FbPill {
+                        UzTag {
                             objectName: "detailPill"
                             visible: (root.game.pillText || "") !== ""
                             Layout.minimumWidth: 0
@@ -138,7 +138,7 @@ Rectangle {
                             tone: root.game.pillTone || "neutral"
                             text: root.game.pillText || ""
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "detailTitle"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -148,7 +148,7 @@ Rectangle {
                             font.pixelSize: Theme.fontDetail
                             font.weight: Font.DemiBold
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "detailSystem"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -165,7 +165,7 @@ Rectangle {
                             ToolTip.text: text
                             ToolTip.delay: 400
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "detailCoreNotice"
                             visible: (root.game.coreNotice || "") !== ""
                             Layout.fillWidth: true
@@ -227,8 +227,8 @@ Rectangle {
                                 Item {
                                     width: parent.width
                                     height: Math.max(rowLabel.implicitHeight, rowValue.implicitHeight)
-                                    FbLabel { id: rowLabel; anchors.left: parent.left; text: row.modelData.label; color: Theme.textMuted; font.pixelSize: 13 }
-                                    FbLabel {
+                                    UzLabel { id: rowLabel; anchors.left: parent.left; text: row.modelData.label; color: Theme.textMuted; font.pixelSize: 13 }
+                                    UzLabel {
                                         id: rowValue
                                         // The value takes the rest of the row and wraps: a long status text must never widen the pane.
                                         // A file path is cut in the middle instead (the full path is the tooltip).
@@ -249,7 +249,7 @@ Rectangle {
                                         color: row.modelData.tone === "neutral" ? Theme.text : Theme.toneColor(row.modelData.tone)
                                     }
                                 }
-                                FbMono {
+                                UzMono {
                                     visible: (row.modelData.hint || "") !== ""
                                     width: parent.width
                                     text: row.modelData.hint || ""
@@ -275,7 +275,7 @@ Rectangle {
                     player: root.player
                 }
 
-                FbLabel {
+                UzLabel {
                     objectName: "runningNote"
                     visible: root.running
                     Layout.fillWidth: true
@@ -287,7 +287,7 @@ Rectangle {
                     font.pixelSize: Theme.fontMeta
                     text: qsTr("The game stays loaded and paused while you browse, change settings or watch someone else’s session.")
                 }
-                FbButton {
+                UzButton {
                     objectName: "firmwareRecheck"
                     visible: root.game.firmwareBlocked === true
                     kind: "link"
@@ -301,7 +301,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 8
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         Layout.preferredWidth: 1
@@ -313,7 +313,7 @@ Rectangle {
                               ? qsTr("Only you see this game. Its file stays on this device until you upload it to the Hub.")
                               : qsTr("Only you see this game. Its file is not on this device and not on the Hub.")
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "localUploadStatus"
                         visible: root.player.upload.gameId === root.game.id && (root.player.upload.active || root.player.upload.message !== "")
                         Layout.fillWidth: true
@@ -331,11 +331,11 @@ Rectangle {
                         visible: root.player.upload.active && root.player.upload.gameId === root.game.id
                         Layout.fillWidth: true
                         Layout.preferredHeight: 4
-                        radius: 2
+                        radius: 0
                         color: Theme.surfaceRaised
                         Rectangle {
                             height: parent.height
-                            radius: 2
+                            radius: 0
                             width: parent.width * root.player.upload.progress
                             color: Theme.accent
                         }
@@ -365,7 +365,7 @@ Rectangle {
                                     anchors.centerIn: parent
                                     width: 10
                                     height: 10
-                                    radius: 5
+                                    radius: 0
                                     color: step.modelData.state === "done" ? Theme.accent : (step.modelData.state === "error" ? Theme.pluginWarn : "transparent")
                                     border.width: (step.modelData.state === "done" || step.modelData.state === "error") ? 0 : 1.5
                                     border.color: step.modelData.state === "active" ? Theme.accent : Theme.textDisabled
@@ -375,14 +375,14 @@ Rectangle {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 spacing: 2
-                                FbLabel {
+                                UzLabel {
                                     Layout.fillWidth: true
                                     text: step.modelData.label
                                     wrapMode: Text.WordWrap
                                     font.pixelSize: Theme.fontSmall
                                     color: step.modelData.state === "pending" ? Theme.textFaint : Theme.text
                                 }
-                                FbMono {
+                                UzMono {
                                     visible: (step.modelData.meta || "") !== ""
                                     Layout.fillWidth: true
                                     text: step.modelData.meta || ""
@@ -401,7 +401,7 @@ Rectangle {
                     implicitHeight: errText.implicitHeight + 24
                     radius: Theme.radius8
                     color: Theme.errorBg
-                    FbLabel {
+                    UzLabel {
                         id: errText
                         anchors.fill: parent
                         anchors.margins: 12
@@ -427,7 +427,7 @@ Rectangle {
             }
         }
 
-        FbButton {
+        UzButton {
             objectName: "playButton"
             Layout.fillWidth: true
             Layout.minimumWidth: 0
@@ -441,7 +441,7 @@ Rectangle {
             onClicked: root.game.running === true ? root.player.resumeGame() : root.player.playSelected()
         }
         // Why Play is off, directly under the button (3c-7).
-        FbLabel {
+        UzLabel {
             objectName: "playDisabledReason"
             visible: !root.running && (root.game.playDisabledReason || "") !== "" && root.game.canPlay !== true
             Layout.fillWidth: true
@@ -465,7 +465,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             spacing: 8
-            FbButton {
+            UzButton {
                 objectName: secondaryRow.offlineError ? "retryConnectionButton"
                             : (root.game.onHub ? "playShareButton" : "uploadToHubButton")
                 Layout.fillWidth: true
@@ -483,7 +483,7 @@ Rectangle {
                 onClicked: secondaryRow.offlineError ? root.player.retryConnection()
                            : (root.game.onHub ? root.player.playAndShareSelected() : root.player.uploadGameToHub(root.game.id))
             }
-            FbButton {
+            UzButton {
                 objectName: secondaryRow.offlineError ? "hubSettingsButton" : "removeFromLibraryButton"
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
@@ -497,7 +497,7 @@ Rectangle {
                 onClicked: secondaryRow.offlineError ? root.player.showSettings() : root.player.removeFromLibrary(root.game.id)
             }
         }
-        FbButton {
+        UzButton {
             objectName: "playShareButton"
             visible: !secondaryRow.visible && (root.player.sessions.available || root.running)
             Layout.fillWidth: true
@@ -507,7 +507,7 @@ Rectangle {
             enabled: (root.running && !root.player.quitting) || (root.game.canPlay === true && !root.confirming)
             onClicked: root.running ? root.player.requestQuit() : root.player.playAndShareSelected()
         }
-        FbLabel {
+        UzLabel {
             objectName: "quitNote"
             visible: root.running
             Layout.fillWidth: true
@@ -518,7 +518,7 @@ Rectangle {
             font.pixelSize: Theme.fontMeta
             text: root.player.quitting ? qsTr("Saving and syncing…") : qsTr("Quit saves and syncs to the Hub first")
         }
-        FbLabel {
+        UzLabel {
             objectName: "shareVisibilityHint"
             visible: root.player.sessions.available && root.game.running !== true
             Layout.fillWidth: true

@@ -6,7 +6,7 @@ Item {
     id: root
     property bool dark: true
     property bool actionable: true
-    property int ringRadius: 6
+    property int ringRadius: 0
     property color ringGap: Theme.blockColor("surface", dark)
     readonly property bool hovered: hover.hovered && actionable
     readonly property bool pressed: tap.pressed && actionable

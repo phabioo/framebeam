@@ -49,7 +49,7 @@ ColumnLayout {
                         Layout.preferredWidth: 30
                         Layout.preferredHeight: 30
                         Layout.alignment: Qt.AlignTop
-                        radius: 15
+                        radius: 0
                         color: Theme.surfaceRaised
                         border.width: 1
                         border.color: Theme.borderInput
@@ -65,7 +65,7 @@ ColumnLayout {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        FbLabel {
+                        UzLabel {
                             objectName: "sessionTitle"
                             Layout.fillWidth: true
                             text: card.modelData.title
@@ -73,18 +73,18 @@ ColumnLayout {
                             font.weight: Font.DemiBold
                             elide: Text.ElideRight
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "sessionMeta"
                             Layout.fillWidth: true
                             text: card.modelData.meta
-                            color: card.modelData.invited ? Theme.accent : Theme.textMuted
+                            color: card.modelData.invited ? Theme.accentText : Theme.textMuted
                             font.pixelSize: Theme.fontMeta
                             elide: Text.ElideRight
                         }
                         RowLayout {
                             Layout.topMargin: 6
                             spacing: Theme.space8
-                            FbButton {
+                            UzButton {
                                 objectName: (card.modelData.invited ? "join_" : "watch_") + card.modelData.sessionId
                                 implicitHeight: 32
                                 kind: card.modelData.invited ? "primary" : "outline"
@@ -94,7 +94,7 @@ ColumnLayout {
                                 enabled: root.player.sessions.hubLink === "online" && !root.player.sessions.joining
                                 onClicked: root.player.sessions.watch(card.modelData.sessionId)
                             }
-                            FbButton {
+                            UzButton {
                                 visible: card.modelData.invited
                                 objectName: "decline_" + card.modelData.sessionId
                                 implicitHeight: 32

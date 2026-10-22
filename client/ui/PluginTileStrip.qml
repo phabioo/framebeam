@@ -45,7 +45,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 5
+        radius: 0
         color: Theme.gameChip
         border.width: 1
         border.color: root.expanded ? Theme.gameKeyLine : Qt.rgba(1, 1, 1, 0.08)
@@ -74,10 +74,10 @@ Item {
                 Rectangle {
                     visible: root.dotColor > 0
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 7; height: 7; radius: 3.5
+                    width: 7; height: 7; radius: 0
                     color: Theme.playerColor(root.dotColor, true)
                 }
-                FbLabel {
+                UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "tileStripText"
                     anchors.verticalCenter: parent.verticalCenter
@@ -88,7 +88,7 @@ Item {
                     color: Theme.gameText
                 }
             }
-            FbLabel {
+            UzLabel {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 anchors.right: parent.right
                 anchors.rightMargin: 6
@@ -105,9 +105,9 @@ Item {
             y: 3
             width: markerLabel.implicitWidth + 10
             height: 14
-            radius: 3
+            radius: 0
             color: Theme.gamePluginWarnBg
-            FbLabel { textFormat: Text.PlainText; id: markerLabel; anchors.centerIn: parent; text: root.marker; font.pixelSize: 9; color: Theme.gamePluginWarn }
+            UzLabel { textFormat: Text.PlainText; id: markerLabel; anchors.centerIn: parent; text: root.marker; font.pixelSize: 9; color: Theme.gamePluginWarn }
         }
 
         Flickable {

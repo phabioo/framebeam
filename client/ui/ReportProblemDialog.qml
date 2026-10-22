@@ -59,13 +59,13 @@ Popup {
             Layout.topMargin: 24
             Layout.bottomMargin: 12
             spacing: 4
-            FbLabel {
+            UzLabel {
                 Layout.fillWidth: true
                 text: qsTr("Report a problem")
                 font.pixelSize: 20
                 font.weight: Font.DemiBold
             }
-            FbLabel {
+            UzLabel {
                 objectName: "reportSub"
                 Layout.fillWidth: true
                 text: qsTr("Goes to the admins of %1. They see it under Reports.").arg(root.ctl.hubName)
@@ -99,7 +99,7 @@ Popup {
                     Layout.leftMargin: 28
                     Layout.rightMargin: 28
                     spacing: 6
-                    FbLabel { text: qsTr("What happened?"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
+                    UzLabel { text: qsTr("What happened?"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
                     ScrollView {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 96
@@ -132,7 +132,7 @@ Popup {
                             }
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "reportLinked"
                         visible: root.ctl.linkedText !== ""
                         text: root.ctl.linkedText
@@ -153,14 +153,14 @@ Popup {
                         Layout.fillWidth: true
                         Eyebrow { objectName: "reportTotal"; text: qsTr("Attached · %1").arg(root.ctl.totalText) }
                         Item { Layout.fillWidth: true }
-                        FbButton {
+                        UzButton {
                             objectName: "reportSeeIncluded"
                             kind: "link"
                             text: root.showFiles ? qsTr("Hide what is included") : qsTr("See what is included")
                             onClicked: root.showFiles = !root.showFiles
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "reportPreparing"
                         visible: root.st === "preparing"
                         text: qsTr("Collecting logs…")
@@ -186,7 +186,7 @@ Popup {
                                 Rectangle {
                                     Layout.preferredWidth: 16
                                     Layout.preferredHeight: 16
-                                    radius: 4
+                                    radius: 0
                                     color: row.modelData.checked ? Theme.accent : "transparent"
                                     border.width: 1.5
                                     border.color: row.modelData.checked ? Theme.accent : Theme.borderButton
@@ -200,13 +200,13 @@ Popup {
                                         color: Theme.textOnAccent
                                     }
                                 }
-                                FbLabel {
+                                UzLabel {
                                     Layout.fillWidth: true
                                     text: row.modelData.label + (row.modelData.detail !== "" ? "  ·  " + row.modelData.detail : "")
                                     elide: Text.ElideRight
                                     font.pixelSize: Theme.fontSmall
                                 }
-                                FbMono { text: row.modelData.sizeText; color: Theme.textFaint; font.pixelSize: Theme.fontMeta }
+                                UzMono { text: row.modelData.sizeText; color: Theme.textFaint; font.pixelSize: Theme.fontMeta }
                             }
                             TapHandler {
                                 enabled: !root.locked
@@ -215,7 +215,7 @@ Popup {
                             HoverHandler { cursorShape: root.locked ? Qt.ArrowCursor : Qt.PointingHandCursor }
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "reportFiles"
                         visible: root.showFiles
                         Layout.fillWidth: true
@@ -226,7 +226,7 @@ Popup {
                         font.family: Theme.mono
                         wrapMode: Text.WrapAnywhere
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "reportBlocked"
                         visible: root.ctl.blockedText !== ""
                         Layout.fillWidth: true
@@ -235,7 +235,7 @@ Popup {
                         font.pixelSize: Theme.fontMeta
                         wrapMode: Text.WordWrap
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "reportNever"
                         Layout.fillWidth: true
                         Layout.topMargin: 8
@@ -274,12 +274,12 @@ Popup {
                     spacing: 6
                     RowLayout {
                         spacing: 8
-                        FbLabel {
+                        UzLabel {
                             text: root.st === "sent" ? "✓" : root.st === "offline" ? "⊘" : root.st === "failed" ? "▲" : ""
                             visible: text !== ""
                             color: root.st === "sent" ? Theme.ok : root.st === "failed" ? Theme.error : Theme.textMuted
                         }
-                        FbLabel {
+                        UzLabel {
                             objectName: "reportStateTitle"
                             font.weight: Font.DemiBold
                             text: root.st === "sending" ? qsTr("Sending to %1…").arg(root.ctl.hubName)
@@ -288,7 +288,7 @@ Popup {
                                 : qsTr("Could not send")
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "reportStateText"
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
@@ -304,19 +304,19 @@ Popup {
                         visible: root.st === "sending"
                         Layout.fillWidth: true
                         implicitHeight: 4
-                        radius: 2
+                        radius: 0
                         color: Theme.borderCard
                         Rectangle {
                             width: parent.width * root.ctl.progress
                             height: parent.height
-                            radius: 2
+                            radius: 0
                             color: Theme.accent
                         }
                     }
                 }
             }
 
-            FbLabel {
+            UzLabel {
                 objectName: "reportSaveNote"
                 visible: root.ctl.saveNote !== ""
                 Layout.fillWidth: true
@@ -332,7 +332,7 @@ Popup {
                 Layout.fillWidth: true
                 spacing: Theme.space8
                 layoutDirection: Qt.RightToLeft
-                FbButton {
+                UzButton {
                     objectName: "reportSend"
                     visible: root.st !== "sent" && root.st !== "sending"
                     kind: "primary"
@@ -340,20 +340,20 @@ Popup {
                     text: root.st === "failed" ? qsTr("Try again") : qsTr("Send to %1").arg(root.ctl.hubName)
                     onClicked: root.ctl.send()
                 }
-                FbButton {
+                UzButton {
                     objectName: "reportDone"
                     visible: root.st === "sent"
                     kind: "primary"
                     text: qsTr("Done")
                     onClicked: root.close()
                 }
-                FbButton {
+                UzButton {
                     objectName: "reportCancel"
                     visible: root.st !== "sent"
                     text: qsTr("Cancel")
                     onClicked: root.st === "sending" ? root.ctl.cancelSending() : root.close()
                 }
-                FbButton {
+                UzButton {
                     objectName: "reportSaveAsFile"
                     visible: root.st !== "sent" && root.st !== "sending"
                     enabled: root.st !== "preparing"

@@ -61,7 +61,7 @@ Rectangle {
                 text: root.conflict ? qsTr("▲ Save conflict") : qsTr("Save")
                 color: root.conflict ? Theme.warn : Theme.textFaint
             }
-            FbButton {
+            UzButton {
                 id: link
                 objectName: "manageSavesLink"
                 anchors.right: parent.right
@@ -80,7 +80,7 @@ Rectangle {
         }
 
         // Hub without save sync (or user unknown): the old "Save" row text
-        FbLabel {
+        UzLabel {
             objectName: "saveUnsupported"
             visible: root.unsupported
             Layout.fillWidth: true
@@ -97,14 +97,14 @@ Rectangle {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             spacing: 8
-            FbLabel {
+            UzLabel {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: qsTr("The Hub and this device have different saves for “%1”. Nothing is overwritten until you decide.").arg(root.hist.slotLabel)
                 color: Theme.textSecondary
                 font.pixelSize: Theme.fontSmall
             }
-            FbButton {
+            UzButton {
                 objectName: "resolveConflictButton"
                 implicitHeight: 32
                 font.pixelSize: Theme.fontSmall
@@ -112,7 +112,7 @@ Rectangle {
                 enabled: root.game.canPlay === true && !root.hist.confirmationOpen
                 onClicked: root.player.playSelected()
             }
-            FbLabel {
+            UzLabel {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: qsTr("The conflict dialog opens when the game starts. Restore, upload and new slot are paused for “%1” until it is resolved.").arg(root.hist.slotLabel)
@@ -128,8 +128,8 @@ Rectangle {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             spacing: 4
-            FbLabel { text: qsTr("No saves yet"); font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
-            FbLabel {
+            UzLabel { text: qsTr("No saves yet"); font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
+            UzLabel {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: qsTr("The first save appears in slot “%1” after you play.").arg(root.hist.slotLabel)
@@ -139,7 +139,7 @@ Rectangle {
         }
 
         // Loading
-        FbLabel {
+        UzLabel {
             objectName: "saveLoading"
             visible: !root.unsupported && !root.noSaves && !root.conflict && root.hist.current.revision === undefined
             Layout.fillWidth: true
@@ -161,10 +161,10 @@ Rectangle {
                 Layout.alignment: Qt.AlignTop
                 Rectangle {
                     anchors.centerIn: parent
-                    width: 16; height: 16; radius: 8
+                    width: 16; height: 16; radius: 0
                     color: "transparent"; border.width: 1; border.color: Theme.accent
                 }
-                Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 5; color: Theme.accent }
+                Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 0; color: Theme.accent }
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -175,7 +175,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 8
-                    FbLabel {
+                    UzLabel {
                         objectName: "saveSlotName"
                         text: root.hist.slotLabel
                         font.pixelSize: Theme.fontBody
@@ -183,7 +183,7 @@ Rectangle {
                         elide: Text.ElideRight
                         Layout.maximumWidth: 160
                     }
-                    FbMono {
+                    UzMono {
                         objectName: "saveVersion"
                         text: root.hist.current.revisionText || ""
                         color: Theme.textMuted
@@ -191,7 +191,7 @@ Rectangle {
                     }
                     Item { Layout.fillWidth: true }
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "saveMeta"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -205,7 +205,7 @@ Rectangle {
                                                       : (root.hist.current.when || ""))
                 }
             }
-            FbPill {
+            UzTag {
                 objectName: "saveSyncPill"
                 Layout.alignment: Qt.AlignTop
                 visible: text !== ""
@@ -218,7 +218,7 @@ Rectangle {
             }
         }
 
-        FbLabel {
+        UzLabel {
             objectName: "saveOfflineNote"
             visible: root.offline && !root.unsupported
             Layout.fillWidth: true
@@ -229,7 +229,7 @@ Rectangle {
         }
 
         // Footer: "2 slots · 8 versions in Main"
-        FbLabel {
+        UzLabel {
             objectName: "saveCounts"
             visible: !root.unsupported && root.hist.current.revision !== undefined
             Layout.fillWidth: true

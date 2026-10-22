@@ -66,7 +66,8 @@ New-Item -ItemType Directory -Force (Split-Path -Parent $OutFile) | Out-Null
 wix build "$here\uzume.wxs" -arch x64 -o $OutFile `
   -ext WixToolset.Util.wixext -ext WixToolset.Firewall.wixext -ext WixToolset.UI.wixext `
   -d "ProductVersion=$ProductVersion" -d "PackageDir=$PackageDir" -d "HubExe=$HubExe" -d "LicenseRtf=$rtf" `
-  -d "IconFile=$here\..\..\client\app\icons\player.ico" -d "CompressionLevel=$CompressionLevel"
+  -d "IconFile=$here\..\..\client\app\icons\uzume.ico" -d "CompressionLevel=$CompressionLevel" `
+  -d "DialogBmp=$here\bitmaps\dialog.bmp" -d "BannerBmp=$here\bitmaps\banner.bmp"
 if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
 # Guard: the File table must hold every file of the package plus the server exe, the compat launcher copy and the two markers (a wrong Files pattern or
 # Exclude silently harvests nothing, which once produced a 6 MB MSI without the Player).

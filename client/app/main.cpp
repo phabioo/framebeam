@@ -31,6 +31,7 @@
 #include "pluginimageprovider.h"
 #include "profilestore.h"
 #include "playercontroller.h"
+#include "uifonts.h"
 #include "version.h"
 
 namespace {
@@ -180,13 +181,14 @@ int main(int argc, char* argv[]) {
   QGuiApplication app(argc, argv);
   QGuiApplication::setOrganizationName(QStringLiteral("Uzume"));
   QGuiApplication::setApplicationName(QStringLiteral("Uzume"));
+  uzume::ui::loadDesignFonts();   // IBM Plex Sans / Mono (design system), application font = Plex Sans
 #ifdef Q_OS_UNIX
   installTerminationSignals(&app);
 #endif
   {
     QIcon icon;
     for (const int s : {16, 24, 32, 48, 64, 128, 256, 512}) {
-      icon.addFile(QStringLiteral(":/uzume/app/player-%1.png").arg(s), QSize(s, s));
+      icon.addFile(QStringLiteral(":/uzume/app/uzume-%1.png").arg(s), QSize(s, s));
     }
     QGuiApplication::setWindowIcon(icon);
   }

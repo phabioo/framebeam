@@ -37,7 +37,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            FbLabel {
+            UzLabel {
                 objectName: "hubCardName"
                 Layout.fillWidth: true
                 text: card.hub.name
@@ -45,15 +45,14 @@ Rectangle {
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
-            FbPill {
+            UzTag {
                 objectName: "hubStatusPill"
                 tone: card.status === "idle" ? "ok" : card.tone
-                symbol: card.status === "connecting" ? "…" : (card.status === "idle" ? "●" : (card.tone === "warn" ? "▲" : (card.tone === "error" ? "✕" : "")))
                 text: card.status === "idle" ? qsTr("Reachable") : card.hub.statusText
             }
         }
 
-        FbMono {
+        UzMono {
             Layout.fillWidth: true
             text: card.hub.detail
             elide: Text.ElideRight
@@ -68,7 +67,7 @@ Rectangle {
             color: card.tone === "warn" ? Theme.infoBg : Theme.toneBg(card.tone)
             border.width: card.tone === "warn" ? 1 : 0
             border.color: Theme.infoBorder
-            FbLabel {
+            UzLabel {
                 id: msg
                 anchors.fill: parent
                 anchors.margins: 12
@@ -84,13 +83,13 @@ Rectangle {
             Layout.fillWidth: true
             visible: (card.hub.messageDetail || "") !== ""
             spacing: 4
-            FbButton {
+            UzButton {
                 objectName: "hubErrorDetailsToggle"
                 kind: "link"
                 text: card.showDetails ? qsTr("Hide details") : qsTr("Details")
                 onClicked: card.showDetails = !card.showDetails
             }
-            FbMono {
+            UzMono {
                 objectName: "hubErrorDetails"
                 visible: card.showDetails
                 Layout.fillWidth: true
@@ -113,7 +112,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignTop
                 spacing: 4
                 Eyebrow { text: qsTr("Saved (SHA-256)") }
-                FbMono { objectName: "certExpectedFingerprint"; Layout.fillWidth: true; text: card.hub.expectedFingerprint || ""; color: Theme.text; wrapMode: Text.WrapAnywhere }
+                UzMono { objectName: "certExpectedFingerprint"; Layout.fillWidth: true; text: card.hub.expectedFingerprint || ""; color: Theme.text; wrapMode: Text.WrapAnywhere }
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -121,11 +120,11 @@ Rectangle {
                 Layout.alignment: Qt.AlignTop
                 spacing: 4
                 Eyebrow { text: qsTr("Presented by the Hub now (SHA-256)") }
-                FbMono { objectName: "certObservedFingerprint"; Layout.fillWidth: true; text: card.hub.observedFingerprint || ""; color: Theme.error; wrapMode: Text.WrapAnywhere }
+                UzMono { objectName: "certObservedFingerprint"; Layout.fillWidth: true; text: card.hub.observedFingerprint || ""; color: Theme.error; wrapMode: Text.WrapAnywhere }
             }
         }
 
-        FbLabel {
+        UzLabel {
             objectName: "certHint"
             Layout.fillWidth: true
             visible: card.status === "certChanged"
@@ -141,14 +140,14 @@ Rectangle {
             Layout.fillWidth: true
             visible: card.status === "certChanged" && card.confirmingTrust
             implicitHeight: confirmCol.implicitHeight + 24
-            radius: 8
+            radius: 0
             color: Theme.toneBg("error")
             ColumnLayout {
                 id: confirmCol
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 10
-                FbLabel {
+                UzLabel {
                     Layout.fillWidth: true
                     text: qsTr("Trust this certificate only if both fingerprints match the Hub's Settings page. "
                                + "Your saved sign-in is kept and used for the new certificate.")
@@ -160,7 +159,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 10
-                    FbButton {
+                    UzButton {
                         objectName: "certConfirmTrust"
                         kind: "primary"
                         text: qsTr("Yes, trust this certificate")
@@ -169,7 +168,7 @@ Rectangle {
                             card.trustCertificateRequested(card.hub.observedFingerprintRaw)
                         }
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "certConfirmBack"
                         text: qsTr("Back")
                         onClicked: card.confirmingTrust = false
@@ -192,7 +191,7 @@ Rectangle {
                 anchors.right: removeButton.left
                 anchors.rightMargin: 10
                 spacing: 10
-                FbButton {
+                UzButton {
                     objectName: "hubConnectButton"
                     visible: card.status === "idle" || card.status === "connecting"
                     kind: "primary"
@@ -202,26 +201,26 @@ Rectangle {
                     text: card.status === "connecting" ? qsTr("Connecting…") : qsTr("Connect")
                     onClicked: card.connectRequested(card.hub.hubId)
                 }
-                FbButton {
+                UzButton {
                     visible: card.status === "unreachable" || card.status === "userDisabled"
                     busyOnClick: true
                     text: qsTr("Retry")
                     onClicked: card.retryRequested()
                 }
-                FbButton {
+                UzButton {
                     objectName: "certTrustNew"
                     visible: card.status === "certChanged" && !card.confirmingTrust
                     text: qsTr("Trust new certificate")
                     onClicked: card.confirmingTrust = true
                 }
-                FbButton {
+                UzButton {
                     objectName: "certCancel"
                     visible: card.status === "certChanged"
                     text: qsTr("Cancel")
                     onClicked: card.cancelCertificateRequested()
                 }
             }
-            FbButton {
+            UzButton {
                 id: removeButton
                 objectName: "hubRemoveButton"
                 anchors.right: parent.right

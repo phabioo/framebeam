@@ -15,7 +15,7 @@ Rectangle {
     border.color: Theme.borderInput
     clip: true
 
-    FbLabel {
+    UzLabel {
         anchors.centerIn: parent
         visible: root.rows.count === 0
         width: parent.width - 24

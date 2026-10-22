@@ -23,7 +23,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 4
+        radius: 0
         color: root.imgState === "empty" ? "transparent" : Theme.blockColor("hover", root.dark)
         visible: root.imgState !== "alive" || img.status !== Image.Ready
         opacity: root.imgState === "dead" ? 0.55 : 1
@@ -42,7 +42,7 @@ Item {
     Rectangle {  // dead: grey wash over the sprite
         visible: root.imgState === "dead"
         anchors.fill: parent
-        radius: 4
+        radius: 0
         color: Theme.blockColor("textFaint", root.dark)
         opacity: 0.35
     }
@@ -78,7 +78,7 @@ Item {
         visible: root.owner > 0
         width: 10
         height: 10
-        radius: 5
+        radius: 0
         x: parent.width - 7
         y: parent.height - 7
         color: Theme.blockColor("ownerRing", root.dark)
@@ -86,7 +86,7 @@ Item {
             anchors.centerIn: parent
             width: 8
             height: 8
-            radius: 4
+            radius: 0
             color: Theme.playerColor(root.owner, root.dark)
         }
     }

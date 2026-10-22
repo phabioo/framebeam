@@ -31,21 +31,20 @@ Rectangle {
                 RowLayout {
                     Layout.bottomMargin: 10
                     spacing: 10
-                    Logo { size: 22 }
-                    FbLabel { text: qsTr("Uzume"); font.pixelSize: 16; font.weight: Font.DemiBold }
+                    UzLockup { }
                 }
                 Eyebrow {
                     objectName: "connectEyebrow"
                     text: root.player.hubs.length === 0 ? qsTr("First start") : qsTr("Connect")
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "connectTitle"
                     text: qsTr("Connect to a Hub")
                     font.pixelSize: Theme.fontHero
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "connectBody"
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -80,7 +79,7 @@ Rectangle {
                         onCancelCertificateRequested: root.player.cancelCertificateChange()
                     }
                 }
-                FbLabel {
+                UzLabel {
                     visible: root.player.hubs.length === 0
                     text: qsTr("No Hub saved yet.")
                     color: Theme.textMuted
@@ -93,11 +92,11 @@ Rectangle {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                FbLabel { text: qsTr("Hub address"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
+                UzLabel { text: qsTr("Hub address"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    FbField {
+                    UzField {
                         id: addressField
                         objectName: "addressField"
                         Layout.fillWidth: true
@@ -105,7 +104,7 @@ Rectangle {
                         inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
                         onAccepted: addButton.clicked()
                     }
-                    FbButton {
+                    UzButton {
                         id: addButton
                         objectName: "addButton"
                         implicitHeight: 44
@@ -115,14 +114,14 @@ Rectangle {
                         onClicked: root.player.addHub(addressField.text)
                     }
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "connectHint"
                     visible: root.player.connectionNotice === ""
                     text: qsTr("host:port, without https://")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontMeta
                 }
-                FbLabel {
+                UzLabel {
                     visible: root.player.connectionNotice !== ""
                     Layout.fillWidth: true
                     text: root.player.connectionNotice
@@ -156,8 +155,8 @@ Rectangle {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            FbLabel { text: qsTr("Set up a Hub on this PC"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
-                            FbLabel {
+                            UzLabel { text: qsTr("Set up a Hub on this PC"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
+                            UzLabel {
                                 Layout.fillWidth: true
                                 text: localCard.local.present ? qsTr("Connect to the Hub on this PC and sign in as its admin.")
                                                               : qsTr("Install the Uzume server on this PC to keep your games and saves here.")
@@ -166,7 +165,7 @@ Rectangle {
                                 wrapMode: Text.WordWrap
                             }
                         }
-                        FbButton {
+                        UzButton {
                             objectName: "setupLocalHubButton"
                             kind: "primary"
                             busy: localCard.installing || localCard.local.phase === "connecting"
@@ -175,7 +174,7 @@ Rectangle {
                             onClicked: localCard.local.start()
                         }
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "localHubInstallText"
                         visible: localCard.installing && localCard.local.installText !== ""
                         text: localCard.local.installText
@@ -187,7 +186,7 @@ Rectangle {
                         Layout.fillWidth: true
                         value: localCard.local.installProgress
                     }
-                    FbLabel {
+                    UzLabel {
                         objectName: "localHubError"
                         visible: localCard.local.phase === "error" && localCard.local.error !== ""
                         Layout.fillWidth: true
@@ -203,7 +202,7 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: 14
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.borderSidebar }
-                FbToggle {
+                UzToggle {
                     id: autoToggle
                     objectName: "autoConnectToggle"
                     Layout.fillWidth: true
@@ -211,7 +210,7 @@ Rectangle {
                     checked: root.player.autoConnect
                     onToggled: root.player.autoConnect = checked
                 }
-                FbMono {
+                UzMono {
                     Layout.fillWidth: true
                     text: root.player.deviceFooter
                     wrapMode: Text.WordWrap

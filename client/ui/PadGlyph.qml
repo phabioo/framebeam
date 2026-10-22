@@ -23,10 +23,10 @@ Item {
     readonly property int iconSize: Math.round(root.size * 0.62)
 
     // Dark values as designed; the light palette is derived (same roles).
-    readonly property color chipColor: Theme.dark ? "#26272b" : "#ebeae5"
-    readonly property color ringColor: Theme.dark ? "#34353a" : "#d9d7d1"
+    readonly property color chipColor: Theme.pressed
+    readonly property color ringColor: Theme.rule
     readonly property color glyphColor: root.active ? (root.flat ? Theme.accent : Theme.textOnAccent)
-                                                    : (Theme.dark ? "#c9c8c4" : "#55544f")
+                                                    : Theme.ink2
 
     implicitHeight: root.size
     implicitWidth: root.round ? root.size : Math.max(root.size, label.implicitWidth + 2 * Math.round(root.size * 0.3))
@@ -38,7 +38,7 @@ Item {
         objectName: "padGlyphChip"
         anchors.fill: parent
         visible: !root.flat
-        radius: root.square ? Math.round(root.size * 0.2) : root.round ? width / 2 : Math.round(root.size * 0.25)
+        radius: 0
         color: root.active ? Theme.accent : root.chipColor
         border.width: root.active ? 0 : 1
         border.color: root.ringColor

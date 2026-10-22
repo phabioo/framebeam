@@ -22,8 +22,8 @@ Item {
         id: bg
         width: Math.min(240, row.width + 20)
         height: row.height + 12
-        radius: 8
-        color: root.lit ? Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.96) : Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.82)
+        radius: 0
+        color: root.lit ? Theme.withAlpha(Theme.sumi.ground, 0.96) : Theme.withAlpha(Theme.sumi.ground, 0.82)
         border.width: 1
         border.color: root.lit ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.08)
         Behavior on color { ColorAnimation { duration: 80 } }
@@ -67,8 +67,8 @@ Item {
             // Beside the widget (P45), never over its text: left of it in the right-hand corner, else right of it
             x: root.rightSide ? -width - 4 : parent.width + 4
             anchors.verticalCenter: parent.verticalCenter
-            width: 22; height: 22; radius: 6
-            color: btnHover.hovered ? Theme.gameSegmentOn : Qt.rgba(17 / 255, 18 / 255, 20 / 255, 0.9)
+            width: 22; height: 22; radius: 0
+            color: btnHover.hovered ? Theme.gameSegmentOn : Theme.withAlpha(Theme.sumi.ground, 0.9)
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Widget menu")
             Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: "⋯"; font.pixelSize: 15; color: Theme.gameText }
@@ -84,10 +84,10 @@ Item {
         y: root.topSide ? bg.height + 3 : -height - 3
         width: markerText.implicitWidth + 12
         height: 16
-        radius: 4
+        radius: 0
         color: Theme.gamePluginWarnBg
         border.width: 1
         border.color: Theme.gamePluginWarnLine
-        FbLabel { textFormat: Text.PlainText; id: markerText; anchors.centerIn: parent; text: root.marker; font.pixelSize: 10; font.weight: Font.Medium; color: Theme.gamePluginWarn }
+        UzLabel { textFormat: Text.PlainText; id: markerText; anchors.centerIn: parent; text: root.marker; font.pixelSize: 10; font.weight: Font.Medium; color: Theme.gamePluginWarn }
     }
 }

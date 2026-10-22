@@ -11,7 +11,7 @@ Item {
     property string dot: ""
     property bool dark: true
     property int size: 18
-    property int chipRadius: 5
+    property int chipRadius: 0
 
     implicitWidth: size
     implicitHeight: size
@@ -22,7 +22,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: root.chipRadius
-        color: root.dark ? "#232428" : Theme.surfaceRaised
+        color: Theme.tok("pressed", root.dark)
         clip: true
         Image {
             id: img
@@ -34,7 +34,7 @@ Item {
             sourceSize.width: root.size * 2
             sourceSize.height: root.size * 2
         }
-        FbMono {
+        UzMono {
             textFormat: Text.PlainText
             visible: !img.visible
             anchors.centerIn: parent
@@ -49,7 +49,7 @@ Item {
         visible: root.dot !== ""
         x: parent.width - width + 2
         y: -2
-        width: 8; height: 8; radius: 4
+        width: 8; height: 8; radius: 0
         color: root.dot === "paused" ? Theme.gamePluginWarn : Theme.gameAccent
         border.width: 2
         border.color: Theme.gameHeader

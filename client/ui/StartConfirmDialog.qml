@@ -18,7 +18,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.dark ? "#b3050506" : "#99000000"
+        color: Theme.scrim
     }
     MouseArea {
         anchors.fill: parent
@@ -32,6 +32,7 @@ Item {
         Keys.onEscapePressed: root.player.cancelQuitAndStart()
 
         Rectangle {
+            id: frame
             objectName: "startConfirmDialog"
             anchors.centerIn: parent
             width: Math.min(500, parent.width - 48)
@@ -52,9 +53,9 @@ Item {
                     objectName: "startConfirmEyebrow"
                     Layout.fillWidth: true
                     text: qsTr("%1 is running · paused").arg(root.request.runningTitle || "")
-                    color: Theme.accent
+                    color: Theme.accentText
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "startConfirmTitle"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -63,7 +64,7 @@ Item {
                     font.weight: Font.DemiBold
                     wrapMode: Text.WordWrap
                 }
-                FbLabel {
+                UzLabel {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     text: qsTr("%1 is saved and synced first.").arg(root.request.runningTitle || "")
@@ -76,7 +77,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 10
                     Item { Layout.fillWidth: true; Layout.minimumWidth: 0 }
-                    FbButton {
+                    UzButton {
                         id: cancelButton
                         implicitHeight: 40
                         objectName: "startConfirmCancel"
@@ -86,14 +87,14 @@ Item {
                         Keys.onReturnPressed: root.player.cancelQuitAndStart()
                         onClicked: root.player.cancelQuitAndStart()
                     }
-                    FbButton {
+                    UzButton {
                         id: confirmButton
                         implicitHeight: 40
                         // Deterministic width: natural width, at most 360 and at most what is left next to Cancel, so a long
                         // title (or a wide font) elides in the button instead of spilling out of the dialog.
                         Layout.fillWidth: false
                         Layout.minimumWidth: 0
-                        Layout.preferredWidth: Math.max(0, Math.min(implicitWidth, 360, buttonRow.width - cancelButton.width - buttonRow.spacing * 2))
+                        Layout.preferredWidth: Math.max(0, Math.min(implicitWidth, 360, frame.width - 2 * col.anchors.margins - cancelButton.implicitWidth - buttonRow.spacing * 2))
                         Layout.maximumWidth: Layout.preferredWidth
                         objectName: "startConfirmQuit"
                         kind: "primary"
@@ -111,7 +112,7 @@ Item {
                     Layout.minimumWidth: 0
                     spacing: 8
                     Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.borderSidebar }
-                    FbLabel { Layout.topMargin: 6; text: qsTr("After confirming"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta }
+                    UzLabel { Layout.topMargin: 6; text: qsTr("After confirming"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta }
                     Repeater {
                         model: [
                             qsTr("%1 is saved").arg(root.request.runningTitle || ""),
@@ -123,8 +124,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             spacing: 8
-                            FbLabel { text: "○"; color: Theme.textDisabled; font.pixelSize: Theme.fontSmall }
-                            FbLabel {
+                            UzLabel { text: "○"; color: Theme.textDisabled; font.pixelSize: Theme.fontSmall }
+                            UzLabel {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 text: modelData

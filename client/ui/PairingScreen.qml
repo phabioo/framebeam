@@ -54,7 +54,7 @@ Rectangle {
                     visible: root.pairAgain
                     text: qsTr("%1 · pairing lost").arg((root.info.hubName || "").toUpperCase())
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "pairingTitle"
                     // A known Hub that lost its pairing says "Pair again" (P2); a new address is "Add hub".
                     text: root.localForm ? qsTr("Hub on this PC") : (root.pairAgain ? qsTr("Pair again") : qsTr("Add Hub"))
@@ -62,7 +62,7 @@ Rectangle {
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
                 }
-                FbLabel {
+                UzLabel {
                     objectName: "pairingBody"
                     visible: root.pairAgain && !root.localForm
                     Layout.fillWidth: true
@@ -73,7 +73,7 @@ Rectangle {
                     text: qsTr("%1 no longer knows this device. Its admin may have revoked it. Pair again to get a new approval; your local saves are kept.")
                               .arg(root.info.hubName || qsTr("The Hub"))
                 }
-                FbMono { text: root.info.address; color: Theme.textMuted; font.pixelSize: 13 }
+                UzMono { text: root.info.address; color: Theme.textMuted; font.pixelSize: 13 }
             }
 
             // Step 1: hub found
@@ -82,7 +82,7 @@ Rectangle {
                 objectName: "stepHub"
                 title: root.info.hubKnown ? qsTr("Hub detected") : qsTr("Searching for Hub…")
                 stage: root.info.hubKnown ? "done" : "active"
-                FbMono {
+                UzMono {
                     visible: root.info.hubKnown
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -101,7 +101,7 @@ Rectangle {
                        : (certStep.stage === "done" ? (root.info.tls ? qsTr("Certificate trusted") : qsTr("Unencrypted connection")) : qsTr("Certificate"))
                 stage: !root.info.hubKnown ? "pending" : (root.phase === "trust" ? "active" : "done")
 
-                FbMono {
+                UzMono {
                     visible: root.info.tls && root.info.hubKnown
                     objectName: "fingerprintText"
                     Layout.fillWidth: true
@@ -110,7 +110,7 @@ Rectangle {
                     font.pixelSize: Theme.fontMeta
                     lineHeight: 1.35
                 }
-                FbLabel {
+                UzLabel {
                     visible: root.phase === "trust"
                     Layout.fillWidth: true
                     text: qsTr("SHA-256 fingerprint of the Hub certificate. Compare it with the one shown in the Hub and trust it only if both match. If the certificate changes later, the connection is blocked.")
@@ -122,20 +122,20 @@ Rectangle {
                     visible: root.phase === "trust"
                     Layout.topMargin: 4
                     spacing: 10
-                    FbButton {
+                    UzButton {
                         objectName: "trustButton"
                         kind: "primary"
                         busyOnClick: true
                         text: qsTr("Trust fingerprint")
                         onClicked: root.player.confirmTrust()
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "rejectButton"
                         text: qsTr("Cancel")
                         onClicked: root.player.rejectTrust()
                     }
                 }
-                FbLabel {
+                UzLabel {
                     visible: root.phase !== "trust" && root.info.hubKnown
                     Layout.fillWidth: true
                     text: root.info.tls ? qsTr("Saved. If the certificate changes later, the connection is blocked.")
@@ -154,7 +154,7 @@ Rectangle {
                 title: root.localForm ? qsTr("Sign in") : qsTr("Approve device")
                 stage: (root.phase === "trust" || !root.info.hubKnown) ? "pending" : "active"
 
-                FbSegment {
+                UzSegmented {
                     objectName: "pairingModeSegment"
                     visible: root.canChoose
                     options: [
@@ -178,7 +178,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 6
                     Eyebrow { text: qsTr("Invite code") }
-                    FbField {
+                    UzField {
                         id: inviteCodeField
                         objectName: "inviteCodeField"
                         Layout.fillWidth: true
@@ -189,7 +189,7 @@ Rectangle {
                         onAccepted: inviteNameField.forceActiveFocus()
                     }
                     Eyebrow { text: qsTr("Display name"); Layout.topMargin: 4 }
-                    FbField {
+                    UzField {
                         id: inviteNameField
                         objectName: "inviteNameField"
                         Layout.fillWidth: true
@@ -199,7 +199,7 @@ Rectangle {
                         enabled: !root.info.inviteBusy
                         onAccepted: redeemButton.clicked()
                     }
-                    FbLabel {
+                    UzLabel {
                         Layout.fillWidth: true
                         text: qsTr("The invite code comes from the Hub admin and works once. Your user is created on this Hub with the name above.")
                         color: Theme.textMuted
@@ -219,12 +219,12 @@ Rectangle {
                     }
                     ColumnLayout {
                         spacing: 2
-                        FbLabel {
+                        UzLabel {
                             text: root.phase === "authenticating" ? qsTr("Signing in…") : qsTr("Waiting for admin approval")
                             font.pixelSize: Theme.fontBody
                             font.weight: Font.Medium
                         }
-                        FbLabel {
+                        UzLabel {
                             visible: root.phase === "awaiting"
                             text: qsTr("The request appears in the Hub under Clients.")
                             color: Theme.textMuted
@@ -233,7 +233,7 @@ Rectangle {
                     }
                 }
 
-                FbLabel {
+                UzLabel {
                     visible: root.phase === "needsPairing" && !root.inviteMode && !root.localForm
                     Layout.fillWidth: true
                     text: qsTr("This device is not yet approved on the Hub. The Hub admin must confirm the request.")
@@ -246,9 +246,9 @@ Rectangle {
                     objectName: "pairingProblem"
                     Layout.fillWidth: true
                     implicitHeight: problemText.implicitHeight + 24
-                    radius: 8
+                    radius: 0
                     color: root.phase === "denied" ? Theme.errorBg : Theme.infoBg
-                    FbLabel {
+                    UzLabel {
                         id: problemText
                         anchors.fill: parent
                         anchors.margins: 12
@@ -259,7 +259,7 @@ Rectangle {
                                                       : qsTr("The request has expired. Please request again.")
                     }
                 }
-                FbLabel {
+                UzLabel {
                     visible: root.info.error !== "" && approvalStep.stage === "active"
                     Layout.fillWidth: true
                     text: root.info.error
@@ -275,18 +275,18 @@ Rectangle {
                     rowSpacing: 6
                     Layout.topMargin: 4
                     Eyebrow { text: qsTr("Device name"); Layout.preferredWidth: 130 }
-                    FbMono { text: root.info.deviceName; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight }
+                    UzMono { text: root.info.deviceName; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight }
                     Eyebrow { text: qsTr("Platform"); Layout.preferredWidth: 130 }
-                    FbMono { text: root.info.platform; color: Theme.text; Layout.fillWidth: true }
+                    UzMono { text: root.info.platform; color: Theme.text; Layout.fillWidth: true }
                     Eyebrow { text: qsTr("Player version"); Layout.preferredWidth: 130 }
-                    FbMono { text: root.info.playerVersion; color: Theme.text; Layout.fillWidth: true }
+                    UzMono { text: root.info.playerVersion; color: Theme.text; Layout.fillWidth: true }
                 }
 
                 RowLayout {
                     visible: approvalStep.stage === "active"
                     Layout.topMargin: 4
                     spacing: 10
-                    FbButton {
+                    UzButton {
                         objectName: "requestButton"
                         visible: root.canChoose && !root.inviteMode
                         kind: "primary"
@@ -294,7 +294,7 @@ Rectangle {
                         text: root.pairAgain && root.phase === "needsPairing" ? qsTr("Pair again") : (root.phase === "needsPairing" ? qsTr("Request approval") : qsTr("Request again"))
                         onClicked: root.player.requestPairing()
                     }
-                    FbButton {
+                    UzButton {
                         id: redeemButton
                         objectName: "redeemButton"
                         visible: root.canChoose && root.inviteMode
@@ -304,13 +304,13 @@ Rectangle {
                         text: root.info.inviteBusy ? qsTr("Redeeming…") : qsTr("Redeem invite")
                         onClicked: root.player.redeemInvite(inviteCodeField.text, inviteNameField.text)
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "cancelRequestButton"
                         visible: root.phase === "awaiting"
                         text: qsTr("Cancel request")
                         onClicked: root.player.cancelPairing()
                     }
-                    FbButton {
+                    UzButton {
                         objectName: "backButton"
                         visible: root.phase !== "awaiting"
                         text: qsTr("Back")

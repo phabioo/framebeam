@@ -17,7 +17,7 @@ Row {
             readonly property var person: root.participants[av.index]
             width: root.size
             height: root.size
-            radius: root.size / 2
+            radius: 0
             color: Theme.playerColor((av.person.color >= 0 ? av.person.color : 5) + 1, Theme.dark)
             border.width: 2
             border.color: Theme.surface
@@ -27,7 +27,7 @@ Row {
                 textFormat: Text.PlainText
                 font.pixelSize: Math.round(root.size * 0.45)
                 font.weight: Font.DemiBold
-                color: Theme.dark ? "#121315" : "#ffffff"
+                color: Theme.ground
             }
         }
     }
