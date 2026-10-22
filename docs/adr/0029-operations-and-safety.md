@@ -30,6 +30,13 @@ Roadmap 0.17 ([roadmap.md](../roadmap.md)) collects the operations items that ma
 - **Restart.** The Hub restarts itself with the existing mechanism (graceful shutdown, then `exec` of the same binary on Unix, an in-process restart on Windows), so no `Restart=` or Docker restart policy is needed; `Restart=on-failure` stays as the safety net.
 - **Interfaces.** The CLI (`backup`, `backup list|config|verify`, `restore`) and the admin REST API `/api/v1/admin/backups` (OpenAPI 1.24.0) are the primary interfaces; Settings → Backups is a plain page on the same service functions. The Status page gets a "Disk · backup" card and the problems "Backup failed" and "Cannot write" (both amber, shown in the banner and the sidebar badge).
 
+### D5 Connection check in the Player
+
+- The Player's connection check is its own set of probes (Hub info endpoint with the pinned certificate, STUN binding from one socket to at least two destinations, TURN allocate with the Hub's short-lived credentials and an immediate refresh to free it) plus a WebRTC loopback inside the Player. NAT type comes from comparing the mapped addresses of two destinations for the same socket: equal means endpoint-independent, different means symmetric, and one answer means undetermined.
+- The check claims "direct possible" only as an estimate and says so. It proves the relay path end to end only when the relay is needed. The result is exported as plain text and as JSON (`connection-check.json`). Neither contains relay credentials; both contain addresses and server names.
+- "Add to problem report" attaches the result to the next "Collect logs" bundle once. A Player without an open Hub session stops after step 1, because the Hub's ICE servers are unknown.
+- Deviations from 6e: two extra outcomes ("Connections to other networks are not possible from here", "Connect to <Hub> to run the full check"), no "about 30 ms more", NAT labels "Open · endpoint-independent" / "Symmetric NAT" / "Not determined"; entry points Settings → Hubs and Diagnostics.
+
 ## Rejected
 
 - **Docker Hub as registry:** needs an account, a secret and pull rate limits; GHCR is already where the project lives.

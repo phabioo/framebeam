@@ -16,6 +16,7 @@
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
+#include "connectioncheckcontroller.h"
 #include "controllerscontroller.h"
 #include "core_locator.h"
 #include "emulationcontroller.h"
@@ -126,6 +127,8 @@ class PlayerController : public QObject {
   // Plugins (Settings > Plugins, Plugin console tab of the game panel)
   Q_PROPERTY(framebeam::ui::PluginsController* plugins READ plugins CONSTANT)
   Q_PROPERTY(framebeam::ui::RunsController* runs READ runs CONSTANT)
+  // Connection check dialog (design 6e): Hub reachable, STUN, TURN, NAT type, test connection
+  Q_PROPERTY(framebeam::ui::ConnectionCheckController* connectionCheck READ connectionCheck CONSTANT)
   // Save slot picker, history/restore, snapshots, "save changed elsewhere" notice (ADR 0012 D7)
   Q_PROPERTY(framebeam::ui::SaveHistoryController* saveHistory READ saveHistory CONSTANT)
   // Log file path (empty when file logging is not active) and "open folder" (Settings)
@@ -146,6 +149,8 @@ class PlayerController : public QObject {
     bool enableUpdates = false;     // schedule update checks (the app enables it; tests never touch the network)
     QString updateIndexUrl;         // tests/CI: instead of env FRAMEBEAM_PLAYER_UPDATE_INDEX_URL / the default
     int gamepadPollMs = 8;          // <= 0: no poll timer (tests call controllers()->gamepads()->poll())
+    std::function<std::unique_ptr<ConnectionProbes>()> connectionProbes;  // tests: fake probes for the connection check; empty = real
+    std::function<void(ConnectionTarget&)> connectionTargetPatch;         // tests: adds the STUN/TURN servers a fake Hub does not hand out
   };
 
   explicit PlayerController(const Options& options, QObject* parent = nullptr);
@@ -185,6 +190,7 @@ class PlayerController : public QObject {
   PluginsController* plugins() { return plugins_.get(); }
   RunsController* runs() { return runs_.get(); }
   SaveHistoryController* saveHistory() { return history_.get(); }
+  ConnectionCheckController* connectionCheck() { return connectionCheck_.get(); }
   QString logFile() const;
   QString deviceName() const;
   QString userName() const;
@@ -418,6 +424,7 @@ class PlayerController : public QObject {
   std::unique_ptr<PluginsController> plugins_;  // after settings_ and session_: destroyed before them
   std::unique_ptr<RunClient> runClient_;        // after sessions_ (the Hub socket) and plugins_
   std::unique_ptr<RunsController> runs_;
+  std::unique_ptr<ConnectionCheckController> connectionCheck_;  // reads the Hub's ICE servers from sessions_ and the profile from conn_
   // "Play run": the game starts with the run context and the run's save slot; the chosen slot is restored afterwards.
   struct RunStart {
     QString runId;

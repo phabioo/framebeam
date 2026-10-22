@@ -217,6 +217,9 @@ struct Harness {
   // drive the service from the test (gamepadPollMs = 0: no timer, poll() is called explicitly).
   bool gamepads = false;
   int gamepadPollMs = 0;
+  // Connection check: fake probes (tests never touch the network); empty = the real probes.
+  std::function<std::unique_ptr<framebeam::ConnectionProbes>()> connectionProbes;
+  std::function<void(framebeam::ConnectionTarget&)> connectionTargetPatch;
 
   bool start(bool probeCores = false) {
     framebeam::ui::PlayerController::Options o;
@@ -225,6 +228,8 @@ struct Harness {
     o.probeCoreVersions = probeCores;
     o.enableGamepads = gamepads;
     o.gamepadPollMs = gamepadPollMs;
+    o.connectionProbes = connectionProbes;
+    o.connectionTargetPatch = connectionTargetPatch;
     o.allowHttp = true;
     controller = std::make_unique<framebeam::ui::PlayerController>(o);
     controller->connection()->setPollIntervalMs(80);

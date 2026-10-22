@@ -99,6 +99,26 @@ class DiagBundleTest : public QObject {
     }
   }
 
+  void connectionCheckIsOptionalEntry() {
+    QTemporaryDir t;
+    QVERIFY(t.isValid());
+    const QString zip = t.filePath("out.zip");
+    QString err;
+    QMap<QString, QByteArray> e;
+    QVERIFY2(diag::writeBundle(zip, diag::offlineInfo(t.path()), t.path(), {}, &err), qPrintable(err));
+    QVERIFY2(diag::readZip(zip, &e, &err), qPrintable(err));
+    QVERIFY(!e.contains("connection-check.json"));
+
+    diag::Options o;
+    o.connectionCheckJson = "{\"outcome\":\"relayed\",\"note\":\"password=S3cretPassw0rd\"}";
+    QVERIFY2(diag::writeBundle(zip, diag::offlineInfo(t.path()), t.path(), o, &err), qPrintable(err));
+    e.clear();
+    QVERIFY2(diag::readZip(zip, &e, &err), qPrintable(err));
+    QVERIFY(e.contains("connection-check.json"));
+    QVERIFY(e["connection-check.json"].contains("relayed"));
+    QVERIFY(!e["connection-check.json"].contains("S3cretPassw0rd"));
+  }
+
   void sizeCapCutsOldestAtLineBoundary() {
     QTemporaryDir t;
     QVERIFY(t.isValid());

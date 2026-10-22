@@ -48,6 +48,13 @@ framebeam_add_test(ui_hub_features hub_features_ui_test.cpp ${FB_NETTEST_DIR}/fa
 target_include_directories(test_ui_hub_features PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_hub_features PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# Connection check dialog (6e): opened from Settings, the four outcomes, keys, Copy / Add to problem report / Edit Hub address….
+# Scripted probes through PlayerController::Options::connectionProbes (no network); FakeHub for the paired Hub profile.
+framebeam_add_test(ui_connection_check connection_check_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_connection_check PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_connection_check PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
 # SettingsRow in isolation (grid, dot slot, More / Less, segment -> select, disabled reason, narrow); no hub, no core.
 framebeam_add_test(ui_settings_row settings_row_ui_test.cpp LIBS ${FB_UI_TEST_LIBS})
 

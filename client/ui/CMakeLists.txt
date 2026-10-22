@@ -39,6 +39,7 @@ qt_add_qml_module(framebeam_ui
     pluginscontroller.h pluginscontroller.cpp
     keyedrowsmodel.h keyedrowsmodel.cpp
     runscontroller.h runscontroller.cpp
+    connectioncheckcontroller.h connectioncheckcontroller.cpp
     pluginimageprovider.h pluginimageprovider.cpp
   QML_FILES
     Main.qml
@@ -119,6 +120,7 @@ qt_add_qml_module(framebeam_ui
     UnverifiedNote.qml
     GamePickList.qml
     RunJoinDialog.qml
+    ConnectionCheckDialog.qml
     RunStartDialog.qml
     PluginConsole.qml
     PluginFocusable.qml

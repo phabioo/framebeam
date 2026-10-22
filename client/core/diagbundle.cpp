@@ -414,6 +414,7 @@ const char* kReadme =
     "FrameBeam Player diagnostics bundle\n"
     "\n"
     "player-info.json   versions, system, Hubs (no tokens), installed cores, media encoders, controllers, settings\n"
+    "connection-check.json  result of the connection check, only when it was added to the bundle\n"
     "logs/              the Player's log files, newest first, and plugin logs (logs/plugins) when they exist\n"
     "\n"
     "This bundle contains IP addresses and host names (they are needed to debug connections), but no passwords or\n"
@@ -527,6 +528,10 @@ bool writeBundle(const QString& outPath, const QJsonObject& info, const QString&
   if (!zip.add(QString::fromLatin1(kEntryReadme), QByteArray(kReadme))) return fail(QStringLiteral("write failed"));
   const QByteArray json = redact(QJsonDocument(info).toJson(QJsonDocument::Indented));
   if (!zip.add(QString::fromLatin1(kEntryInfo), json)) return fail(QStringLiteral("write failed"));
+  if (!options.connectionCheckJson.isEmpty() &&
+      !zip.add(QString::fromLatin1(kEntryConnectionCheck), redact(options.connectionCheckJson))) {
+    return fail(QStringLiteral("write failed"));
+  }
 
   qint64 budget = options.maxLogBytes > 0 ? options.maxLogBytes : kDefaultMaxLogBytes;
   const QString logDir = options.logDir.isEmpty() ? QDir(dataDir).filePath(QStringLiteral("logs")) : options.logDir;

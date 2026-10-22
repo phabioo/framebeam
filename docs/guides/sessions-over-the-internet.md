@@ -36,6 +36,10 @@ LAN, internet with a router port forward (recommended, this page), or a VPN such
 
 Set `FRAMEBEAM_FORCE_RELAY=1` (CLI `--force-relay`) on a Player to force the relay path. The diagnostics show the connection type (direct / relay) and the target bitrate; the host adapts the encoder bitrate to the worst viewer (AIMD).
 
+## When a Session does not connect or is relayed
+
+Run the Player's connection check first (Settings → Hubs → "Connection check…", [player.md](player.md#connection-check)). It tells in plain language whether the Hub is reachable, whether STUN answers, whether the relay works with the credentials the Hub hands out, which NAT type the network has and whether a test connection through the Hub's servers succeeds. "Add to problem report" attaches the result to the next "Collect logs" bundle. The reading below is for the details behind it.
+
 ## Reading the connection logs and reasons
 
 Host and viewer Players log one compact `info` line per connection (category `framebeam.sessionhost` on the host, `framebeam.sessionviewer` on the viewer; the connection is identified by viewer id or session id, no credentials are logged):
