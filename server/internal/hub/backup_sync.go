@@ -17,6 +17,15 @@ func (s *Service) SafetyBackup(ctx context.Context, dir string, p func(backup.Pr
 	return backup.Create(ctx, s.backupOptions(set, true, p))
 }
 
+// SafetyBackupWithoutROMs is SafetyBackup that leaves the ROM library out whatever the backup settings say (the
+// safety backup of `uzume-server reset`, which keeps saves, users and settings but not the games).
+func (s *Service) SafetyBackupWithoutROMs(ctx context.Context, dir string, p func(backup.Progress)) (backup.Result, error) {
+	set := s.backupSettings(ctx)
+	set.Folder = filepath.Clean(dir)
+	set.IncludeROMs = false
+	return backup.Create(ctx, s.backupOptions(set, true, p))
+}
+
 // BackupNow makes one backup and waits for it (the CLI). out is the target folder ("" = the configured folder);
 // roms overrides "Include ROMs" when not nil. A backup into the configured folder follows the normal rules: the
 // result is stored for the status and the retention runs after it succeeded. A backup into another folder is

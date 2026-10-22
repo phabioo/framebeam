@@ -10,6 +10,7 @@ make build-hub                                   # server/dist/uzume-server-linu
 make generate                                    # Go code from protocol/openapi (oapi-codegen)
 uzume-server -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTTP instead of HTTPS
 uzume-server setup-admin -username <name>       # first admin (password as one line from stdin)
+uzume-server help                               # setup-code, code, reset-admin, status, update, backup, restore, reset, ...
 ```
 
 Requires Go >= 1.25 (`go.mod`). `cmd/uzume-server` is the server, `cmd/uzume-sign` signs core and update indexes.

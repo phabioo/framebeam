@@ -5,11 +5,11 @@ Shared protocol definition for server and app: `protocol/openapi/uzume.yaml` (Op
 - Current `protocol_version`: **1** (integer, separate from product versions). Server and app each report `protocol_version` and `min_protocol_version`.
 - Compatibility: `Player.protocol_version < Hub.min_protocol_version` -> `player_too_old`; `Hub.protocol_version < Player.min_protocol_version` -> `hub_too_old`.
 - Error format: `{"error": {"code": <enum>, "message": string}}`. Auth: Bearer (`fba_` access token, 15 min, `fbd_` device credential, `fbp_` poll token).
-- Current OpenAPI spec version: 1.30.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only while a relay provider is on: embedded TURN, Cloudflare TURN and/or an external TURN server), `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `cores_v2`, `local_setup_v1`, `ice_update_v1`, `plugins_v1`, `runs_v1`, `runs_v2`, `local_roms_v1`, `reports_v1`, `accounts_v1`, `admin_v1` (only advertised to admins); `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
+- Current OpenAPI spec version: 1.31.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only while a relay provider is on: embedded TURN, Cloudflare TURN and/or an external TURN server), `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `cores_v2`, `local_setup_v1`, `ice_update_v1`, `plugins_v1`, `runs_v1`, `runs_v2`, `local_roms_v1`, `reports_v1`, `accounts_v1`, `setup_code_v1`, `admin_v1` (only advertised to admins); `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
 
 | Method | Path | Auth | operationId |
 |---|---|---|---|
-| GET | `/.well-known/uzume` | none | getHubInfo |
+| GET | `/.well-known/uzume` | none | getHubInfo (`setup_required`: true while the server has no admin) |
 | POST | `/api/v1/pairing/requests` | none | createPairingRequest |
 | GET | `/api/v1/pairing/requests/{request_id}` | poll token | getPairingRequest |
 | POST | `/api/v1/auth/token` | none | createAccessToken |
@@ -43,6 +43,7 @@ Shared protocol definition for server and app: `protocol/openapi/uzume.yaml` (Op
 | POST | `/api/v1/sessions/{session_id}/join` | Bearer | joinSession (`{viewer_id, permissions, ice_servers, turn_servers?}`; 409 `session_full` / `capability_missing` without H.264 decode) |
 | DELETE | `/api/v1/sessions/{session_id}/viewers/{viewer_id}` | Bearer (owner device or that viewer) | removeSessionViewer |
 | POST | `/api/v1/invites/redeem` | none | redeemInvite |
+| POST | `/api/v1/setup` | none, any address | setupWithCode (`setup_code_v1`: setup code + admin user name and password + device -> first admin and paired device in one step; 401 `invalid_setup_code`, 410 `setup_code_expired`, 409 `already_set_up`, 429) |
 | GET | `/api/v1/local/status` | none, loopback only | getLocalStatus (`local_setup_v1`) |
 | POST | `/api/v1/local/setup` | none, loopback only | localSetup (first admin plus pairing; 409 when an admin exists) |
 | POST | `/api/v1/local/pair` | none, loopback only | localPair (enabled admin credentials, else 401) |
@@ -92,6 +93,40 @@ Phase 3 (OpenAPI 1.1.0, handshake feature `saves_v1`, `protocol_version` stays 1
 Phase 4 (OpenAPI 1.2.0, handshake feature `sessions_v1`, `protocol_version` stays 1). Error codes added: `session_not_found` (404), `session_forbidden` (403), `session_full` (409), `session_ended` (410); `capability_missing` is returned as 409. Rules: ADR 0006.
 
 Phase 5 (OpenAPI 1.3.0, handshake features `users_v1`, `uploads_v1`, `firmware_v1`, `protocol_version` stays 1). Added: `redeemInvite` (`POST /api/v1/invites/redeem`, no auth), `uploadGame` (`POST /api/v1/games`, raw body, 4 GiB limit), `listSystems` (`GET /api/v1/systems`), `getFirmwareFile` (`GET /api/v1/systems/{system_id}/firmware/{file_id}`). Error codes added: `invite_invalid` (404), `display_name_taken` (409), `user_disabled` (401), `uploads_disabled` (403); duplicate uploads reuse `conflict` (409, with `existing_game_id`). `core_missing` / `core_version_mismatch` are handshake warnings (`compatible` stays true). A disabled owner's Sessions end with the existing `session_ended` reason `owner_disconnected` (no schema change).
+
+### Security code and setup code
+
+Both are shown to people, so they use the Crockford base32 alphabet `0123456789ABCDEFGHJKMNPQRSTVWXYZ` (no I, L, O, U). The app accepts spaces, hyphens or none and any case when a person types or pastes them; comparison is done on the normalized form (remove spaces and hyphens, upper case).
+
+**Security code** (`K7Q4-9WMP-2HXD`): proves that the server a person set up or joined is the one they see on the server's own screen or terminal (`uzume-server code`, the setup banner, `uzume-server status`). It is derived from the leaf certificate the server serves, so the app computes it from the certificate it pinned, with no extra field on the wire:
+
+1. `digest` = SHA-256 of the **DER encoding of the leaf certificate** (the first certificate of the TLS handshake; the same bytes the pinned SHA-256 fingerprint is computed from).
+2. Take the first **60 bits** of `digest` (the first 7 bytes and the high nibble of the 8th), most significant bit first.
+3. Split them into 12 groups of 5 bits; each group is an index 0 to 31 into the alphabet above.
+4. Write the 12 characters in three groups of four joined by hyphens: `XXXX-XXXX-XXXX`.
+
+In code (this is `tlsutil.SecurityCode` in `server/internal/tlsutil/securitycode.go`): for `i` in 0..11, take the 16-bit big-endian window `digest[5i/8]<<8 | digest[5i/8+1]` and use the 5 bits starting at bit `5i mod 8` from its top, i.e. `(window >> (11 - 5i mod 8)) & 31`. Test vectors (input is the DER bytes; the unit test `TestSecurityCodeVectors` checks them):
+
+| DER bytes | Security code |
+|---|---|
+| ASCII `uzume test certificate` | `QX7A-7H6Y-J729` |
+| empty | `WERC-8GMR-ZGE1` |
+| the bytes `00 01 02 ... 1F` (32 bytes) | `CC6W-TAB6-RGSP` |
+
+It changes whenever the certificate changes (`uzume-server renew-cert`, `reset`, an expired self-generated certificate that was renewed). An app that pinned a server and sees a different code must not connect until the person compared again.
+
+**Setup code** (`7H4K-2Q`): six characters, 30 bits from the system random generator. A server without an admin holds exactly one, valid 60 minutes and usable once; it is created at every server start while there is no admin (a restart replaces it) and by `uzume-server setup-code`. `POST /api/v1/setup` (`setup_code_v1`) takes `setup_code`, `username`, `password` (at least 12 characters), the device fields of `localSetup` and an optional `install_id`, and answers like an approved pairing poll (`status: approved`, `hub_id`, `user_id`, `device_credential`, delivered once). The device gets the sign-in kind `password`. Order of checks and errors:
+
+| Situation | Answer |
+|---|---|
+| Field problem (user name rules, password shorter than 12, device fields) | 400 `bad_request`; the code is not used up |
+| More than 10 requests a minute from one IP (IPv6 per /64), like sign-in | 429 `rate_limited` with `retry_after` |
+| An admin already exists | 409 `already_set_up` (checked before the code) |
+| Wrong, replaced, already used or invalidated code | 401 `invalid_setup_code`; each wrong try counts and the 10th deletes the code |
+| Right code older than 60 minutes | 410 `setup_code_expired`; the code is deleted |
+| Right code | 200; the code is consumed together with the admin in one transaction, so of two parallel requests exactly one wins and the other gets 409 `already_set_up` |
+
+An app should check `setup_required` in `getHubInfo` before it asks for the code (`false` means the server is set up already: offer to join it), and compare the security code before it sends the setup code over a connection to a self-generated certificate.
 
 ### WSS messages (`/api/v1/ws`)
 
@@ -167,5 +202,6 @@ The release feed of the updaters is specified in [update-index.md](update-index.
 
 0.18 "Server accounts" (package 4, OpenAPI 1.29.0, tag `account`, `protocol_version` stays 1, handshake feature `accounts_v1`, [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D5). Added: the sign-in, account and admin account endpoints above. `redeemInvite` and the pairing request take an optional `install_id` (one install of the app on one PC; several users on it get one device row each with its own device id and the shared `install_id`); `redeemInvite` takes an optional `password`. Error codes added: `invalid_credentials` (401, generic, also for unknown names), `confirmation_required` (403), `password_required` (403), `password_not_set` (409); `rate_limited` (429) answers may carry `retry_after` (seconds). Dangerous admin steps (backup restore and delete, update rollback, password reset, accounts settings) answer 403 `confirmation_required` until the caller confirmed with `POST /api/v1/account/confirm`. Guarded operations (403 `confirmation_required` without a valid confirmation): `deleteAdminGame`, `disableAdminUser`, `deleteAdminUser`, `resetAdminUserPassword`, `deleteAdminSaveSlot` and `deleteAdminSaveVersion` and `restoreAdminSaveVersion` (only for another person's saves), `restoreAdminBackup`, `deleteAdminBackup`, `installAdminUpdate`, `rollbackAdminUpdate`, `setAdminNetSetting`, `resetAdminNetSetting`, `saveAdminExternalTurn`, `deleteAdminExternalTurn`, `resetAdminExternalTurn`, `updateAdminAccountSettings`. Limits: 10 sign-in attempts per minute per IP; 15 min lock of a user name after 10 failures (unknown names count too). The cookie login of the web admin is unchanged.
 
+0.18 "Server commands" (package 6, OpenAPI 1.30.0, `protocol_version` stays 1, handshake feature `setup_code_v1`, [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D4). Added: `setupWithCode` (`POST /api/v1/setup`, no auth, any address), `setup_required` in `getHubInfo`, the error codes `invalid_setup_code` (401), `setup_code_expired` (410) and `already_set_up` (409), and the security code derivation above. The server commands themselves (`setup-code`, `code`, `reset-admin`, `status`, `update`, `backup`, `restore`, `reset`) are not part of the wire protocol: [hub-configuration.md](../guides/hub-configuration.md#server-commands).
 
-0.18 "Runs without plugins" (package 9, OpenAPI 1.30.0, `protocol_version` stays 1, handshake feature `runs_v2`, [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D7). Added: `POST /runs` accepts 0 to 8 plugins, the run object has `save_slot` ("run-" plus the first 8 hex characters of the run id). `runs_v2` is announced where `runs_v1` is (handshake, `hello_ack`). The web Runs page is always visible.
+0.18 "Runs without plugins" (package 9, OpenAPI 1.31.0, `protocol_version` stays 1, handshake feature `runs_v2`, [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D7). Added: `POST /runs` accepts 0 to 8 plugins, the run object has `save_slot` ("run-" plus the first 8 hex characters of the run id). `runs_v2` is announced where `runs_v1` is (handshake, `hello_ack`). The web Runs page is always visible.

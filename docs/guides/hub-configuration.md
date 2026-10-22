@@ -7,20 +7,81 @@ Reference for running the Uzume server binary: commands, flags and environment v
 ```sh
 uzume-server [flags]                          # run the server (HTTPS, self-signed certificate under <data-dir>/tls/)
 uzume-server -dev -listen 127.0.0.1:8443 -data-dir /tmp/fb   # development: HTTP instead of HTTPS
+uzume-server help                             # all commands, one line each
+```
+
+Commands for setup and emergencies (ADR 0030 D4; Windows, Linux and Docker; details in [Server commands](#server-commands)):
+
+```sh
+uzume-server setup-code [-json]               # a new setup code to set up this server from the app
+uzume-server code [-json]                     # the security code (and SHA-256 fingerprint) of the certificate the server serves
+uzume-server reset-admin [-user NAME] [-json] # a one-time admin password; nothing else is touched
+uzume-server status [-json]                   # version, address, codes, set up or not, backups
+uzume-server update [-check] [-yes]           # install the newest version of the channel (-check only looks)
+uzume-server backup [--out DIR]               # make a backup now; also `backup list|config|verify` (see hub-backup.md)
+uzume-server restore <file>                   # restore a backup; the server must be stopped (see hub-backup.md)
+uzume-server reset [-confirm NAME] [-no-backup]  # delete all data and start fresh; the server must be stopped
+```
+
+Other commands:
+
+```sh
 uzume-server setup-admin -username <name>     # password as a single line from stdin; refused if an admin already exists
-uzume-server renew-cert [-data-dir <dir>]     # renew the self-generated certificate now (refused with own cert/key)
+uzume-server renew-cert [-data-dir <dir>]     # renew the self-generated certificate now (refused with own cert/key; changes the security code)
 uzume-server import-cores <dir>               # import libretro buildbot core zips offline
 uzume-server import-plugins <dir>             # offer every *.fbplugin file of a folder to Players (offline, see "Plugins")
 uzume-server diagnostics <out.zip>            # write the diagnostics bundle without the web interface (see "Diagnostics bundle")
-uzume-server backup [--out DIR]               # make a backup now; also `backup list|config|verify` (see hub-backup.md)
-uzume-server restore <file>                   # restore a backup; the server must be stopped (see hub-backup.md)
 uzume-server version [--json]                 # version info
-uzume-server update check|stage [-channel stable|beta]   # see updates.md
+uzume-server update check|stage [-channel stable|beta]   # machine-readable update selection, see updates.md
+uzume-server rollback --list                  # earlier versions, see updates.md
 ```
 
 On a systemd install use the script instead of calling the binary for `renew-cert` and `import-cores`: `sudo packaging/linux/install-server.sh renew-cert` / `import-cores <dir>` (it uses the service's data dir and user and restarts the service where needed), see [hub-install.md](hub-install.md).
 
-Without an admin the server still starts; the web interface then redirects to `/setup` (the form is accepted from local clients only). A request counts as local only if the TCP peer is loopback, it carries none of `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, and its `Host` header is `localhost` or a loopback IP. Requests that arrive through a trusted proxy (`-trusted-proxy`) are never local: do the setup on the host (`setup-admin`) or through a direct loopback connection. See [Reverse proxy](#reverse-proxy).
+Without an admin the server still starts and prints a setup banner with a **setup code** (see [Server commands](#server-commands)): the app on another PC sets the server up with it. A server on the same PC is set up by the app through the loopback endpoints (`/api/v1/local/*`); `setup-admin` creates the first admin without the app. Until the web interface is removed (package 12), it still redirects to `/setup` for local clients. A request counts as local only if the TCP peer is loopback, it carries none of `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, and its `Host` header is `localhost` or a loopback IP. Requests that arrive through a trusted proxy (`-trusted-proxy`) are never local. See [Reverse proxy](#reverse-proxy).
+
+## Server commands
+
+All commands find the data folder and settings like the service does: `-data-dir` and the other flags work on every command, and so do the `UZUME_*` variables. On Linux, a command typed in a shell also reads the `UZUME_*` lines of `/etc/uzume/server.env` (the file systemd gives the service) for variables that are not set in the shell, so a custom `UZUME_DATA_DIR`, port or public host is seen without extra work (`UZUME_SERVER_ENV_FILE=<path>` names another file, `none` turns this off). A flag wins over the shell, the shell over the file.
+
+Where to run them:
+
+| Platform | How |
+|---|---|
+| Linux (package) | `sudo uzume-server <command>` (or `sudo -u uzume uzume-server <command>`); the data folder belongs to the service user |
+| Windows | in a terminal **as administrator** (the data folder is under `%ProgramData%\Uzume\Server`); without administrator rights the commands answer "access denied" and say so |
+| Docker | `docker exec -it uzume-server uzume-server <command>` for `setup-code`, `code`, `reset-admin`, `status`, `update` and `backup`; `restore` and `reset` need the server stopped, see [hub-docker.md](hub-docker.md) |
+
+All of them except `reset` and `restore` work with the server running (they share the database like `setup-admin`) and also with it stopped.
+
+| Command | What it does |
+|---|---|
+| `setup-code [-json]` | Writes a **new setup code** into the database and prints it with the security code and the address. Only while no admin exists; otherwise "This server is already set up". An earlier code stops working. |
+| `code [-json]` | Prints the **security code** and the SHA-256 fingerprint of the certificate the server serves (the self-generated one in `<data-dir>/tls/` or your own `-tls-cert`). It creates nothing: before the first start there is no certificate yet. |
+| `reset-admin [-user NAME] [-json]` | Sets a **one-time temporary password** for an admin and prints it once; the admin must choose a new one at the next sign-in. Ends that user's sign-in lock. Saves, users, games and devices stay untouched (devices stay signed in). With one admin `-user` is optional; with several it is required and the error lists the names. Without an admin: "Not set up yet: use uzume-server setup-code". |
+| `status [-json]` | Version and channel, whether the server is running (the data folder lock is tried and released at once), "ready for setup" (with the current setup code, a new one is created if none is valid) or "set up" (users and admins), the address(es), the security code, the backup folder with the last backup, and the commands. Before the first start nothing is created. |
+| `update [-check] [-yes] [-confirm-breaking]` | Looks for a newer version on the server's update channel and installs it like **Install update** in the app: the update is staged and handed to the root helper (Linux) or the update service (Windows). `-check` only looks (`-channel` then picks the channel). In a container it prints the image tag to pull instead. The sub-commands `update check`, `stage`, `apply-staged` and `watch` stay (see [updates.md](updates.md)). |
+| `backup`, `restore <file>` | See [hub-backup.md](hub-backup.md). `restore` needs the server stopped. |
+| `reset [-confirm NAME] [-no-backup]` | Deletes **all server data** in the data folder: database (accounts, devices, run state), saves, ROM library, firmware, plugins, the self-generated certificate and the import folder inside it. The server must be stopped (the data folder lock is taken like for `restore`; the error names how to stop it on your platform). You type the server name, or pass it with `-confirm`. First a safety backup **without ROMs** is written to the configured backup folder, else `<data-dir>/backups`; `-no-backup` skips it. Kept: the `backups` and `logs` folders, and everything outside the data folder (own certificate and key, `server.env`, a ROM library or import folder elsewhere). Afterwards the next start creates a new database and certificate (the security code changes) and prints a new setup code. |
+
+### Setup code and security code
+
+- **Security code**: derived from the certificate the server serves, for example `K7Q4-9WMP-2HXD` (12 characters from the Crockford base32 alphabet, groups of four). The app computes the same code from the certificate it sees and shows both so you can compare them before you trust a server; see [protocol reference](../reference/protocol.md#security-code-and-setup-code). It changes when the certificate changes (`renew-cert`, `reset`, or an expired self-generated certificate that was renewed).
+- **Setup code**: six characters from the same alphabet, shown as `7H4K-2Q`. It works **once**, for **60 minutes**, and only while the server has no admin. The serving process creates a fresh one at every start while there is no admin (a restart replaces the old code) and prints a banner to its output (terminal, `journalctl -u uzume-server`, `docker logs`, the Windows installer's last page) and to the log. The code is stored in the database; it is written to the log only in that banner.
+- The app redeems it with `POST /api/v1/setup` (user name, password of at least 12 characters, device): the first admin and the paired device are created in one step. After 10 wrong tries in total the code is deleted (run `setup-code` for a new one); 10 requests a minute per IP are allowed.
+
+```
+==================================================================
+ Uzume server 0.18.0 is ready for setup
+
+ Address        192.0.2.10:8443
+ Security code  K7Q4-9WMP-2HXD
+ Setup code     7H4K-2Q  (works once, valid 60 minutes, until 14:32)
+
+ Enter the setup code in Uzume on another PC: Set up a server › On another device.
+ New code later: uzume-server setup-code
+==================================================================
+```
 
 ## Flags and environment
 
