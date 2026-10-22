@@ -1,0 +1,15 @@
+# Docker build context of packaging/docker/Dockerfile: only server/ is needed.
+.git
+.github
+.claude
+client
+docs
+protocol
+scripts
+packaging
+server/dist
+**/*.md
+!server/**/*.md
+**/*.exe
+**/*.deb
+**/*.test

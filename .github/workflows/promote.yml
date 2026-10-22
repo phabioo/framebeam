@@ -41,6 +41,7 @@ jobs:
       contents: write        # edit the release, upload the index, push the changelog branch
       pull-requests: write   # open the changelog PR and enable auto-merge
       actions: write         # dispatch the required checks on the changelog branch (list: scripts/wait-index-turn.sh)
+      packages: write        # re-tag the Hub image on ghcr.io (ADR 0029 D1)
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -154,6 +155,23 @@ jobs:
         run: scripts/update-index.sh "$RUNNER_TEMP/bin/framebeam-sign" "$RUNNER_TEMP/promote/hub.json" "$RUNNER_TEMP/promote/player.json"
       - name: Publish the stable release
         run: gh release edit "$TAG" --prerelease=false --latest --title "FrameBeam $VERSION" --notes-file "$RUNNER_TEMP/promote/notes.md"
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Tag the Hub image as stable and latest (no rebuild)
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/framebeam-hub"
+          if docker buildx imagetools inspect "$image:$VERSION" >/dev/null 2>&1; then
+            docker buildx imagetools create -t "$image:stable" -t "$image:latest" "$image:$VERSION"
+            docker buildx imagetools inspect "$image:stable"
+          else
+            # Betas built before the image existed have none; the release itself is already published.
+            echo "::warning title=No Hub image::$image:$VERSION does not exist, :stable and :latest are not moved"
+          fi
       - name: Archive the notes in CHANGELOG.md (pull request, not fatal)
         id: changelog
         continue-on-error: true

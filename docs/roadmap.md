@@ -50,7 +50,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.14 | done in code (real GPUs, cores and networks verified only locally) | UI gaps and Multiview | Round 3 design gaps closed in the Hub web and the Player; Multiview shows 2-3 Sessions in a Row, Grid 2x2 only from 4; Esc always pauses, F11 toggles fullscreen; viewers see "Paused by <name>" ([ADR 0026](adr/0026-ui-gaps-and-multiview.md), [fb-diag `state`](../protocol/datachannel.md)). |
 | 0.15 | done in code (GPUs and drivers verified only locally) | GPU paths | OpenGL to D3D11 bridge, zero-copy game view on Windows without CPU readback, GPU-direct QSV and AMF; readback stays the fallback ([ADR 0027](adr/0027-gpu-paths.md)). |
 | 0.16 | done in code (first real runs on GitHub open) | Release workflow and changelogs | Every beta gets real release notes from PR changelog sections, the stable release summarizes all betas, and the Player can show "What's new". |
-| 0.17 | planned | Operations and safety | Hub backup and restore, update rollback, problem reports, connection assistant, Hub health, Docker image, plugin UI language. |
+| 0.17 | in progress | Operations and safety | Hub backup and restore, update rollback, problem reports, connection assistant, Hub health, Docker image, plugin UI language. |
 | 0.18 | planned | Player comfort and library | Audio controls, scaling, screenshots, play time, favorites and collections, storage overview, per-game overrides, DS/3DS screen layouts. |
 | 0.19 | planned | Emulation | Save states, rewind, run-ahead, `memory.write` in the plugin API and automatic snapshots. |
 | 0.20 | planned | Together | Online status, notifications, ready check, chat, viewer role, audio mixer, voice chat, controller hand-over. |
@@ -401,7 +401,7 @@ Decided by Fabio on 2026-10-21. Useful before a test evening. UI parts (backup s
 - [ ] "Report a problem": builds on "Collect logs", sends the bundle with a short description to the user's own Hub; admins see the list in the Hub web (S)
 - [ ] Connection assistant in the Player: Hub reachable, STUN, TURN, NAT type, test connection to the Hub, plain-language result and "Add to bundle" (S-M)
 - [ ] Hub health page: CPU, RAM, disk, active Sessions, TURN load, recent errors; optional `/metrics` (Prometheus) (S)
-- [ ] Docker image for the Hub (arm64 and amd64, volumes for data, docs, CI build) (S)
+- [x] Done (0.17, [ADR 0029](adr/0029-operations-and-safety.md) D1): Docker image for the Hub (`ghcr.io/<owner>/framebeam-hub`, arm64 and amd64, volume `/data`, non-root, no self-update in the container, [guide](guides/hub-docker.md), CI build, push by `release.yml`, `stable`/`latest` by `promote.yml`) (S)
 - [ ] Plugin UI language (pulled forward from the plugins wave): `GameContext.language` from the Player language or the game language (S)
 
 ## 0.18 Player comfort and library

@@ -232,6 +232,40 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  hub-docker:
+    name: Hub (Docker image)
+    # Builds the image for amd64 and arm64 and starts the amd64 one; never pushes (release.yml pushes, ADR 0029 D1).
+    if: needs.changes.outputs.docs_only != 'true'
+    needs: [version, changes]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      HUB_VERSION: ${{ needs.version.outputs.version }}
+      HUB_CHANNEL: ${{ needs.version.outputs.channel }}
+      HUB_COMMIT: ${{ needs.version.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - name: Build linux/amd64 + linux/arm64 (no push)
+        run: |
+          docker buildx build --platform linux/amd64,linux/arm64 -f packaging/docker/Dockerfile \
+            --build-arg HUB_VERSION="$HUB_VERSION" --build-arg HUB_CHANNEL="$HUB_CHANNEL" --build-arg HUB_COMMIT="$HUB_COMMIT" .
+      - name: Start the amd64 image
+        run: |
+          docker buildx build --platform linux/amd64 --load -t framebeam-hub:ci -f packaging/docker/Dockerfile \
+            --build-arg HUB_VERSION="$HUB_VERSION" --build-arg HUB_CHANNEL="$HUB_CHANNEL" --build-arg HUB_COMMIT="$HUB_COMMIT" .
+          docker run --rm framebeam-hub:ci version --json | tee "$RUNNER_TEMP/image-version.json"
+          grep -qF "\"version\":\"$HUB_VERSION\"" "$RUNNER_TEMP/image-version.json"
+          # A fresh named volume is writable by the non-root user: the Hub creates its database and answers on HTTPS.
+          docker run -d --name hub-ci -p 8443:8443 -v hub-ci-data:/data framebeam-hub:ci
+          for _ in $(seq 1 30); do
+            curl -ksf -o /dev/null https://127.0.0.1:8443/ && ok=1 && break
+            sleep 1
+          done
+          docker logs hub-ci | tail -n 20
+          [ "${ok:-0}" = 1 ]
+          docker rm -f hub-ci
+
   hub-windows:
     name: Hub (Go, Windows)
     # Same triggers as client-windows (ADR 0008); also skipped for docs-only changes.
