@@ -1283,6 +1283,7 @@ QJsonObject FakeHub::makeRun(const QString& name, const QStringList& userIds, co
                         {QStringLiteral("created_at"), nowIso()},
                         {QStringLiteral("updated_at"), nowIso()},
                         {QStringLiteral("status_by"), creator},
+                        {QStringLiteral("save_slot"), QStringLiteral("run-") + QString(id).remove(QLatin1Char('-')).left(8)},  // runs_v2
                         {QStringLiteral("settings"), QJsonObject()},
                         {QStringLiteral("plugins"), plugins},
                         {QStringLiteral("participants"), parts},

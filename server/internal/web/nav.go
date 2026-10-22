@@ -29,7 +29,6 @@ type navInput struct {
 	Firmware        int
 	Pending         int
 	ActiveRuns      int
-	ShowRuns        bool
 	UpdateAvailable bool
 	StatusProblem   string // title of the most urgent problem ("" none)
 	NewReports      int    // reports not yet marked seen (cyan badge on Reports)
@@ -54,13 +53,11 @@ func navGroups(in navInput) []navGroup {
 		saves = with(saves, plural(in.Conflicts, "conflict", "conflicts"), "")
 	}
 	play.Items = append(play.Items, lib, saves)
-	if in.ShowRuns {
-		runs := e("runs", "Runs")
-		if in.ActiveRuns > 0 {
-			runs = with(runs, fmt.Sprintf("%d active", in.ActiveRuns), "")
-		}
-		play.Items = append(play.Items, runs)
+	runs := e("runs", "Runs")
+	if in.ActiveRuns > 0 {
+		runs = with(runs, fmt.Sprintf("%d active", in.ActiveRuns), "")
 	}
+	play.Items = append(play.Items, runs)
 	play.Items = append(play.Items, e("plugins", "Plugins"))
 
 	settings := e("settings", "Settings")

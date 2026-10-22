@@ -47,6 +47,7 @@ RunsController::RunsController(RunClient* client, PluginsController* plugins, Hu
   connect(connection, &HubConnection::stateChanged, this, &RunsController::scheduleRebuild);
   connect(plugins, &PluginsController::pluginsChanged, this, &RunsController::scheduleRebuild);
   connect(plugins, &PluginsController::hubPluginsChanged, this, &RunsController::scheduleRebuild);
+  connect(plugins, &PluginsController::runSectionsChanged, this, &RunsController::rebuildRunTabs);
   connect(library, &HubLibrary::loaded, this, &RunsController::scheduleRebuild);
   connect(plugins, &PluginsController::inGameChanged, this, [this] { syncRunView(); });  // a game starts / ends: stop / restart the run view
   // The game picker follows late arrivals: the library or the Hub's plugin list may load after the dialog opened.
@@ -56,16 +57,22 @@ RunsController::RunsController(RunClient* client, PluginsController* plugins, Hu
 }
 
 bool RunsController::available() const {
-  if (!client_ || !client_->supported()) return false;
-  if (plugins_->hasRunPlugin()) return true;
-  if (busy_) return true;  // joining / starting: the plugin copy is being fetched, the screen must not vanish under the user
-  // A pending invite keeps the entry so it can still be answered; runs the user is in do not.
-  const QString me = client_->myUserId();
+  // Runs are for everyone on the server and need no plugin: the entry follows the Hub feature alone (ADR 0030 D7).
+  return client_ && client_->supported();
+}
+
+QString RunsController::saveSlotFor(const QString& runId) const {
+  if (const auto run = client_->run(runId.toLower())) return run->saveSlot.isEmpty() ? runSaveSlot(run->runId) : run->saveSlot;
+  return runSaveSlot(runId);
+}
+
+QString RunsController::slotDisplayName(const QString& slot) const {
+  if (slot.isEmpty() || slot == QLatin1String("default")) return {};
   for (const RunInfo& run : client_->runs()) {
-    const RunParticipant* mine = run.participant(me);
-    if (mine != nullptr && mine->status == QLatin1String("invited") && !run.isOver()) return true;
+    const QString runSlot = run.saveSlot.isEmpty() ? runSaveSlot(run.runId) : run.saveSlot;
+    if (runSlot == slot) return tr("Run: %1").arg(run.name);
   }
-  return false;
+  return {};
 }
 
 QString RunsController::unverifiedWarning() const {
@@ -79,7 +86,10 @@ bool RunsController::startUnverified() const {
 }
 
 void RunsController::refresh() {
-  if (client_->supported()) client_->refresh();
+  if (client_->supported()) {
+    client_->refresh();
+    plugins_->refreshHubPlugins();  // a plugin removed from the Hub hides its run tab
+  }
 }
 
 void RunsController::scheduleRebuild() {
@@ -196,7 +206,7 @@ QVariantMap RunsController::rowFor(const RunInfo& run) const {
     ++joined;
     parts.append(QVariantMap{{QStringLiteral("name"), p.userName}, {QStringLiteral("color"), p.color}});
   }
-  QString sub = pluginsText(run);
+  QString sub = run.plugins.isEmpty() ? tr("No rules") : pluginsText(run);
   if (mine != nullptr && !mine->gameId.isEmpty()) sub += QStringLiteral(" · ") + gameTitle(mine->gameId);
   QString status = run.status;
   QString text = statusText(run.status);
@@ -232,7 +242,7 @@ void RunsController::rebuild() {
         if (p.status == QLatin1String("joined")) ++joined;
       invites.append({{QStringLiteral("runId"), run.runId},
                       {QStringLiteral("headline"), tr("%1 invites you to \u201C%2\u201D").arg(userName(run, run.createdBy), run.name)},
-                      {QStringLiteral("subText"), pluginsText(run)},
+                      {QStringLiteral("subText"), run.plugins.isEmpty() ? tr("No rules") : pluginsText(run)},
                       {QStringLiteral("name"), run.name.isEmpty() ? tr("Untitled run") : run.name},
                       {QStringLiteral("inviteLine"), tr("%1 invited you · %2 · %3 of %4 joined")
                                                          .arg(userName(run, run.createdBy), timeText(run.createdAt)).arg(joined).arg(run.participants.size())},
@@ -288,7 +298,8 @@ void RunsController::rebuildDetail() {
          {QStringLiteral("statusText"), statusText(run->status)},
          {QStringLiteral("tone"), statusTone(run->status)},
          {QStringLiteral("line"), line},
-         {QStringLiteral("pluginsText"), pluginsText(*run)},
+         {QStringLiteral("pluginsText"), run->plugins.isEmpty() ? tr("No rules") : pluginsText(*run)},
+         {QStringLiteral("saveSlotText"), tr("Run: %1").arg(run->name)},
          {QStringLiteral("canPlay"), joined && !over},
          {QStringLiteral("playLabel"), mine != nullptr && !mine->gameId.isEmpty() ? tr("Play %1").arg(gameTitle(mine->gameId)) : tr("Play run")},
          {QStringLiteral("canStart"), joined && creator && run->status == QLatin1String("starting")},
@@ -311,6 +322,7 @@ void RunsController::rebuildDetail() {
                     {QStringLiteral("color"), p.color},
                     {QStringLiteral("gameTitle"), p.gameId.isEmpty() ? QStringLiteral("—") : gameTitle(p.gameId)},
                     {QStringLiteral("statusText"), st},
+                    {QStringLiteral("slotText"), p.status == QLatin1String("joined") ? tr("Run: %1").arg(run->name) : QStringLiteral("—")},
                     {QStringLiteral("me"), p.userId == me}});
     }
   }
@@ -321,9 +333,10 @@ void RunsController::rebuildDetail() {
   }
   rebuildEvents();
   syncRunView();
+  rebuildRunTabs();
 }
 
-// Run view: while a run is shown in detail, the user takes part and no game runs, the plugins of the run that declare ui.run run
+// Run view: while a run is shown in detail, the user takes part and no game runs, the plugins of the run that declare ui.run or ui.screen run
 // in the shell context (read-only fb.run). The exact pinned copies are fetched first when they are missing (joining was the consent).
 void RunsController::setRunViewState(const QString& state, const QString& text) {
   if (runViewState_ == state && runViewText_ == text) return;
@@ -430,38 +443,71 @@ void RunsController::setBusy(bool busy, const QString& text) {
 // ------------------------------------------------------------------ opening a run
 
 void RunsController::openRun(const QString& runId) {
+  if (openRunId_ != runId.toLower()) setRunTab(QStringLiteral("board"));
   openRunId_ = runId.toLower();
   client_->catchUp(openRunId_);
   rebuildDetail();
 }
 
-QVariantList RunsController::runsOfPlugin(const QString& pluginId) const {
-  QVariantList out;
-  const QString me = client_->myUserId();
-  for (const RunInfo& run : client_->runs()) {
-    const RunParticipant* mine = run.participant(me);
-    if (mine == nullptr || mine->status != QLatin1String("joined") || run.isOver()) continue;
-    bool uses = false;
-    for (const RunPluginRef& p : run.plugins) uses = uses || p.pluginId == pluginId;
-    if (!uses) continue;
-    QStringList sub;
-    if (!mine->gameId.isEmpty()) sub << gameTitle(mine->gameId);
-    QStringList waiting;
-    for (const RunParticipant& p : run.participants)
-      if (p.status == QLatin1String("invited")) waiting << p.userName;
-    if (!waiting.isEmpty()) sub << tr("waiting for %1").arg(waiting.join(QStringLiteral(", ")));
-    sub << tr("created %1").arg(timeText(run.createdAt));
-    out.append(QVariantMap{{QStringLiteral("runId"), run.runId},
-                           {QStringLiteral("name"), run.name.isEmpty() ? tr("Untitled run") : run.name},
-                           {QStringLiteral("statusText"), statusText(run.status)},
-                           {QStringLiteral("tone"), statusTone(run.status)},
-                           {QStringLiteral("subText"), sub.join(QStringLiteral(" · "))}});
+void RunsController::setRunTab(const QString& tab) {
+  if (runTab_ == tab) return;
+  runTab_ = tab;
+  emit runTabChanged();
+}
+
+bool RunsController::selectPluginTab(const QString& pluginId) {
+  if (openRunId_.isEmpty()) return false;
+  for (const QVariant& t : std::as_const(runTabs_)) {
+    if (t.toMap().value(QStringLiteral("pluginId")).toString() != pluginId) continue;
+    setRunTab(QStringLiteral("plugin:") + pluginId);
+    return true;
   }
-  return out;
+  return false;
+}
+
+void RunsController::retryRunView() {
+  viewKey_.clear();
+  viewFetching_ = false;
+  syncRunView();
+}
+
+void RunsController::rebuildRunTabs() {
+  QVariantList tabs;
+  const auto run = openRunId_.isEmpty() ? std::nullopt : client_->run(openRunId_);
+  if (run) {
+    // A plugin the Hub does not offer any more has no tab (the board and the log keep working); an unknown list shows all.
+    QSet<QString> offered;
+    const bool known = plugins_->hubClient() != nullptr && plugins_->hubStatus() == QLatin1String("ready");
+    if (known)
+      for (const HubPluginInfo& p : plugins_->hubClient()->plugins()) offered.insert(p.id);
+    const QVariantList sections = plugins_->runSections();
+    for (const RunPluginRef& ref : run->plugins) {
+      if (known && !offered.contains(ref.pluginId)) continue;
+      for (const QVariant& v : sections) {
+        const QVariantMap sec = v.toMap();
+        if (sec.value(QStringLiteral("pluginId")).toString() != ref.pluginId) continue;
+        tabs.append(QVariantMap{{QStringLiteral("pluginId"), ref.pluginId},
+                                {QStringLiteral("title"), sec.value(QStringLiteral("title"))},
+                                {QStringLiteral("name"), sec.value(QStringLiteral("name"))},
+                                {QStringLiteral("badge"), sec.value(QStringLiteral("badge"))}});
+        break;
+      }
+    }
+  }
+  if (tabs != runTabs_) {
+    runTabs_ = tabs;
+    emit runViewChanged();
+  }
+  if (runTab_.startsWith(QLatin1String("plugin:"))) {
+    const QString id = runTab_.mid(7);
+    const bool present = std::any_of(runTabs_.begin(), runTabs_.end(), [&](const QVariant& t) { return t.toMap().value(QStringLiteral("pluginId")).toString() == id; });
+    if (!present) setRunTab(QStringLiteral("board"));
+  }
 }
 
 void RunsController::closeRun() {
   openRunId_.clear();
+  setRunTab(QStringLiteral("board"));
   rebuildDetail();
 }
 
@@ -621,6 +667,10 @@ void RunsController::setRunStatus(const QString& runId, const QString& status) {
 }
 
 void RunsController::ensureCopies(const RunInfo& run, std::function<void(bool, const QString&)> done) {
+  if (run.plugins.isEmpty()) {  // a run without plugins has nothing to fetch
+    done(true, {});
+    return;
+  }
   if (plugins_->delivery() == nullptr) {
     done(false, tr("This Hub does not offer plugins."));
     return;
@@ -665,7 +715,7 @@ void RunsController::playRun(const QString& runId) {
     setMessage(tr("The game of this run is not in your library."), true);
     return;
   }
-  if (plugins_->delivery() == nullptr || !plugins_->hubSupported()) {
+  if (!run->plugins.isEmpty() && (plugins_->delivery() == nullptr || !plugins_->hubSupported())) {
     setMessage(tr("The Hub does not offer the plugins of this run."), true);
     return;
   }
@@ -824,6 +874,15 @@ void RunsController::rebuildStartPlugins() {
   }
   startPlugins_.setRows(rows);
 
+  // The "Rules" select: None first (only when the Hub accepts runs without a plugin), then the offered run plugins.
+  QVariantList opts;
+  if (pluginlessRuns()) opts.append(QVariantMap{{QStringLiteral("value"), QString()}, {QStringLiteral("label"), tr("None")}});
+  for (const QVariantMap& r : std::as_const(rows))
+    opts.append(QVariantMap{{QStringLiteral("value"), r.value(QStringLiteral("id"))},
+                            {QStringLiteral("label"), r.value(QStringLiteral("name")).toString() + QLatin1Char(' ') + r.value(QStringLiteral("version")).toString()}});
+  startRulesOptions_ = opts;
+  startRulesCurrent_ = res.picked.isEmpty() ? QString() : res.picked.first().id;
+
   QList<QVariantMap> inc;
   for (const StartIncluded& i : res.included)
     inc.append({{QStringLiteral("id"), i.info.id},
@@ -939,6 +998,14 @@ void RunsController::toggleStartPlugin(const QString& pluginId) {
   prepareGames(QString());
 }
 
+void RunsController::selectStartRules(const QString& pluginId) {
+  if (pluginId.isEmpty() && !pluginlessRuns()) return;  // without runs_v2 a plugin stays required
+  startPluginIds_.clear();
+  if (!pluginId.isEmpty()) startPluginIds_.insert(pluginId);
+  rebuildStartPlugins();
+  prepareGames(QString());
+}
+
 void RunsController::toggleStartUser(const QString& userId) {
   if (!startUserIds_.remove(userId)) startUserIds_.insert(userId);
   rebuildStartUsers();
@@ -955,8 +1022,9 @@ void RunsController::startRun(const QString& name, const QString& gameId) {
   const StartResolution resolved = currentStartResolution();
   QString problem;
   if (trimmed.isEmpty() || trimmed.size() > 64) problem = tr("Give the run a name (1 to 64 characters).");
-  else if (startPluginIds_.isEmpty()) problem = tr("Pick at least one plugin for the run.");
+  else if (startPluginIds_.isEmpty() && !pluginlessRuns()) problem = tr("Pick the rules plugin for the run.");
   else if (!resolved.error.isEmpty()) problem = resolved.error;
+  else if (!startPluginIds_.isEmpty() && resolved.picked.isEmpty()) problem = tr("The picked plugin is not offered by your server any more. Pick another.");
   else if (resolved.total() > 8) problem = tr("A run can use up to 8 plugins, including the ones they need.");
   else if (gameId.isEmpty()) problem = tr("Pick the game you play in this run.");
   else if (std::none_of(games_.rows().begin(), games_.rows().end(), [&](const QVariantMap& r) { return r.value(QStringLiteral("id")).toString() == gameId; })) problem = tr("The picked game does not fit the plugins of this run. Pick another game.");

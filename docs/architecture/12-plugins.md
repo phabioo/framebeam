@@ -2,7 +2,9 @@
 
 ## 16. Plugin interface [0.11: runtime, Player UI, Hub plugins, Hub runs and Player runs implemented]
 
-Status: package 1 (plugin runtime in the Player), package 2 (plugin UI in the Player: building blocks, map view, in-game tab, HUD, Multiview tile strip, sidebar screen, toasts, game detail section, shell context, hotkeys) and package 3 on the Hub side (plugin store and delivery, `.fbplugin` files with `SIGNATURE.json`, signed plugin index, runs with REST and WSS, Hub web pages Plugins and Runs with the JS renderer) plus the Player side of plugin delivery (install from the Hub and from files) are implemented. The Player side of runs (`fb.run` Lua API, Runs screen) is implemented. Still design only: `memory.write`, `tool.exec`, settings schema. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Where this file names code, it names what is built or today's extension points. Open items are marked **open**.
+Status: package 1 (plugin runtime in the Player), package 2 (plugin UI in the Player: building blocks, map view, in-game tab, HUD, Multiview tile strip, screen (a run tab since 0.18), toasts, game detail section, shell context, hotkeys) and package 3 on the Hub side (plugin store and delivery, `.fbplugin` files with `SIGNATURE.json`, signed plugin index, runs with REST and WSS, Hub web pages Plugins and Runs with the JS renderer) plus the Player side of plugin delivery (install from the Hub and from files) are implemented. The Player side of runs (`fb.run` Lua API, Runs screen) is implemented. Still design only: `memory.write`, `tool.exec`, settings schema. What the runtime implements today is described in [guides/plugin-api.md](../guides/plugin-api.md). Decisions: [ADR 0023](../adr/0023-plugins.md) (proposed). Screens and building-block sheet: [design/plugins.md](../design/plugins.md). Where this file names code, it names what is built or today's extension points. Open items are marked **open**.
+
+0.18 package 9 ([ADR 0030](../adr/0030-one-app-one-server-uzume.md) D7, "Runs without a plugin"): a run needs no plugin (0 to 8 plugins, handshake feature `runs_v2`, OpenAPI 1.30.0), Runs is always in the app and web navigation, and every run plays in its own save slot `run-<first 8 hex of the run id>` (field `save_slot`, shown as "Run: <name>"). The sidebar slot is gone: the `screen` slot is the plugin's run tab next to the fixed tabs Board and Log, and plugins have no sidebar entries. The plugin API version stays 1. Official plugin ids are `uzume.soullink-core` (was `net.framebeam.pokemon-core`) and `uzume.soullink` (was `net.framebeam.soullink`; one plugin "SoulLink & Nuzlocke" with the run setting `mode`).
 
 Decided defaults of the runtime (package 1): plugins run only with developer mode on (Settings → Plugins); the only install paths are local folders (copy or linked dev folder with live reload), all unsigned; Lua 5.4.7 is vendored in `client/plugins/third_party/`; plugins resolve (`requires`/`provides`) once at game start; the plugin tick is limited to 30 Hz by default (`tickHz`); budgets per entry call are 20M instructions / 500 ms and 64 MiB per state.
 
@@ -107,7 +109,7 @@ The Player shows name, origin (Official / Unverified / Local) and permissions be
 - Isolation: own state, memory and compute budget per plugin.
 - Load order: `requires` first; cycles and missing or incompatible versions are reported on activation.
 - Cooperation: `provides` exposes an interface for other plugins; calls between plugins are messages through the Player, not shared Lua memory. Events can be subscribed to by permitted plugins.
-- UI: several plugins in one slot get tabs (side panel), are stacked (HUD, tile overlay) or listed separately (sidebar, settings, hotkeys). Hotkey conflicts are shown in the Hotkeys tab: FrameBeam keys win, then the earlier plugin; a losing key is inactive.
+- UI: several plugins in one slot get tabs (side panel), are stacked (HUD, tile overlay) or listed separately (run tabs, settings, hotkeys). Hotkey conflicts are shown in the Hotkeys tab: FrameBeam keys win, then the earlier plugin; a losing key is inactive.
 - Management: Settings → Plugins lists version, origin, permissions, dependencies and a switch per plugin, per game and per run.
 
 ### 16.8 UI
@@ -131,7 +133,7 @@ Slots (implemented in the Player; the Hub web run page is built, see 16.11):
 | In-game side panel (own tab) | `GameScreen`, next to Saves/Diagnostics |
 | In-game overlay (HUD) | over the game picture, can be switched off |
 | Multiview tile overlay | on a friend's tile |
-| Own sidebar screen | like Library/Settings |
+| Run tab (`ui.screen`, run view) | Runs screen, after Board and Log; no plugin entries in the sidebar since 0.18 ([ADR 0030](../adr/0030-one-app-one-server-uzume.md) D7) |
 | Section in game detail | `DetailPane` |
 | Section in run detail (`ui.run`, run view) | Runs screen, between participants and event log; plugins run read-only outside the game ([guide](../guides/plugin-api.md#when-plugins-run)) |
 | Settings page | Settings → Plugins |

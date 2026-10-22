@@ -152,7 +152,6 @@ qt_add_qml_module(uzume_ui
     PluginHudLayer.qml
     PluginToast.qml
     PluginTileStrip.qml
-    PluginScreen.qml
 )
 # Zero-copy display (ADR 0027): the platform implementation of makePlatformDisplay(); Windows has its own (WIN32 block below).
 if(NOT WIN32)

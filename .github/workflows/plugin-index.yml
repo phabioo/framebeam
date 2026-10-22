@@ -22,6 +22,11 @@ on:
         required: false
         default: ''
         type: string
+      remove_ids:
+        description: 'Plugin ids to remove from the index, space- or comma-separated (e.g. net.framebeam.soullink); their files are deleted after the new index is published'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -43,6 +48,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       INPUT_REPO: ${{ inputs.repo }}
       INPUT_TAG: ${{ inputs.tag }}
+      INPUT_REMOVE_IDS: ${{ inputs.remove_ids }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
@@ -60,6 +66,13 @@ jobs:
             [[ "$INPUT_REPO" =~ ^phabioo/uzume-plugin-[a-z0-9-]+$ ]] || { echo "::error::repo must match phabioo/uzume-plugin-<name>"; exit 1; }
             [[ "$INPUT_TAG" =~ ^v?[0-9][0-9A-Za-z._-]*$ ]] || { echo "::error::invalid tag"; exit 1; }
           fi
+          # Ids to remove: validated here, before anything is published; one id per line in remove-ids.txt.
+          : > "$RUNNER_TEMP/remove-ids.txt"
+          for rid in ${INPUT_REMOVE_IDS//,/ }; do
+            [[ "$rid" =~ ^[a-z0-9-]+(\.[a-z0-9-]+)+$ ]] || { echo "::error::invalid id in remove_ids: ${rid:0:80}"; exit 1; }
+            echo "$rid" >> "$RUNNER_TEMP/remove-ids.txt"
+          done
+          sort -u -o "$RUNNER_TEMP/remove-ids.txt" "$RUNNER_TEMP/remove-ids.txt"
       - name: Build uzume-sign
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
@@ -91,6 +104,25 @@ jobs:
           else
             jq -n --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{format: 1, generated_at: $now, plugins: []}' > "$work/plugin-index.json"
           fi
+      # No signing key here. Removes the listed ids from the (not yet signed) index; the matching release assets are
+      # deleted only at the very end, after the new index is signed, verified and uploaded.
+      - name: Remove plugin ids from the index
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/plugin-index"
+          : > "$RUNNER_TEMP/remove-assets.txt"
+          [ -s "$RUNNER_TEMP/remove-ids.txt" ] || exit 0
+          ids="$(jq -R . "$RUNNER_TEMP/remove-ids.txt" | jq -sc .)"
+          jq -r --argjson ids "$ids" '.plugins[] | select(.id as $i | $ids | index($i)) | "\(.id)\t\(.version)"' "$work/plugin-index.json" > "$RUNNER_TEMP/removed.tsv"
+          while IFS=$'\t' read -r id version; do
+            echo "::notice::removing $id $version from the plugin index"
+            echo "$id-$version.fbplugin" >> "$RUNNER_TEMP/remove-assets.txt"
+          done < "$RUNNER_TEMP/removed.tsv"
+          while read -r rid; do
+            grep -q "^$rid"$'\t' "$RUNNER_TEMP/removed.tsv" || echo "::notice::$rid is not in the index; nothing to remove"
+          done < "$RUNNER_TEMP/remove-ids.txt"
+          jq --argjson ids "$ids" '.plugins |= map(select(.id as $i | $ids | index($i) | not))' "$work/plugin-index.json" > "$work/plugin-index.new.json"
+          mv "$work/plugin-index.new.json" "$work/plugin-index.json"
       - name: Create the index release when missing
         if: env.RELEASE_EXISTS == 'false'
         env:
@@ -122,6 +154,9 @@ jobs:
             version="$(unzip -p "$f" manifest.json | jq -r '.version')"
             [[ "$id" =~ ^[a-z0-9-]+(\.[a-z0-9-]+)+$ ]] || { echo "::error::unexpected plugin id in $(basename "$f")"; exit 1; }
             [[ "$version" =~ ^[0-9A-Za-z.+-]+$ ]] || { echo "::error::unexpected plugin version in $(basename "$f")"; exit 1; }
+            if grep -qxF "$id" "$RUNNER_TEMP/remove-ids.txt"; then
+              echo "::error::$id is both added and listed in remove_ids"; exit 1
+            fi
             printf '%s\t%s\t%s\n' "$id" "$version" "$f" >> "$work/pending.tsv"
           done
       - name: Sign and add the plugin
@@ -164,3 +199,18 @@ jobs:
           # The bundle (one file, domain-separated signature) first, then the legacy pair for Hubs before ADR 0016's 2026-10-19 amendment.
           gh release upload plugin-index "$work/plugin-index.json.signed" --clobber
           gh release upload plugin-index "$work/plugin-index.json" "$work/plugin-index.json.sig" --clobber
+      - name: Delete the files of removed plugins
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [ -s "$RUNNER_TEMP/remove-assets.txt" ] || exit 0
+          existing="$(gh release view plugin-index --json assets --jq '.assets[].name')"
+          while read -r name; do
+            if grep -qxF "$name" <<<"$existing"; then
+              gh release delete-asset plugin-index "$name" --yes
+              echo "::notice::deleted release asset $name"
+            else
+              echo "::notice::release asset $name not found; skipped"
+            fi
+          done < "$RUNNER_TEMP/remove-assets.txt"

@@ -60,10 +60,8 @@ class PlayerController : public QObject {
   QML_ELEMENT
   QML_UNCREATABLE("Created in main.cpp")
 
-  // Navigation: "connection" | "pairing" | "library" | "game" | "settings" | "emulation" | "controllers" | "plugin"
+  // Navigation: "connection" | "pairing" | "library" | "game" | "settings" | "emulation" | "controllers" | "runs"
   Q_PROPERTY(QString screen READ screen NOTIFY screenChanged)
-  // Plugin whose own screen (ui.screen, sidebar entry under Library) is shown while screen == "plugin".
-  Q_PROPERTY(QString pluginPageId READ pluginPageId NOTIFY pluginPageChanged)
 
   // 3a
   Q_PROPERTY(QVariantList hubs READ hubs NOTIFY hubsChanged)
@@ -163,7 +161,6 @@ class PlayerController : public QObject {
   void startup();
 
   QString screen() const;
-  QString pluginPageId() const { return pluginPageId_; }
   QVariantList hubs() const;
   QString connectionNotice() const { return notice_; }
   bool autoConnect() const;
@@ -310,8 +307,9 @@ class PlayerController : public QObject {
   Q_PROPERTY(bool collectingDiagnostics READ collectingDiagnostics NOTIFY collectingDiagnosticsChanged)
   Q_INVOKABLE void showEmulation();
   Q_INVOKABLE void showControllers();
-  // Sidebar entry of a plugin (4f); falls back to the Library when the plugin no longer offers a screen.
-  Q_INVOKABLE void showPluginScreen(const QString& pluginId);
+  // fb.ui.open("screen") / "Open" in Settings > Plugins outside a game: selects the plugin's tab when it runs as the opened run's
+  // view, else asks the window to show the plugin screen sheet (pluginScreenRequested). Plugins have no sidebar entry.
+  Q_INVOKABLE void openPluginScreen(const QString& pluginId);
   Q_INVOKABLE void showRuns();  // Runs screen (docs/design/plugins.md 4j-2)
   // "Plugin settings" / "Notice settings…": Settings -> Plugins (pluginId highlights its row; empty = the section only).
   Q_INVOKABLE void showPluginSettings(const QString& pluginId = QString());
@@ -341,7 +339,7 @@ class PlayerController : public QObject {
 
  signals:
   void screenChanged();
-  void pluginPageChanged();
+  void pluginScreenRequested(const QString& pluginId);
   // Settings screen: scroll to a section ("plugins") and highlight a plugin row.
   void pluginSettingsRequested(const QString& pluginId);
   void hubsChanged();
@@ -457,7 +455,6 @@ class PlayerController : public QObject {
 
   QString screen_ = QStringLiteral("connection");
   QString page_ = QStringLiteral("library");  // page shown while connected: library | settings | emulation | controllers | plugin
-  QString pluginPageId_;
   bool inviteBusy_ = false;
   std::unique_ptr<LocalRomIndex> localRoms_;
   std::unique_ptr<UploadController> uploads_;  // ROM upload state (declared after localRoms_, model_, manifests_)

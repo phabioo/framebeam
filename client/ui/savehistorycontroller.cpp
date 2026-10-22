@@ -107,13 +107,19 @@ QVariantList SaveHistoryController::slotOptions() const {
   for (const QString& n : names) {
     const int count = n == active ? versionCount() : slotVersionCounts_.value(n, -1);
     out.append(QVariantMap{{QStringLiteral("value"), n},
-                           {QStringLiteral("label"), n == QLatin1String("default") ? tr("Main") : n},
+                           {QStringLiteral("label"), slotName(n)},
                            {QStringLiteral("count"), count}});
   }
   return out;
 }
 
-QString SaveHistoryController::slotLabel() const { return slot() == QLatin1String("default") ? tr("Main") : slot(); }
+QString SaveHistoryController::slotLabel() const { return slotName(slot()); }
+
+QString SaveHistoryController::slotName(const QString& slot) const {
+  if (slot == QLatin1String("default")) return tr("Main");
+  const QString run = env_.slotDisplayName ? env_.slotDisplayName(slot) : QString();
+  return run.isEmpty() ? slot : run;
+}
 
 QString SaveHistoryController::lastUpdated() const { return lastRefresh_.isValid() ? lastRefresh_.toString(QStringLiteral("HH:mm")) : QString(); }
 

@@ -309,3 +309,74 @@ func TestNewerPluginVersionSupersedesOlder(t *testing.T) {
 	}
 	eq("1.4.0")
 }
+
+func TestRunSaveSlotRule(t *testing.T) {
+	// Same rule as runSaveSlot in client/network/runtypes.cpp: "run-" + first 8 hex characters, lowercase, dashes ignored.
+	if got := hub.RunSaveSlot("0A1B2C3D-4e5f-6789-abcd-ef0123456789"); got != "run-0a1b2c3d" {
+		t.Fatalf("slot %q", got)
+	}
+	if got := hub.RunSaveSlot("12345678-9abc-def0-1234-56789abcdef0"); got != "run-12345678" {
+		t.Fatalf("slot %q", got)
+	}
+}
+
+func TestRunWithoutPlugins(t *testing.T) {
+	svc, _, admin, g := runFixture(t)
+	other, err := svc.CreateUser(ctx, "other", "Other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := svc.CreateRun(ctx, hub.CreateRunInput{UserID: admin.ID, Name: "Plain", GameID: g.ID, InviteUserIDs: []string{other.ID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Plugins) != 0 || run.Plugins == nil || run.SaveSlot != hub.RunSaveSlot(run.ID) || !strings.HasPrefix(run.SaveSlot, "run-") || len(run.SaveSlot) != 12 {
+		t.Fatalf("plugins %v slot %q", run.Plugins, run.SaveSlot)
+	}
+	if _, err := svc.CreateRun(ctx, hub.CreateRunInput{UserID: admin.ID, Name: "Many", GameID: g.ID,
+		Plugins: make([]hub.RunPluginRef, hub.MaxRunPlugins+1)}); !errors.Is(err, hub.ErrBadRequest) {
+		t.Fatalf("too many: %v", err)
+	}
+	g2, err := svc.AddROM(ctx, strings.NewReader("homebrew-rom-dummy-2"), "demo2.nds", "Demo2", "", admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.JoinRun(ctx, other.ID, run.ID, g2.ID); err != nil {
+		t.Fatal(err)
+	}
+	active, err := svc.SetRunStatus(ctx, admin.ID, run.ID, hub.RunActive)
+	if err != nil || active.Status != hub.RunActive {
+		t.Fatalf("start: %v %+v", err, active.Status)
+	}
+	list, err := svc.ListRuns(ctx, other.ID)
+	if err != nil || len(list) != 1 || list[0].SaveSlot != run.SaveSlot {
+		t.Fatalf("list: %v %+v", err, list)
+	}
+	evs, _, err := svc.ListRunEvents(ctx, admin.ID, run.ID, 0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hubEvents := 0
+	for _, e := range evs {
+		if e.Source == hub.EventHub {
+			hubEvents++
+		}
+	}
+	if hubEvents < 2 { // join and status change
+		t.Fatalf("server events: %d of %d", hubEvents, len(evs))
+	}
+	// Plugin writes still refuse a plugin that is not part of the run.
+	if _, _, err := svc.PutRunState(ctx, admin.ID, uuid.NewString(), run.ID, "net.example.board", 0, json.RawMessage(`{}`)); err == nil {
+		t.Fatal("state for a foreign plugin accepted")
+	}
+	if _, _, err := svc.AppendRunEvent(ctx, hub.AppendRunEventInput{UserID: admin.ID, DeviceID: uuid.NewString(), RunID: run.ID,
+		PluginID: "net.example.board", Source: "manual", Type: "x", ClientID: uuid.NewString(), Payload: json.RawMessage(`{}`)}); err == nil {
+		t.Fatal("event for a foreign plugin accepted")
+	}
+	if _, err := svc.PutRunBoard(ctx, admin.ID, run.ID, "net.example.board", json.RawMessage(`{}`)); err == nil {
+		t.Fatal("board for a foreign plugin accepted")
+	}
+	if err := svc.DeleteRun(ctx, run.ID); err != nil {
+		t.Fatal(err)
+	}
+}

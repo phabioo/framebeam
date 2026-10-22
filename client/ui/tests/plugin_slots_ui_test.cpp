@@ -271,39 +271,38 @@ class PluginSlotsUiTest : public QObject {
     }
     adds.sort();
     QCOMPARE(adds.size(), 2);
-    QCOMPARE(adds.at(0), QStringLiteral("Adds: Runs screen"));
-    QCOMPARE(adds.at(1), QStringLiteral("Adds: panel tab · HUD · tile strip · game detail · 1 hotkey"));
+    QCOMPARE(adds.at(0), QStringLiteral("Adds: panel tab · HUD · tile strip · game detail · 1 hotkey"));
+    QCOMPARE(adds.at(1), QStringLiteral("Adds: run tab"));
     shot(QStringLiteral("slots-settings-plugins-adds"));
   }
 
-  void sidebarEntryAndScreen() {
+  // Plugins have no sidebar row any more: a plugin with ui.screen shows its badge in Settings > Plugins and opens its screen as a
+  // sheet from the plugin's detail ("Open").
+  void noSidebarEntryScreenOpensFromSettings() {
     pc()->setPluginEnabled(QStringLiteral("net.test.runs"), true);
     pc()->setDeveloperMode(true);
-    QTRY_COMPARE_WITH_TIMEOUT(pc()->sidebarEntries().size(), 1, 10000);
+    QTRY_COMPARE_WITH_TIMEOUT(pc()->sidebarEntries().size(), 1, 10000);  // the plugin runs in the shell; its tree exists
     h_.controller->showLibrary();
-    QTRY_VERIFY(h_.item("navPlugin_net.test.runs") != nullptr && h_.item("navPlugin_net.test.runs")->isVisible());
-    QTRY_VERIFY(visibleItem("navPluginBadge") != nullptr);
-    QCOMPARE(textOf(visibleItem("navPluginBadge")), QStringLiteral("2"));
-    // The entry sits between Library and Emulation, indented.
-    QQuickItem* lib = visibleItem("navLibrary");
-    QQuickItem* ent = visibleItem("navPlugin_net.test.runs");
-    QQuickItem* emu = visibleItem("navEmulation");
-    QVERIFY(lib != nullptr && ent != nullptr && emu != nullptr);
-    QQuickTest::qWaitForPolish(h_.window);
-    QTRY_VERIFY(lib->mapToScene(QPointF(0, 0)).y() < ent->mapToScene(QPointF(0, 0)).y());
-    QTRY_VERIFY(ent->mapToScene(QPointF(0, 0)).y() < emu->mapToScene(QPointF(0, 0)).y());
+    QTest::qWait(200);
+    QVERIFY(h_.item("navPlugin_net.test.runs") == nullptr);
+    QVERIFY(visibleItem("navPluginBadge") == nullptr);
+    QVERIFY(visibleItem("navLibrary") != nullptr && visibleItem("navEmulation") != nullptr);
 
-    QVERIFY(h_.click("navPlugin_net.test.runs"));
-    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("plugin"));
-    QCOMPARE(h_.controller->pluginPageId(), QStringLiteral("net.test.runs"));
+    h_.controller->showSettings();
+    QTest::qWait(150);
+    QVERIFY(h_.click("section_plugins"));
+    QTRY_VERIFY(h_.item("pluginRow_net.test.runs") != nullptr && h_.item("pluginRow_net.test.runs")->isVisible());
+    // fb.ui.badge(2) shows in the plugin's row.
+    QTRY_VERIFY(visibleItem("pluginBadge") != nullptr);
+    QCOMPARE(textOf(visibleItem("pluginBadge")), QStringLiteral("2"));
+    QVERIFY(h_.click("pluginRow_net.test.runs"));
+    QTRY_VERIFY(h_.item("pluginDetailOpen") != nullptr && h_.item("pluginDetailOpen")->isVisible());
+    QVERIFY(h_.item("pluginDetailOpen")->isEnabled());
+    QVERIFY(h_.click("pluginDetailOpen"));
+    QTRY_VERIFY(h_.item("appPluginScreenSheet")->isVisible());
     QTRY_VERIFY(h_.item("plugin_btnInc") != nullptr && h_.item("plugin_btnInc")->isVisible());
-    QCOMPARE(h_.item("pluginScreenTitle")->property("text").toString(), QStringLiteral("Runs Plugin"));  // collides with the built-in Runs
-    QCOMPARE(h_.item("pluginScreenName")->property("text").toString(), QStringLiteral("Runs Plugin"));
-    QCOMPARE(h_.item("pluginScreenOrigin")->property("text").toString(), QStringLiteral("Local file"));
-    shot(QStringLiteral("4f-3-sidebar-screen-dark"));
-    h_.controller->setAppearance(QStringLiteral("light"));
-    shot(QStringLiteral("4f-3-sidebar-screen-light"));
-    h_.controller->setAppearance(QStringLiteral("dark"));
+    QCOMPARE(h_.controller->screen(), QStringLiteral("settings"));
+    shot(QStringLiteral("4f-3-plugin-screen-sheet-dark"));
 
     // Action round trip: button -> plugin thread -> new tree; the focused button survives the re-set (stable delegates).
     QQuickItem* before = h_.item("plugin_btnInc");
@@ -313,21 +312,21 @@ class PluginSlotsUiTest : public QObject {
     QTRY_COMPARE(h_.item("plugin_btnInc")->property("visible").toBool(), true);
     QCOMPARE(h_.item("plugin_btnInc"), before);
 
-    // "Plugin settings" opens Settings > Plugins with the plugin's row highlighted.
-    QVERIFY(h_.click("pluginScreenSettings"));
-    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("settings"));
-    QTRY_VERIFY(visibleItem("pluginRowHighlight") != nullptr);
+    // Back closes the sheet (Esc too).
+    QVERIFY(h_.click("pluginScreenBack"));
+    QTRY_VERIFY(!h_.item("appPluginScreenSheet")->isVisible());
+    h_.controller->openPluginScreen(QStringLiteral("net.test.runs"));
+    QTRY_VERIFY(h_.item("appPluginScreenSheet")->isVisible());
+    QTest::keyClick(h_.window, Qt::Key_Escape);
+    QTRY_VERIFY(!h_.item("appPluginScreenSheet")->isVisible());
 
-    // Turning the plugin off removes the entry; the plugin page falls back to the Library.
-    QVERIFY(h_.click("navPlugin_net.test.runs"));
-    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("plugin"));
+    // Turning the plugin off removes its entry.
     pc()->setPluginEnabled(QStringLiteral("net.test.runs"), false);
     QTRY_COMPARE_WITH_TIMEOUT(pc()->sidebarEntries().size(), 0, 10000);
-    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("library"));
   }
 
   void openRequestOutOfGame() {
-    // fb.ui.open("screen") from a shell plugin: signal + navigation to its sidebar screen; "panel" is ignored.
+    // fb.ui.open("screen") from a shell plugin outside a game: the plugin screen sheet; "panel" is ignored.
     QVERIFY(!writePlugin(src_.path(), "net.test.opener", "Opener Plugin", QJsonObject{{"screen", QJsonObject{{"title", "Opener"}}}},
                          "fb.ui.set('screen', {type='text', text='hello'})\n"
                          "fb.ui.on_action(function(a) if a == 'screen' then fb.ui.open('screen') else pcall(fb.ui.open, 'panel') end end)").isEmpty());
@@ -338,13 +337,19 @@ class PluginSlotsUiTest : public QObject {
     h_.controller->showLibrary();
     QTRY_COMPARE(h_.controller->screen(), QStringLiteral("library"));
     QSignalSpy spy(pc(), &PluginsController::openRequested);
+    QSignalSpy sheet(h_.controller.get(), &PlayerController::pluginScreenRequested);
     pc()->sendAction(QStringLiteral("net.test.opener"), QStringLiteral("hotkey"), QStringLiteral("other"));
     pc()->sendAction(QStringLiteral("net.test.opener"), QStringLiteral("hotkey"), QStringLiteral("screen"));
     QTRY_VERIFY_WITH_TIMEOUT(spy.size() >= 1, 5000);
     QCOMPARE(spy.last().at(0).toString(), QStringLiteral("net.test.opener"));
     QCOMPARE(spy.last().at(1).toString(), QStringLiteral("screen"));
-    QTRY_COMPARE(h_.controller->screen(), QStringLiteral("plugin"));
-    QCOMPARE(h_.controller->pluginPageId(), QStringLiteral("net.test.opener"));
+    QTRY_COMPARE(sheet.size(), 1);
+    QCOMPARE(sheet.last().at(0).toString(), QStringLiteral("net.test.opener"));
+    QCOMPARE(h_.controller->screen(), QStringLiteral("library"));  // no page of its own
+    QTRY_VERIFY(h_.item("appPluginScreenSheet")->isVisible());
+    QTRY_VERIFY(h_.item("pluginScreenSheetBlock") != nullptr);
+    QTest::keyClick(h_.window, Qt::Key_Escape);
+    QTRY_VERIFY(!h_.item("appPluginScreenSheet")->isVisible());
     pc()->setPluginEnabled(QStringLiteral("net.test.opener"), false);
     QTRY_VERIFY_WITH_TIMEOUT(pc()->sidebarEntries().isEmpty() && !pc()->shellRunning(), 10000);
   }

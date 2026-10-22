@@ -266,22 +266,23 @@ Needs the permission `ui` and the matching manifest field `ui`. A plugin ships n
 | `panel` | `panel` | Own tab in the in-game side panel |
 | `hud` | `hud` | HUD widget over the game picture (one per plugin) |
 | `tile` | `tile:<tileId>` | Strip on a friend's Multiview tile |
-| `screen` | `screen` | Own sidebar screen under Library |
+| `screen` | `screen` | The plugin's tab in the run view (Runs screen), after Board and Log; content is the `screen` tree, or the `run` tree when the plugin declares no `screen`. Also opened as a sheet from Settings › Plugins and in a game |
 | `detail` | `detail` | Section in the game detail (Library), below SAVE |
-| `run` | `run` | Section in the run detail (Runs screen), between participants and event log; one header per plugin. Runs in the run view, see below |
+| `run` | `run` | Section in the run detail (Runs screen); used as the plugin's run tab when the plugin declares no `screen`. Runs in the run view, see below |
 | `hotkeys` | - | Entries in Controllers → Hotkeys, see [Hotkeys](#hotkeys) |
 
 - `title`: 1 to 40 characters. `hotkeys`: at most 16; `id` is `[a-z0-9-]{1,32}` and unique, `label` 1 to 60 characters, `key` is an optional portable key sequence (`QKeySequence` text, one combo). The key is a suggestion; the user can change it.
 - Unknown keys are errors. Declaring `ui` without the permission `ui` is a manifest error: "field `ui` needs permission `ui`".
-- Settings → Plugins shows what a plugin adds, for example "Adds: panel tab · HUD · tile strip · Runs screen · game detail · run view · 1 hotkey".
+- Settings → Plugins shows what a plugin adds, for example "Adds: panel tab · HUD · tile strip · run tab · game detail · run view · 1 hotkey".
 
 #### When plugins run
 
 - In a game: as before, the plugins for the game start with it.
 - **Shell context:** while no game runs, every enabled plugin that declares `ui.screen` or `ui.detail` runs with an empty game: `fb.game` has no `language` and its other fields are empty, memory reads return `nil`, `fb.rom.*` returns `nil`. Plugins it requires run too. Starting a game stops the shell set and starts the game set; ending the game restarts the shell set. Turning a plugin or Developer mode on or off re-evaluates the shell set.
-- **Run view:** while a run is open in the detail of the Runs screen, the user is its creator or has joined, and no game runs, the run's plugins that declare `ui.run` (plus the plugins they require) run in the shell context as the exact server copies pinned by the run; missing copies are fetched like for "Play run". They get a read-only `fb.run` for that run (see [Run state](#run-state)). A plugin that is in both the shell set and the run view set runs once, as the run view instance. Opening or closing the run view restarts the shell plugins; while it is open, the other shell plugins with `run.state` also see that read-only `fb.run`. Starting a game stops the run view set; it comes back when the game ends and the detail is still open.
+- **Run view:** while a run is open in the detail of the Runs screen, the user is its creator or has joined, and no game runs, the run's plugins that declare `ui.run` or `ui.screen` (plus the plugins they require) run in the shell context as the exact server copies pinned by the run; missing copies are fetched like for "Play run". They get a read-only `fb.run` for that run (see [Run state](#run-state)). A plugin that is in both the shell set and the run view set runs once, as the run view instance. Opening or closing the run view restarts the shell plugins; while it is open, the other shell plugins with `run.state` also see that read-only `fb.run`. Starting a game stops the run view set; it comes back when the game ends and the detail is still open.
 - A paused plugin keeps its last trees, shown dimmed.
-- **In-game screen:** the sidebar screen does not exist while a game runs, so `fb.ui.open("screen")` shows the `screen` tree in a sheet over the play area and the side panel (always dark, content up to 1100 px wide). The game keeps running; Esc or "← Back to game" closes the sheet, and actions in it reach the plugin with slot `"screen"`.
+- **Run tabs:** the run view has the tabs Board, Log and one tab per run plugin that declares `ui.run` or `ui.screen`, last. There are no plugin entries in the sidebar (since 0.18, [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D7; the plugin API version stays 1). A run can have no plugin at all (feature `runs_v2`); then it has only Board and Log.
+- **In-game screen:** the run tab does not exist while a game runs, so `fb.ui.open("screen")` shows the `screen` tree in a sheet over the play area and the side panel (always dark, content up to 1100 px wide). The game keeps running; Esc or "← Back to game" closes the sheet, and actions in it reach the plugin with slot `"screen"`.
 
 #### `fb.ui`
 
@@ -291,8 +292,8 @@ All functions raise `permission ui not granted` without the permission. A slot m
 - `fb.ui.patch(slot, id, props)` merges `props` into the block with that `id` in the current tree, so you send only changed values. Errors: no tree in the slot yet, unknown `id`, `type`/`id`/`children` in `props`, invalid props. A prop cannot be removed with patch (a `nil` value does not exist in a Lua table); set it to an empty or neutral value or use `set`.
 - `fb.ui.clear(slot)` removes the tree.
 - `fb.ui.title(slot, text)` overrides the declared title (slots `panel` and `screen` only; 1 to 40 characters; `nil` restores the declared title).
-- `fb.ui.open(slot)` asks the app to show the plugin's own `"screen"` or `"panel"` (needs `ui.screen` / `ui.panel`; other slots raise `fb.ui.open only supports the slots screen and panel`). In a game, `"screen"` opens the in-game screen sheet and `"panel"` selects the plugin's tab in the side panel (shown if collapsed; ignored in fullscreen and in the Multiview). Outside a game, `"screen"` opens the plugin's sidebar screen and `"panel"` is ignored. Typical use: a button or hotkey action handled in `fb.ui.on_action`.
-- `fb.ui.badge(n)` shows a count on the plugin's sidebar entry. `0` or `nil` hides it; values are clamped to 0..999.
+- `fb.ui.open(slot)` asks the app to show the plugin's own `"screen"` or `"panel"` (needs `ui.screen` / `ui.panel`; other slots raise `fb.ui.open only supports the slots screen and panel`). In a game, `"screen"` opens the in-game screen sheet and `"panel"` selects the plugin's tab in the side panel (shown if collapsed; ignored in fullscreen and in the Multiview). Outside a game, `"screen"` selects the plugin's run tab when the plugin runs in the open run view, otherwise it opens the plugin's screen as a sheet (the same sheet as "Open" in Settings › Plugins, where plugins without runs open their screen), and `"panel"` is ignored. Typical use: a button or hotkey action handled in `fb.ui.on_action`.
+- `fb.ui.badge(n)` shows a count on the plugin's run tab. `0` or `nil` hides it; values are clamped to 0..999.
 - `fb.ui.dot(kind)` sets the dot on the panel tab: `"news"` or `nil` to clear. The amber "paused" dot is set by the app.
 - `fb.ui.notify{ tone, title, text, actions }` shows a toast and returns its id. `tone` is `"info"` (default), `"important"` or `"warning"`; `title` up to 80 characters; `text` 1 to 300 characters; `actions` up to 2 of `{ label (1 to 40), action, value? }`. Rate limit per plugin: a burst of 3, then 1 per second. A dropped toast writes a log warning and returns `nil`. The user can mute a plugin's toasts (all, or all but `important`). At most the newest 3 toasts are visible.
 - `fb.ui.on_action(fn)` sets the handler `fn(action, value, slot)`, called on the plugin thread for:
@@ -448,7 +449,7 @@ end)
 
 ### Run state
 
-Permission `run.state`. `fb.run` exists only when the game was started with "Play run" from the Runs screen (a run needs a server with `runs_v1`) or in the [run view](#when-plugins-run) (read-only, see below); otherwise it is `nil`, so check `if fb.run then`. The run's plugins are the exact server copies pinned by the run, so all participants run the same versions.
+Permission `run.state`. `fb.run` exists only when the game was started with "Play run" from the Runs screen (a run needs a server with `runs_v1`; a run without any plugin needs `runs_v2`) or in the [run view](#when-plugins-run) (read-only, see below); otherwise it is `nil`, so check `if fb.run then`. The run's plugins are the exact server copies pinned by the run, so all participants run the same versions.
 
 | Function | Meaning |
 |---|---|
@@ -469,7 +470,7 @@ Rules:
 - Join and Start dialogs list the library games that every plugin of the run accepts: the system must match a `games` entry of the plugin and, when the entry has `codes`, the server's game code (`game_code`, same identity as `fb.game.code`) must match one of the globs (`*`, `?`, case-insensitive). A game whose code the server does not know stays selectable after the matching ones with the hint "Game not recognized"; a known code that matches nothing is not listed.
 - The server may refuse a write (`403`, `409 run_not_active`, `413`, `429`); the app drops the value and logs it. Nothing is retried except events (idempotent by `client_id`) and the latest state after a conflict.
 - Required plugins: the Start dialog adds the `requires` of the picked plugins automatically (newest server-offered version that fits, transitive), shown as "Included: <name> <version> · needed by <name>". They need no `run.state` permission, count toward the 8-plugin limit and take part in the game filter. A missing or conflicting requirement blocks the start with a message.
-- Saves of a run go to the slot `run-<first 8 hex of the run id>`; the normal save slot of the game is untouched.
+- Saves of a run go to the slot `run-<first 8 hex of the run id>` (the run's `save_slot`, shown in the app as "Run: <name>"); the main slot of the game is never touched.
 
 ### Run settings
 

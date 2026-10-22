@@ -39,8 +39,9 @@ class RunsController : public QObject {
   QML_ELEMENT
   QML_UNCREATABLE("Provided by the PlayerController")
 
-  // The sidebar entry is shown: the Hub offers runs (runs_v1) and the Player has installed a plugin with run.state that this Hub offers, or an invite is pending.
+  // The Runs entry is shown whenever the connected Hub offers runs (runs_v1); runs need no plugin (runs_v2, ADR 0030 D7).
   Q_PROPERTY(bool available READ available NOTIFY availableChanged)
+  Q_PROPERTY(bool pluginlessRuns READ pluginlessRuns NOTIFY availableChanged)  // the Hub accepts runs with no plugin (runs_v2)
   Q_PROPERTY(int pendingInvites READ pendingInvites NOTIFY runsChanged)  // sidebar badge
   Q_PROPERTY(bool loaded READ loaded NOTIFY runsChanged)                 // the list from the Hub arrived
   // Rows {runId, headline, subText, joinedText} / {runId, name, status, statusText, tone, subText, timeText, action,
@@ -51,14 +52,18 @@ class RunsController : public QObject {
   Q_PROPERTY(QString activeTitle READ activeTitle NOTIFY runsChanged)  // "ACTIVE · 1 · PAUSED · 1"
   Q_PROPERTY(int finishedCount READ finishedCount NOTIFY runsChanged)
   // One run in detail. detail: {runId, name, status, statusText, tone, line, pluginsText, canPlay, playLabel, canStart,
-  // canPause, canResume, canFinish, canAbandon, canLeave, canInvite, mine: bool, over: bool, note}.
+  // canPause, canResume, canFinish, canAbandon, canLeave, canInvite, mine: bool, over: bool, note, saveSlotText}.
   Q_PROPERTY(QString openRunId READ openRunId NOTIFY detailChanged)
   Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged)
   // Plugin content of the opened run (slot "run", PluginsController::runSections): "" | "loading" (copies are fetched or the
   // plugins start) | "error"; runViewText says what is going on or wrong.
   Q_PROPERTY(QString runViewState READ runViewState NOTIFY runViewChanged)
   Q_PROPERTY(QString runViewText READ runViewText NOTIFY runViewChanged)
-  Q_PROPERTY(QAbstractItemModel* participants READ participants CONSTANT)  // {userId, name, color, gameTitle, statusText, me}
+  // Tabs of the opened run view: "board" | "log" | "plugin:<pluginId>". runTabs = the plugin tabs, last in the tab bar:
+  // [{pluginId, title, name, badge}] of the run's plugins that declare ui.screen or ui.run, are known to the Hub and run here.
+  Q_PROPERTY(QString runTab READ runTab WRITE setRunTab NOTIFY runTabChanged)
+  Q_PROPERTY(QVariantList runTabs READ runTabs NOTIFY runViewChanged)
+  Q_PROPERTY(QAbstractItemModel* participants READ participants CONSTANT)  // {userId, name, color, gameTitle, statusText, slotText, me}
   Q_PROPERTY(QAbstractItemModel* events READ events CONSTANT)              // {seq, timeText, author, text, sourceText}
   Q_PROPERTY(QString message READ message NOTIFY messageChanged)
   Q_PROPERTY(bool messageIsError READ messageIsError NOTIFY messageChanged)
@@ -72,7 +77,10 @@ class RunsController : public QObject {
   Q_PROPERTY(bool joinUnverified READ joinUnverified NOTIFY joinPluginsChanged)
   Q_PROPERTY(bool startUnverified READ startUnverified NOTIFY startStateChanged)  // a picked plugin of the start dialog is unverified
   Q_PROPERTY(QString unverifiedWarning READ unverifiedWarning CONSTANT)
-  // Start a run dialog.
+  // Start a run dialog. startRulesOptions = the "Rules" select, [{value, label}] ("" = None first, only with runs_v2) and the offered
+  // run plugins; startRulesCurrent = the picked value.
+  Q_PROPERTY(QVariantList startRulesOptions READ startRulesOptions NOTIFY startStateChanged)
+  Q_PROPERTY(QString startRulesCurrent READ startRulesCurrent NOTIFY startStateChanged)
   Q_PROPERTY(QAbstractItemModel* startPlugins READ startPlugins CONSTANT)  // {id, name, version, description, origin, originText, permissionsText, checked}
   Q_PROPERTY(QAbstractItemModel* startUsers READ startUsers CONSTANT)      // {id, name, online, checked}
   // Plugins the picked ones need, included automatically: {id, name, version, text}.
@@ -88,6 +96,16 @@ class RunsController : public QObject {
   RunsController(RunClient* client, PluginsController* plugins, HubLibrary* library, HubConnection* connection, QObject* parent = nullptr);
 
   bool available() const;
+  bool pluginlessRuns() const { return client_ && client_->supportsPluginless(); }
+  QString runTab() const { return runTab_; }
+  void setRunTab(const QString& tab);
+  QVariantList runTabs() const { return runTabs_; }
+  QVariantList startRulesOptions() const { return startRulesOptions_; }
+  QString startRulesCurrent() const { return startRulesCurrent_; }
+  // "Run: <run name>" for the save slot of a known run, else empty (the raw slot name is then shown).
+  QString slotDisplayName(const QString& slot) const;
+  // Save slot of a run: the Hub's save_slot, else "run-" + 8 hex.
+  QString saveSlotFor(const QString& runId) const;
   QAbstractItemModel* joinPlugins() { return &joinPlugins_; }
   bool joinUnverified() const { return joinUnverified_; }
   bool startUnverified() const;
@@ -125,8 +143,10 @@ class RunsController : public QObject {
 
   Q_INVOKABLE void refresh();
   Q_INVOKABLE void openRun(const QString& runId);
-  // Open runs (not over, I take part) that use `pluginId`: [{runId, name, statusText, tone, subText}] for the plugin's screen (4f-3).
-  Q_INVOKABLE QVariantList runsOfPlugin(const QString& pluginId) const;
+  // Selects the run tab of a plugin (fb.ui.open("screen")); false when no run is open or the plugin has no tab there.
+  Q_INVOKABLE bool selectPluginTab(const QString& pluginId);
+  // The plugins of the opened run could not be fetched: try again.
+  Q_INVOKABLE void retryRunView();
   Q_INVOKABLE void closeRun();
   // Fills `games` with the library games that fit the run's plugins (empty runId: the plugins ticked in the Start dialog, or
   // every game when none is ticked); returns the count. A game fits when every plugin accepts its system and game code;
@@ -143,6 +163,8 @@ class RunsController : public QObject {
   // Start a run (and invite more players into an open run).
   Q_INVOKABLE void beginStart();  // loads the users and the offered plugins
   Q_INVOKABLE void toggleStartPlugin(const QString& pluginId);
+  // The "Rules" select: the plugin id, "" = None (only offered with runs_v2).
+  Q_INVOKABLE void selectStartRules(const QString& pluginId);
   // Sets one run rule of the Start dialog (bool for a toggle, the option value for an enum); unknown keys and values are ignored.
   Q_INVOKABLE void setStartRule(const QString& pluginId, const QString& key, const QVariant& value);
   Q_INVOKABLE void toggleStartUser(const QString& userId);
@@ -155,6 +177,7 @@ class RunsController : public QObject {
   void runsChanged();
   void detailChanged();
   void runViewChanged();
+  void runTabChanged();
   void messageChanged();
   void busyChanged();
   void startStateChanged();
@@ -171,6 +194,7 @@ class RunsController : public QObject {
   void rebuildEvents();
   void syncRunView();  // starts/stops the run view plugins for the opened run (PluginsController::startRunView)
   void setRunViewState(const QString& state, const QString& text);
+  void rebuildRunTabs();
   void rebuildStartPlugins();
   void rebuildStartUsers();
   void setMessage(const QString& text, bool error);
@@ -205,7 +229,7 @@ class RunsController : public QObject {
   KeyedRowsModel active_{runRoles(), QStringLiteral("runId")};
   KeyedRowsModel finished_{runRoles(), QStringLiteral("runId")};
   KeyedRowsModel participants_{{QStringLiteral("userId"), QStringLiteral("name"), QStringLiteral("color"), QStringLiteral("gameTitle"), QStringLiteral("statusText"),
-                                QStringLiteral("me")},
+                                QStringLiteral("slotText"), QStringLiteral("me")},
                                QStringLiteral("userId")};
   KeyedRowsModel events_{{QStringLiteral("seq"), QStringLiteral("timeText"), QStringLiteral("fullTimeText"), QStringLiteral("author"), QStringLiteral("text"), QStringLiteral("sourceText")},
                          QStringLiteral("seq")};
@@ -243,6 +267,10 @@ class RunsController : public QObject {
   bool viewFetching_ = false;
   QString runViewState_;
   QString runViewText_;
+  QString runTab_ = QStringLiteral("board");
+  QVariantList runTabs_;
+  QVariantList startRulesOptions_;
+  QString startRulesCurrent_;
 };
 
 }  // namespace uzume::ui
