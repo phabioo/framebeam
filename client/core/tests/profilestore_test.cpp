@@ -8,7 +8,7 @@
 #include "credentialstore.h"
 #include "profilestore.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 class ProfileStoreTest : public QObject {
   Q_OBJECT
@@ -70,7 +70,7 @@ class ProfileStoreTest : public QObject {
     const auto q = s2.profile(p.hubId);
     QVERIFY(q.has_value());
     QCOMPARE(q->name, p.name);
-    QCOMPARE(q->credentialRef, QStringLiteral("FrameBeam/hub-1/dev"));
+    QCOMPARE(q->credentialRef, QStringLiteral("Uzume/hub-1/dev"));
     QCOMPARE(q->pinnedFingerprint, p.pinnedFingerprint);
     QCOMPARE(q->lastConnected, p.lastConnected);
     QVERIFY(s2.autoConnect());
@@ -208,7 +208,7 @@ class ProfileStoreTest : public QObject {
       keep = n.deviceId();
       HubProfile p;
       p.hubId = QStringLiteral("hub-1");
-      p.credentialRef = QStringLiteral("FrameBeam/hub-1/dev");
+      p.credentialRef = QStringLiteral("Uzume/hub-1/dev");
       QVERIFY(n.upsertProfile(p));
     }
     ProfileStore::migrateLegacyData(old2.path(), new2.path());
@@ -222,6 +222,18 @@ class ProfileStoreTest : public QObject {
     QCOMPARE(c.read(QStringLiteral("t")).value(), QStringLiteral("dummy"));
     QVERIFY(c.remove(QStringLiteral("t")));
     QVERIFY(!c.read(QStringLiteral("t")).has_value());
+  }
+  void credentialTargetUsesTheNewName() {
+    QCOMPARE(credentialTarget(QStringLiteral("hub-1"), QStringLiteral("dev")), QStringLiteral("Uzume/hub-1/dev"));
+  }
+  void credentialReadAndRemove() {
+    MemoryCredentialStore c;
+    c.write(QStringLiteral("Uzume/h/d"), QStringLiteral("secret"));
+    QCOMPARE(readCredential(c, QStringLiteral("Uzume/h/d")).value(), QStringLiteral("secret"));
+    QVERIFY(!readCredential(c, QStringLiteral("Uzume/other/d")).has_value());
+    QVERIFY(!readCredential(c, QString()).has_value());
+    QVERIFY(removeCredential(c, QStringLiteral("Uzume/h/d")));
+    QVERIFY(!c.read(QStringLiteral("Uzume/h/d")).has_value());
   }
   void hubAddressValidatorMessages() {
     const auto msgs = [](const char* host, const char* port) { return ProfileStore::validateHubAddress(QString::fromUtf8(host), QString::fromUtf8(port)); };

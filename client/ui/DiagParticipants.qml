@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Streaming body of the diagnostics overlay (3v, 3x): per participant name, role, connection pill, encoder or decoder line and
 // the link line. groups = DiagnosticsModel.streaming; grouped shows the Session title above each group (multiview).

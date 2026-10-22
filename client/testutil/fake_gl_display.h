@@ -1,6 +1,6 @@
 #pragma once
 // Test double for the zero-copy display (ADR 0027): the producer side as a plain class, wrapped by thin adapters in the
-// tests into emu::GpuDisplayTarget (emulation tests) and framebeam::DisplayProducer (UI tests). It owns a real GL
+// tests into emu::GpuDisplayTarget (emulation tests) and uzume::DisplayProducer (UI tests). It owns a real GL
 // texture that is LARGER than requested (so top-left addressing is tested), enforces the acquire/present/abort pairing
 // and the GL-current rule, reads the texture back with glReadPixels on present() (rows as stored: image row y = GL row y,
 // which is the contract's "image top row = GL row 0") and records every call. Thread-safe: the emulation thread calls

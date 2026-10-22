@@ -3,7 +3,7 @@
 
 #include <QtTest>
 
-using namespace framebeam::formats;
+using namespace uzume::formats;
 
 class GarcTest : public QObject {
     Q_OBJECT
@@ -15,7 +15,7 @@ class GarcTest : public QObject {
 private slots:
     void parseBothVersions() {
         for (uint32_t version : {0x0400u, 0x0600u}) {
-            const std::string g = framebeam::synth::makeGarc(files(), version);
+            const std::string g = uzume::synth::makeGarc(files(), version);
             const Garc p = garcParse(g);
             QVERIFY2(p.ok, p.error.c_str());
             QCOMPARE(p.files.size(), size_t(4));
@@ -32,13 +32,13 @@ private slots:
         }
     }
     void defaultSub() {
-        const std::string g = framebeam::synth::makeGarc(std::vector<std::string>{"aa", "bbb"});
+        const std::string g = uzume::synth::makeGarc(std::vector<std::string>{"aa", "bbb"});
         QCOMPARE(garcFile(g, 1).data, std::string("bbb"));
     }
     // PE-12: the parsed archive is reused between calls, but an archive of the same size with other tables is never mistaken for it.
     void cachedParseFollowsChangedTables() {
-        const std::string a = framebeam::synth::makeGarc(std::vector<std::string>{"aaaa", "bbbb"});
-        const std::string b = framebeam::synth::makeGarc(std::vector<std::string>{"bbbb", "aaaa"});
+        const std::string a = uzume::synth::makeGarc(std::vector<std::string>{"aaaa", "bbbb"});
+        const std::string b = uzume::synth::makeGarc(std::vector<std::string>{"bbbb", "aaaa"});
         QCOMPARE(a.size(), b.size());
         for (int round = 0; round < 3; ++round) {  // repeated calls on the same bytes use the cache
             QCOMPARE(garcFile(a, 0).data, std::string("aaaa"));
@@ -52,14 +52,14 @@ private slots:
         QVERIFY(!garcFile(std::string_view(a).substr(0, 8), 0).ok);  // truncated: reparsed, fails
     }
     void outOfRange() {
-        const std::string g = framebeam::synth::makeGarc(files());
+        const std::string g = uzume::synth::makeGarc(files());
         QVERIFY(!garcFile(g, 4).ok);
         QVERIFY(!garcFile(g, 0, 1).ok);
         QVERIFY(!garcFile(g, size_t(-1)).ok);
     }
     void magic() {
         // Real GARC files start with "CRAG" (u32 0x47415243 little-endian), not "GARC".
-        const std::string g = framebeam::synth::makeGarc(files());
+        const std::string g = uzume::synth::makeGarc(files());
         QCOMPARE(g.substr(0, 4), std::string("CRAG"));
         QVERIFY(garcParse(g).ok);
         std::string wrong = g;
@@ -70,7 +70,7 @@ private slots:
         QVERIFY(!garcFile(wrong, 0).ok);
     }
     void malformed() {
-        const std::string g = framebeam::synth::makeGarc(files());
+        const std::string g = uzume::synth::makeGarc(files());
         QVERIFY(!garcParse("").ok);
         QVERIFY(!garcParse("CRAG").ok);
         std::string bad = g;
@@ -93,13 +93,13 @@ private slots:
         QVERIFY(!garcParse(bad).ok);
         // data offset beyond the file, and a file range beyond the data
         bad = g;
-        framebeam::synth::set32(bad, 0x10, 0x7fffffff);
+        uzume::synth::set32(bad, 0x10, 0x7fffffff);
         QVERIFY(!garcParse(bad).ok);
         bad = g;
         const Garc p = garcParse(g);
         // first FATB sub-entry length field -> huge
         const size_t fatb = 0x1C + (0xC + 4 * 4);
-        framebeam::synth::set32(bad, fatb + 0xC + 4 + 8, 0x7ffffff0);
+        uzume::synth::set32(bad, fatb + 0xC + 4 + 8, 0x7ffffff0);
         QVERIFY(!garcParse(bad).ok);
         QVERIFY(p.ok);
     }

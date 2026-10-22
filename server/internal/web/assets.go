@@ -46,7 +46,7 @@ func assetURL(name string) string {
 }
 
 // staticCacheControl lets a request whose v query matches the current content hash be cached for a year;
-// everything else must revalidate so a stale URL never keeps an outdated file after a Hub update.
+// everything else must revalidate so a stale URL never keeps an outdated file after a server update.
 func staticCacheControl(r *http.Request) string {
 	if v := r.URL.Query().Get("v"); v != "" {
 		if h, ok := staticHashes()[strings.TrimPrefix(r.URL.Path, "/static/")]; ok && h == v {

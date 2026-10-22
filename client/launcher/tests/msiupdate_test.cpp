@@ -4,19 +4,19 @@
 
 #include "msiupdate.h"
 
-using namespace framebeam::launcher;
+using namespace uzume::launcher;
 
 class MsiUpdateTest : public QObject {
   Q_OBJECT
  private slots:
   void parsesRequest() {
     MsiUpdateRequest r;
-    const std::vector<std::wstring> argv{L"l.exe", L"--apply-msi-update", L"C:\\t\\fb.msi", L"user", L"C:\\p\\framebeam_player.exe",
+    const std::vector<std::wstring> argv{L"l.exe", L"--apply-msi-update", L"C:\\t\\fb.msi", L"user", L"C:\\p\\Uzume.exe",
                                          L"--setup-local-hub"};
     QVERIFY(parseMsiUpdate(argv, &r));
     QVERIFY(r.msi == L"C:\\t\\fb.msi");
     QVERIFY(r.scope == L"user");
-    QVERIFY(r.relaunchExe == L"C:\\p\\framebeam_player.exe");
+    QVERIFY(r.relaunchExe == L"C:\\p\\Uzume.exe");
     QCOMPARE(r.relaunchArgs.size(), size_t(1));
     QVERIFY(r.relaunchArgs[0] == L"--setup-local-hub");
   }
@@ -39,13 +39,13 @@ class MsiUpdateTest : public QObject {
     const std::wstring sha(64, L'a');
     MsiUpdateRequest r;
     QVERIFY(parseMsiUpdate({L"l.exe", L"--apply-msi-update", L"--sha256", sha, L"--size", L"123456", L"C:\\t\\fb.msi", L"machine",
-                            L"C:\\p\\framebeam_player.exe", L"--x"},
+                            L"C:\\p\\Uzume.exe", L"--x"},
                            &r));
     QVERIFY(r.sha256 == sha);
     QVERIFY(r.hasSize && r.size == 123456ULL);
     QVERIFY(r.msi == L"C:\\t\\fb.msi");
     QVERIFY(r.scope == L"machine");
-    QVERIFY(r.relaunchExe == L"C:\\p\\framebeam_player.exe");
+    QVERIFY(r.relaunchExe == L"C:\\p\\Uzume.exe");
     QCOMPARE(r.relaunchArgs.size(), size_t(1));
     QVERIFY(!parseMsiUpdate({L"l.exe", L"--apply-msi-update", L"--size", L"12x", L"a.msi", L"user", L"p.exe"}, &r));
     QVERIFY(!parseMsiUpdate({L"l.exe", L"--apply-msi-update", L"--sha256", sha, L"a.msi", L"user"}, &r));  // incomplete
@@ -82,12 +82,12 @@ class MsiUpdateTest : public QObject {
   void setupFolderCleanup() {
     MsiUpdateRequest r;
     r.scope = L"setup-hub";
-    r.msi = L"C:\\Users\\a\\AppData\\Local\\Temp\\framebeam-hub-setup-0123abcd\\FrameBeam.msi";
-    QVERIFY(setupDirToRemove(r) == L"C:\\Users\\a\\AppData\\Local\\Temp\\framebeam-hub-setup-0123abcd");
+    r.msi = L"C:\\Users\\a\\AppData\\Local\\Temp\\uzume-server-setup-0123abcd\\Uzume.msi";
+    QVERIFY(setupDirToRemove(r) == L"C:\\Users\\a\\AppData\\Local\\Temp\\uzume-server-setup-0123abcd");
     r.scope = L"machine";  // a staged update MSI stays in the Player's cache
     QVERIFY(setupDirToRemove(r).empty());
     r.scope = L"setup-hub";
-    r.msi = L"C:\\Users\\a\\Downloads\\FrameBeam.msi";  // not our folder: never removed
+    r.msi = L"C:\\Users\\a\\Downloads\\Uzume.msi";  // not our folder: never removed
     QVERIFY(setupDirToRemove(r).empty());
   }
   void elevation() {

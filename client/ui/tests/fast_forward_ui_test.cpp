@@ -5,8 +5,8 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 class FastForwardUiTest : public QObject {
@@ -31,10 +31,10 @@ class FastForwardUiTest : public QObject {
     QImage frame(256, 384, QImage::Format_RGB32);
     frame.fill(QColor(40, 90, 140));
     emu::DisplayProfile profile;
-    gs->setPreview(QStringLiteral("Framebeam Test"), frame, profile, EmulationDiagnostics());
+    gs->setPreview(QStringLiteral("Uzume Test"), frame, profile, EmulationDiagnostics());
     emit gs->started();
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("game"), 8000);
-    h.controller->sessions()->gameStarted(QStringLiteral("t1"), QStringLiteral("Framebeam Test"));
+    h.controller->sessions()->gameStarted(QStringLiteral("t1"), QStringLiteral("Uzume Test"));
     h.controller->sessions()->setTab(QStringLiteral("session"));
     QQuickTest::qWaitForPolish(h.window);
 

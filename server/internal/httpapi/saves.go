@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 func mustUUID(s string) uuid.UUID {
@@ -69,8 +69,8 @@ func (s *Server) GetSaveSlot(ctx context.Context, req api.GetSaveSlotRequestObje
 func (s *Server) PutSave(ctx context.Context, req api.PutSaveRequestObject) (api.PutSaveResponseObject, error) {
 	p := principal(ctx)
 	res, err := s.svc.PutSave(ctx, hub.PutSaveInput{UserID: p.User.ID, DeviceID: p.Device.ID, GameID: req.GameId.String(),
-		Slot: req.Slot, BaseRevision: req.Params.XFrameBeamBaseRevision, SHA256: req.Params.XFrameBeamContentSHA256,
-		Reason: string(req.Params.XFrameBeamSyncReason), Body: req.Body})
+		Slot: req.Slot, BaseRevision: req.Params.XUzumeBaseRevision, SHA256: req.Params.XUzumeContentSHA256,
+		Reason: string(req.Params.XUzumeSyncReason), Body: req.Body})
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (s *Server) DownloadSaveContent(ctx context.Context, req api.DownloadSaveCo
 		return nil, err
 	}
 	return api.DownloadSaveContent200ApplicationoctetStreamResponse{Body: f, Headers: api.DownloadSaveContent200ResponseHeaders{
-		ContentLength: ptr(c.Size), ETag: ptr(`"` + c.SHA256 + `"`), XFrameBeamSaveRevision: ptr(c.Revision)}}, nil
+		ContentLength: ptr(c.Size), ETag: ptr(`"` + c.SHA256 + `"`), XUzumeSaveRevision: ptr(c.Revision)}}, nil
 }
 
 func (s *Server) ListSaveHistory(ctx context.Context, req api.ListSaveHistoryRequestObject) (api.ListSaveHistoryResponseObject, error) {
@@ -112,7 +112,7 @@ func (s *Server) DownloadSaveHistoryContent(ctx context.Context, req api.Downloa
 		return nil, err
 	}
 	return api.DownloadSaveHistoryContent200ApplicationoctetStreamResponse{Body: f, Headers: api.DownloadSaveHistoryContent200ResponseHeaders{
-		ContentLength: ptr(v.Size), ETag: ptr(`"` + v.SHA256 + `"`), XFrameBeamSaveRevision: ptr(v.Revision)}}, nil
+		ContentLength: ptr(v.Size), ETag: ptr(`"` + v.SHA256 + `"`), XUzumeSaveRevision: ptr(v.Revision)}}, nil
 }
 
 func (s *Server) ResolveSaveConflict(ctx context.Context, req api.ResolveSaveConflictRequestObject) (api.ResolveSaveConflictResponseObject, error) {
@@ -168,13 +168,13 @@ func (s *Server) DeleteSaveVersion(ctx context.Context, req api.DeleteSaveVersio
 }
 
 func (s *Server) UploadSaveFile(ctx context.Context, req api.UploadSaveFileRequestObject) (api.UploadSaveFileResponseObject, error) {
-	if req.Body == nil || req.Params.XFrameBeamContentSHA256 == "" {
+	if req.Body == nil || req.Params.XUzumeContentSHA256 == "" {
 		return nil, hub.ErrBadRequest
 	}
 	p := principal(ctx)
-	rev := req.Params.XFrameBeamExpectedRevision
+	rev := req.Params.XUzumeExpectedRevision
 	sl, err := s.svc.UploadSaveFile(ctx, hub.UploadSaveInput{UserID: p.User.ID, DeviceID: p.Device.ID, GameID: req.GameId.String(),
-		Slot: req.Slot, ExpectedRevision: &rev, SHA256: req.Params.XFrameBeamContentSHA256, Body: req.Body})
+		Slot: req.Slot, ExpectedRevision: &rev, SHA256: req.Params.XUzumeContentSHA256, Body: req.Body})
 	if err != nil {
 		return nil, err
 	}

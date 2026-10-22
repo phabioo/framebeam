@@ -8,7 +8,7 @@
 struct lua_State;
 struct lua_Debug;
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 enum class LogLevel { Debug, Info, Warn, Error };
 
@@ -76,4 +76,4 @@ class LuaSandbox {
   LogSink m_printSink;
 };
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-session.schema.json",
+  "$id": "https://uzume.invalid/schemas/ws-session.schema.json",
   "title": "Session object (as REST Session, shared by session_update and session_invite)",
   "type": "object",
   "required": [

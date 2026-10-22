@@ -1,5 +1,5 @@
 {
-  "description": "Ed25519 over the signed message; the seed is public test data, never a real key. Message = 'framebeam-plugin-v1\\n' + for each file sorted by path (byte order) '\u003csha256\u003e  \u003cpath\u003e\\n'.",
+  "description": "Ed25519 over the signed message; the seed is public test data, never a real key. Message = 'uzume-plugin-v1\\n' + for each file sorted by path (byte order) '\u003csha256\u003e  \u003cpath\u003e\\n'.",
   "seed_base64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
   "public_key_base64": "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
   "key_id": "56475aa75463474c",
@@ -20,7 +20,7 @@
       "sha256": "5b38f5a3ba88ef492bc0b48124f7bbde067bccab058a3dcc2295ad5fdafe32e8"
     }
   ],
-  "signed_message": "framebeam-plugin-v1\ndd5d25b7ee6f5aa87b8eb1ab5cb4cbc4c5effd2f74ef69e74eab1c204274fa7d  i18n/en.json\n24ae97fac5c846cc9d225af711611ce322a5b206c00cc3317334e0d3b428ad56  main.lua\n5b38f5a3ba88ef492bc0b48124f7bbde067bccab058a3dcc2295ad5fdafe32e8  manifest.json\n",
-  "signature_base64": "jowBFcvHTQZG+NYLXHHyYa4CEYFi1GKH3VPPeN8FnLaJNRSCEBTPqGcHVXHbf7RZcyex4Z1utnxNpbivxdUVAQ==",
+  "signed_message": "uzume-plugin-v1\ndd5d25b7ee6f5aa87b8eb1ab5cb4cbc4c5effd2f74ef69e74eab1c204274fa7d  i18n/en.json\n24ae97fac5c846cc9d225af711611ce322a5b206c00cc3317334e0d3b428ad56  main.lua\n5b38f5a3ba88ef492bc0b48124f7bbde067bccab058a3dcc2295ad5fdafe32e8  manifest.json\n",
+  "signature_base64": "PtLQbfoiScvCTPwEZ4l0ma58jMJoE/eAPnulGBn0/o9tDIrGDhu4mXDX9vZILW6tc1Gb6ADTe11yRM6xbhrKDA==",
   "plugin_file": "vector.fbplugin"
 }

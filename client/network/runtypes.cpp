@@ -2,7 +2,7 @@
 
 #include <QUuid>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 
@@ -149,4 +149,4 @@ QString runSaveSlot(const QString& runId) {
   return QStringLiteral("run-") + hex.left(8).toLower();
 }
 
-}  // namespace framebeam
+}  // namespace uzume

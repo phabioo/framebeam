@@ -1,4 +1,5 @@
 #include "core_locator.h"
+#include "envvar.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -9,7 +10,7 @@
 #include <QJsonObject>
 #include <algorithm>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 CoreLocator::CoreLocator(QString appDir) : m_appDir(std::move(appDir)) {
   if (m_appDir.isEmpty()) m_appDir = QCoreApplication::applicationDirPath();
@@ -18,7 +19,7 @@ CoreLocator::CoreLocator(QString appDir) : m_appDir(std::move(appDir)) {
 void CoreLocator::setExplicitPath(const QString& coreId, const QString& path) { m_explicit.insert(coreId, path); }
 
 QString CoreLocator::environmentVariableFor(const QString& coreId) {
-  return QStringLiteral("FRAMEBEAM_") + coreId.toUpper().replace(QLatin1Char('-'), QLatin1Char('_')) + QStringLiteral("_CORE");
+  return QStringLiteral("UZUME_") + coreId.toUpper().replace(QLatin1Char('-'), QLatin1Char('_')) + QStringLiteral("_CORE");
 }
 
 QString CoreLocator::libraryFileName(const QString& basename) {
@@ -86,7 +87,7 @@ CoreLocation CoreLocator::locate(const SystemManifest& manifest, const QString& 
     return false;
   };
   if (probe(m_explicit.value(manifest.coreId), "explicit")) return loc;
-  // Environment: FRAMEBEAM_<CORE_ID>_CORE, also under the core's other ids (FRAMEBEAM_MELONDS_DS_CORE for melondsds).
+  // Environment: UZUME_<CORE_ID>_CORE, also under the core's other ids (UZUME_MELONDS_DS_CORE for melondsds).
   for (const QString& id : QStringList(manifest.coreId) + manifest.coreAliases) {
     if (probe(qEnvironmentVariable(environmentVariableFor(id).toUtf8().constData()), "env")) return loc;
   }
@@ -116,4 +117,4 @@ CoreLocation CoreLocator::locate(const SystemManifest& manifest, const QString& 
   return loc;
 }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

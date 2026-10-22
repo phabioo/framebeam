@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
-	"github.com/phabioo/framebeam/server/internal/pluginpkg"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/pluginpkg"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 // Settings keys of the plugin index state.
@@ -126,7 +126,7 @@ const (
 	CatalogInstalled = "installed" // the newest indexed version is offered
 )
 
-// PluginCatalogEntry is the newest indexed version of one plugin together with what this Hub offers of it.
+// PluginCatalogEntry is the newest indexed version of one plugin together with what this server offers of it.
 type PluginCatalogEntry struct {
 	pluginpkg.IndexEntry
 	State            string

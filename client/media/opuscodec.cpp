@@ -2,7 +2,7 @@
 
 #include <opus/opus.h>
 
-namespace framebeam {
+namespace uzume {
 
 OpusFramer::OpusFramer() = default;
 OpusFramer::~OpusFramer() { close(); }
@@ -87,4 +87,4 @@ QByteArray OpusDepacker::decode(const uint8_t* data, size_t size) {
   return out;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

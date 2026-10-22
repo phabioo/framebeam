@@ -5,13 +5,13 @@
 #include <QTimer>
 
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcCores, "framebeam.cores")
+Q_LOGGING_CATEGORY(lcCores, "uzume.cores")
 
 CoreProvisioner::CoreProvisioner(HubConnection* connection, CoreCache* cache, QObject* parent)
     : QObject(parent), conn_(connection), cache_(cache), platform_(CoreCache::currentPlatform()) {
-  qRegisterMetaType<framebeam::CoreResult>("framebeam::CoreResult");
+  qRegisterMetaType<uzume::CoreResult>("uzume::CoreResult");
   connect(connection, &HubConnection::stateChanged, this, [this](HubConnection::State s) {
     if (s != HubConnection::State::Connected && busy_) {
       ++generation_;  // pending replies are aborted by the connection and ignored
@@ -233,4 +233,4 @@ void CoreProvisioner::done() {
   emit finished(res);
 }
 
-}  // namespace framebeam
+}  // namespace uzume

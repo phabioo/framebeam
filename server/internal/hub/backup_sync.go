@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/backup"
+	"github.com/phabioo/uzume/server/internal/backup"
 )
 
 // SafetyBackup makes a safety backup into dir and waits for it (restore from the CLI). Safety backups are never
@@ -28,7 +28,7 @@ func (s *Service) BackupNow(ctx context.Context, out string, roms *bool, by stri
 		out = configured
 	}
 	if out == "" {
-		return backup.Result{}, badRequest("No backup folder: pass --out DIR or set one with 'framebeam-hub backup config --folder DIR'")
+		return backup.Result{}, badRequest("No backup folder: pass --out DIR or set one with 'uzume-server backup config --folder DIR'")
 	}
 	if !filepath.IsAbs(out) {
 		abs, err := filepath.Abs(out)

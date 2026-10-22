@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/config"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
 // Planted secrets: none of them may appear in a bundle.
@@ -222,7 +222,7 @@ func TestLogSizeCapNewestFirst(t *testing.T) {
 
 func TestFileName(t *testing.T) {
 	got := FileName(time.Date(2026, 10, 11, 9, 8, 7, 0, time.FixedZone("x", 3600)))
-	if got != "framebeam-hub-diagnostics-20261011T080807Z.zip" {
+	if got != "uzume-diagnostics-20261011T080807Z.zip" {
 		t.Fatal(got)
 	}
 }

@@ -9,8 +9,8 @@ import (
 	"syscall"
 )
 
-// MatchOwner gives tree the owner of ref. `framebeam-hub restore` run as root unpacks files the Hub user (who
-// owns the data directory) must be able to write; without this the restored Hub could not save anything.
+// MatchOwner gives tree the owner of ref. `uzume-server restore` run as root unpacks files the server user (who
+// owns the data directory) must be able to write; without this the restored server could not save anything.
 // It does nothing when not run as root or when the owner already matches.
 func MatchOwner(tree, ref string) error {
 	if os.Geteuid() != 0 {

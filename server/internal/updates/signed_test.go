@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/corepkg"
 )
 
 func TestVerifyContextSeparatesDocumentTypes(t *testing.T) {
@@ -128,7 +128,7 @@ func TestLoadIndexRejectsExpiredIndex(t *testing.T) {
 
 func TestReleaseRejectsUnsafeURLCharacters(t *testing.T) {
 	for _, bad := range []string{"https://x.example/a;rm", "https://x.example/a b", "https://x.example/$(id)", "https://x.example/a'b", "https://x.example/a\"b", "https://x.example/a`b"} {
-		a := art("linux-amd64", KindDeb, "framebeam-hub_1.0.0_amd64.deb")
+		a := art("linux-amd64", KindDeb, "uzume-server_1.0.0_amd64.deb")
 		a.Size, a.SHA256, a.URL = 10, goodSHA, bad
 		r := rel("hub", "beta", "1.0.0", a)
 		r.Commit, r.PublishedAt = strings.Repeat("a", 40), t0

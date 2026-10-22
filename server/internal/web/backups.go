@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // Settings > Backups (design 6b, kept minimal: the CLI and /api/v1/admin/backups are the main interfaces).
@@ -102,10 +102,10 @@ func (s *Server) backupsData(r *http.Request) backupsBody {
 		rb := &backupRunning{Restore: p.Kind == "restore", Step: p.Step, CanCancel: p.Kind == "backup" || p.Step <= 1}
 		if rb.Restore {
 			rb.Title = fmt.Sprintf("Restoring · step %d of 3", max(p.Step, 1))
-			rb.Detail = [...]string{1: "Making a safety backup first.", 2: "Verifying and unpacking the backup.", 3: "Restarting the Hub. Players reconnect by themselves; this page reloads when the Hub is back."}[min(max(p.Step, 1), 3)]
+			rb.Detail = [...]string{1: "Making a safety backup first.", 2: "Verifying and unpacking the backup.", 3: "Restarting the server. Apps reconnect by themselves; this page reloads when the server is back."}[min(max(p.Step, 1), 3)]
 		} else {
 			rb.Title = "Backing up · " + p.Phase
-			rb.Detail = "Started by " + p.By + ". Players keep playing; saves arriving now go into the next backup."
+			rb.Detail = "Started by " + p.By + ". Apps keep playing; saves arriving now go into the next backup."
 		}
 		if p.Total > 0 && p.Step < 3 {
 			rb.Show = true
@@ -118,7 +118,7 @@ func (s *Server) backupsData(r *http.Request) backupsBody {
 		b.Pill, b.StatusLine = "Off", "Choose a backup folder to turn backups on"
 	case st.WriteError != "":
 		b.Pill, b.StatusClass = "Cannot write", "warn"
-		b.StatusLine = "The Hub runs as the user it was started with and needs write access to the backup folder."
+		b.StatusLine = "The server runs as the user it was started with and needs write access to the backup folder."
 		b.StatusDetail = st.WriteError + ". Check that the disk is mounted, or choose another folder."
 	case st.Last != nil && !st.Last.OK:
 		b.Pill, b.StatusClass = "Backup failed", "warn"
@@ -144,7 +144,7 @@ func (s *Server) backupsData(r *http.Request) backupsBody {
 	if st.Restore != nil {
 		rc := &backupResultCard{OK: st.Restore.OK, Safety: st.Restore.Safety}
 		if st.Restore.OK {
-			rc.Title = "✓ Restored · this Hub runs the backup from " + fmtWhen(st.Restore.BackupCreated, now).Text
+			rc.Title = "✓ Restored · this server runs the backup from " + fmtWhen(st.Restore.BackupCreated, now).Text
 			if st.Restore.Safety != "" {
 				rc.Detail = "To undo, restore the safety backup " + st.Restore.Safety + "."
 			}
@@ -171,7 +171,7 @@ func (s *Server) backupsData(r *http.Request) backupsBody {
 		if ri, err := s.svc.RestoreInfo(ctx, name); err == nil {
 			c := &restoreConfirm{Name: name, Date: fmtWhen(ri.Entry.Created, now).Text, Size: humanBytes(ri.Entry.Size), Contents: ri.Entry.Contents,
 				Folder: ri.SafetyFolder, CanRestart: st.CanRestart}
-			line := "Database: users, devices, runs, plugin settings and Hub settings go back to this state."
+			line := "Database: users, devices, runs, plugin settings and server settings go back to this state."
 			if ri.AddedUsers > 0 || ri.AddedDevices > 0 {
 				line += fmt.Sprintf(" %s and %s added since then disappear.", plural(ri.AddedUsers, "user", "users"), plural(ri.AddedDevices, "device", "devices"))
 			}
@@ -179,10 +179,10 @@ func (s *Server) backupsData(r *http.Request) backupsBody {
 			if ri.Entry.IncludesROMs {
 				c.Lines = append(c.Lines, "ROMs: the library goes back to this state.")
 			} else {
-				c.Lines = append(c.Lines, "ROMs: this backup has none; the ROM files now on the Hub stay.")
+				c.Lines = append(c.Lines, "ROMs: this backup has none; the ROM files now on the server stay.")
 			}
 			if ri.ConnectedPlayers > 0 {
-				c.Players = fmt.Sprintf("%s connected; they disconnect for about a minute and running Sessions end.", plural(ri.ConnectedPlayers, "Player is", "Players are"))
+				c.Players = fmt.Sprintf("%s connected; they disconnect for about a minute and running Sessions end.", plural(ri.ConnectedPlayers, "App is", "Apps are"))
 			}
 			b.Confirm = c
 		}

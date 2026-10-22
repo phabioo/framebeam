@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# E2E (phase 4, 0.4): two framebeam_player_cli devices against a real FrameBeam Hub (built locally, self-signed TLS,
+# E2E (phase 4, 0.4): two uzume-cli devices against a real Uzume server (built locally, self-signed TLS,
 # loopback): one shares a Session with synthetic frames and a tone, the other watches it over WebRTC.
 # Round 1: direct (host candidates). Round 2 (ADR 0012 D5): Hub with the embedded TURN server on loopback, both
 # Players with --force-relay; the viewer has to report `relay (udp)`. Round 2 is skipped when the Hub binary has no
 # -turn flag. Quiet: only "ok  <step>" / "FAIL <step>" + log tail. Dummy data, no real ROMs.
-# Usage: scripts/e2e-session.sh [path/to/framebeam_player_cli]
-#   Default: client/build/linux-debug/network/framebeam_player_cli
+# Usage: scripts/e2e-session.sh [path/to/uzume-cli]
+#   Default: client/build/linux-debug/network/uzume-cli
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLI="${1:-$ROOT/client/build/linux-debug/network/framebeam_player_cli}"
+CLI="${1:-$ROOT/client/build/linux-debug/network/uzume-cli}"
 export CGO_ENABLED=0 GOTOOLCHAIN=local
 PW="e2e-dummy-password"
 TMP="$(mktemp -d)"
@@ -69,7 +69,7 @@ PY
 
 [ -x "$CLI" ] || die "CLI not found: $CLI"
 
-(cd "$ROOT/server" && go build -o "$TMP/framebeam-hub" ./cmd/framebeam-hub) >"$TMP/build.log" 2>&1 || die "hub build" "$TMP/build.log"
+(cd "$ROOT/server" && go build -o "$TMP/uzume-server" ./cmd/uzume-server) >"$TMP/build.log" 2>&1 || die "hub build" "$TMP/build.log"
 JAR="" tok="" ADDR=""
 CURL=()
 
@@ -99,14 +99,14 @@ run_round() {
   [ "$relay" = "1" ] && cliopts=(--force-relay)
 
   # 1. Hub: admin, start
-  export FRAMEBEAM_DATA_DIR="$TMP/hub-$label"
-  printf '%s\n' "$PW" | "$TMP/framebeam-hub" setup-admin -username admin >"$TMP/$label.setup.log" 2>&1 || die "setup-admin" "$TMP/$label.setup.log"
+  export UZUME_DATA_DIR="$TMP/hub-$label"
+  printf '%s\n' "$PW" | "$TMP/uzume-server" setup-admin -username admin >"$TMP/$label.setup.log" 2>&1 || die "setup-admin" "$TMP/$label.setup.log"
   local port
   port="$(free_port)"
   ADDR="127.0.0.1:$port"
-  "$TMP/framebeam-hub" -listen "$ADDR" -plugin-index-url none "$@" >"$hublog" 2>&1 &
+  "$TMP/uzume-server" -listen "$ADDR" -plugin-index-url none "$@" >"$hublog" 2>&1 &
   HUB_PID=$!
-  wait_for 15 curl -fsk "https://$ADDR/.well-known/framebeam" || die "hub start" "$hublog"
+  wait_for 15 curl -fsk "https://$ADDR/.well-known/uzume" || die "hub start" "$hublog"
   ok "hub build + start $ADDR"
 
   # 2. Web interface: login (CSRF), upload a dummy game
@@ -175,7 +175,7 @@ run_round() {
 run_round direct 0
 
 # Round 2: embedded TURN server on loopback (flags of the Hub, ADR 0012 D2), everything forced through the relay.
-HUB_HELP="$("$TMP/framebeam-hub" -h 2>&1 || true)"
+HUB_HELP="$("$TMP/uzume-server" -h 2>&1 || true)"
 if grep -q -- -turn <<<"$HUB_HELP"; then
   PREFIX="[relay] "
   TURN_PORT="$(free_port)"

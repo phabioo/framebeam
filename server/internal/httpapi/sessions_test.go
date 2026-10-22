@@ -14,7 +14,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // Sessions over REST and a real WSS (httptest server), ADR 0006 D1-D4.
@@ -56,7 +56,7 @@ func (s *sessEnv) device(userID, name string) dev {
 	s.t.Helper()
 	ctx := context.Background()
 	id := uuid.NewString()
-	s.ips++ // the Hub rate-limits pairing requests per IP
+	s.ips++ // the server rate-limits pairing requests per IP
 	c, err := s.svc.CreatePairingRequest(ctx, hub.PairingInput{DeviceID: id, DeviceName: name, Platform: "linux", Arch: "x86_64",
 		PlayerVersion: "0.1.0", ProtocolVersion: 1, RemoteAddr: fmt.Sprintf("10.0.%d.%d", s.ips/250, s.ips%250)})
 	if err != nil {
@@ -206,7 +206,7 @@ func (s *sessEnv) dialRaw(d dev) *wsClient {
 				return
 			}
 			if err := validateWS(s.t, data); err != nil {
-				s.t.Errorf("message from the Hub violates its schema: %v: %s", err, data)
+				s.t.Errorf("message from the server violates its schema: %v: %s", err, data)
 			}
 			var m wsMsg
 			json.Unmarshal(data, &m)
@@ -296,7 +296,7 @@ func (c *wsClient) quiet(types ...string) {
 	}
 }
 
-// wantClosed waits for the connection to be closed by the Hub and returns the close status.
+// wantClosed waits for the connection to be closed by the server and returns the close status.
 func (c *wsClient) wantClosed() websocket.StatusCode {
 	c.t.Helper()
 	deadline := time.After(3 * time.Second)

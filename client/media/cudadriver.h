@@ -6,9 +6,9 @@
 #include <memory>
 #include <mutex>
 
-namespace framebeam {
+namespace uzume {
 
-Q_DECLARE_LOGGING_CATEGORY(lcGpu)  // framebeam.gpuencode: GPU-direct encoding (ADR 0019)
+Q_DECLARE_LOGGING_CATEGORY(lcGpu)  // uzume.gpuencode: GPU-direct encoding (ADR 0019)
 
 namespace cuda {
 
@@ -57,4 +57,4 @@ class Driver {
 };
 
 }  // namespace cuda
-}  // namespace framebeam
+}  // namespace uzume

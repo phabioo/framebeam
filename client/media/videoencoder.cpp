@@ -1,4 +1,5 @@
 #include "videoencoder.h"
+#include "envvar.h"
 
 #include <QLoggingCategory>
 #include <QtCore/qglobal.h>
@@ -15,10 +16,10 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
-Q_LOGGING_CATEGORY(lcEnc, "framebeam.videoencoder")
+Q_LOGGING_CATEGORY(lcEnc, "uzume.videoencoder")
 
 AVPixelFormat srcFormat(RawPixelFormat f) { return f == RawPixelFormat::Rgb565 ? AV_PIX_FMT_RGB565LE : AV_PIX_FMT_BGR0; }
 
@@ -44,8 +45,8 @@ VideoEncoder::VideoEncoder() = default;
 VideoEncoder::~VideoEncoder() { close(); }
 
 QStringList VideoEncoder::preferredEncoders() {
-  // FRAMEBEAM_H264_ENCODER=<ffmpeg encoder name> forces one encoder (tests/diagnostics, e.g. libopenh264 or libx264).
-  const QString forced = qEnvironmentVariable("FRAMEBEAM_H264_ENCODER").trimmed();
+  // UZUME_H264_ENCODER=<ffmpeg encoder name> forces one encoder (tests/diagnostics, e.g. libopenh264 or libx264).
+  const QString forced = uzume::env::get("UZUME_H264_ENCODER").trimmed();
   if (!forced.isEmpty()) {
     return {forced};
   }
@@ -70,12 +71,12 @@ bool VideoEncoder::gpuInputConfigured(QString* why) {
     }
     return false;
   };
-  if (qEnvironmentVariable("FRAMEBEAM_DISABLE_GPU_ENCODE") == QLatin1String("1")) {
-    return no(QStringLiteral("FRAMEBEAM_DISABLE_GPU_ENCODE=1"));
+  if (uzume::env::get("UZUME_DISABLE_GPU_ENCODE") == QLatin1String("1")) {
+    return no(QStringLiteral("UZUME_DISABLE_GPU_ENCODE=1"));
   }
-  const QString forced = qEnvironmentVariable("FRAMEBEAM_H264_ENCODER").trimmed();
+  const QString forced = uzume::env::get("UZUME_H264_ENCODER").trimmed();
   if (!forced.isEmpty()) {
-    return no(QStringLiteral("FRAMEBEAM_H264_ENCODER=%1 forces the readback path").arg(forced));
+    return no(QStringLiteral("UZUME_H264_ENCODER=%1 forces the readback path").arg(forced));
   }
   return true;
 }
@@ -475,4 +476,4 @@ bool VideoEncoder::drainPackets(std::vector<EncodedVideoPacket>& out) {
   return true;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

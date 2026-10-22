@@ -34,7 +34,7 @@ type ScanProgress struct {
 	Done, Total int // files looked at / candidate files in the folder
 	Added       int
 	Summary     ImportSummary // result of the last finished scan
-	Finished    bool          // a scan has finished since the Hub started
+	Finished    bool          // a scan has finished since the server started
 	LastError   string
 	FinishedAt  time.Time
 	StartedAt   time.Time

@@ -17,7 +17,7 @@
 #include "plugin_engine.h"
 #include "plugin_ui.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 namespace {
 
@@ -1171,4 +1171,4 @@ void registerFbApi(PluginEngine& engine, Plugin& p) {
   lua_setglobal(L, "fb");
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

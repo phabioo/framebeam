@@ -1,4 +1,5 @@
 #include "playercontroller.h"
+#include "envvar.h"
 #include "timeformat.h"
 
 #include <QCoreApplication>
@@ -42,20 +43,20 @@
 #include "semver.h"
 #include "version.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 // How long the Emulation page keeps the "Updated X to V" line (the test override keeps tests short).
 int coreUpdateNoticeMs() {
   bool ok = false;
-  const int v = qEnvironmentVariableIntValue("FRAMEBEAM_CORE_NOTICE_MS", &ok);
+  const int v = uzume::env::intValue("UZUME_CORE_NOTICE_MS", &ok);
   return ok && v > 0 ? v : 120000;
 }
 }  // namespace
 
 PlayerController::PlayerController(const Options& options, QObject* parent)
     : QObject(parent), options_(options), locator_() {
-  qRegisterMetaType<framebeam::RomStatus>("framebeam::RomStatus");
+  qRegisterMetaType<uzume::RomStatus>("uzume::RomStatus");
 
   profiles_ = std::make_unique<ProfileStore>(options.dataDir);
   if (options.memoryCredentials) {
@@ -556,7 +557,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   connect(controllers_.get(), &ControllersController::libretroMaskChanged, this,
           [this](quint32 mask) { session_.setGamepadMask(mask); });
   session_.setGamepadMask(controllers_->gamepads()->libretroMask());
-  connect(emulation_.get(), &EmulationController::frameBeamOptionsChanged, this, &PlayerController::applyFrameBeamOptions);
+  connect(emulation_.get(), &EmulationController::uzumeOptionsChanged, this, &PlayerController::applyUzumeOptions);
   // The core choice of a system changed: the new core's options, status and the game detail follow at once.
   connect(emulation_.get(), &EmulationController::gameSelectionChanged, this, [this]() { refreshEmulationPage(); });
   connect(emulation_.get(), &EmulationController::coreChoiceChanged, this, [this]() {
@@ -564,18 +565,18 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     refreshAttention();
     emit selectedGameChanged();
   });
-  applyFrameBeamOptions();
+  applyUzumeOptions();
   connect(&session_, &GameSession::stateChanged, this, [this]() { emulation_->setGameRunning(session_.isActive()); });
 
   connect(&session_, &GameSession::started, this, [this]() {
-    applyFrameBeamOptions();
+    applyUzumeOptions();
     saves_->beginSession();
     phase_ = PlayPhase::None;
     gameActive_ = true;
     gameStartedMs_ = QDateTime::currentMSecsSinceEpoch();
     sessions_->gameStarted(launchGame_.id, launchGame_.title);
     // Screen layout default of the system (Emulation > Defaults / system), the in-game switch overrides it for this game only.
-    sessions_->setScreenLayout(emulation_->frameBeamValue(QString::fromLatin1(EmulationController::kScreenLayoutKey), launchGame_.system, launchGame_.id));
+    sessions_->setScreenLayout(emulation_->uzumeValue(QString::fromLatin1(EmulationController::kScreenLayoutKey), launchGame_.system, launchGame_.id));
     // Plugins start asynchronously after the game: they never delay it, failures only show in the console and the log.
     plugins_->gameStarted(launchGame_.system, launchRom_, launchGame_.romSha256, launchGame_.title,
                           plugins_->resolveLanguage(launchGame_.system, emulation_->launchOverrides(launchGame_.system, launchGame_.id)),
@@ -1274,15 +1275,15 @@ QString PlayerController::currentSystemId() const {
 
 bool PlayerController::fullscreenOnStart() const {
   const QString sys = currentSystemId();
-  return emulation_->frameBeamValue(QString::fromLatin1(EmulationController::kFullscreenKey), sys, launchGame_.id) ==
+  return emulation_->uzumeValue(QString::fromLatin1(EmulationController::kFullscreenKey), sys, launchGame_.id) ==
          QLatin1String("on");
 }
 
-void PlayerController::applyFrameBeamOptions() {
+void PlayerController::applyUzumeOptions() {
   // Default multiview: applied immediately (not while the user changes it in a running Session view).
   if (sessions_ && !gameActive_) {
     const QString sys = currentSystemId();
-    sessions_->setMultiviewMode(emulation_->frameBeamValue(QString::fromLatin1(EmulationController::kMultiviewKey), sys));
+    sessions_->setMultiviewMode(emulation_->uzumeValue(QString::fromLatin1(EmulationController::kMultiviewKey), sys));
   }
   emit emulationSettingsChanged();
 }
@@ -2060,4 +2061,4 @@ void PlayerController::finishRunStart() {
   if (!saves_->isRunning(rs.gameId)) saves_->setSlot(rs.gameId, rs.previousSlot);
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

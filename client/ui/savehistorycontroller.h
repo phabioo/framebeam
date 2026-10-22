@@ -17,7 +17,7 @@
 #include "hubconnection.h"
 #include "savesync.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class SaveHistoryController : public QObject {
   Q_OBJECT
@@ -244,4 +244,4 @@ class SaveHistoryController : public QObject {
   QVariantMap conflictInfo_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

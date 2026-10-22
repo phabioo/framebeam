@@ -8,7 +8,7 @@
 
 #include "manifest.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 namespace {
 
@@ -680,4 +680,4 @@ QList<QVariantMap> UiStore::takeToasts() {
   return std::exchange(m_toasts, {});
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

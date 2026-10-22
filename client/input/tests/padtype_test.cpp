@@ -7,7 +7,7 @@
 #include "gamepadservice.h"
 #include "padtype.h"
 
-using namespace framebeam::input;
+using namespace uzume::input;
 
 namespace {
 struct VirtualPad {

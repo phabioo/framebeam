@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace framebeam {
+namespace uzume {
 
 class DisplaySlots {
  public:
@@ -140,4 +140,4 @@ inline void growSize(int curW, int curH, int reqW, int reqH, int* outW, int* out
   *outH = rh > curH ? rh : curH;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

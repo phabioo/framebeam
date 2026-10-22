@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-namespace framebeam::dsv {
+namespace uzume::dsv {
 
 namespace {
 constexpr const char kFooterText[] = "|<--Snip above here to create a raw sav by excluding this DeSmuME savedata footer:";
@@ -72,4 +72,4 @@ std::optional<QByteArray> dsvToRaw(const QByteArray& dsv, QString* error) {
   return dsv.left(static_cast<qsizetype>(pad));
 }
 
-}  // namespace framebeam::dsv
+}  // namespace uzume::dsv

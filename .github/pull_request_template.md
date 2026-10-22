@@ -11,8 +11,8 @@ One line per user-visible change, in English, under one of these headings (delet
 ### Security
 Example:
 ### Fixed
-- Hub: Saves are no longer listed twice after an import.
-Optional prefix `Hub:` or `Player:` when only one product is affected.
+- Server: Saves are no longer listed twice after an import.
+Optional prefix `Server:` or `App:` when only one product is affected (`Hub:` and `Player:` still work).
 For CI, docs, test or refactoring-only PRs write `none` (alone) instead.
 Betas and the stable release notes are collected from this section; CI checks it.
 -->
@@ -21,5 +21,5 @@ Betas and the stable release notes are collected from this section; CI checks it
 
 ## Checklist
 
-- [ ] I have read [CLA.md](https://github.com/phabioo/framebeam/blob/main/CLA.md) and agree to its terms
+- [ ] I have read [CLA.md](https://github.com/phabioo/uzume/blob/main/CLA.md) and agree to its terms
 - [ ] No ROMs, BIOS, firmware or keys are added

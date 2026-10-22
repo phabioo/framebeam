@@ -1,6 +1,6 @@
 #include "romsource.h"
 
-namespace framebeam {
+namespace uzume {
 
 RomSourceChoice chooseRomSource(const GameEntry& game, const std::function<QString(const QString&)>& localPathForSha,
                                 bool cacheHas) {
@@ -20,4 +20,4 @@ RomSourceChoice chooseRomSource(const GameEntry& game, const std::function<QStri
   return {RomSource::Missing, {}};
 }
 
-}  // namespace framebeam
+}  // namespace uzume

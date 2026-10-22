@@ -19,11 +19,11 @@ import (
 	"github.com/getkin/kin-openapi/routers/legacy"
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
-const specPath = "../../../protocol/openapi/framebeam.yaml"
+const specPath = "../../../protocol/openapi/uzume.yaml"
 
 type env struct {
 	t      *testing.T
@@ -46,7 +46,7 @@ func newEnv(t *testing.T, mod func(*hub.Options)) *env {
 	return e
 }
 
-// newEnvNoAdmin is a fresh Hub without any user.
+// newEnvNoAdmin is a fresh server without any user.
 func newEnvNoAdmin(t *testing.T, mod func(*hub.Options), opts ...Option) *env {
 	t.Helper()
 	svc, clk := hubtest.New(t, mod)
@@ -225,7 +225,7 @@ func handshakeBody(proto, minProto int) map[string]any {
 
 func TestInfoEndpoint(t *testing.T) {
 	e := newEnv(t, nil)
-	rec := e.do("GET", "/.well-known/framebeam", nil, opt{})
+	rec := e.do("GET", "/.well-known/uzume", nil, opt{})
 	wantStatus(t, rec, 200, "")
 	i := decode[map[string]any](t, rec)
 	if _, err := uuid.Parse(i["hub_id"].(string)); err != nil || i["name"] != "Test-Hub" || i["api_base"] != "/api/v1" ||
@@ -487,7 +487,7 @@ func TestLastSeenUpdated(t *testing.T) {
 }
 
 func TestHandshakeVersions(t *testing.T) {
-	// Hub requires protocol >= 2: player with 1 is too old.
+	// Server requires protocol >= 2: player with 1 is too old.
 	e := newEnv(t, func(o *hub.Options) { o.ProtocolVersion, o.MinProtocolVersion = 2, 2 })
 	at := e.login(uuid.NewString())
 	h := decode[struct {
@@ -497,7 +497,7 @@ func TestHandshakeVersions(t *testing.T) {
 	if h.Compatible || len(h.Problems) != 1 || h.Problems[0].Code != "player_too_old" {
 		t.Fatalf("%+v", h)
 	}
-	// Player requires protocol >= 3: hub (2) is too old.
+	// App requires protocol >= 3: hub (2) is too old.
 	h = decode[struct {
 		Compatible bool
 		Problems   []struct{ Code, Detail string }
@@ -557,7 +557,7 @@ func TestHandshakeRequiredFields(t *testing.T) {
 		delete(b, drop)
 		wantStatus(t, e.do("POST", "/api/v1/handshake", b, opt{token: at, raw: true}), 400, "bad_request")
 	}
-	// Older Players: the optional parts may be missing and are treated as not reported.
+	// Older apps: the optional parts may be missing and are treated as not reported.
 	for _, drop := range []string{"video", "audio", "input", "cores"} {
 		b := handshakeBody(1, 1)
 		delete(b, drop)

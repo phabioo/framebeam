@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/corepkg"
 )
 
 func rr(channel, version string, mod func(*Release)) Release {
 	r := rel("hub", channel, version)
-	r.Artifacts = []Artifact{art("linux-amd64", KindDeb, "framebeam-hub_"+version+"_amd64.deb")}
+	r.Artifacts = []Artifact{art("linux-amd64", KindDeb, "uzume-server_"+version+"_amd64.deb")}
 	if mod != nil {
 		mod(&r)
 	}
@@ -83,7 +83,7 @@ func TestRollbackCandidates(t *testing.T) {
 	t.Run("an MSI must allow a downgrade", func(t *testing.T) {
 		msi := func(v string, ok bool) Release {
 			r := rr("stable", v, func(r *Release) { r.MSIDowngrade = ok })
-			r.Artifacts = []Artifact{art("windows-amd64", KindMSI, "framebeam-"+v+".msi")}
+			r.Artifacts = []Artifact{art("windows-amd64", KindMSI, "uzume-"+v+".msi")}
 			return r
 		}
 		i2 := Index{Schema: 1, Releases: []Release{msi("0.1.0", false), msi("0.2.0", true), msi("0.3.0", true)}}
@@ -273,7 +273,7 @@ func TestStageRollbackRejectsBadBackupName(t *testing.T) {
 	f := newFixture(t, "0.3.0")
 	fe, _ := f.src.LoadIndex(context.Background(), f.keys)
 	r := fe.Index.Releases[0]
-	for _, bad := range []string{"../framebeam.db", "hub-1-to-2.db", "framebeam.db", "hub-1-to-2-20260101T000000Z.db/../x"} {
+	for _, bad := range []string{"../uzume.db", "hub-1-to-2.db", "uzume.db", "hub-1-to-2-20260101T000000Z.db/../x"} {
 		if _, err := StageRollback(context.Background(), fe, r, r.Artifacts[0], f.dir, bad, nil); err == nil {
 			t.Fatalf("%q must be rejected", bad)
 		}
@@ -281,7 +281,7 @@ func TestStageRollbackRejectsBadBackupName(t *testing.T) {
 }
 
 func TestApplyStagedRollbackKeepsData(t *testing.T) {
-	f := newFixture(t, "0.3.0") // the signed index holds 0.3.0; the running Hub is newer
+	f := newFixture(t, "0.3.0") // the signed index holds 0.3.0; the running server is newer
 	st := f.stageRollback(t, "", nil)
 	if !st.Rollback {
 		t.Fatal("staged.json must say rollback")
@@ -379,8 +379,8 @@ func dbFixture(t *testing.T) (*fixture, string) {
 	t.Helper()
 	f := newFixture(t, "0.3.0")
 	hdr := "SQLite format 3\x00"
-	os.WriteFile(filepath.Join(f.dir, "framebeam.db"), []byte(hdr+"LIVE"), 0o640)
-	os.WriteFile(filepath.Join(f.dir, "framebeam.db-wal"), []byte("wal"), 0o640)
+	os.WriteFile(filepath.Join(f.dir, "uzume.db"), []byte(hdr+"LIVE"), 0o640)
+	os.WriteFile(filepath.Join(f.dir, "uzume.db-wal"), []byte("wal"), 0o640)
 	os.MkdirAll(filepath.Join(f.dir, DBBackupDir), 0o750)
 	name := "hub-17-to-18-20261020T090000Z.db"
 	os.WriteFile(filepath.Join(f.dir, DBBackupDir, name), []byte(hdr+"OLD"), 0o640)
@@ -405,7 +405,7 @@ func TestApplyStagedRollbackRestoresDatabase(t *testing.T) {
 	run := func(ctx context.Context, name string, args ...string) ([]byte, error) {
 		order = append(order, name+" "+args[0])
 		if name == "dpkg" { // at install time the old database is in place and the service is stopped
-			if got := read(t, filepath.Join(f.dir, "framebeam.db")); !strings.HasSuffix(got, "OLD") {
+			if got := read(t, filepath.Join(f.dir, "uzume.db")); !strings.HasSuffix(got, "OLD") {
 				t.Errorf("database at install time: %q", got)
 			}
 		}
@@ -437,10 +437,10 @@ func TestApplyStagedRollbackRestoresDatabase(t *testing.T) {
 			t.Fatal("restoring file left behind")
 		}
 	}
-	if len(aside) != 2 { // framebeam.db and its -wal
+	if len(aside) != 2 { // uzume.db and its -wal
 		t.Fatalf("aside: %v", aside)
 	}
-	if got := read(t, filepath.Join(f.dir, "framebeam.db.rollback-20261007T100000Z")); !strings.HasSuffix(got, "LIVE") {
+	if got := read(t, filepath.Join(f.dir, "uzume.db.rollback-20261007T100000Z")); !strings.HasSuffix(got, "LIVE") {
 		t.Fatalf("the old database must be kept: %q", got)
 	}
 }
@@ -462,10 +462,10 @@ func TestApplyStagedRollbackFailedInstallPutsTheDatabaseBack(t *testing.T) {
 	if strings.Join(order, "|") != "systemctl stop|dpkg -i|systemctl start" {
 		t.Fatalf("the service must be started again: %v", order)
 	}
-	if got := read(t, filepath.Join(f.dir, "framebeam.db")); !strings.HasSuffix(got, "LIVE") {
+	if got := read(t, filepath.Join(f.dir, "uzume.db")); !strings.HasSuffix(got, "LIVE") {
 		t.Fatalf("the original database must be back: %q", got)
 	}
-	if got := read(t, filepath.Join(f.dir, "framebeam.db-wal")); got != "wal" {
+	if got := read(t, filepath.Join(f.dir, "uzume.db-wal")); got != "wal" {
 		t.Fatalf("the original wal must be back: %q", got)
 	}
 }
@@ -480,10 +480,10 @@ func TestApplyStagedRollbackStopFailureChangesNothing(t *testing.T) {
 		return nil, nil
 	}
 	_, err := f.apply(t, run, "0.4.0", func(o *ApplyOptions) { o.PrepareDB = func(string, map[string]string) error { return nil } })
-	if err == nil || !strings.Contains(err.Error(), "stop the Hub") {
+	if err == nil || !strings.Contains(err.Error(), "stop the server") {
 		t.Fatal(err)
 	}
-	if got := read(t, filepath.Join(f.dir, "framebeam.db")); !strings.HasSuffix(got, "LIVE") {
+	if got := read(t, filepath.Join(f.dir, "uzume.db")); !strings.HasSuffix(got, "LIVE") {
 		t.Fatalf("%q", got)
 	}
 	if _, err := os.Stat(filepath.Join(f.dir, dbRestoringName)); err == nil {
@@ -522,10 +522,10 @@ func TestApplyStagedRollbackDatabaseBackupChecks(t *testing.T) {
 }
 
 func TestServiceCommand(t *testing.T) {
-	if n, a := ServiceCommand("linux-arm64", "stop"); n != "systemctl" || strings.Join(a, " ") != "stop framebeam-hub.service" {
+	if n, a := ServiceCommand("linux-arm64", "stop"); n != "systemctl" || strings.Join(a, " ") != "stop uzume-server.service" {
 		t.Fatal(n, a)
 	}
-	if n, a := ServiceCommand("windows-amd64", "start"); n != "net.exe" || strings.Join(a, " ") != "start FrameBeamHub" {
+	if n, a := ServiceCommand("windows-amd64", "start"); n != "net.exe" || strings.Join(a, " ") != "start UzumeServer" {
 		t.Fatal(n, a)
 	}
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-viewer-left.schema.json",
-  "title": "ws-viewer-left (Hub to owner device and viewer device)",
+  "$id": "https://uzume.invalid/schemas/ws-viewer-left.schema.json",
+  "title": "ws-viewer-left (server to owner device and viewer device)",
   "type": "object",
   "required": [
     "type",

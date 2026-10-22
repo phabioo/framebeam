@@ -1,5 +1,5 @@
 // Screenshots of the game view (0.6 UI pass, designs 3g, 3h, 3i, 3r, 3t, 3u, 3w, 3y) with fake data at 1440x900.
-// Active only with FRAMEBEAM_SCREENSHOT_DIR=<dir> (otherwise QSKIP); needs neither a core nor a ROM: the game is a
+// Active only with UZUME_SCREENSHOT_DIR=<dir> (otherwise QSKIP); needs neither a core nor a ROM: the game is a
 // preview (GameSession::setPreview) and the Hub is the FakeHub. The PNGs are for the review, never checked in.
 #include <QDir>
 #include <QPainter>
@@ -8,8 +8,8 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 namespace {
@@ -149,7 +149,7 @@ class ScreenshotsGameTest : public QObject {
     return nullptr;
   }
   void preview(const EmulationDiagnostics& d, int scale, const QColor& tint) {
-    h_.controller->gameSession()->setPreview(QStringLiteral("Framebeam Test"), fakeFrame(scale, tint), ndsProfile(), d);
+    h_.controller->gameSession()->setPreview(QStringLiteral("Uzume Test"), fakeFrame(scale, tint), ndsProfile(), d);
     h_.controller->sessions()->refreshDiagnostics();
   }
   void feedRemote(const QString& id, const QColor& tint) {
@@ -159,8 +159,8 @@ class ScreenshotsGameTest : public QObject {
 
  private slots:
   void renderGameScreens() {
-    dir_ = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
-    if (dir_.isEmpty()) QSKIP("FRAMEBEAM_SCREENSHOT_DIR not set");
+    dir_ = qEnvironmentVariable("UZUME_SCREENSHOT_DIR");
+    if (dir_.isEmpty()) QSKIP("UZUME_SCREENSHOT_DIR not set");
     QVERIFY(QDir().mkpath(dir_));
 
     hub_.hubId = QStringLiteral("hub-shots");
@@ -183,10 +183,10 @@ class ScreenshotsGameTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(ctl->sessions().size(), 3, 8000);
 
     // A preview game instead of a running core: enters the game view like a started game.
-    gs->setPreview(QStringLiteral("Framebeam Test"), fakeFrame(1, QColor(60, 140, 200)), ndsProfile(), softwareDiag());
+    gs->setPreview(QStringLiteral("Uzume Test"), fakeFrame(1, QColor(60, 140, 200)), ndsProfile(), softwareDiag());
     emit gs->started();
     QTRY_COMPARE_WITH_TIMEOUT(h_.controller->screen(), QStringLiteral("game"), 8000);
-    ctl->gameStarted(QStringLiteral("t1"), QStringLiteral("Framebeam Test"));  // the preview has no library entry: give the Session its game id
+    ctl->gameStarted(QStringLiteral("t1"), QStringLiteral("Uzume Test"));  // the preview has no library entry: give the Session its game id
     QQuickItem* screen = gameScreen();
     QVERIFY(screen != nullptr);
     screen->setProperty("applyToWindow", false);

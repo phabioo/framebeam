@@ -48,7 +48,7 @@ type ApplyOptions struct {
 	DataDir string
 	// RequestFile is deleted first (nothing happens when it is "" or missing).
 	RequestFile string
-	// Keys are the trusted signing keys: compiled-in plus FRAMEBEAM_HUB_CORE_TRUST_KEYS. Nothing from the data
+	// Keys are the trusted signing keys: compiled-in plus UZUME_SERVER_CORE_TRUST_KEYS. Nothing from the data
 	// directory is trusted without a valid signature.
 	Keys []ed25519.PublicKey
 	// CurrentVersion is the compiled-in version of the running binary.
@@ -69,7 +69,7 @@ type ApplyOptions struct {
 
 const maxMetaBytes = 1 << 20
 
-// ApplyStaged is the root helper behind `framebeam-hub update apply-staged`. The data directory is writable by
+// ApplyStaged is the root helper behind `uzume-server update apply-staged`. The data directory is writable by
 // the (less trusted) service user, so everything read from it is treated as untrusted: the index signature is
 // verified with trusted keys only, the version must be strictly newer than the running one (no replay of old
 // signed releases), symlinks inside the data directory are never followed, and the package is copied into a
@@ -204,7 +204,7 @@ func ApplyStaged(ctx context.Context, o ApplyOptions) (res Result, err error) {
 			return res, err
 		}
 	}
-	tmp, err := os.MkdirTemp(o.TempDir, "framebeam-update-")
+	tmp, err := os.MkdirTemp(o.TempDir, "uzume-update-")
 	if err != nil {
 		return res, err
 	}
@@ -387,21 +387,21 @@ func checkRollbackTarget(o ApplyOptions, st Staged, cur, cand SemVer, idx Index,
 
 // Names of the database files the rollback moves.
 const (
-	dbFileName      = "framebeam.db"
-	dbRestoringName = "framebeam.db.restoring"
+	dbFileName      = "uzume.db"
+	dbRestoringName = "uzume.db.restoring"
 )
 
 var sqliteHeader = []byte("SQLite format 3\x00")
 
-// ServiceCommand is the command that stops or starts the Hub service (action "stop" or "start").
+// ServiceCommand is the command that stops or starts the server service (action "stop" or "start").
 func ServiceCommand(platform, action string) (name string, args []string) {
 	if isWindowsPlatform(platform) {
-		return "net.exe", []string{action, "FrameBeamHub"}
+		return "net.exe", []string{action, "UzumeServer"}
 	}
-	return "systemctl", []string{action, "framebeam-hub.service"}
+	return "systemctl", []string{action, "uzume-server.service"}
 }
 
-// dbSwap is a prepared database replacement: the restored copy waits as framebeam.db.restoring until the service
+// dbSwap is a prepared database replacement: the restored copy waits as uzume.db.restoring until the service
 // is stopped.
 type dbSwap struct {
 	root    *os.Root
@@ -412,7 +412,7 @@ type dbSwap struct {
 }
 
 // prepareDBSwap copies the named pre-update backup into the data directory, checks it, lets o.PrepareDB write the
-// update settings into it, and replaces the live database with it while the Hub service is stopped. Everything
+// update settings into it, and replaces the live database with it while the server service is stopped. Everything
 // before the stop can fail without changing anything.
 func prepareDBSwap(ctx context.Context, root *os.Root, o ApplyOptions, st Staged, read func(string) ([]byte, error)) (*dbSwap, error) {
 	var settings map[string]string
@@ -463,7 +463,7 @@ func prepareDBSwap(ctx context.Context, root *os.Root, o ApplyOptions, st Staged
 	name, args := ServiceCommand(o.Platform, "stop")
 	if out, err := o.Run(ctx, name, args...); err != nil {
 		_ = root.Remove(dbRestoringName)
-		return nil, fmt.Errorf("stop the Hub: %w: %s", err, tail(string(out), 300))
+		return nil, fmt.Errorf("stop the server: %w: %s", err, tail(string(out), 300))
 	}
 	sw.started = true
 	for _, n := range []string{dbFileName, dbFileName + "-wal", dbFileName + "-shm"} {

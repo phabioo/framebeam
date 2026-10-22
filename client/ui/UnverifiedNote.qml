@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
-// Warning box for plugins FrameBeam has not checked (same tone as turning on an unverified plugin in Settings > Plugins).
+// Warning box for plugins Uzume has not checked (same tone as turning on an unverified plugin in Settings > Plugins).
 Rectangle {
     id: root
     property string text: ""

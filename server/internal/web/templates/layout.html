@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false}'>
-<title>{{.Title}} · FrameBeam Hub</title>
+<title>{{.Title}} · Uzume server</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="{{asset "app.css"}}">
 <script src="{{asset "htmx.min.js"}}" defer></script>
@@ -39,14 +39,14 @@
 {{define "topbar-badge-oob"}}<span class="badge" id="topbar-badge" hx-swap-oob="outerHTML">{{template "topbar-badge-inner" .}}</span>{{end}}
 {{define "nav-fragment"}}{{template "nav" .}}{{template "topbar-badge-oob" .}}{{end}}
 {{/* Response of a sidebar navigation: main content plus out-of-band nav and title. */}}
-{{define "main-swap"}}{{template "main" .}}<title>{{.Title}} · FrameBeam Hub</title>
+{{define "main-swap"}}{{template "main" .}}<title>{{.Title}} · Uzume server</title>
 <nav class="nav" id="nav" aria-label="Main navigation" hx-get="/nav-fragment" hx-trigger="fb:badges from:body" hx-target="this" hx-swap="outerHTML" hx-disinherit="hx-swap hx-target" hx-swap-oob="outerHTML">{{template "nav-inner" .}}</nav>{{template "topbar-badge-oob" .}}{{end}}
 {{define "layout"}}{{template "head" .}}
 <body hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}'>
 <div class="shell" id="shell">
-  <header class="topbar"><button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Menu">☰</button><span class="topbar-title">FrameBeam Hub</span>{{template "topbar-badge" .}}</header>
+  <header class="topbar"><button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Menu">☰</button><span class="topbar-title">Uzume server</span>{{template "topbar-badge" .}}</header>
   <aside class="sidebar" id="sidebar">
-    <div class="logo"><span class="logo-mark"></span>FrameBeam Hub</div>
+    <div class="logo"><span class="logo-mark"></span>Uzume server</div>
     {{template "nav" .}}
     <div class="sidebar-foot">
       <div class="who">{{.User}} · {{.Role}}</div>
@@ -61,7 +61,7 @@
 {{define "bare"}}{{template "head" .}}
 <body>
 <div class="bare"><div class="card">
-  <div class="logo"><span class="logo-mark"></span>FrameBeam Hub</div>
+  <div class="logo"><span class="logo-mark"></span>Uzume server</div>
   {{template "flash" .}}
   {{template "content" .}}
 </div></div>

@@ -18,9 +18,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/store"
 )
 
 func newAdmin(t *testing.T) (*hub.Service, *hubtest.Clock, hub.User) {
@@ -38,7 +38,7 @@ func redeemIn(code, name string) hub.RedeemInput {
 		Arch: "x86_64", PlayerVersion: "0.1.0", ProtocolVersion: 1, RemoteAddr: "192.0.2.1"}
 }
 
-var codeRe = regexp.MustCompile(`^FB-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}$`)
+var codeRe = regexp.MustCompile(`^UZ-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}$`)
 
 func TestInviteCodeFormatAndOnlyHashStored(t *testing.T) {
 	svc, _, admin := newAdmin(t)
@@ -56,7 +56,7 @@ func TestInviteCodeFormatAndOnlyHashStored(t *testing.T) {
 		t.Fatalf("odd expiry: %v", err)
 	}
 	// The database holds a hash only.
-	db, err := store.Open(filepath.Join(svc.DataDir(), "framebeam.db"))
+	db, err := store.Open(filepath.Join(svc.DataDir(), "uzume.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestRedeemInvalidExpiredRevokedAndNameTaken(t *testing.T) {
 			t.Fatalf("%q: %v", code, err)
 		}
 	}
-	bad("FB-AAAA-AAAA")
+	bad("UZ-AAAA-AAAA")
 	bad("")
 	bad("garbage")
 
@@ -257,20 +257,20 @@ func TestRedeemConcurrentSingleUse(t *testing.T) {
 func TestRedeemRateLimitLikePairing(t *testing.T) {
 	svc, clk, _ := newAdmin(t)
 	for i := 0; i < hub.MaxRedeemPerIPPerMinute; i++ {
-		if _, err := svc.RedeemInvite(ctx, redeemIn("FB-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrInviteInvalid) {
+		if _, err := svc.RedeemInvite(ctx, redeemIn("UZ-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrInviteInvalid) {
 			t.Fatalf("%d: %v", i, err)
 		}
 	}
-	if _, err := svc.RedeemInvite(ctx, redeemIn("FB-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrRateLimited) {
+	if _, err := svc.RedeemInvite(ctx, redeemIn("UZ-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrRateLimited) {
 		t.Fatalf("limit: %v", err)
 	}
-	other := redeemIn("FB-AAAA-AAAA", "x")
+	other := redeemIn("UZ-AAAA-AAAA", "x")
 	other.RemoteAddr = "192.0.2.99"
 	if _, err := svc.RedeemInvite(ctx, other); !errors.Is(err, hub.ErrInviteInvalid) {
 		t.Fatalf("other IP: %v", err)
 	}
 	clk.Advance(61 * time.Second)
-	if _, err := svc.RedeemInvite(ctx, redeemIn("FB-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrInviteInvalid) {
+	if _, err := svc.RedeemInvite(ctx, redeemIn("UZ-AAAA-AAAA", "x")); !errors.Is(err, hub.ErrInviteInvalid) {
 		t.Fatalf("after a minute: %v", err)
 	}
 }
@@ -532,7 +532,7 @@ func TestHandshakeCoreChecksAndReports(t *testing.T) {
 	if reps, _ = svc.ListClientReports(ctx, mustEntry(t, svc)); reps[0].Status != hub.ClientCompatible {
 		t.Fatalf("%+v", reps)
 	}
-	// A protocol problem still makes the Player incompatible next to core warnings.
+	// A protocol problem still makes the app incompatible next to core warnings.
 	r2, err := svc.Handshake(ctx, dev, hub.HandshakeInput{Platform: "windows", Arch: "x86_64", PlayerVersion: "0.2.0",
 		ProtocolVersion: 5, MinProtocolVersion: 5, Cores: &[]hub.CoreReport{}})
 	if err != nil || r2.Compatible || len(r2.Problems) != 2 {
@@ -599,7 +599,7 @@ func TestProvideFirmwareKeepsOldFileWhenMetadataUpdateFails(t *testing.T) {
 	if _, err := svc.ProvideFirmware(ctx, "nds", "bios7", bytes.NewReader(v1)); err != nil {
 		t.Fatal(err)
 	}
-	db, err := store.Open(filepath.Join(svc.DataDir(), "framebeam.db"))
+	db, err := store.Open(filepath.Join(svc.DataDir(), "uzume.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -13,11 +13,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
-// Package 7 (repo scan 2026-10-19): Hub robustness fixes. One test per finding.
+// Package 7 (repo scan 2026-10-19): Server robustness fixes. One test per finding.
 
 // HC-1: a CLI sub-command opens the data directory next to the running service and must not wipe its staging area.
 func TestOpenWithoutCleanStagingKeepsTmp(t *testing.T) {
@@ -246,7 +246,7 @@ func TestCatalogRefreshSurvivesOnePlatformFailure(t *testing.T) {
 	if got := strings.Join(sc.Available[0].Platforms, ","); got != "windows-x64,linux-x64" {
 		t.Fatalf("previous builds of the failed platform lost: %s", got)
 	}
-	// A fresh Hub without a previous catalog gets the platform that works.
+	// A fresh server without a previous catalog gets the platform that works.
 	svc2, bb2 := bbEnv(t, nil)
 	bb2.FailDirs = []string{"windows/x86_64"}
 	rep, err = svc2.RefreshCatalog(ctx)
@@ -290,12 +290,12 @@ func TestRedeemFailureCapSparesCleanSources(t *testing.T) {
 	}
 	for i := 0; i < hub.MaxRedeemFailuresPerMinute/hub.MaxRedeemPerIPPerMinute+2; i++ { // exceeds the global cap
 		for j := 0; j < hub.MaxRedeemPerIPPerMinute; j++ {
-			in := redeemIn("FB-AAAA-AAAA", "x")
+			in := redeemIn("UZ-AAAA-AAAA", "x")
 			in.RemoteAddr = fmt.Sprintf("10.%d.%d.1", i/250, i%250)
 			svc.RedeemInvite(ctx, in)
 		}
 	}
-	in := redeemIn("FB-AAAA-AAAA", "x") // a source with a failure of its own is held back by the global cap
+	in := redeemIn("UZ-AAAA-AAAA", "x") // a source with a failure of its own is held back by the global cap
 	in.RemoteAddr = "10.0.0.1"
 	if _, err := svc.RedeemInvite(ctx, in); !errors.Is(err, hub.ErrRateLimited) {
 		t.Fatalf("failing source below the global cap: %v", err)

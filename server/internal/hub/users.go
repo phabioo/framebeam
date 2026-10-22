@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/auth"
 )
 
 // Role is the role of a user.

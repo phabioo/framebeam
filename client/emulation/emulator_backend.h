@@ -1,5 +1,5 @@
 #pragma once
-// EmulatorBackend: core-agnostic interface between FrameBeam Player and the emulator.
+// EmulatorBackend: core-agnostic interface between Uzume and the emulator.
 // Externally a uniform format applies: video = QImage::Format_RGB32 (XRGB8888),
 // audio = interleaved stereo int16 (L,R,L,R,... in native byte order).
 //
@@ -21,7 +21,7 @@
 #include "gpu_encode_target.h"
 #include "memory_map.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 struct CoreInfo {
   QString name;
@@ -46,7 +46,7 @@ struct RenderInfo {
   QString gpu;               // "<renderer> · Driver <version>"; empty for software
   QString fallbackReason;    // set when hardware was requested but software runs, see kFallback* below
 };
-inline constexpr char kFallbackDisabled[] = "disabled by FRAMEBEAM_DISABLE_HW_RENDER";
+inline constexpr char kFallbackDisabled[] = "disabled by UZUME_DISABLE_HW_RENDER";
 inline constexpr char kFallbackNoContext[] = "no OpenGL 3.3 context";
 inline constexpr char kFallbackNoFramebuffer[] = "framebuffer creation failed";
 inline constexpr char kFallbackUnsupported[] = "core asked for an unsupported context";
@@ -190,4 +190,4 @@ class EmulatorBackend {
   virtual bool setCoreOption(const QString& key, const QString& value) = 0;
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

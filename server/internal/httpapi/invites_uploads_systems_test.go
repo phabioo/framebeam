@@ -15,12 +15,12 @@ import (
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
 // Invites over HTTP: invites, user disable, uploads, systems and firmware, handshake core warnings.
-// All requests go through env.do and are validated against protocol/openapi/framebeam.yaml.
+// All requests go through env.do and are validated against protocol/openapi/uzume.yaml.
 
 func redeemBody(code, name, deviceID string) map[string]any {
 	return map[string]any{"code": code, "display_name": name, "device_id": deviceID, "device_name": name + "-PC",
@@ -335,7 +335,7 @@ func TestSystemsAndFirmwareAPI(t *testing.T) {
 	if rec.Code != http.StatusNotModified {
 		t.Fatalf("status %d", rec.Code)
 	}
-	// A pinned hash that differs: reported as not present and not downloadable (Player shows firmware missing).
+	// A pinned hash that differs: reported as not present and not downloadable (app shows firmware missing).
 	s.svc.SetFirmwarePin(ctx, "nds", "bios7", strings.Repeat("d", 64))
 	nds = list()
 	if nds.Firmware[0].Present || nds.Firmware[0].Size != nil || nds.Firmware[0].SHA256 != nil || !nds.Firmware[0].Required {

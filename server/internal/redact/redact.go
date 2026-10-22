@@ -23,7 +23,7 @@ var redactors = []struct {
 	{regexp.MustCompile(`(?i)(\b[a-z0-9_.-]*` + sensitiveKey + `[a-z0-9_.-]*["']?\s*[:=]\s*)("(?:[^"\\]|\\.)*"|'[^']*'|[^\s,;&"'}\]]+)`), "${1}" + redacted},
 	// A bare "code" key (invite and pairing codes); longer names like status_code are not touched.
 	{regexp.MustCompile(`(?i)((?:^|[?&\s"'])code["']?\s*[:=]\s*)("(?:[^"\\]|\\.)*"|'[^']*'|[^\s,;&"'}\]]+)`), "${1}" + redacted},
-	// Hub cookie names and token prefixes (fba_ access, fbd_ device, fbp_ poll, fbw_ web session, fbm_ metrics).
+	// Server cookie names and token prefixes (fba_ access, fbd_ device, fbp_ poll, fbw_ web session, fbm_ metrics).
 	{regexp.MustCompile(`((?:__Host-)?fb_(?:session|csrf))=[^\s;,"']+`), "${1}=" + redacted},
 	{regexp.MustCompile(`\bfb[adpwm]_[A-Za-z0-9_-]{8,}`), redacted},
 	// Invite links carry the code in the URL fragment.

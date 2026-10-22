@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // "This PC's Hub" (Settings > Hubs): network sharing and ROM folder of the Hub that runs on this PC. Shown while the
 // active Hub is that Hub.

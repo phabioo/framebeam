@@ -1,4 +1,4 @@
-/* FrameBeam Hub web interface (light, dark, system). Tokens: docs/design/tokens.md. No external resources. */
+/* Uzume server web interface (light, dark, system). Tokens: docs/design/tokens.md. No external resources. */
 :root {
   --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

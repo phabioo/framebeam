@@ -2,7 +2,7 @@
 
 #include <QJsonArray>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 QString str(const QJsonObject& o, const char* k) { return o.value(QLatin1String(k)).toString(); }
@@ -104,4 +104,4 @@ std::optional<SessionSignal> parseSignal(const QJsonObject& p) {
   return s;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

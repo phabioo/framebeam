@@ -8,7 +8,7 @@
 struct AVBufferRef;
 struct AVFrame;
 
-namespace framebeam {
+namespace uzume {
 
 namespace cuda {
 struct Api;
@@ -68,4 +68,4 @@ class CudaGlCapture {
 // the driver Dead.
 int cudaHealthCheck(AVBufferRef* framesCtx);
 
-}  // namespace framebeam
+}  // namespace uzume

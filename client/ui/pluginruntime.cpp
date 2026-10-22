@@ -7,7 +7,7 @@
 #include "gamesession.h"
 #include "screenlayout.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 std::vector<emu::WatchRange> toEmu(const std::vector<plugins::WatchRange>& in) {
@@ -143,4 +143,4 @@ void VideoCaptureAdapter::captureFrame(std::function<void(plugins::RawFrame)> do
       Qt::QueuedConnection);
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

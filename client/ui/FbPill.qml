@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // Status pill (tokens.md): surface + text with a leading symbol. tone: ok | warn | amber | error | neutral; in the Player
 // "warn" is the accent (Signal Cyan on its chip surface), by design. small = the diagnostics variant (11/600, no symbol).

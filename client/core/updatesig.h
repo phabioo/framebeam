@@ -7,13 +7,13 @@
 #include <QString>
 #include <QStringList>
 
-namespace framebeam::update {
+namespace uzume::update {
 
 // Compiled-in trusted public keys (raw 32 bytes), same list as the Hub's corepkg.DefaultTrustedKeys.
 QList<QByteArray> defaultTrustedKeys();
 // Parses base64 (std) public keys; invalid entries are reported in *error (first problem) and skipped.
 QList<QByteArray> parsePublicKeys(const QStringList& base64Keys, QString* error = nullptr);
-// Env FRAMEBEAM_PLAYER_TRUST_KEYS (comma separated base64) appended to the compiled-in keys.
+// Env UZUME_APP_TRUST_KEYS (comma separated base64) appended to the compiled-in keys.
 QList<QByteArray> trustedKeysFromEnvironment();
 
 QString keyId(const QByteArray& publicKey);  // 16 hex chars
@@ -25,11 +25,11 @@ struct SigCheck {
   QString error;
 };
 // Signing context of the updates index (domain separation, ADR 0016 amendment 2026-10-19). Same string as
-// corepkg.ContextUpdatesIndex in the Hub.
-inline constexpr char kUpdatesIndexContext[] = "framebeam-updates-index-v2";
+// corepkg.ContextUpdatesIndex in the server.
+inline constexpr char kUpdatesIndexContext[] = "uzume-updates-index-v1";
 
 // Verifies the exact index bytes against the signature line; the key is selected by its id. Accepts the legacy line
 // ("ed25519 <key_id> <sig>", raw bytes; transition) and the domain-separated line ("ed25519ctx <key_id> <context> <sig>").
 SigCheck verifyIndexSignature(const QByteArray& index, const QByteArray& sigFile, const QList<QByteArray>& trustedKeys);
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

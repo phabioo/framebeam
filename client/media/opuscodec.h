@@ -9,7 +9,7 @@
 struct OpusEncoder;
 struct OpusDecoder;
 
-namespace framebeam {
+namespace uzume {
 
 inline constexpr int kOpusRate = 48000;
 inline constexpr int kOpusChannels = 2;
@@ -55,4 +55,4 @@ class OpusDepacker {
   OpusDecoder* dec_ = nullptr;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

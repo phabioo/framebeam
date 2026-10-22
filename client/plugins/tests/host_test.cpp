@@ -5,8 +5,8 @@
 #include "processguard.h"
 #include "plugin_test_util.h"
 
-using namespace framebeam::plugins;
-using namespace framebeam::plugins::testutil;
+using namespace uzume::plugins;
+using namespace uzume::plugins::testutil;
 
 namespace {
 QStringList logTexts(const ConsoleSnapshot& c) {

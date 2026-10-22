@@ -7,7 +7,7 @@
 
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 // Core package cache: <root>/<core_id>/<version>/<platform>/<file> plus package.json (the metadata as served by the
 // Hub). root = <data>/cache/cores. A library counts only after package.json exists and size + SHA-256 of the
@@ -66,4 +66,4 @@ class CoreCache {
   mutable QHash<QString, Memo> memo_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -56,7 +56,7 @@ QString FakeHub::address() const {
   return QStringLiteral("%1://127.0.0.1:%2").arg(certName_.isEmpty() ? QStringLiteral("http") : QStringLiteral("https")).arg(serverPort());
 }
 
-QString FakeHub::fingerprint() const { return framebeam::HubHttp::fingerprint(cert_); }
+QString FakeHub::fingerprint() const { return uzume::HubHttp::fingerprint(cert_); }
 
 int FakeHub::count(const QString& pathPrefix, const QByteArray& method) const {
   int n = 0;
@@ -166,7 +166,7 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
   const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
   const QJsonObject body = QJsonDocument::fromJson(req.body).object();
 
-  if (req.method == "GET" && req.path == QLatin1String("/.well-known/framebeam")) {
+  if (req.method == "GET" && req.path == QLatin1String("/.well-known/uzume")) {
     respond(sock, 200, json({{QStringLiteral("hub_id"), hubId},
                              {QStringLiteral("name"), name},
                              {QStringLiteral("hub_version"), QStringLiteral("0.1.0")},
@@ -740,7 +740,7 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
     respondError(sock, 503, QStringLiteral("internal"));
     return;
   }
-  const QString sha256Hdr = QString::fromLatin1(req.headers.value(QStringLiteral("x-framebeam-content-sha256")));
+  const QString sha256Hdr = QString::fromLatin1(req.headers.value(QStringLiteral("x-uzume-content-sha256")));
   if (req.path == QLatin1String("/api/v1/saves") && req.method == "GET") {
     QJsonArray arr;
     for (auto it = saves.cbegin(); it != saves.cend(); ++it) {
@@ -822,14 +822,14 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
     const FakeSlot& s = saves.value(key);
     const QByteArray sha = QCryptographicHash::hash(s.content, QCryptographicHash::Sha256).toHex();
     respond(sock, 200, s.content, "application/octet-stream",
-            {{"ETag", "\"" + sha + "\""}, {"X-FrameBeam-Save-Revision", QByteArray::number(s.revision)}});
+            {{"ETag", "\"" + sha + "\""}, {"X-Uzume-Save-Revision", QByteArray::number(s.revision)}});
   } else if (parts.size() == 6 && req.method == "PUT") {
     const QString actual = QString::fromLatin1(QCryptographicHash::hash(req.body, QCryptographicHash::Sha256).toHex());
     if (actual != sha256Hdr) {
       respondError(sock, 400, QStringLiteral("bad_request"));
       return;
     }
-    const int base = req.headers.value(QStringLiteral("x-framebeam-base-revision")).toInt();
+    const int base = req.headers.value(QStringLiteral("x-uzume-base-revision")).toInt();
     FakeSlot& s = saves[key];
     const QString curSha = QString::fromLatin1(QCryptographicHash::hash(s.content, QCryptographicHash::Sha256).toHex());
     if (s.revision > 0 && curSha == actual) {
@@ -839,7 +839,7 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
       s.content = req.body;
       s.deviceId = callerDeviceId;
       s.deviceName = QStringLiteral("Test Device");
-      s.reason = QString::fromLatin1(req.headers.value(QStringLiteral("x-framebeam-sync-reason")));
+      s.reason = QString::fromLatin1(req.headers.value(QStringLiteral("x-uzume-sync-reason")));
       respond(sock, 200, json(slotJson(key, s)));
     } else {
       FakeConflict* c = nullptr;
@@ -909,7 +909,7 @@ void FakeHub::handleSaves(QSslSocket* sock, const FakeRequest& req) {
       return;
     }
     FakeSlot& s = saves[key];
-    if (req.headers.value(QStringLiteral("x-framebeam-expected-revision")).toInt() != (exists ? s.revision : 0)) {
+    if (req.headers.value(QStringLiteral("x-uzume-expected-revision")).toInt() != (exists ? s.revision : 0)) {
       respondError(sock, 409, QStringLiteral("save_conflict_stale"));
       return;
     }

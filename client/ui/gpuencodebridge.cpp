@@ -7,7 +7,7 @@
 #include "d3d11encodecapture.h"
 #include "d3d11glbridge.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 GpuEncodePlan planGpuEncode(bool shared, bool hwGame, bool encoderRunning, bool gpuAllowed, bool gpuActive) {
   GpuEncodePlan p;
@@ -235,4 +235,4 @@ void GpuEncodeBridge::transition(State to, const QString& reason) {
   state_.store(to);
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

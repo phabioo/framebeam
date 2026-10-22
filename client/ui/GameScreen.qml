@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Game view (3g-2, 3r-2, 3h-2, 3i-2, 3t-2, 3x-2): GameHeader (56 px, five zones) over the play area and the GamePanel
 // (340, 320 at 1280, or a 48 px rail). Session = your game; Multiview = MultiviewArea (tiles), the panel follows the

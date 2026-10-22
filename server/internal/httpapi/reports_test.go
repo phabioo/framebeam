@@ -16,7 +16,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 type reportFile struct{ name, body string }
@@ -44,7 +44,7 @@ func multipartReport(t *testing.T, meta string, files ...reportFile) (data []byt
 	return buf.Bytes(), mw.FormDataContentType()
 }
 
-// reportEnv is a Hub with an admin and a member, each with a device token.
+// reportEnv is a server with an admin and a member, each with a device token.
 func reportEnv(t *testing.T) (e *env, adminTok, memberTok string) {
 	t.Helper()
 	e = newEnv(t, nil)
@@ -138,7 +138,7 @@ func TestReportsLifecycle(t *testing.T) {
 	if rec.Body.String() != "token=raw-bytes-stay-as-sent" {
 		t.Fatalf("bin %q", rec.Body.String())
 	}
-	wantStatus(t, e.do("GET", fmt.Sprintf("/api/v1/admin/reports/%d/files/..%%2F..%%2Fframebeam.db", id), nil, opt{token: admin, raw: true}), 404, "")
+	wantStatus(t, e.do("GET", fmt.Sprintf("/api/v1/admin/reports/%d/files/..%%2F..%%2Fuzume.db", id), nil, opt{token: admin, raw: true}), 404, "")
 	wantStatus(t, e.do("GET", fmt.Sprintf("/api/v1/admin/reports/%d/files/nope.txt", id), nil, opt{token: admin}), 404, "not_found")
 
 	// The archive holds report.txt and all files.

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 ApplicationWindow {
     id: window
@@ -12,7 +12,7 @@ ApplicationWindow {
     height: 800
     minimumWidth: 960
     minimumHeight: 600
-    title: qsTr("FrameBeam Player")
+    title: qsTr("Uzume")
     color: Theme.bg
 
     // Appearance (Settings): Dark | Light | System; the game view is always dark.
@@ -112,7 +112,7 @@ ApplicationWindow {
         }
     }
 
-    // Emulation > FrameBeam > "Fullscreen on start": the window goes fullscreen while a game is shown and returns afterwards.
+    // Emulation > Uzume > "Fullscreen on start": the window goes fullscreen while a game is shown and returns afterwards.
     property int visibilityBeforeGame: Window.Windowed
     property bool fullscreenApplied: false
     Connections {

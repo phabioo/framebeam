@@ -1,6 +1,6 @@
 // Plugin UI building blocks (PluginBlock.qml / PluginMapView.qml) in isolation: a tree with every block type rendered dark
 // and light, button actions with and without confirmation, toggle, map marker selection, filter, clusters, keyboard
-// navigation. No hub, no core. With FRAMEBEAM_SCREENSHOT_DIR=<dir> the sheet and the map are also saved as PNGs (never
+// navigation. No hub, no core. With UZUME_SCREENSHOT_DIR=<dir> the sheet and the map are also saved as PNGs (never
 // checked in). Sprites come from a test image provider that paints generated pixmaps (no game assets).
 #include <QJsonDocument>
 #include <QQmlComponent>
@@ -45,7 +45,7 @@ class TestProvider : public QQuickImageProvider {
 
 const char* kPageQml = R"(
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 Rectangle {
     id: page
@@ -228,7 +228,7 @@ class PluginBlocksUiTest : public QObject {
 
  private slots:
   void initTestCase() {
-    shotDir_ = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
+    shotDir_ = qEnvironmentVariable("UZUME_SCREENSHOT_DIR");
     uitest::installWarningCounter();
     uitest::warningCount() = 0;
     engine_ = new QQmlEngine(this);

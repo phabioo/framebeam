@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/config"
 )
 
 func TestDiagnosticsBundleDownload(t *testing.T) {
@@ -54,7 +54,7 @@ func TestDiagnosticsBundleDownload(t *testing.T) {
 		t.Fatalf("content type %q", ct)
 	}
 	cd := rec.Header().Get("Content-Disposition")
-	if !regexp.MustCompile(`^attachment; filename="framebeam-hub-diagnostics-\d{8}T\d{6}Z\.zip"$`).MatchString(cd) {
+	if !regexp.MustCompile(`^attachment; filename="uzume-diagnostics-\d{8}T\d{6}Z\.zip"$`).MatchString(cd) {
 		t.Fatalf("content disposition %q", cd)
 	}
 	if rec.Header().Get("Cache-Control") != "no-store" {

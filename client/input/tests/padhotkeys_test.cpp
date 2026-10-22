@@ -10,8 +10,8 @@
 #include "padhotkeys.h"
 #include "system_manifest.h"
 
-using namespace framebeam;
-using namespace framebeam::input;
+using namespace uzume;
+using namespace uzume::input;
 
 namespace {
 const QString kBack = QStringLiteral("pad:back");
@@ -34,7 +34,7 @@ struct VirtualPad {
     desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
     desc.naxes = 6;
     desc.nbuttons = 15;
-    desc.name = "FrameBeam hotkey pad";
+    desc.name = "Uzume hotkey pad";
     desc.vendor_id = 0x1209;
     desc.product_id = 0x4a00;
     id = SDL_AttachVirtualJoystick(&desc);
@@ -103,7 +103,7 @@ class PadHotkeysServiceTest : public QObject {
   Q_OBJECT
  private slots:
   void initTestCase() {  // loading the manifests registers the input tables
-    framebeam::emu::ManifestRegistry reg;
+    uzume::emu::ManifestRegistry reg;
     QVERIFY(reg.loadBuiltin());
   }
   void comboNeverReachesTheCore() {

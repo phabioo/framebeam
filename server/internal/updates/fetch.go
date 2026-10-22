@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/corepkg"
 )
 
 const (

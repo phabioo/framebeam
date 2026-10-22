@@ -30,7 +30,7 @@
 #include "sessionhost.h"
 #include "sessionviewer.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class SessionController : public QObject {
   Q_OBJECT
@@ -88,7 +88,7 @@ class SessionController : public QObject {
   // to "stacked" when a game starts. Which layouts exist comes from the system (GameSession::screenLayouts).
   Q_PROPERTY(QString screenLayout READ screenLayout WRITE setScreenLayout NOTIFY viewChanged)
   // Diagnostics overlay (3t-3y): states, formatted values.
-  Q_PROPERTY(framebeam::ui::DiagnosticsModel* diagnostics READ diagnostics CONSTANT)
+  Q_PROPERTY(uzume::ui::DiagnosticsModel* diagnostics READ diagnostics CONSTANT)
   // 3g: "Lena is relayed via the hub (TURN) · may lag slightly." (empty when nobody is relayed)
   Q_PROPERTY(QString relayHint READ relayHint NOTIFY shareChanged)
 
@@ -298,4 +298,4 @@ class SessionController : public QObject {
   QHash<QString, SessionStats> overrideRemotes_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

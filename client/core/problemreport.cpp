@@ -12,7 +12,7 @@
 #include "playersettings.h"
 #include "version.h"
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 
@@ -185,7 +185,7 @@ QJsonObject ProblemReport::metaJson() const {
 }
 
 QByteArray ProblemReport::multipartBody(QByteArray* contentType) const {
-  const QByteArray boundary = "----FrameBeamReport" + QUuid::createUuid().toByteArray(QUuid::Id128);
+  const QByteArray boundary = "----UzumeReport" + QUuid::createUuid().toByteArray(QUuid::Id128);
   if (contentType != nullptr) *contentType = "multipart/form-data; boundary=" + boundary;
   QByteArray body;
   body += "--" + boundary + "\r\nContent-Disposition: form-data; name=\"meta\"\r\nContent-Type: application/json\r\n\r\n";
@@ -201,7 +201,7 @@ QByteArray ProblemReport::multipartBody(QByteArray* contentType) const {
 }
 
 QString ProblemReport::reportText() const {
-  QString t = QStringLiteral("FrameBeam Player problem report\nCreated: %1\nPlayer: %2\nSystem: %3\n")
+  QString t = QStringLiteral("Uzume problem report\nCreated: %1\nPlayer: %2\nSystem: %3\n")
                   .arg(isoUtc(now_), playerVersion_, os_);
   if (!linkedTitle_.isEmpty()) {
     t += QStringLiteral("Linked to: %1").arg(linkedTitle_);
@@ -222,8 +222,8 @@ bool ProblemReport::saveAsZip(const QString& path, QString* error) const {
 }
 
 QString ProblemReport::zipFileName(const QDateTime& when) {
-  return QStringLiteral("framebeam-player-report-") + when.toUTC().toString(QStringLiteral("yyyyMMdd'T'HHmmss'Z'")) +
+  return QStringLiteral("uzume-report-") + when.toUTC().toString(QStringLiteral("yyyyMMdd'T'HHmmss'Z'")) +
          QStringLiteral(".zip");
 }
 
-}  // namespace framebeam
+}  // namespace uzume

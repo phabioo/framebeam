@@ -5,9 +5,9 @@
 #include <algorithm>
 #include <utility>
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcHub, "framebeam.hub")
+Q_LOGGING_CATEGORY(lcHub, "uzume.hub")
 
 namespace {
 
@@ -188,7 +188,7 @@ void HubConnection::startIdentify(const QString& addressInput, bool allowHttp, s
 
   setState(State::Identifying);
   http_ = new HubHttp(base, pin_, this);
-  QNetworkReply* reply = http_->get(QStringLiteral("/.well-known/framebeam"), {}, {}, /*allowUnpinned=*/true);
+  QNetworkReply* reply = http_->get(QStringLiteral("/.well-known/uzume"), {}, {}, /*allowUnpinned=*/true);
   track(reply, [this](const HttpResult& r) { onIdentified(r); });
 }
 
@@ -219,7 +219,7 @@ void HubConnection::onIdentified(const HttpResult& r) {
   const auto info = r.status == 200 ? parseHubInfo(r.json()) : std::nullopt;
   if (!info || !ProfileStore::isValidHubId(info->hubId)) {
     fail(State::Unreachable, QStringLiteral("invalid_hub_info"),
-         QStringLiteral("The address does not respond like a FrameBeam Hub"));
+         QStringLiteral("The address does not respond like an Uzume server"));
     return;
   }
   hubInfo_ = *info;
@@ -258,12 +258,12 @@ void HubConnection::onIdentified(const HttpResult& r) {
 
   if (info->minProtocolVersion > handshake_.protocolVersion) {
     incompatible_ = IncompatibleReason::PlayerTooOld;
-    fail(State::Incompatible, QStringLiteral("player_too_old"), QStringLiteral("The FrameBeam Player is too old for this hub"));
+    fail(State::Incompatible, QStringLiteral("player_too_old"), QStringLiteral("The Uzume app is too old for this server"));
     return;
   }
   if (info->protocolVersion < handshake_.minProtocolVersion) {
     incompatible_ = IncompatibleReason::HubTooOld;
-    fail(State::Incompatible, QStringLiteral("hub_too_old"), QStringLiteral("The FrameBeam Hub is too old for this player"));
+    fail(State::Incompatible, QStringLiteral("hub_too_old"), QStringLiteral("The Uzume server is too old for this app"));
     return;
   }
 
@@ -322,7 +322,7 @@ void HubConnection::trusted() {
     qCWarning(lcHub) << "profiles.json could not be written";
   }
   profile_ = p;
-  if (!p.credentialRef.isEmpty() && credentials_->read(p.credentialRef).has_value()) {
+  if (!p.credentialRef.isEmpty() && readCredential(*credentials_, p.credentialRef).has_value()) {
     authenticate();
   } else {
     setState(State::NeedsPairing);
@@ -571,7 +571,7 @@ void HubConnection::onPairingApproved(const QJsonObject& obj) {
 void HubConnection::authenticate() {
   setState(State::Authenticating);
   refreshInFlight_ = true;
-  const auto secret = credentials_->read(profile_->credentialRef);
+  const auto secret = readCredential(*credentials_, profile_->credentialRef);
   if (!secret) {
     refreshInFlight_ = false;
     setState(State::NeedsPairing);
@@ -586,7 +586,7 @@ void HubConnection::refreshToken() {
   if (state_ != State::Connected || refreshInFlight_ || !profile_) {
     return;
   }
-  const auto secret = credentials_->read(profile_->credentialRef);
+  const auto secret = readCredential(*credentials_, profile_->credentialRef);
   if (!secret) {
     onCredentialInvalid(QStringLiteral("invalid_credentials"), QStringLiteral("Credential no longer available"));
     return;
@@ -719,7 +719,7 @@ void HubConnection::onCredentialInvalid(const QString& code, const QString& mess
   refreshTimer_.stop();
   accessToken_.clear();
   if (profile_ && !profile_->credentialRef.isEmpty()) {
-    credentials_->remove(profile_->credentialRef);
+    removeCredential(*credentials_, profile_->credentialRef);
     HubProfile p = *profile_;
     p.credentialRef.clear();
     p.hubUserId.clear();
@@ -751,7 +751,7 @@ void HubConnection::removeProfile(const QString& hubId) {
   }
   if (const auto p = profiles_->profile(hubId)) {
     if (!p->credentialRef.isEmpty()) {
-      credentials_->remove(p->credentialRef);
+      removeCredential(*credentials_, p->credentialRef);
     }
   }
   profiles_->removeProfile(hubId);
@@ -816,4 +816,4 @@ void HubConnection::noteUnauthorized() {
   }
 }
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -7,7 +7,7 @@
 
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 enum class RomSource { Local, Cache, Download, Missing };
 
@@ -21,4 +21,4 @@ struct RomSourceChoice {
 RomSourceChoice chooseRomSource(const GameEntry& game, const std::function<QString(const QString&)>& localPathForSha,
                                 bool cacheHas);
 
-}  // namespace framebeam
+}  // namespace uzume

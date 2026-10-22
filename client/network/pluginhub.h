@@ -13,7 +13,7 @@
 
 #include "hubconnection.h"
 
-namespace framebeam {
+namespace uzume {
 
 inline constexpr qint64 kMaxPluginDownloadBytes = 32ll * 1024 * 1024;  // same limit as a .fbplugin file
 
@@ -89,7 +89,7 @@ class PluginHubClient : public QObject {
 
  signals:
   void stateChanged();
-  void downloadFinished(const framebeam::PluginDownloadResult& result);
+  void downloadFinished(const uzume::PluginDownloadResult& result);
 
  private:
   QPointer<HubConnection> conn_;
@@ -99,6 +99,6 @@ class PluginHubClient : public QObject {
   quint64 generation_ = 0;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::PluginDownloadResult)
+Q_DECLARE_METATYPE(uzume::PluginDownloadResult)

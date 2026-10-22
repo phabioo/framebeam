@@ -27,8 +27,8 @@
 #include "libretro_backend.h"
 #include "processguard.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using emu::EmulationRunner;
 using emu::LibretroBackend;
 using fbtest::FakeCuda;
@@ -109,7 +109,7 @@ std::shared_ptr<AVFrame> runUntilFrame(LibretroBackend& be, GpuEncodeBridge& bri
 
 void clearKnobs() {
   for (const char* k : {"FB_FAKE_HW_SCALE", "FB_FAKE_HW_COUNTER", "FB_FAKE_HW_BOTTOM_LEFT", "FB_FAKE_HW_STRIPES", "FB_FAKE_HW_DUPE_EVERY",
-                        "FB_FAKE_HW_READFBO", "FB_FAKE_HW_GLERROR", "FB_FAKE_HW_CTX", "FB_FAKE_HW_LOG", "FRAMEBEAM_DISABLE_HW_RENDER"}) {
+                        "FB_FAKE_HW_READFBO", "FB_FAKE_HW_GLERROR", "FB_FAKE_HW_CTX", "FB_FAKE_HW_LOG", "UZUME_DISABLE_HW_RENDER"}) {
     qunsetenv(k);
   }
 }

@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // 3c: "SESSIONS ON THIS HUB": Sessions of other Players (hidden when there are none). Live: the list follows the
 // Hub link, cards appear and disappear while the Library is open.

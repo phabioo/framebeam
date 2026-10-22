@@ -6,7 +6,7 @@
 
 #include <QString>
 
-namespace framebeam {
+namespace uzume {
 
 // Candidates of one side by type (host / server-reflexive / peer-reflexive / relayed).
 struct CandidateCounts {
@@ -22,7 +22,7 @@ struct CandidateCounts {
 // Why a connection runs over the TURN relay instead of directly. None for a direct or not yet known path.
 enum class RelayReason {
   None,
-  Forced,         // --force-relay / FRAMEBEAM_FORCE_RELAY=1: only relayed candidates are used
+  Forced,         // --force-relay / UZUME_FORCE_RELAY=1: only relayed candidates are used
   NoLocalSrflx,   // this Player got no server-reflexive candidate: no STUN server reachable or none configured
   NoRemoteSrflx,  // the other Player offered no server-reflexive candidate
   DirectFailed    // both sides had srflx candidates, direct checks still failed: symmetric/carrier-grade NAT or a firewall
@@ -61,4 +61,4 @@ inline QString relayReasonToken(RelayReason r) {
   return {};
 }
 
-}  // namespace framebeam
+}  // namespace uzume

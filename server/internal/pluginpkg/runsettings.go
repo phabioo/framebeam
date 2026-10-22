@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// Limits of the manifest field "run_settings" (identical in the Hub and the Player).
+// Limits of the manifest field "run_settings" (identical in the server and the app).
 const (
 	MaxRunSettings       = 32
 	MinRunSettingOptions = 2
@@ -32,7 +32,7 @@ type RunSettingOption struct {
 	Label string `json:"label"` // i18n key
 }
 
-// RunSetting is one entry of the manifest field "run_settings": a rule the Player shows in the "Start a run" dialog.
+// RunSetting is one entry of the manifest field "run_settings": a rule the app shows in the "Start a run" dialog.
 // Label, Hint and the option labels are i18n keys (resolved from i18n/<lang>.json). Default is a bool for type
 // "boolean" and one of the option values (string) for type "enum".
 type RunSetting struct {

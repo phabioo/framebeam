@@ -10,11 +10,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
-// Hub web pages restyled to the v4 design: fragments of the live regions, slot tabs, restore confirmation, tabs of Systems.
+// Server web pages restyled to the v4 design: fragments of the live regions, slot tabs, restore confirmation, tabs of Systems.
 
 func hxHdr(target string) map[string]string {
 	return map[string]string{"HX-Request": "true", "HX-Target": target}
@@ -126,7 +126,7 @@ func TestClientsAndUsersLiveRegions(t *testing.T) {
 	contains(t, rec, `id="clients-body"`, `hx-get="/clients"`, `hx-trigger="fb:clients from:body"`, "Deny", "Approve", "Lena Gaming PC")
 	notContains(t, rec, "<html", "<aside", "every 15s")
 	// A sidebar navigation (target #main) returns the page, not the fragment.
-	contains(t, c.get("/clients", map[string]string{"HX-Request": "true", "HX-Target": "main"}), "Devices allowed to reach this Hub")
+	contains(t, c.get("/clients", map[string]string{"HX-Request": "true", "HX-Target": "main"}), "Devices allowed to reach this server")
 
 	rec = c.get("/users", hxHdr("users-table"))
 	status(t, rec, 200)
@@ -154,7 +154,7 @@ func TestSystemsTabsAndListFragments(t *testing.T) {
 	// Tab switch: the detail region plus the list out-of-band.
 	rec := c.get("/systems?sys=nds&tab=clients", hxHdr("systems-detail"))
 	status(t, rec, 200)
-	contains(t, rec, `id="systems-detail"`, `hx-trigger="fb:systems from:body"`, `hx-get="/systems?sys=nds&amp;tab=clients"`, "Reported by Players",
+	contains(t, rec, `id="systems-detail"`, `hx-trigger="fb:systems from:body"`, `hx-get="/systems?sys=nds&amp;tab=clients"`, "Reported by apps",
 		`id="systems-list"`, `hx-swap-oob="true"`, `aria-current="true"`)
 	notContains(t, rec, "<html", "<aside", "System details")
 	rec = c.get("/systems?sys=nds&tab=core", hxHdr("systems-detail"))
@@ -230,7 +230,7 @@ func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
 	// New slot: the form as a fragment (and inline on the full page), Cancel answers an empty body.
 	rec = c.get(base+"?newslot=1", hxHdr("newslot-form"))
 	status(t, rec, 200)
-	contains(t, rec, "New slot for “Lumen Drift”", "Starts from the current version of “Main”. Players can pick the slot in the game details.",
+	contains(t, rec, "New slot for “Lumen Drift”", "Starts from the current version of “Main”. Apps can pick the slot in the game details.",
 		`name="name"`, `placeholder="Speedrun"`, "up to 32 characters", `hx-post="`+base+`/slots"`, "Cancel", "Create slot")
 	notContains(t, rec, "<html")
 	contains(t, c.get(base+"?newslot=1", nil), "New slot for “Lumen Drift”", `id="newslot-form"`)
@@ -257,7 +257,7 @@ func TestSavesDeleteSnapshotAndNewSlotWeb(t *testing.T) {
 		t.Fatalf("HX-Redirect %q", rec.Header().Get("HX-Redirect"))
 	}
 	rec = c.get(next+"?ok=slotcreated", nil)
-	contains(t, rec, "Slot created from the current version.", "CURRENT", "Hub web interface", "From “default”", "◆ Snapshot", "2 slots")
+	contains(t, rec, "Slot created from the current version.", "CURRENT", "Server web interface", "From “default”", "◆ Snapshot", "2 slots")
 	// A second creation without htmx redirects (303) to the new tab.
 	rec = c.postForm(slots, url.Values{"name": {"second"}, "_csrf": {tok}}, nil)
 	status(t, rec, http.StatusSeeOther)

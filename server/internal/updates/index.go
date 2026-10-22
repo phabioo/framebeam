@@ -18,11 +18,11 @@ import (
 const Schema = 1
 
 // DefaultIndexURL is the fixed source of the signed updates index; the signature is at the same URL + ".sig".
-const DefaultIndexURL = "https://github.com/phabioo/framebeam/releases/download/updates-index/updates-index.json"
+const DefaultIndexURL = "https://github.com/phabioo/uzume/releases/download/updates-index/updates-index.json"
 
 // DefaultPluginIndexURL is the fixed source of the official signed plugin index (release "plugin-index"); the
-// signature is at the same URL + ".sig". The Hub value "none" disables the plugin index.
-const DefaultPluginIndexURL = "https://github.com/phabioo/framebeam/releases/download/plugin-index/plugin-index.json"
+// signature is at the same URL + ".sig". The server value "none" disables the plugin index.
+const DefaultPluginIndexURL = "https://github.com/phabioo/uzume/releases/download/plugin-index/plugin-index.json"
 
 // Limits.
 const (
@@ -93,10 +93,10 @@ type Release struct {
 	Notes              string `json:"notes,omitempty"`
 	ProtocolVersion    int    `json:"protocol_version"`
 	MinProtocolVersion int    `json:"min_protocol_version"`
-	// SchemaVersion is the database schema version of a Hub release (the newest migration its binary knows); 0 or
+	// SchemaVersion is the database schema version of a server release (the newest migration its binary knows); 0 or
 	// absent = unknown (releases from before rollback support). Rollback needs it: migrations are forward-only.
 	SchemaVersion int `json:"schema_version,omitempty"`
-	// MSIDowngrade marks a release whose MSI can be installed over a newer version of FrameBeam (MajorUpgrade
+	// MSIDowngrade marks a release whose MSI can be installed over a newer version of Uzume (MajorUpgrade
 	// AllowDowngrades); older MSIs refuse that, so they are not offered as a rollback target on Windows.
 	MSIDowngrade bool       `json:"msi_downgrade,omitempty"`
 	Artifacts    []Artifact `json:"artifacts"`
@@ -107,7 +107,7 @@ type Index struct {
 	Schema      int       `json:"schema"`
 	GeneratedAt time.Time `json:"generated_at"`
 	// ExpiresAt is the end of the validity of this signed index (generated_at + IndexValidity when it is created).
-	// Hub and Player refuse an index after that date, so a replayed old index cannot hide new releases forever.
+	// Server and app refuse an index after that date, so a replayed old index cannot hide new releases forever.
 	// Absent in indexes of earlier releases; such an index is accepted during the transition (ADR 0016 amendment).
 	ExpiresAt time.Time `json:"expires_at,omitzero"`
 	Releases  []Release `json:"releases"`
@@ -215,7 +215,7 @@ func dropUnknownArtifacts(r Release) Release {
 	return r
 }
 
-// legacyArtifact reports whether an artifact is understood by Hubs <= 0.8.0 (linux-amd64/arm64 deb/binary).
+// legacyArtifact reports whether an artifact is understood by servers <= 0.8.0 (linux-amd64/arm64 deb/binary).
 func legacyArtifact(a Artifact) bool {
 	return (a.Platform == "linux-amd64" || a.Platform == "linux-arm64") && (a.Kind == KindDeb || a.Kind == KindBinary)
 }
@@ -228,12 +228,12 @@ func IsLegacyCompanion(version string) bool {
 	return ok && ValidSemVer(version) && !strings.ContainsAny(base, "-+")
 }
 
-// LegacyCompanion returns the companion entry of a hub release for Hubs <= 0.8.0, which reject a whole release
+// LegacyCompanion returns the companion entry of a hub release for servers <= 0.8.0, which reject a whole release
 // when it has an artifact of an unknown platform or kind (e.g. windows-amd64) and so skip every newer release.
-// The companion has version <X.Y.Z>-legacy and only the artifacts those Hubs understand; the deb inside is the
+// The companion has version <X.Y.Z>-legacy and only the artifacts those servers understand; the deb inside is the
 // regular X.Y.Z, so after installing it they report X.Y.Z and are up to date. A prerelease (not build metadata)
-// is used because the Player's index parser keys duplicates on the version without build metadata. It sorts
-// just below X.Y.Z, so newer Hubs below X.Y.Z prefer X.Y.Z, and Windows Hubs never select it. ok is false when
+// is used because the app's index parser keys duplicates on the version without build metadata. It sorts
+// just below X.Y.Z, so newer servers below X.Y.Z prefer X.Y.Z, and Windows servers never select it. ok is false when
 // no companion is needed: not a hub release, base version has a prerelease or build metadata, all artifacts are
 // legacy already, or there is no legacy deb.
 func LegacyCompanion(r Release) (Release, bool) {
@@ -359,7 +359,7 @@ func validateRelease(r Release, allowFile bool) error {
 	return nil
 }
 
-// unsafeURLRune reports characters that must not be in an artifact URL: the Hub shows "curl -fLO <url>" for
+// unsafeURLRune reports characters that must not be in an artifact URL: the server shows "curl -fLO <url>" for
 // copy and paste (HC-13), so spaces, quotes and shell metacharacters are rejected at the source.
 func unsafeURLRune(r rune) bool {
 	return r <= ' ' || r == 0x7f || strings.ContainsRune("\"'`$;&|<>\\(){}[]*?!#^", r)
@@ -421,7 +421,7 @@ func Marshal(idx Index) ([]byte, error) {
 	return append(b, '\n'), nil
 }
 
-// LooksLikeUpdatesIndex reports whether data is a JSON object with a "releases" key (used by framebeam-sign to
+// LooksLikeUpdatesIndex reports whether data is a JSON object with a "releases" key (used by uzume-sign to
 // tell an updates index from a core index).
 func LooksLikeUpdatesIndex(data []byte) bool {
 	var probe map[string]json.RawMessage

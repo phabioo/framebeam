@@ -5,7 +5,7 @@
 #include <mutex>
 #include <shared_mutex>
 
-namespace framebeam::input {
+namespace uzume::input {
 
 quint32 inputBit(const QString& inputId) {
   const int i = inputIndex(inputId);
@@ -106,7 +106,7 @@ quint32 libretroMaskFor(const QString& inputProfile, quint32 inputMask) {
   const ProfileTable* t = tableFor(inputProfile);
   if (!t) return 0;
   quint32 out = 0;
-  const auto& inputs = frameBeamInputs();
+  const auto& inputs = uzumeInputs();
   for (int i = 0; i < inputs.size(); ++i) {
     if ((inputMask & (1u << i)) != 0) out |= t->bits.value(inputs.at(i).id, 0u);
   }
@@ -132,4 +132,4 @@ QHash<int, quint32> keyMapFor(const QString& inputProfile, const Bindings& bindi
   return out;
 }
 
-}  // namespace framebeam::input
+}  // namespace uzume::input

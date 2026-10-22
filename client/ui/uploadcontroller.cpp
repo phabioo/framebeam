@@ -7,7 +7,7 @@
 
 #include "profilestore.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 UploadController::UploadController(const Deps& d, QObject* parent) : QObject(parent), d_(d) {
   uploader_ = std::make_unique<GameUploader>(d_.conn);
@@ -137,4 +137,4 @@ void UploadController::onFinished(const UploadResult& r) {
   emit changed();
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

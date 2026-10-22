@@ -4,7 +4,7 @@ C++20/Qt 6 application: server profiles and pairing, library and ROM cache, loca
 
 ## Layout
 
-`core/` (profiles, cache, settings, updater), `network/` (server connection, sync, CLI `framebeam_player_cli`), `emulation/` (libretro backend, manifests), `input/` (SDL3 gamepads), `media/` (H.264/Opus, WebRTC), `ui/` (QML), `app/` (executable `framebeam_player`), `launcher/` (Windows), `testutil/`. Details: [docs/reference/player-internals.md](../docs/reference/player-internals.md).
+`core/` (profiles, cache, settings, updater), `network/` (server connection, sync, CLI `uzume-cli`), `emulation/` (libretro backend, manifests), `input/` (SDL3 gamepads), `media/` (H.264/Opus, WebRTC), `ui/` (QML), `app/` (executable `uzume`), `launcher/` (Windows), `testutil/`. Details: [docs/reference/player-internals.md](../docs/reference/player-internals.md).
 
 ## Build, run, test
 
@@ -12,7 +12,7 @@ C++20/Qt 6 application: server profiles and pairing, library and ROM cache, loca
 scripts/bootstrap-vcpkg.sh                 # once
 make check-client                          # builds, fetches pinned deps, runs tests (CLIENT_PRESET, default linux-debug)
 make fetch-core                            # melonDS DS core (libretro buildbot); without it, real-core tests are skipped, test-core tests always run
-client/build/linux-debug/app/framebeam_player [--data-dir <path>] [--dev-allow-http]
+client/build/linux-debug/app/uzume [--data-dir <path>] [--dev-allow-http]
 ```
 
 Qt >= 6.4 comes from apt (Linux) or install-qt-action (Windows), not vcpkg. Prerequisites and dependency scripts: [docs/development.md](../docs/development.md).

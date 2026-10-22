@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Diagnostics overlay (3t-2, 3x-2; fullscreen 3y): 340 wide, two collapsible sections. Emulation of the local game (core,
 // renderer, resolution, fps, frame time with sparkline, audio, fallback hint) and Streaming per participant. In the

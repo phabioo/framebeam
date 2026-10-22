@@ -14,8 +14,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/rollwrite"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/rollwrite"
 )
 
 // saveRow is one game (of one user) in the list; its slots are the tabs of the detail.
@@ -195,7 +195,7 @@ var historyReasonLabels = map[string]string{
 	hub.HistoryBeforeUpload:     "Before upload",
 }
 
-// slotLabel is the display name of a slot: the Player calls the default slot "Main" (the API name stays "default").
+// slotLabel is the display name of a slot: the app calls the default slot "Main" (the API name stays "default").
 func slotLabel(name string) string {
 	if name == hub.DefaultSlot {
 		return "Main"
@@ -433,13 +433,13 @@ func uploadResultFor(q url.Values, cur hub.SaveCheckpoint, hist []hub.SaveVersio
 		res := &uploadResult{Kind: "ok", Text: fmt.Sprintf("✓ Uploaded as Rev %d.", cur.Revision)}
 		for _, v := range hist { // newest first
 			if v.Reason == hub.HistoryBeforeUpload && v.Revision == cur.Revision-1 {
-				res.Sub = fmt.Sprintf("Rev %d is in the history as “Before upload”. Players get Rev %d on their next start.", cur.Revision-1, cur.Revision)
+				res.Sub = fmt.Sprintf("Rev %d is in the history as “Before upload”. Apps get Rev %d on their next start.", cur.Revision-1, cur.Revision)
 				res.UndoLabel = fmt.Sprintf("Undo: restore v%d", v.Version)
 				res.UndoHref = histHref + strconv.Itoa(v.Version) + "/restore"
 				return res
 			}
 		}
-		res.Sub = fmt.Sprintf("Players get Rev %d on their next start.", cur.Revision)
+		res.Sub = fmt.Sprintf("Apps get Rev %d on their next start.", cur.Revision)
 		return res
 	case key == "same" && cur.Revision > 0:
 		name := q.Get("name")
@@ -566,7 +566,7 @@ func (s *Server) saveDetail(r *http.Request, grp *saveGroup, slotName string, fi
 		d.Conflicts = append(d.Conflicts, saveConflictView{
 			Title: fmt.Sprintf("▲ Conflict: v%d is based on %s, the current version is %s", c.Secured.Version, revLabel(c.Secured.BaseRevision), revLabel(c.Hub.Revision)),
 			Note:  "Both are kept in the history. Nothing is overwritten until you choose.",
-			Hub: saveSideView{Label: "Current checkpoint on the Hub", Heading: revLabel(c.Hub.Revision), Device: c.Hub.DeviceName,
+			Hub: saveSideView{Label: "Current checkpoint on the server", Heading: revLabel(c.Hub.Revision), Device: c.Hub.DeviceName,
 				At: when(c.Hub.CreatedAt, now), Base: "–", ShortHash: shortHash(c.Hub.SHA256)},
 			Local: saveSideView{Label: "Secured upload · sync pending", Heading: fmt.Sprintf("Local save (v%d)", c.Secured.Version), Device: c.Secured.DeviceName,
 				At: when(c.Secured.CreatedAt, now), Base: revLabel(c.Secured.BaseRevision), ShortHash: shortHash(c.Secured.SHA256)},

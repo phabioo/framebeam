@@ -53,7 +53,7 @@
     <div class="stack">
       <div class="eyebrow">Participants · {{len .Participants}}</div>
       <div class="card flush"><table class="list cards">
-        <thead><tr><th>Player</th><th>Game</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+        <thead><tr><th>App</th><th>Game</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
         <tbody>
         {{range .Participants}}
         <tr>
@@ -79,7 +79,7 @@
       {{range .Boards}}
       <div class="runs-board">
         <div class="plugin-board-head"><span class="eyebrow">Board</span><span class="strong">{{.Title}}</span>{{if .ShowNote}}<span class="help">· {{.Note}}</span>{{end}}{{if .Meta}}<span class="help push-right">{{.Meta}}</span>{{end}}</div>
-        {{if .Empty}}<div class="plugin-board"><p class="help">No board yet. It appears after a participant’s Player opens the run.</p></div>
+        {{if .Empty}}<div class="plugin-board"><p class="help">No board yet. It appears after a participant’s app opens the run.</p></div>
         {{else}}<div class="plugin-board" data-tree="{{.JSON}}"><noscript>The board needs JavaScript.</noscript></div>{{end}}
       </div>
       {{end}}
@@ -106,7 +106,7 @@
     {{else}}
     <div class="empty">
       <h1>{{if .Body.HasRuns}}No run selected{{else}}No runs yet{{end}}</h1>
-      <p class="sub">Runs are started in the Player. They appear here with their participants, the plugin content and the event log.</p>
+      <p class="sub">Runs are started in the app. They appear here with their participants, the plugin content and the event log.</p>
     </div>
     {{end}}
   </section>

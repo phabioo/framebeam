@@ -1,4 +1,5 @@
 #include "localhub.h"
+#include "envvar.h"
 
 #include <QDir>
 #include <QSettings>
@@ -10,7 +11,7 @@
 #include <shellapi.h>
 #endif
 
-namespace framebeam::localhub {
+namespace uzume::localhub {
 
 std::optional<int> parsePort(const QString& text) {
   bool ok = false;
@@ -21,14 +22,14 @@ std::optional<int> parsePort(const QString& text) {
 
 Info detect() {
   Info info;
-  const QByteArray env = qgetenv("FRAMEBEAM_LOCAL_HUB_PORT");
+  const QByteArray env = uzume::env::bytes("UZUME_LOCAL_SERVER_PORT");
   if (!env.isEmpty()) {
     if (const auto p = parsePort(QString::fromLocal8Bit(env))) info.port = *p;
-    info.installDir = qEnvironmentVariable("FRAMEBEAM_LOCAL_HUB_DIR");
+    info.installDir = uzume::env::get("UZUME_LOCAL_SERVER_DIR");
     return info;
   }
 #ifdef Q_OS_WIN
-  QSettings reg(QStringLiteral("HKEY_LOCAL_MACHINE\\Software\\FrameBeam\\Hub"), QSettings::Registry64Format);
+  QSettings reg(QStringLiteral("HKEY_LOCAL_MACHINE\\Software\\Uzume\\Server"), QSettings::Registry64Format);
   if (const auto p = parsePort(reg.value(QStringLiteral("Port")).toString())) info.port = *p;
   info.installDir = reg.value(QStringLiteral("InstallDir")).toString();
 #endif
@@ -53,7 +54,8 @@ bool isLocalHubAddress(const QString& address, int port) {
 }
 
 QString hubExe(const QString& installDir) {
-  return installDir.isEmpty() ? QString() : QDir(installDir).filePath(QStringLiteral("framebeam-hub.exe"));
+  if (installDir.isEmpty()) return QString();
+  return QDir(installDir).filePath(QStringLiteral("uzume-server.exe"));
 }
 
 Command grantFolderCommand(const QString& installDir, const QString& folder) {
@@ -96,4 +98,4 @@ int runElevatedAndWait(const QString& program, const QStringList& args, QString*
 #endif
 }
 
-}  // namespace framebeam::localhub
+}  // namespace uzume::localhub

@@ -28,7 +28,7 @@
 #include "system_manifest.h"
 #include "corecatalog.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class GameDetail : public QObject {
   Q_OBJECT
@@ -74,4 +74,4 @@ class GameDetail : public QObject {
   const bool& hubLinkDown_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

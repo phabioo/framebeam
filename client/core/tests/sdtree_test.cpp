@@ -6,7 +6,7 @@
 
 #include "sdtree.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 const QString kId0 = QStringLiteral("0123456789ABCDEF0123456789ABCDEF");

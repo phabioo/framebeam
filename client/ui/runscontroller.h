@@ -18,7 +18,7 @@
 #include "pluginscontroller.h"
 #include "runclient.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 // The plugins of a run that is being started: the picked ones (newest version the Hub offers) plus the plugins they
 // require, transitively (newest offered version that satisfies every range). `error` is set when a requirement cannot be met.
@@ -245,4 +245,4 @@ class RunsController : public QObject {
   QString runViewText_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

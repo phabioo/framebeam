@@ -1,10 +1,10 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Runs (docs/design/plugins.md 4j-2): invite cards, runs by group (Active / Paused, Finished), one run in detail with its
-// participants, status actions and the event log. List, invite and log belong to FrameBeam; plugins only build on them.
+// participants, status actions and the event log. List, invite and log belong to Uzume; plugins only build on them.
 Rectangle {
     id: root
     objectName: "runsScreen"

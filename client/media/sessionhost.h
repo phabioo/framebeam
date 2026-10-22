@@ -32,7 +32,7 @@ class DataChannel;
 class RtpPacketizationConfig;
 }  // namespace rtc
 
-namespace framebeam {
+namespace uzume {
 
 class ThreadBridge;
 class EncodeWorker;
@@ -72,7 +72,7 @@ class SessionHost : public QObject {
   void open(const QString& sessionId, const QStringList& iceServers, const QList<TurnServer>& turnServers = {});
   // `ice_update` from the Hub: PeerConnections created from now on use this config, running ones stay untouched.
   void updateIceServers(const QStringList& iceServers, const QList<TurnServer>& turnServers);
-  // ICE transport policy "relay" for the PeerConnections created from now on (default: FRAMEBEAM_FORCE_RELAY=1).
+  // ICE transport policy "relay" for the PeerConnections created from now on (default: UZUME_FORCE_RELAY=1).
   void setForceRelay(bool force) { forceRelay_ = force; }
   bool forceRelay() const { return forceRelay_; }
   // Session ended or stopped sharing: closes every viewer immediately and stops the encoder.
@@ -149,10 +149,10 @@ class SessionHost : public QObject {
  public slots:
   void addViewer(const QString& viewerId, const QList<TurnServer>& turnServers = {});     // `viewer_joined`: creates the PeerConnection and sends the offer
   void removeViewer(const QString& viewerId);  // `viewer_left`: closes the PeerConnection immediately
-  void handleSignal(const framebeam::SessionSignal& signal);  // answer / candidate from a viewer
+  void handleSignal(const uzume::SessionSignal& signal);  // answer / candidate from a viewer
 
  signals:
-  void signalOut(const framebeam::SessionSignal& signal);
+  void signalOut(const uzume::SessionSignal& signal);
   void viewerConnected(const QString& viewerId);  // media path established
   void viewerClosed(const QString& viewerId, const QString& reason);  // PeerConnection closed (removed, failed, ...)
   void encoderRunningChanged(bool running);
@@ -233,4 +233,4 @@ class SessionHost : public QObject {
   ViewerReports reports_;  // latest rx report per viewer (UI thread); copied into links_ under statsMutex_
 };
 
-}  // namespace framebeam
+}  // namespace uzume

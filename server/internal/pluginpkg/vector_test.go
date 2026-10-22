@@ -9,9 +9,9 @@ import (
 	"testing"
 )
 
-// The signature test vector (testdata/signature-vector.json and testdata/vector.fbplugin) lets the Player
+// The signature test vector (testdata/signature-vector.json and testdata/vector.fbplugin) lets the app
 // implementation reproduce the exact bytes of the signed message and the signature. Seed: bytes 0x00..0x1f.
-// Regenerate with FRAMEBEAM_UPDATE_VECTOR=1 go test ./internal/pluginpkg -run TestSignatureVector.
+// Regenerate with UZUME_UPDATE_VECTOR=1 go test ./internal/pluginpkg -run TestSignatureVector.
 
 type vectorFile struct {
 	Path   string `json:"path"`
@@ -56,7 +56,7 @@ func buildVector(t *testing.T) (vector, []byte) {
 		t.Fatal("vector plugin is not official")
 	}
 	v := vector{
-		Description: "Ed25519 over the signed message; the seed is public test data, never a real key. Message = 'framebeam-plugin-v1\\n' + for each file sorted by path (byte order) '<sha256>  <path>\\n'.",
+		Description: "Ed25519 over the signed message; the seed is public test data, never a real key. Message = 'uzume-plugin-v1\\n' + for each file sorted by path (byte order) '<sha256>  <path>\\n'.",
 		SeedBase64:  base64.StdEncoding.EncodeToString(seed),
 		PublicKey:   base64.StdEncoding.EncodeToString(keys[0]),
 		Plugin:      "vector.fbplugin",
@@ -88,7 +88,7 @@ func TestSignatureVector(t *testing.T) {
 		t.Fatal(err)
 	}
 	want = append(want, '\n')
-	if os.Getenv("FRAMEBEAM_UPDATE_VECTOR") == "1" {
+	if os.Getenv("UZUME_UPDATE_VECTOR") == "1" {
 		os.WriteFile("testdata/signature-vector.json", want, 0o644)
 		os.WriteFile("testdata/vector.fbplugin", plugin, 0o644)
 	}
@@ -97,7 +97,7 @@ func TestSignatureVector(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(gotJSON) != string(want) {
-		t.Fatalf("testdata/signature-vector.json is stale; regenerate with FRAMEBEAM_UPDATE_VECTOR=1")
+		t.Fatalf("testdata/signature-vector.json is stale; regenerate with UZUME_UPDATE_VECTOR=1")
 	}
 	// The committed file verifies independently of how this test builds it.
 	data, err := os.ReadFile("testdata/vector.fbplugin")

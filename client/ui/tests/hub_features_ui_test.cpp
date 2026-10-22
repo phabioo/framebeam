@@ -7,8 +7,8 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 using S = HubConnection::State;
 
@@ -56,7 +56,7 @@ class HubFeaturesUiTest : public QObject {
 
  private slots:
   void initTestCase() {
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     uitest::installWarningCounter();
   }
   void init() { uitest::warningCount() = 0; }
@@ -233,7 +233,7 @@ class HubFeaturesUiTest : public QObject {
                                                                  fwFile(QStringLiteral("firmware"), QStringLiteral("DS Firmware"), true, {})});
     hub.firmwareFiles = {{QStringLiteral("nds/bios7"), b7}};
     QVERIFY(hub.start());
-    qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());  // "found" core, never loaded
+    qputenv("UZUME_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());  // "found" core, never loaded
     Harness h;
     QVERIFY(h.start());
     pair(h, hub);
@@ -260,7 +260,7 @@ class HubFeaturesUiTest : public QObject {
     h.controller->recheckFirmware();
     QTRY_VERIFY_WITH_TIMEOUT(game(h).value(QStringLiteral("canPlay")).toBool(), 8000);
     QVERIFY(game(h).value(QStringLiteral("firmwareText")).toString().startsWith(QStringLiteral("From Hub")));
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
   }
 
   // Native: files are downloaded, validated and materialized under the names the core reads; builtin: nothing.
@@ -277,7 +277,7 @@ class HubFeaturesUiTest : public QObject {
                                          fwFile(QStringLiteral("firmware"), QStringLiteral("DS Firmware"), native, fw)});
       hub.firmwareFiles = {{QStringLiteral("nds/bios7"), b7}, {QStringLiteral("nds/bios9"), b9}, {QStringLiteral("nds/firmware"), fw}};
       QVERIFY(hub.start());
-      qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());  // not a core: the start fails later
+      qputenv("UZUME_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());  // not a core: the start fails later
       Harness h;
       QVERIFY(h.start());
       pair(h, hub);
@@ -300,7 +300,7 @@ class HubFeaturesUiTest : public QObject {
       }
       QTRY_VERIFY_WITH_TIMEOUT(hub.count(QStringLiteral("/api/v1/roms/")) >= 1, 8000);  // ROM only after firmware
       QTest::qWait(300);
-      qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+      qunsetenv("UZUME_MELONDS_DS_CORE");
     }
   }
 
@@ -347,14 +347,14 @@ class HubFeaturesUiTest : public QObject {
                                                              {QStringLiteral("detail"), QStringLiteral("Core melonds_ds is not installed")},
                                                              {QStringLiteral("core_id"), QStringLiteral("melonds_ds")}}}}};
     QVERIFY(hub.start());
-    qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());  // "found" core, never loaded
+    qputenv("UZUME_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());  // "found" core, never loaded
     {
       Harness h;
       QVERIFY(h.start());
       pair(h, hub);
       QVERIFY(h.controller->coreWarnings().isEmpty());
     }
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     Harness h2;
     QVERIFY(h2.start());
     pair(h2, hub);
@@ -395,10 +395,10 @@ class HubFeaturesUiTest : public QObject {
 
   // The handshake reports the core id of the registry ("melondsds" (offline default; ADR 0020)), never "melonds".
   void handshakeCoreId() {
-    qputenv("FRAMEBEAM_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());
+    qputenv("UZUME_MELONDS_DS_CORE", QCoreApplication::applicationFilePath().toLocal8Bit());
     Harness h;
     QVERIFY(h.start(/*probeCores=*/true));
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     // The probe runs on a worker thread (CoreCatalog::probeCores): wait for it, it can finish after the window is exposed.
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->handshakeCores().size(), 1, 15000);
     QCOMPARE(h.controller->handshakeCores().first().id, QStringLiteral("melondsds"));
@@ -638,7 +638,7 @@ class HubFeaturesUiTest : public QObject {
   void localHubCreatesAdminAndPairs() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());
-    qputenv("FRAMEBEAM_LOCAL_HUB_PORT", hubPort(hub).toUtf8());
+    qputenv("UZUME_LOCAL_SERVER_PORT", hubPort(hub).toUtf8());
     Harness h;
     QVERIFY(h.start());
     auto* local = h.controller->localHub();
@@ -663,7 +663,7 @@ class HubFeaturesUiTest : public QObject {
     QVERIFY(!p->credentialRef.isEmpty());
     QVERIFY(local->onThisPc());
     QCOMPARE(h.controller->screen(), QStringLiteral("settings"));
-    qunsetenv("FRAMEBEAM_LOCAL_HUB_PORT");
+    qunsetenv("UZUME_LOCAL_SERVER_PORT");
   }
 
   void localHubSignInAndSettings() {
@@ -671,7 +671,7 @@ class HubFeaturesUiTest : public QObject {
     hub.localAdminExists = true;
     hub.localImportDir = QStringLiteral("C:\\Games");
     QVERIFY(hub.start());
-    qputenv("FRAMEBEAM_LOCAL_HUB_PORT", hubPort(hub).toUtf8());
+    qputenv("UZUME_LOCAL_SERVER_PORT", hubPort(hub).toUtf8());
     Harness h;
     QVERIFY(h.start());
     auto* local = h.controller->localHub();
@@ -698,21 +698,21 @@ class HubFeaturesUiTest : public QObject {
     // The Player sends and shows the native absolute path (backslashes on Windows).
     QCOMPARE(local->importDir(), QDir::toNativeSeparators(QStringLiteral("/tmp")));
     QVERIFY(!local->settingsNotice().isEmpty());
-    qunsetenv("FRAMEBEAM_LOCAL_HUB_PORT");
+    qunsetenv("UZUME_LOCAL_SERVER_PORT");
   }
 
   void localHubAddressMismatchIsNotTrusted() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());
     // A normally added Hub on the same loopback address is never trusted automatically.
-    qputenv("FRAMEBEAM_LOCAL_HUB_PORT", "1");
+    qputenv("UZUME_LOCAL_SERVER_PORT", "1");
     Harness h;
     QVERIFY(h.start());
     h.controller->addHub(hub.address());
     QTRY_COMPARE(h.controller->connection()->state(), S::NeedsTrustConfirmation);
     QTest::qWait(300);
     QCOMPARE(h.controller->connection()->state(), S::NeedsTrustConfirmation);
-    qunsetenv("FRAMEBEAM_LOCAL_HUB_PORT");
+    qunsetenv("UZUME_LOCAL_SERVER_PORT");
   }
 
  private:

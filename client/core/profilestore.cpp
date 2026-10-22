@@ -1,4 +1,5 @@
 #include "profilestore.h"
+#include "envvar.h"
 
 #include "fsutil.h"
 #include "installroot.h"
@@ -20,9 +21,9 @@
 #include <QUrl>
 #include <QUuid>
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcProfiles, "framebeam.profiles")
+Q_LOGGING_CATEGORY(lcProfiles, "uzume.profiles")
 
 namespace {
 
@@ -76,7 +77,7 @@ bool dirIsWritable(const QString& path) {
   if (path.isEmpty() || !QDir().mkpath(path)) {
     return false;
   }
-  QTemporaryFile probe(QDir(path).filePath(QStringLiteral(".framebeam-write-test-XXXXXX")));
+  QTemporaryFile probe(QDir(path).filePath(QStringLiteral(".uzume-write-test-XXXXXX")));
   return probe.open();  // file is deleted on destruction
 }
 
@@ -175,62 +176,10 @@ int ProfileStore::migrateLegacyData(const QString& legacyDir, const QString& new
   return copied;
 }
 
-QStringList ProfileStore::portableMigrationSources(const QString& localAppData, const QString& programFiles) {
-  QStringList out;
-  if (!localAppData.isEmpty()) out << QDir(localAppData).filePath(QStringLiteral("Programs/FrameBeam Player/data"));
-  if (!programFiles.isEmpty()) out << QDir(programFiles).filePath(QStringLiteral("FrameBeam Player/data"));
-  return out;
-}
-
-int ProfileStore::migratePortableData(const QStringList& sourceDirs, const QString& newDir) {
-  if (newDir.isEmpty()) return 0;
-  const QString marker = QDir(newDir).filePath(QStringLiteral(".migrated-from-portable"));
-  if (QFileInfo::exists(marker)) return 0;
-  for (const QString& legacyDir : sourceDirs) {
-    if (legacyDir.isEmpty() || !QFileInfo(legacyDir).isDir() ||
-        QFileInfo(legacyDir).absoluteFilePath() == QFileInfo(newDir).absoluteFilePath()) {
-      continue;
-    }
-    const QDir src(legacyDir);
-    if (!src.exists(QStringLiteral("profiles.json")) && !src.exists(QStringLiteral("device.json")) &&
-        !src.exists(QStringLiteral("hubs"))) {
-      continue;
-    }
-    if (!QDir().mkpath(newDir)) {
-      qCWarning(lcProfiles) << "Portable migration: target folder not creatable";
-      return 0;
-    }
-    int copied = 0;
-    bool ok = true;
-    QDirIterator it(legacyDir, QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks, QDirIterator::Subdirectories);
-    while (it.hasNext()) {
-      const QString from = it.next();
-      const QString rel = src.relativeFilePath(from);
-      if (rel.startsWith(QStringLiteral("cache/"))) continue;  // ROM cache is re-downloaded
-      const QString to = QDir(newDir).filePath(rel);
-      if (QFileInfo::exists(to)) continue;  // never overwrite anything existing
-      if (!QDir().mkpath(QFileInfo(to).absolutePath()) || !QFile::copy(from, to)) {
-        qCWarning(lcProfiles) << "Portable migration: file not copied:" << rel;
-        ok = false;
-        continue;
-      }
-      ++copied;
-    }
-    if (ok) {
-      QFile m(marker);
-      if (!m.open(QIODevice::WriteOnly)) qCWarning(lcProfiles) << "Portable migration: marker not written, will retry";
-    } else {
-      qCWarning(lcProfiles) << "Portable migration incomplete, will retry on next start";
-    }
-    return copied;  // only the first folder with Player data: its device identity and credentials belong together
-  }
-  return 0;
-}
-
 QString ProfileStore::defaultBaseDir() {
-  const QString dir = fsutil::envPath("FRAMEBEAM_DATA_DIR");
+  const QString dir = fsutil::envPath("UZUME_DATA_DIR");
   if (!dir.isEmpty()) {
-    qCInfo(lcProfiles) << "Data directory (FRAMEBEAM_DATA_DIR):" << dir;
+    qCInfo(lcProfiles) << "Data directory (UZUME_DATA_DIR):" << dir;
     return dir;
   }
   const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -240,13 +189,6 @@ QString ProfileStore::defaultBaseDir() {
                              : QString();
   const BaseDirChoice c = chooseBaseDir(appDir, appData);
   if (!c.portable) {
-#ifdef Q_OS_WIN
-    // Per-machine install (Program Files): take over the data of the old portable per-user / all-users install.
-    const int moved = migratePortableData(
-        portableMigrationSources(fsutil::envPath("LOCALAPPDATA"), fsutil::envPath("ProgramFiles")),
-        c.path);
-    if (moved > 0) qCInfo(lcProfiles) << "Portable data taken over (" << moved << "files, source unchanged, ROM cache not migrated)";
-#endif
     qCInfo(lcProfiles) << "Data directory (fallback AppData, program directory not writable or unknown):"
                        << c.path;
     return c.path;
@@ -254,7 +196,7 @@ QString ProfileStore::defaultBaseDir() {
   qCInfo(lcProfiles) << "Data directory (portable):" << c.path;
   const int n = migrateLegacyData(appData, c.path);
   if (n > 0) {
-    qCInfo(lcProfiles) << "Data from" << appData << "to" << c.path << "copied (" << n
+    qCInfo(lcProfiles) << "Data from AppData to" << c.path << "copied (" << n
                        << "files, source unchanged, ROM cache not migrated)";
   }
   return c.path;
@@ -305,7 +247,7 @@ void ProfileStore::load() {
   if (deviceName_.isEmpty()) {
     deviceName_ = QSysInfo::machineHostName();
     if (deviceName_.isEmpty()) {
-      deviceName_ = QStringLiteral("FrameBeam Player");
+      deviceName_ = QStringLiteral("Uzume");
     }
     devDirty = true;
   }
@@ -491,4 +433,4 @@ bool ProfileStore::setLastHubId(const QString& hubId) {
   return save();
 }
 
-}  // namespace framebeam
+}  // namespace uzume

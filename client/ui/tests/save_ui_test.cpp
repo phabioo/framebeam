@@ -1,4 +1,4 @@
-// Save sync in the UI with the real melonDS DS core and the homebrew test ROM (NEEDS_CORE: QSKIP without a core; also built as ui_save_testcore against the FrameBeam test core):
+// Save sync in the UI with the real melonDS DS core and the homebrew test ROM (NEEDS_CORE: QSKIP without a core; also built as ui_save_testcore against the Uzume test core):
 // conflict dialog (3d) with keyboard operation, decide later, Use Hub version, library state badge.
 #include <QFile>
 #include <QSignalSpy>
@@ -8,8 +8,8 @@
 #include "savestore.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 namespace {
@@ -29,8 +29,8 @@ class SaveUiTest : public QObject {
   Q_OBJECT
  private slots:
   void conflictDialogAndLibraryState() {
-    if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
-      UITEST_SKIP_NO_CORE("FRAMEBEAM_MELONDS_DS_CORE not set");
+    if (qEnvironmentVariableIsEmpty("UZUME_MELONDS_DS_CORE")) {
+      UITEST_SKIP_NO_CORE("UZUME_MELONDS_DS_CORE not set");
     }
     uitest::installWarningCounter();
     QFile rom(QStringLiteral(FB_TEST_ROM_PATH));
@@ -43,7 +43,7 @@ class SaveUiTest : public QObject {
     hub.decision = FakeHub::Decision::Approve;
     hub.games = QJsonObject{{QStringLiteral("games"),
                              QJsonArray{uitest::gameJson(QStringLiteral("t1"), QStringLiteral("Harbor Rally"), sha, romData.size(),
-                                                         QStringLiteral("framebeam_test.nds"))}}};
+                                                         QStringLiteral("uzume_test.nds"))}}};
     hub.roms.insert(sha, romData);
     hub.setHubSave(QStringLiteral("t1"), "hub-save-bytes");
     QVERIFY(hub.start());

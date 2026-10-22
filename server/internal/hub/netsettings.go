@@ -5,13 +5,13 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/phabioo/framebeam/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/config"
 )
 
 // Network settings saved on the web interface (Settings > Network). Each value is its own row in the settings
-// table, "net.<key>", so that "Reset to hub.env value" deletes exactly one override. The keys and the meaning of
+// table, "net.<key>", so that "Reset to server.env value" deletes exactly one override. The keys and the meaning of
 // the raw string values belong to internal/config (config.Net*); the service only stores them. The effective
-// configuration is "hub.env/flags, then these overrides" and is assembled by cmd/framebeam-hub at startup.
+// configuration is "server.env/flags, then these overrides" and is assembled by cmd/uzume-server at startup.
 
 const netSettingPrefix = "net."
 
@@ -53,7 +53,7 @@ func (s *Service) SetNetOverride(ctx context.Context, key, raw string) error {
 	return s.setSetting(ctx, netSettingPrefix+key, raw)
 }
 
-// ResetNetOverride deletes a stored network setting: the value from hub.env/flags applies again.
+// ResetNetOverride deletes a stored network setting: the value from server.env/flags applies again.
 func (s *Service) ResetNetOverride(ctx context.Context, key string) error {
 	if !validNetKey(key) {
 		return badRequest("Unknown network setting")
@@ -77,8 +77,8 @@ func (s *Service) SaveRetention() (recent, daily, weekly int) {
 	return s.saveKeep.recent, s.saveKeep.daily, s.saveKeep.weekly
 }
 
-// SetICEServers replaces the external stun: URLs handed to Players without a restart (nil = default STUN server,
-// empty = none). Sessions already running keep what they were given; connected Players get an ice_update.
+// SetICEServers replaces the external stun: URLs handed to apps without a restart (nil = default STUN server,
+// empty = none). Sessions already running keep what they were given; connected apps get an ice_update.
 func (s *Service) SetICEServers(urls []string) {
 	s.sess.iceMu.Lock()
 	changed := !slices.Equal(config.EffectiveICE(s.sess.ice), config.EffectiveICE(urls))

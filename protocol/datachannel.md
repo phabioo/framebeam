@@ -1,6 +1,6 @@
 # fb-diag DataChannel
 
-Between the Players of a Session (owner and each viewer) a negotiated WebRTC DataChannel `fb-diag` (id 0, same SDP flow, no Hub involvement) is opened. It brings up SCTP (RTT measurement) and carries small JSON text messages. Unknown message types and unknown fields are ignored by every reader, so new optional messages need no `protocol_version` bump.
+Between the apps of a Session (owner and each viewer) a negotiated WebRTC DataChannel `fb-diag` (id 0, same SDP flow, no server involvement) is opened. It brings up SCTP (RTT measurement) and carries small JSON text messages. Unknown message types and unknown fields are ignored by every reader, so new optional messages need no `protocol_version` bump.
 
 | Message | Direction | Since | Schema |
 |---|---|---|---|

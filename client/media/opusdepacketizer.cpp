@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace framebeam {
+namespace uzume {
 
 std::optional<RtpPayloadView> parseRtpPacket(std::span<const std::byte> p) {
   constexpr size_t kFixed = 12;
@@ -72,4 +72,4 @@ void OpusRtpDepacketizer::incoming(rtc::message_vector &messages, const rtc::mes
   messages.swap(out);
 }
 
-}  // namespace framebeam
+}  // namespace uzume

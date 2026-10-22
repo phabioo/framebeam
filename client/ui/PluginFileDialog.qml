@@ -8,7 +8,7 @@ FileDialog {
     property var plugins: null
     title: qsTr("Plugin file to install")
     fileMode: FileDialog.OpenFile
-    nameFilters: [qsTr("FrameBeam plugins (*.fbplugin)"), qsTr("All files (*)")]
+    nameFilters: [qsTr("Uzume plugins (*.fbplugin)"), qsTr("All files (*)")]
     onAccepted: {
         if (dialog.plugins === null) return
         dialog.plugins.installFromPath(dialog.selectedFile.toString())

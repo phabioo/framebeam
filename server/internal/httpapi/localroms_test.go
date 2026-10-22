@@ -214,7 +214,7 @@ func TestGameBoyIdentityOverHTTP(t *testing.T) {
 	if got["gba-gamecode"] != "ABCE" || got["gb-title"] != "SYNTH" {
 		t.Fatalf("%v", got)
 	}
-	// Registration with a Game Boy title from the Player.
+	// Registration with a Game Boy title from the app.
 	body := map[string]any{"sha256": strings.Repeat("ab", 32), "size": 100, "filename": "c.gbc", "game_code": "LONGTITLE12", "game_version": 1}
 	wantStatus(t, s.do("POST", "/api/v1/games/register", body, opt{token: d.tok}), 201, "")
 }

@@ -10,7 +10,7 @@
 #include "hubconnection.h"
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 struct UploadResult {
   enum class Kind {
@@ -55,7 +55,7 @@ class GameUploader : public QObject {
 
  signals:
   void progress(qint64 sent, qint64 total);
-  void finished(const framebeam::UploadResult& result);
+  void finished(const uzume::UploadResult& result);
 
  private:
   void failLater(const QString& fileName, const QString& code, const QString& message);
@@ -86,6 +86,6 @@ class GameUploader : public QObject {
   std::shared_ptr<std::atomic_bool> hashCancel_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::UploadResult)
+Q_DECLARE_METATYPE(uzume::UploadResult)

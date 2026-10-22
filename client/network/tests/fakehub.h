@@ -1,6 +1,6 @@
 #pragma once
 
-// In-process fake FrameBeam Hub for tests (HTTPS with a test certificate from tests/testdata, or HTTP).
+// In-process fake Uzume server for tests (HTTPS with a test certificate from tests/testdata, or HTTP).
 // Test code only; tokens/credentials are dummy values.
 
 #include <QByteArray>

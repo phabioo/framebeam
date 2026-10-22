@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/auth"
 )
 
 // DeviceStatus is the trust status of a device.
@@ -19,7 +19,7 @@ const (
 	DeviceRevoked DeviceStatus = "revoked"
 )
 
-// Device is a paired FrameBeam Player. The player reports the ID itself.
+// Device is a paired Uzume. The player reports the ID itself.
 type Device struct {
 	ID            string
 	UserID        string
@@ -283,7 +283,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Principal, er
 	return p, nil
 }
 
-// HandshakeInput contains the handshake fields relevant for the Hub.
+// HandshakeInput contains the handshake fields relevant for the server.
 type HandshakeInput struct {
 	Platform           string
 	Arch               string
@@ -334,11 +334,11 @@ func (s *Service) Handshake(ctx context.Context, deviceID string, in HandshakeIn
 	res := HandshakeResult{Info: info, Compatible: true, Problems: []Problem{}}
 	if in.ProtocolVersion < info.MinProtocolVersion {
 		res.Problems = append(res.Problems, Problem{Code: ProblemPlayerTooOld,
-			Detail: "Player protocol version below the hub's minimum"})
+			Detail: "App protocol version below the server's minimum"})
 	}
 	if info.ProtocolVersion < in.MinProtocolVersion {
 		res.Problems = append(res.Problems, Problem{Code: ProblemHubTooOld,
-			Detail: "Hub protocol version below the player's minimum"})
+			Detail: "Server protocol version below the player's minimum"})
 	}
 	res.Compatible = len(res.Problems) == 0 // only protocol problems so far
 	if in.Cores != nil {

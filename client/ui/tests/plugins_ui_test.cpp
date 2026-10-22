@@ -1,5 +1,5 @@
 // Plugins in the Player UI: Settings > Plugins (Developer mode, list, install, uninstall, empty state) and the Plugin
-// console tab of the game panel (preview game, no core). With FRAMEBEAM_SCREENSHOT_DIR=<dir> the views are also saved as
+// console tab of the game panel (preview game, no core). With UZUME_SCREENSHOT_DIR=<dir> the views are also saved as
 // PNGs (dark and light, 1440x900) for the review; they are never checked in. Homebrew plugin folders only.
 #include <QDir>
 #include <QJsonDocument>
@@ -11,10 +11,10 @@
 #include "fbplugin_testutil.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
-using namespace framebeam::plugins::testutil;
+using namespace uzume::plugins::testutil;
 
 namespace {
 
@@ -99,18 +99,18 @@ class PluginsUiTest : public QObject {
     GameSession* gs = h.controller->gameSession();
     QImage frame(256, 384, QImage::Format_RGB32);
     frame.fill(QColor(40, 90, 140));
-    gs->setPreview(QStringLiteral("Framebeam Test"), frame, emu::DisplayProfile(), EmulationDiagnostics());
+    gs->setPreview(QStringLiteral("Uzume Test"), frame, emu::DisplayProfile(), EmulationDiagnostics());
     emit gs->started();
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("game"), 8000);
-    h.controller->sessions()->gameStarted(QStringLiteral("t1"), QStringLiteral("Framebeam Test"));
+    h.controller->sessions()->gameStarted(QStringLiteral("t1"), QStringLiteral("Uzume Test"));
     h.controller->sessions()->setTab(QStringLiteral("session"));
     QQuickTest::qWaitForPolish(h.window);
   }
 
  private slots:
   void initTestCase() {
-    shotDir_ = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    shotDir_ = qEnvironmentVariable("UZUME_SCREENSHOT_DIR");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     uitest::installWarningCounter();
   }
   void init() { uitest::warningCount() = 0; }
@@ -481,7 +481,7 @@ class PluginsUiTest : public QObject {
     // The unverified Hub upload: pill, warning before it is turned on, still no Developer mode needed.
     pc->installHubPlugin(QStringLiteral("net.example.community"), QStringLiteral("1.0.0"));
     QTRY_VERIFY_WITH_TIMEOUT(pc->plugins().size() == 1, 8000);
-    QVERIFY(pc->message().contains(QStringLiteral("FrameBeam has not checked this plugin")));
+    QVERIFY(pc->message().contains(QStringLiteral("Uzume has not checked this plugin")));
     row = pc->plugins().value(0).toMap();
     QCOMPARE(row.value("origin").toString(), QStringLiteral("unverified"));
     QCOMPARE(row.value("originText").toString(), QStringLiteral("Hub upload · unverified"));
@@ -491,7 +491,7 @@ class PluginsUiTest : public QObject {
     QTRY_VERIFY(h.item("pluginToggle") != nullptr && h.item("pluginToggle")->isVisible());
     QVERIFY(h.click("pluginToggle"));
     QTRY_VERIFY(h.item("pluginEnableConfirm")->isVisible());
-    QVERIFY(h.item("pluginUnverifiedWarning")->property("text").toString().startsWith(QStringLiteral("FrameBeam has not checked this plugin")));
+    QVERIFY(h.item("pluginUnverifiedWarning")->property("text").toString().startsWith(QStringLiteral("Uzume has not checked this plugin")));
     QVERIFY(h.item("pluginEnablePermissions")->property("text").toString().contains(QStringLiteral("Read game memory")));
     QVERIFY(!pc->plugins().value(0).toMap().value("enabled").toBool());
     QVERIFY(!h.item("pluginToggle")->property("checked").toBool());

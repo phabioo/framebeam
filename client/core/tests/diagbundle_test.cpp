@@ -10,7 +10,7 @@
 #include "diagbundle.h"
 #include "profilestore.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 void writeFile(const QString& path, const QByteArray& data) {
@@ -48,7 +48,7 @@ class DiagBundleTest : public QObject {
 
   void fileNameIsUtcTimestamp() {
     const QDateTime t(QDate(2026, 10, 11), QTime(9, 8, 7), Qt::UTC);
-    QCOMPARE(diag::fileName(t), QString("framebeam-player-diagnostics-20261011T090807Z.zip"));
+    QCOMPARE(diag::fileName(t), QString("uzume-diagnostics-20261011T090807Z.zip"));
   }
 
   void bundleHasEntriesInfoAndRedactedLogs() {

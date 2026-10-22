@@ -10,7 +10,7 @@
 #include "fbplugin.h"
 #include "manifest.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 struct InstallResult {
   bool ok = false;
@@ -38,7 +38,7 @@ struct GameResolution {
 // Installed plugins on disk: <root>/installed/<id>/ (installed from a folder or a .fbplugin file on this device),
 // <root>/hub/<id>/<version>/ (copies delivered by the Hub, several versions side by side), <root>/cache/<id>/,
 // <root>/state.json (enabled flags, linked dev folders). Every installed folder carries an origin.json written by the
-// Player after the checks ("official": valid FrameBeam signature, wherever it came from; "unverified": unsigned copy
+// Player after the checks ("official": valid Uzume signature, wherever it came from; "unverified": unsigned copy
 // offered by the Hub; "local": unsigned file or folder of this device). Only "local" plugins need developer mode.
 // Per plugin id one copy is active outside runs: linked dev folder > installed/ > newest hub copy. A run uses exactly
 // its Hub version through hubCopyDir() and a local copy never replaces it (docs/architecture/12-plugins.md 16.10).
@@ -130,4 +130,4 @@ class PluginManager : public QObject {
   QSet<QString> m_dirtyIds;
 };
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

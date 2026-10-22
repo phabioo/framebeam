@@ -5,7 +5,7 @@
 #include <QDateTime>
 #include <QString>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class TimeFormat {
  public:
@@ -17,4 +17,4 @@ class TimeFormat {
   static QString fullIso(const QString& iso);
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

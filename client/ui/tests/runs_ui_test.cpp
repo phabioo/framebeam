@@ -1,7 +1,7 @@
 // Runs in the Player UI (docs/design/plugins.md 4j-2): the sidebar entry (Hub announces runs_v1 and an installed plugin has
 // run.state), the invite card with the game picker, the run detail with participants, status actions and the event log,
 // "Start a run", and "Play run" (Hub copies of the run's plugins, the run's own save slot). Synthetic plugins and a fake
-// Hub only. With FRAMEBEAM_SCREENSHOT_DIR=<dir> the views are also saved as PNGs (dark and light) for the review.
+// Hub only. With UZUME_SCREENSHOT_DIR=<dir> the views are also saved as PNGs (dark and light) for the review.
 #include <QDir>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -14,10 +14,10 @@
 #include "runtypes.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
-using namespace framebeam::plugins::testutil;
+using namespace uzume::plugins::testutil;
 
 namespace {
 
@@ -51,8 +51,8 @@ class RunsUiTest : public QObject {
 
  private slots:
   void initTestCase() {
-    shotDir_ = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    shotDir_ = qEnvironmentVariable("UZUME_SCREENSHOT_DIR");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     uitest::installWarningCounter();
   }
   void init() { uitest::warningCount() = 0; }
@@ -155,7 +155,7 @@ class RunsUiTest : public QObject {
     QVERIFY(runs->joinUnverified());
     QTRY_VERIFY(h.item("runJoinUnverified") != nullptr && h.item("runJoinUnverified")->isVisible());
     QCOMPARE(h.item("runJoinUnverified")->property("text").toString(), runs->unverifiedWarning());
-    QVERIFY(runs->unverifiedWarning().startsWith(QStringLiteral("FrameBeam has not checked this plugin.")));
+    QVERIFY(runs->unverifiedWarning().startsWith(QStringLiteral("Uzume has not checked this plugin.")));
     QVERIFY(h.item("runJoinLine")->property("text").toString().startsWith(QStringLiteral("Lena invited you · ")));  // no nested quotes (P26)
     QVERIFY(!h.item("runJoinWhy")->isVisible());  // a fitting game exists, so Join is possible (P27)
     shot(h, QStringLiteral("4j-3-join"));
@@ -519,16 +519,16 @@ class RunsUiTest : public QObject {
     QCOMPARE(h.item("runJoinGames")->property("selectedId").toString(), QStringLiteral("user-choice"));
   }
 
-  static framebeam::HubPluginInfo hubInfo(const QString& id, const QString& version, const QString& name, const QJsonObject& requires_ = {}) {
+  static uzume::HubPluginInfo hubInfo(const QString& id, const QString& version, const QString& name, const QJsonObject& requires_ = {}) {
     QJsonObject o{{"plugin_id", id}, {"version", version}, {"name", name}, {"origin", "unverified"}, {"sha256", QString(64, QLatin1Char('c'))},
                   {"permissions", QJsonArray{"run.state"}}, {"requires", requires_}};
-    return *framebeam::parseHubPluginInfo(o);
+    return *uzume::parseHubPluginInfo(o);
   }
 
   // Requires: newest fitting version, transitive, deduplicated; missing and conflicting ranges give a start error.
   void resolveStartPluginsRules() {
-    using framebeam::ui::resolveStartPlugins;
-    const QList<framebeam::HubPluginInfo> offered{
+    using uzume::ui::resolveStartPlugins;
+    const QList<uzume::HubPluginInfo> offered{
         hubInfo("net.t.soul", "1.0.0", "SoulLink", {{"net.t.core", "^0.1"}, {"net.t.base", "*"}}),
         hubInfo("net.t.nuz", "1.0.0", "Nuzlocke", {{"net.t.core", "^0.1"}}),
         hubInfo("net.t.core", "0.1.0", "Core"), hubInfo("net.t.core", "0.1.7", "Core", {{"net.t.base", "^1.0"}}), hubInfo("net.t.core", "0.2.0", "Core"),
@@ -546,8 +546,8 @@ class RunsUiTest : public QObject {
     QCOMPARE(r.total(), 4);
   }
   void resolveStartPluginsNarrowing() {
-    using framebeam::ui::resolveStartPlugins;
-    const QList<framebeam::HubPluginInfo> offered{
+    using uzume::ui::resolveStartPlugins;
+    const QList<uzume::HubPluginInfo> offered{
         hubInfo("net.t.soul", "1.0.0", "SoulLink", {{"net.t.core", "^0.1"}}),
         hubInfo("net.t.core", "0.1.0", "Core"), hubInfo("net.t.core", "0.1.7", "Core", {{"net.t.base", "^1.0"}}), hubInfo("net.t.core", "0.2.0", "Core"),
         hubInfo("net.t.base", "1.0.0", "Base"), hubInfo("net.t.base", "1.4.0", "Base"), hubInfo("net.t.base", "2.0.0", "Base")};
@@ -562,8 +562,8 @@ class RunsUiTest : public QObject {
     QCOMPARE(r.included.at(1).neededBy, QStringList{"SoulLink"});
   }
   void resolveStartPluginsErrors() {
-    using framebeam::ui::resolveStartPlugins;
-    const QList<framebeam::HubPluginInfo> offered{
+    using uzume::ui::resolveStartPlugins;
+    const QList<uzume::HubPluginInfo> offered{
         hubInfo("net.t.soul", "1.0.0", "SoulLink & Nuzlocke", {{"net.t.core", "^0.1"}}), hubInfo("net.t.core", "0.2.0", "SoulLink Core"),
         hubInfo("net.t.strict", "1.0.0", "Strict", {{"net.t.core", "^0.2"}}), hubInfo("net.t.lost", "1.0.0", "Lost", {{"net.t.gone", "^1"}}),
         hubInfo("net.t.bad", "1.0.0", "Bad", {{"net.t.core", "huh"}})};
@@ -655,10 +655,10 @@ class RunsUiTest : public QObject {
     runs->toggleStartPlugin(QStringLiteral("net.test.plain"));
     runs->toggleStartPlugin(QStringLiteral("net.test.soul"));
     QCOMPARE(runs->startIncluded()->rowCount(), 1);
-    const QVariantMap inc = static_cast<framebeam::ui::KeyedRowsModel*>(runs->startIncluded())->get(0);
+    const QVariantMap inc = static_cast<uzume::ui::KeyedRowsModel*>(runs->startIncluded())->get(0);
     QCOMPARE(inc.value("text").toString(), QString("Included: Core 0.1.4 · needed by SoulLink"));
     QCOMPARE(runs->startRules()->rowCount(), 3);  // header + 2 settings
-    auto* rulesModel = static_cast<framebeam::ui::KeyedRowsModel*>(runs->startRules());
+    auto* rulesModel = static_cast<uzume::ui::KeyedRowsModel*>(runs->startRules());
     QCOMPARE(rulesModel->get(0).value("title").toString(), QString("SoulLink"));
     QCOMPARE(rulesModel->get(1).value("label").toString(), QString("Mode"));
     QCOMPARE(rulesModel->get(1).value("hint").toString(), QString("How the run is played"));

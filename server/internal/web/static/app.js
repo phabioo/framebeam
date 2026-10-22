@@ -1,4 +1,4 @@
-// FrameBeam Hub web shell: live updates over Server-Sent Events, the collapsible navigation and the row menus.
+// Uzume server web shell: live updates over Server-Sent Events, the collapsible navigation and the row menus.
 // The server sends "event: <topic>" (clients, saves, library, systems, users, updates, runs, badges);
 // each is forwarded as an htmx trigger "fb:<topic>" on <body>. Regions refresh themselves with
 // hx-get="<fragment url>" hx-trigger="fb:<topic> from:body" hx-swap="outerHTML".

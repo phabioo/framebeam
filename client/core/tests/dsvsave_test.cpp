@@ -3,7 +3,7 @@
 
 #include "dsvsave.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 class DsvSaveTest : public QObject {
   Q_OBJECT

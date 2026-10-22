@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 func TestRunsWaitingBannerInviteActionsAndStart(t *testing.T) {
@@ -20,7 +20,7 @@ func TestRunsWaitingBannerInviteActionsAndStart(t *testing.T) {
 		"Remove invite…", `class="pill lg info"`, "Finish run…", "Delete run…", "after start", "after finish")
 	notContains(t, rec, "(s)")
 
-	// Resend: the event log gets a Hub event without an author column.
+	// Resend: the event log gets a server event without an author column.
 	if l := f.post("/runs/" + rid + "/invites/" + f.anna.ID + "/resend"); l != "/runs/"+rid+"?ok=invitesent" {
 		t.Fatalf("%s", l)
 	}

@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/auth"
 )
 
 // Invite limits.
@@ -64,14 +64,14 @@ type Invite struct {
 	ForUser string
 }
 
-// newInviteCode creates a code of the form FB-XXXX-XXXX.
+// newInviteCode creates a code of the form UZ-XXXX-XXXX.
 func newInviteCode() (string, error) {
 	var raw [8]byte
 	if _, err := rand.Read(raw[:]); err != nil {
 		return "", err
 	}
 	var b strings.Builder
-	b.WriteString("FB-")
+	b.WriteString("UZ-")
 	for i, v := range raw {
 		if i == 4 {
 			b.WriteByte('-')
@@ -89,11 +89,11 @@ func newInviteCode() (string, error) {
 	return b.String(), nil
 }
 
-// normalizeInviteCode uppercases and strips spaces/dashes; it returns the canonical FB-XXXX-XXXX form or "".
+// normalizeInviteCode uppercases and strips spaces/dashes; it returns the canonical UZ-XXXX-XXXX form or "".
 func normalizeInviteCode(in string) string {
 	in = strings.ToUpper(strings.TrimSpace(in))
 	in = strings.NewReplacer("-", "", " ", "").Replace(in)
-	if len(in) != 10 || !strings.HasPrefix(in, "FB") {
+	if len(in) != 10 || !strings.HasPrefix(in, "UZ") {
 		return ""
 	}
 	body := in[2:]
@@ -102,7 +102,7 @@ func normalizeInviteCode(in string) string {
 			return ""
 		}
 	}
-	return "FB-" + body[:4] + "-" + body[4:]
+	return "UZ-" + body[:4] + "-" + body[4:]
 }
 
 func hashInviteCode(code string) string { return auth.HashToken("invite:" + code) }
@@ -185,7 +185,7 @@ func (s *Service) ListInvites(ctx context.Context, limit int) ([]Invite, error) 
 	return out, rows.Err()
 }
 
-// RedeemInput is the redeem request of a Player. RemoteAddr is the IP (without port).
+// RedeemInput is the redeem request of an app. RemoteAddr is the IP (without port).
 type RedeemInput struct {
 	Code            string
 	DisplayName     string
@@ -371,7 +371,7 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 	var userID string
 	if forUser != "" {
 		// An invite created together with a user (Users > Create user): the code pairs a device with that user.
-		// The display name the Player sends is ignored; a disabled or deleted user cannot be paired.
+		// The display name the app sends is ignored; a disabled or deleted user cannot be paired.
 		var disabled sql.NullInt64
 		if err := tx.QueryRowContext(ctx, `SELECT disabled_at FROM users WHERE id = ?`, forUser).Scan(&disabled); err != nil || disabled.Valid {
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -419,7 +419,7 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 		var status string
 		err := tx.QueryRowContext(ctx, `SELECT status FROM devices WHERE id = ?`, in.DeviceID).Scan(&status)
 		if err == nil && status == string(DeviceTrusted) {
-			return RedeemResult{}, conflict("This device is already paired with the Hub")
+			return RedeemResult{}, conflict("This device is already paired with the server")
 		} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return RedeemResult{}, internal(err)
 		}
@@ -443,7 +443,7 @@ func (s *Service) RedeemInvite(ctx context.Context, in RedeemInput) (_ RedeemRes
 		var status string
 		err := tx.QueryRowContext(ctx, `SELECT status FROM devices WHERE id = ?`, in.DeviceID).Scan(&status)
 		if err == nil && status == string(DeviceTrusted) { // the new user cannot own it: never reassign on approval
-			return RedeemResult{}, conflict("This device is already paired with the Hub")
+			return RedeemResult{}, conflict("This device is already paired with the server")
 		} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return RedeemResult{}, internal(err)
 		}

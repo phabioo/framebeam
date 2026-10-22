@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
 func newBuildbotEnv(t *testing.T) (*sessEnv, *hubtest.Buildbot) {
@@ -133,7 +133,7 @@ func TestSystemsListsInstalledCoresAndDefault(t *testing.T) {
 	if cs[1].CoreID != "noods" || !cs[1].Experimental || cs[1].RequiredHwApi == nil || *cs[1].RequiredHwApi != "OpenGL Core >= 3.2" {
 		t.Fatalf("%+v", cs[1])
 	}
-	// Changing the default changes what old Players see.
+	// Changing the default changes what old apps see.
 	if err := s.svc.SetDefaultCore(ctx, "nds", "desmume"); err != nil {
 		t.Fatal(err)
 	}

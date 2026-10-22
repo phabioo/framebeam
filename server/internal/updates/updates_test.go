@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/corepkg"
 )
 
 var (
@@ -38,7 +38,7 @@ func art(platform, kind, name string) Artifact {
 
 func rel(product, channel, version string, arts ...Artifact) Release {
 	if arts == nil {
-		arts = []Artifact{art("linux-amd64", KindDeb, "framebeam-hub_"+strings.ReplaceAll(version, "-", "~")+"_amd64.deb")}
+		arts = []Artifact{art("linux-amd64", KindDeb, "uzume-server_"+strings.ReplaceAll(version, "-", "~")+"_amd64.deb")}
 	}
 	return Release{Product: product, Channel: channel, Version: version, PublishedAt: t0, ProtocolVersion: 1, MinProtocolVersion: 1, Artifacts: arts}
 }
@@ -101,7 +101,7 @@ func TestParseIndexSkipsInvalidReleases(t *testing.T) {
 }
 
 func TestSemVerPrecedence(t *testing.T) {
-	// Ascending order per the SemVer 2.0 spec section 11 plus FrameBeam's own forms.
+	// Ascending order per the SemVer 2.0 spec section 11 plus Uzume's own forms.
 	asc := []string{"0.3.0-beta.2", "0.3.0-beta.10", "0.3.0-beta.10.1", "0.3.0-beta.a", "0.3.0-beta.b", "0.3.0-beta.b.1",
 		"0.3.0-beta.b.2", "0.3.0-dev", "0.3.0", "0.3.1", "0.10.0", "1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta", "1.0.0-beta.2",
 		"1.0.0-beta.11", "1.0.0-rc.1", "1.0.0", "2.0.0"}
@@ -242,7 +242,7 @@ func newFixture(t *testing.T, version string) *fixture {
 func newFixtureFor(t *testing.T, version, platform, kind, suffix string) *fixture {
 	t.Helper()
 	f := &fixture{dir: t.TempDir(), feed: t.TempDir(), keys: testKeys(t)}
-	f.debName = "framebeam-hub_" + strings.ReplaceAll(version, "-", "~") + suffix
+	f.debName = "uzume-server_" + strings.ReplaceAll(version, "-", "~") + suffix
 	f.debData = []byte("dummy deb payload for " + version)
 	if err := os.WriteFile(filepath.Join(f.feed, f.debName), f.debData, 0o644); err != nil {
 		t.Fatal(err)

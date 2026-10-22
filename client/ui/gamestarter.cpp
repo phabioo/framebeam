@@ -17,9 +17,9 @@
 #include "semver.h"
 #include "version.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
-Q_LOGGING_CATEGORY(lcGameStarter, "framebeam.gamestarter")
+Q_LOGGING_CATEGORY(lcGameStarter, "uzume.gamestarter")
 
 GameStarter::GameStarter(const Deps& d, QObject* parent)
     : QObject(parent),
@@ -336,12 +336,12 @@ void GameStarter::onSaveReady(const QString& gameId, const QString& saveDir, con
   }
 #endif
   // Manifest defaults < user overrides (game > system/core > global) < firmware mode of the Hub (builtin | native +
-  // files) < manifest-locked options (screen layout, OSD off; the render mode is a user choice, default software): FrameBeam stays in control of those.
+  // files) < manifest-locked options (screen layout, OSD off; the render mode is a user choice, default software): Uzume stays in control of those.
   cfg.coreOptions = emu::launchCoreOptions(*man, emulation_->launchOverrides(man->systemId, launchGame_.id), fwOptions_);
   cfg.display = man->display;
   cfg.requireHwRender = man->requiresHwRender;
   {
-    const auto fb = [&](const char* key) { return emulation_->frameBeamValue(QString::fromLatin1(key), man->systemId, launchGame_.id); };
+    const auto fb = [&](const char* key) { return emulation_->uzumeValue(QString::fromLatin1(key), man->systemId, launchGame_.id); };
     cfg.speedUpRatio = fb(EmulationController::kSpeedUpRatioKey).toDouble();
     cfg.speedUpOnStart = fb(EmulationController::kSpeedUpOnStartKey) == QLatin1String("true");
     cfg.speedUpAudio = fb(EmulationController::kSpeedUpAudioKey) != QLatin1String("false");
@@ -388,4 +388,4 @@ void GameStarter::resolveSaveConflict(const QString& action) {
                                                                  : SaveSync::Resolution::DecideLater);
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

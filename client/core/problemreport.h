@@ -17,7 +17,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace framebeam {
+namespace uzume {
 
 class ProblemReport {
  public:
@@ -79,7 +79,7 @@ class ProblemReport {
   QByteArray multipartBody(QByteArray* contentType) const;
   // The same content as a local zip: report.txt (description and meta) plus the included files. false + *error.
   bool saveAsZip(const QString& path, QString* error = nullptr) const;
-  static QString zipFileName(const QDateTime& when);  // framebeam-player-report-<UTC timestamp>.zip
+  static QString zipFileName(const QDateTime& when);  // uzume-report-<UTC timestamp>.zip
 
   // settings/player.json with secret-looking keys replaced and the text redacted (public for tests).
   static QByteArray redactedSettings(const QString& dataDir);
@@ -98,4 +98,4 @@ class ProblemReport {
   QDateTime now_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

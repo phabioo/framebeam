@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-signal.schema.json",
+  "$id": "https://uzume.invalid/schemas/ws-signal.schema.json",
   "title": "ws-signal (both directions, relayed unchanged between owner device and viewer device)",
   "type": "object",
   "required": [

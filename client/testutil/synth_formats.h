@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-namespace framebeam::synth {
+namespace uzume::synth {
 
 inline void put8(std::string& s, uint8_t v) { s.push_back(static_cast<char>(v)); }
 inline void put16(std::string& s, uint32_t v) { put8(s, v & 0xFF); put8(s, (v >> 8) & 0xFF); }
@@ -376,4 +376,4 @@ inline SynthPk6 makePk6(uint32_t ec, uint16_t species, bool party = false, uint3
     return {p, e};
 }
 
-}  // namespace framebeam::synth
+}  // namespace uzume::synth

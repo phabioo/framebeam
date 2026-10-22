@@ -4,7 +4,7 @@
 #include <QFile>
 #include <QSaveFile>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 bool materializeFirmware(const FirmwareSpec& spec, const QMap<QString, QString>& cachePathById, const QString& systemDir,
                          QStringList* writtenIds, QString* error) {
@@ -51,4 +51,4 @@ QMap<QString, QString> firmwareCoreOptions(const FirmwareSpec& spec, bool native
   return opts;
 }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

@@ -5,7 +5,7 @@
 
 #include "controllerprofiles.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 class ControllerProfilesTest : public QObject {
   Q_OBJECT
@@ -29,8 +29,8 @@ class ControllerProfilesTest : public QObject {
     QVERIFY(!p.setBinding(id, QStringLiteral("a"), {}));
     QVERIFY(!p.resetToDefault(id));
     QVERIFY(!QFile::exists(p.filePath()));  // nothing written until something changes
-    // Every FrameBeam input has a default in both built-in profiles.
-    for (const InputDef& in : frameBeamInputs()) {
+    // Every Uzume input has a default in both built-in profiles.
+    for (const InputDef& in : uzumeInputs()) {
       QVERIFY2(pad->bindings.contains(in.id), qPrintable(in.id));
       QVERIFY2(kb->bindings.contains(in.id), qPrintable(in.id));
     }
@@ -129,7 +129,7 @@ class ControllerProfilesTest : public QObject {
       QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:rightshoulder"));
       QCOMPARE(p.padHotkey(QStringLiteral("snapshot")), QStringLiteral("pad:leftshoulder"));
       QCOMPARE(p.padHotkey(QStringLiteral("diagnostics")), QStringLiteral("pad:rightstick"));
-      QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:y"));   // FrameBeam hotkeys have gamepad defaults (3f-4)
+      QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:y"));   // Uzume hotkeys have gamepad defaults (3f-4)
       QCOMPARE(p.hotkeysChangedCount(), 0);
       QCOMPARE(padHotkeyLabel(p.padHotkey(QStringLiteral("speedup")), p.padHotkeyModifier()), QStringLiteral("Select+RB"));
       QCOMPARE(padHotkeyLabel(p.padHotkey(QStringLiteral("diagnostics")), p.padHotkeyModifier()), QStringLiteral("Select+R3"));

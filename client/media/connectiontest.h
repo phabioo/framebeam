@@ -12,7 +12,7 @@
 
 #include "connectionprobes.h"
 
-namespace framebeam {
+namespace uzume {
 
 // Real probes: the Qt probes of steps 1 to 3 plus this test as step 5. Create and use on the thread that runs the ConnectionCheck.
 std::unique_ptr<ConnectionProbes> makeConnectionProbes(const ProbeTimings& timings = {});
@@ -33,4 +33,4 @@ class ConnectionTestRunner : public QObject {
   int timeoutMs_ = 15000;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

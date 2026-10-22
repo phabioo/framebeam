@@ -8,7 +8,7 @@
 #include <QRegularExpression>
 #include <set>
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 using update::SemVer;
 
@@ -445,4 +445,4 @@ ManifestResult loadManifest(const QString& dir) {
   return parseManifest(f.read(kMaxManifestBytes + 1), dir);
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

@@ -7,12 +7,12 @@
 
 #include <algorithm>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 using Level = EmulationSettings::Level;
 using Source = EmulationSettings::Source;
 
-const QList<EmulationController::FbOption>& EmulationController::frameBeamOptions() {
+const QList<EmulationController::FbOption>& EmulationController::uzumeOptions() {
   static const QList<FbOption> opts = {
       {QString::fromLatin1(kFullscreenKey),
        QObject::tr("Fullscreen on start"),
@@ -283,9 +283,9 @@ Level EmulationController::levelEnum() const {
   return level_ == QLatin1String("global") ? Level::Global : (level_ == QLatin1String("game") ? Level::Game : Level::System);
 }
 
-QString EmulationController::frameBeamValue(const QString& key, const QString& systemId, const QString& gameId) const {
+QString EmulationController::uzumeValue(const QString& key, const QString& systemId, const QString& gameId) const {
   QString def;
-  for (const FbOption& o : frameBeamOptions()) {
+  for (const FbOption& o : uzumeOptions()) {
     if (o.key == key) def = o.defaultValue;
   }
   const QString value = settings_.resolve(key, systemId, gameId, QString(), def).value;
@@ -299,7 +299,7 @@ QMap<QString, QString> EmulationController::launchOverrides(const QString& syste
 }
 
 bool EmulationController::knownOption(const QString& key, QList<emu::CoreOptionValue>* values) const {
-  for (const FbOption& o : frameBeamOptions()) {
+  for (const FbOption& o : uzumeOptions()) {
     if (o.key == key) {
       *values = o.values;
       return true;
@@ -329,7 +329,7 @@ bool EmulationController::knownOption(const QString& key, QList<emu::CoreOptionV
 
 QString EmulationController::defaultValueOf(const QString& key) const {
   const bool global = level_ == QLatin1String("global");
-  for (const FbOption& o : frameBeamOptions()) {
+  for (const FbOption& o : uzumeOptions()) {
     if (o.key == key) return o.defaultValue;
   }
   if (key == QLatin1String(kCoreKey)) return level_ == QLatin1String("game") ? QString() : system().value(QStringLiteral("defaultCoreId")).toString();
@@ -358,12 +358,12 @@ void EmulationController::setOption(const QString& key, const QString& value) {
     settings_.removeValue(levelEnum(), scope(), key);  // back to the default: nothing stays stored, no "changed" mark
   } else {
     settings_.setValue(levelEnum(), scope(), key, value);
-    if (gameRunning_ && !key.startsWith(QLatin1String("framebeam."))) restartTouched_ = true;
+    if (gameRunning_ && !key.startsWith(QLatin1String("uzume."))) restartTouched_ = true;
   }
   rebuild();
   emit systemsChanged();
   emitGamesChanged();
-  if (key.startsWith(QLatin1String("framebeam."))) emit frameBeamOptionsChanged();
+  if (key.startsWith(QLatin1String("uzume."))) emit uzumeOptionsChanged();
   if (key == QLatin1String(kCoreKey)) emit coreChoiceChanged();
 }
 
@@ -373,7 +373,7 @@ void EmulationController::resetOption(const QString& key) {
   rebuild();
   emit systemsChanged();
   emitGamesChanged();
-  if (key.startsWith(QLatin1String("framebeam."))) emit frameBeamOptionsChanged();
+  if (key.startsWith(QLatin1String("uzume."))) emit uzumeOptionsChanged();
   if (key == QLatin1String(kCoreKey)) emit coreChoiceChanged();
 }
 
@@ -384,14 +384,14 @@ void EmulationController::resetAllChanged() {
   const QMap<QString, QString> vals = settings_.values(levelEnum(), scope());
   for (auto it = vals.cbegin(); it != vals.cend(); ++it) {
     settings_.removeValue(levelEnum(), scope(), it.key());
-    fb = fb || it.key().startsWith(QLatin1String("framebeam."));
+    fb = fb || it.key().startsWith(QLatin1String("uzume."));
     coreChanged = coreChanged || it.key() == QLatin1String(kCoreKey);
   }
   restartTouched_ = false;
   rebuild();
   emit systemsChanged();
   emitGamesChanged();
-  if (fb) emit frameBeamOptionsChanged();
+  if (fb) emit uzumeOptionsChanged();
   if (coreChanged) emit coreChoiceChanged();
 }
 
@@ -411,7 +411,7 @@ void EmulationController::setSearchText(const QString& text) {
 
 QVariantMap EmulationController::row(const QString& key, const QString& label, const QString& description, const QString& category,
                                      const QList<emu::CoreOptionValue>& values, const QString& manifestDefault,
-                                     const QString& coreDefault, bool frameBeam) const {
+                                     const QString& coreDefault, bool uzume) const {
   const bool global = level_ == QLatin1String("global");
   const Level lvl = levelEnum();
   const bool isSet = settings_.hasValue(lvl, scope(), key);
@@ -426,8 +426,8 @@ QVariantMap EmulationController::row(const QString& key, const QString& label, c
     switch (r.source) {
       case Source::System: origin = tr("inherited · System"); break;
       case Source::Global: origin = tr("inherited · Global"); break;
-      case Source::Manifest: origin = tr("inherited · FrameBeam default"); break;
-      case Source::Core: origin = frameBeam ? (global ? tr("default") : tr("inherited · default")) : tr("inherited · core default"); break;
+      case Source::Manifest: origin = tr("inherited · Uzume default"); break;
+      case Source::Core: origin = uzume ? (global ? tr("default") : tr("inherited · default")) : tr("inherited · core default"); break;
       default: origin = tr("inherited"); break;
     }
   }
@@ -454,7 +454,7 @@ QVariantMap EmulationController::row(const QString& key, const QString& label, c
           {QStringLiteral("valueLabel"), valueLabel},
           {QStringLiteral("isSet"), isSet},
           {QStringLiteral("origin"), origin},
-          {QStringLiteral("restart"), !frameBeam && gameRunning_}};
+          {QStringLiteral("restart"), !uzume && gameRunning_}};
 }
 
 void EmulationController::rebuild() {
@@ -490,11 +490,11 @@ void EmulationController::rebuild() {
     if (global) {
       // Defaults: options that do not depend on a system.
       QVariantList fb;
-      for (const FbOption& o : frameBeamOptions()) {
+      for (const FbOption& o : uzumeOptions()) {
         fb.append(row(o.key, o.label, o.description, o.perSystem ? tr("Speed-up") : tr("Display"), o.values, QString(), o.defaultValue, true));
       }
-      groups.append(QVariantMap{{QStringLiteral("id"), QStringLiteral("framebeam")},
-                                {QStringLiteral("title"), tr("FrameBeam")},
+      groups.append(QVariantMap{{QStringLiteral("id"), QStringLiteral("uzume")},
+                                {QStringLiteral("title"), tr("Uzume")},
                                 {QStringLiteral("subtitle"), tr("Presentation in the Player")},
                                 {QStringLiteral("note"), QString()},
                                 {QStringLiteral("options"), collect(fb)}});
@@ -541,7 +541,7 @@ void EmulationController::rebuild() {
       }
       QString groupNote = coreNote_;
       if (man->experimental) {
-        const QString exp = tr("Experimental core: FrameBeam has no profile for it. It runs without option defaults or locked options, "
+        const QString exp = tr("Experimental core: Uzume has no profile for it. It runs without option defaults or locked options, "
                                "its picture is shown as the core renders it, and touch input is off.");
         groupNote = groupNote.isEmpty() ? exp : groupNote + QLatin1Char(' ') + exp;
       }
@@ -600,14 +600,14 @@ void EmulationController::rebuild() {
         r.insert(QStringLiteral("restart"), false);
         fb.append(r);
       }
-      for (const FbOption& o : frameBeamOptions()) {
+      for (const FbOption& o : uzumeOptions()) {
         if (!o.perSystem) continue;
         // The screen layout only exists for systems with two screens (DS, 3DS); "Overrides Defaults for DS games."
         if (o.key == QLatin1String(kScreenLayoutKey) && (man == nullptr || man->display.screens.size() < 2)) continue;
         fb.append(row(o.key, o.label, o.description, QString(), o.values, QString(), o.defaultValue, true));
       }
-      groups.prepend(QVariantMap{{QStringLiteral("id"), QStringLiteral("framebeam")},
-                                {QStringLiteral("title"), tr("FrameBeam")},
+      groups.prepend(QVariantMap{{QStringLiteral("id"), QStringLiteral("uzume")},
+                                {QStringLiteral("title"), tr("Uzume")},
                                 {QStringLiteral("subtitle"), gameLvl ? tr("Core and speed-up for this game") : tr("Core and speed-up in the Player")},
                                 {QStringLiteral("note"), gameLvl ? QString() : card.value(QStringLiteral("coreNotice")).toString()},
                                 {QStringLiteral("options"), collect(fb)}});
@@ -619,4 +619,4 @@ void EmulationController::rebuild() {
   emit groupsChanged();
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

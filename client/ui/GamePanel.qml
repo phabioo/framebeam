@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // GamePanel (docs/design/player.md "GamePanel", 3g-2/3g-3, 3r-2, 3h-2, 3i-2). Side panel of the game view, 340 wide (320 at
 // 1280), collapsible to a 48 px rail. Your game: SHARING, SAVE and "Quit game" pinned at the bottom. In the Multiview the

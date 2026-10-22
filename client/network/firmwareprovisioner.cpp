@@ -4,13 +4,13 @@
 #include <QNetworkReply>
 #include <QTimer>
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcFirmware, "framebeam.firmware")
+Q_LOGGING_CATEGORY(lcFirmware, "uzume.firmware")
 
 FirmwareProvisioner::FirmwareProvisioner(HubConnection* connection, FirmwareCache* cache, QObject* parent)
     : QObject(parent), conn_(connection), cache_(cache) {
-  qRegisterMetaType<framebeam::FirmwareResult>("framebeam::FirmwareResult");
+  qRegisterMetaType<uzume::FirmwareResult>("uzume::FirmwareResult");
   connect(connection, &HubConnection::stateChanged, this, [this](HubConnection::State s) {
     if (s != HubConnection::State::Connected && busy_) {
       ++generation_;  // pending replies are aborted by the connection and ignored
@@ -128,4 +128,4 @@ void FirmwareProvisioner::done() {
   emit finished(res);
 }
 
-}  // namespace framebeam
+}  // namespace uzume

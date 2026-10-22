@@ -1,4 +1,4 @@
-// Frontend behavior against the FrameBeam test core (test_core.cpp, generic flavor), no real emulator: core and game
+// Frontend behavior against the Uzume test core (test_core.cpp, generic flavor), no real emulator: core and game
 // loading, frames, audio, SAVE_RAM, joypad (bitmask and per button), pointer, core options (V2/V1/V0), variables,
 // directory queries, no-game probe, fast-forward query, AV info. Never skips.
 #include <QCoreApplication>
@@ -13,8 +13,8 @@
 #include "libretro_backend.h"
 #include "test_core_layout.h"
 
-using namespace framebeam::emu;
-namespace tc = framebeam::testcore;
+using namespace uzume::emu;
+namespace tc = uzume::testcore;
 
 namespace {
 uint dataPx(const QImage& img, int idx) { return img.pixel(idx, tc::kDataRow) & 0xFFFFFFu; }
@@ -70,7 +70,7 @@ class TestCoreTest : public QObject {
     be.setSaveDirectory(saveDir());
     QVERIFY2(be.loadCore(m_core, &err), qPrintable(err));
     const CoreInfo info = be.coreInfo();
-    QCOMPARE(info.name, QStringLiteral("FrameBeam Test Core"));
+    QCOMPARE(info.name, QStringLiteral("Uzume Test Core"));
     QCOMPARE(info.version, QStringLiteral("1.0-test"));
     QVERIFY(info.needFullpath);
     QVERIFY(info.extensions.contains(QStringLiteral(".nds")));
@@ -229,7 +229,7 @@ class TestCoreTest : public QObject {
     QVERIFY(run(be, 1));
     QCOMPARE(dataPx(be.videoFrame(), tc::DataDirs), 3u);
     be.unloadCore();
-    QFile f(QDir(saveDir()).filePath(QStringLiteral("framebeam_test_core_dirs.txt")));
+    QFile f(QDir(saveDir()).filePath(QStringLiteral("uzume_test_core_dirs.txt")));
     QVERIFY(f.open(QIODevice::ReadOnly));
     const QString text = QString::fromUtf8(f.readAll());
     QVERIFY2(text.contains(QStringLiteral("system=") + QDir::toNativeSeparators(sysDir())), qPrintable(text));
@@ -354,7 +354,7 @@ class TestCoreTest : public QObject {
   void noGameProbe() {
     const CoreProbe p = probeCore(m_core, sysDir(), saveDir());
     QVERIFY2(p.ok, qPrintable(p.error));
-    QCOMPARE(p.info.name, QStringLiteral("FrameBeam Test Core"));
+    QCOMPARE(p.info.name, QStringLiteral("Uzume Test Core"));
     QCOMPARE(p.options.size(), 5);  // registered by retro_load_game(NULL)
     QVERIFY(!p.categories.isEmpty());
     const CoreProbe again = coreProbeFromJson(coreProbeToJson(p));  // cache round trip

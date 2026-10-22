@@ -13,8 +13,8 @@
 #include "plugin_test_util.h"
 #include "plugin_ui.h"
 
-using namespace framebeam::plugins;
-using namespace framebeam::plugins::testutil;
+using namespace uzume::plugins;
+using namespace uzume::plugins::testutil;
 
 namespace {
 

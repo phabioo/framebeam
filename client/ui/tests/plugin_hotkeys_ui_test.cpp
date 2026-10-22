@@ -1,5 +1,5 @@
 // Plugin hotkeys in Controllers > Hotkeys (0.11 package 2): one group per plugin that declares hotkeys (name, origin marker,
-// key count), FrameBeam keys always win (a conflicting plugin key is "not active" with a note), capture / clear / reset, and
+// key count), Uzume keys always win (a conflicting plugin key is "not active" with a note), capture / clear / reset, and
 // the user's choice persisted in the player settings by plugin id + hotkey id. The in-game side (key press -> on_action,
 // Alt+n, F4, show a hidden HUD widget again) is in plugin_slots_ui_test.cpp. FakeHub, preview plugin models, no core.
 #include <QDir>
@@ -9,8 +9,8 @@
 #include "playersettings.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 namespace {
@@ -40,7 +40,7 @@ class PluginHotkeysUiTest : public QObject {
 
   PluginsController* pc() { return h_.controller->plugins(); }
   void shot(const QString& name) {
-    const QString dir = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
+    const QString dir = qEnvironmentVariable("UZUME_SCREENSHOT_DIR");
     if (dir.isEmpty()) return;
     QQuickTest::qWaitForPolish(h_.window);
     QTest::qWait(400);
@@ -80,7 +80,7 @@ class PluginHotkeysUiTest : public QObject {
 
   void hotkeysGroupsConflictsAndOverrides() {
     pc()->setPreviewUi(hotkeyUi());
-    // Model: FrameBeam keys win, then the earlier plugin; a conflicting key is not active.
+    // Model: Uzume keys win, then the earlier plugin; a conflicting key is not active.
     const QVariantList groups = pc()->hotkeyGroups();
     QCOMPARE(groups.size(), 2);
     QCOMPARE(groups.at(0).toMap().value("conflicts").toInt(), 0);
@@ -93,13 +93,13 @@ class PluginHotkeysUiTest : public QObject {
     QCOMPARE(peek.value("keyText").toString(), QStringLiteral("Ctrl+H · not active"));
     QCOMPARE(peek.value("note").toString(), QStringLiteral("Already used by SoulLink & Nuzlocke. Unassigned until you choose."));
     QCOMPARE(groups.at(1).toMap().value("rows").toList().at(1).toMap().value("note").toString(),
-             QStringLiteral("Already used by Toggle fullscreen. FrameBeam keys always win."));
+             QStringLiteral("Already used by Toggle fullscreen. Uzume keys always win."));
     QVERIFY(groups.at(1).toMap().value("rows").toList().at(2).toMap().value("active").toBool());  // F8
     QVERIFY(pc()->activeHotkeyCombos().contains(int(Qt::Key_H) | int(Qt::ControlModifier)));
     QVERIFY(!pc()->activeHotkeyCombos().contains(int(Qt::Key_F11)));
     QCOMPARE(pc()->activeHotkeyCombos().size(), 4);  // Ctrl+H, Ctrl+D, Ctrl+R, F8
 
-    // Controllers > Hotkeys: FrameBeam rows, one group per plugin, conflict row in the warning tone.
+    // Controllers > Hotkeys: Uzume rows, one group per plugin, conflict row in the warning tone.
     h_.controller->showControllers();
     QTRY_COMPARE(h_.controller->screen(), QStringLiteral("controllers"));
     QTRY_VERIFY(h_.item("tabHotkeys") != nullptr && h_.item("tabHotkeys")->isVisible());
@@ -107,7 +107,7 @@ class PluginHotkeysUiTest : public QObject {
     QVERIFY(h_.click("tabHotkeys"));
     QTRY_VERIFY(h_.item("pluginHotkeyGroup_net.test.a") != nullptr && h_.item("pluginHotkeyGroup_net.test.a")->isVisible());
     QVERIFY(h_.item("pluginHotkeyGroup_net.test.b")->isVisible());
-    QCOMPARE(textOf(h_.item("frameBeamHotkeyGroup")), QStringLiteral("FrameBeam"));
+    QCOMPARE(textOf(h_.item("uzumeHotkeyGroup")), QStringLiteral("Uzume"));
     QCOMPARE(textOf(h_.item("hotkeyText_hudAll")), QStringLiteral("F4"));
     QCOMPARE(textOf(h_.item("hotkeyText_panelTabs")), QStringLiteral("Alt+1 … Alt+9"));
     QCOMPARE(textOf(h_.item("pluginHotkeyName_net.test.a")), QStringLiteral("SoulLink & Nuzlocke"));
@@ -122,7 +122,7 @@ class PluginHotkeysUiTest : public QObject {
     QVERIFY(!h_.item("pluginHotkeyReset_net.test.b_peek")->isVisible());
     shot(QStringLiteral("hotkeys-plugin-groups"));
 
-    // Capture: a FrameBeam key and another plugin's key are rejected (the field keeps listening), a free key is taken.
+    // Capture: an Uzume key and another plugin's key are rejected (the field keeps listening), a free key is taken.
     QVERIFY(h_.click("pluginHotkeyField_net.test.b_peek"));
     QTRY_COMPARE(pc()->hotkeyListening(), QStringLiteral("net.test.b/peek"));
     QCOMPARE(textOf(h_.item("pluginHotkeyText_net.test.b_peek")), QStringLiteral("Press a key…"));

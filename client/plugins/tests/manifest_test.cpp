@@ -5,8 +5,8 @@
 #include "plugin_test_util.h"
 #include "pluginhub.h"
 
-using namespace framebeam::plugins;
-using framebeam::update::SemVer;
+using namespace uzume::plugins;
+using uzume::update::SemVer;
 
 class ManifestTest : public QObject {
   Q_OBJECT
@@ -30,13 +30,13 @@ class ManifestTest : public QObject {
  private slots:
   void validFull() {
     const ManifestResult r = parseManifest(R"({
-      "id": "net.framebeam.example", "name": "Example", "version": "1.0.0", "api": 1, "type": "script",
-      "requires": { "net.framebeam.example-core": "^1.0" }, "provides": ["example.team"],
+      "id": "net.uzume.example", "name": "Example", "version": "1.0.0", "api": 1, "type": "script",
+      "requires": { "net.uzume.example-core": "^1.0" }, "provides": ["example.team"],
       "games": [{ "system": "nds", "codes": ["ABC*"] }],
       "permissions": ["memory.read", "rom.read", "ui", "run.state", "video.capture"], "entry": "main.lua",
       "assets": ["icons/", "i18n/"], "settings": { "a": 1 } })");
     QVERIFY2(r.ok, qPrintable(r.error));
-    QCOMPARE(r.manifest.id, QString("net.framebeam.example"));
+    QCOMPARE(r.manifest.id, QString("net.uzume.example"));
     QCOMPARE(r.manifest.dependencies.size(), 1);
     QCOMPARE(r.manifest.provides, QStringList{"example.team"});
     QCOMPARE(r.manifest.permissions.size(), 5);
@@ -111,7 +111,7 @@ class ManifestTest : public QObject {
     QVERIFY(errOf(R"({"requires":{"net.example.tracker":"*"}})").contains("cannot require itself"));
   }
   void minPlayer() {
-    // Optional: the oldest FrameBeam Player that runs the plugin (a plugin that needs a newer one is turned off).
+    // Optional: the oldest Uzume that runs the plugin (a plugin that needs a newer one is turned off).
     QVERIFY(errOf(R"({"min_player":"0.16.4"})").isEmpty());
     QVERIFY(errOf(R"({"min_player":"0.16.4-beta.2"})").isEmpty());
     QVERIFY(errOf(R"({"min_player":"banana"})").contains("invalid min_player"));
@@ -170,33 +170,33 @@ class ManifestTest : public QObject {
     QVERIFY(errOf(rs(R"([{"key":"m","type":"enum","label":"l","default":"z","options":[{"value":"x","label":"l"},{"value":"y","label":"l"}]}])")).contains("one of the option values"));
   }
   void runSettingsBuildAndHubInfo() {
-    QList<framebeam::RunSetting> list;
-    QVERIFY(framebeam::parseRunSettings(QJsonDocument::fromJson(R"([
+    QList<uzume::RunSetting> list;
+    QVERIFY(uzume::parseRunSettings(QJsonDocument::fromJson(R"([
       {"key":"mode","type":"enum","label":"m","default":"soullink","options":[{"value":"soullink","label":"a"},{"value":"nuzlocke","label":"b"}]},
       {"key":"rules.dupes_clause","type":"boolean","label":"d","default":true},
       {"key":"rules.shiny","type":"boolean","label":"s","default":false}])").array(), list).isEmpty());
-    QCOMPARE(QJsonDocument(framebeam::buildRunSettings(list, {})).toJson(QJsonDocument::Compact),
+    QCOMPARE(QJsonDocument(uzume::buildRunSettings(list, {})).toJson(QJsonDocument::Compact),
              QByteArray(R"({"mode":"soullink","rules":{"dupes_clause":true,"shiny":false}})"));
-    QCOMPARE(QJsonDocument(framebeam::buildRunSettings(list, {{"mode", "nuzlocke"}, {"rules.shiny", true}, {"rules.dupes_clause", false}})).toJson(QJsonDocument::Compact),
+    QCOMPARE(QJsonDocument(uzume::buildRunSettings(list, {{"mode", "nuzlocke"}, {"rules.shiny", true}, {"rules.dupes_clause", false}})).toJson(QJsonDocument::Compact),
              QByteArray(R"({"mode":"nuzlocke","rules":{"dupes_clause":false,"shiny":true}})"));
     const QJsonObject strings = QJsonDocument::fromJson(R"({"en":{"a":"A en","b":"B en"},"de":{"a":"A de"}})").object();
-    QCOMPARE(framebeam::runSettingText(strings, "de", "a"), QString("A de"));
-    QCOMPARE(framebeam::runSettingText(strings, "de", "b"), QString("B en"));
-    QCOMPARE(framebeam::runSettingText(strings, "de", "zz"), QString("zz"));
+    QCOMPARE(uzume::runSettingText(strings, "de", "a"), QString("A de"));
+    QCOMPARE(uzume::runSettingText(strings, "de", "b"), QString("B en"));
+    QCOMPARE(uzume::runSettingText(strings, "de", "zz"), QString("zz"));
 
     QJsonObject hub{{"plugin_id", "net.test.x"}, {"version", "1.0.0"}, {"sha256", QString(64, 'a')}, {"origin", "official"},
                     {"run_settings", QJsonDocument::fromJson(R"([{"key":"a","type":"boolean","label":"l","default":true}])").array()},
                     {"run_settings_strings", QJsonDocument::fromJson(R"({"en":{"l":"Label"}})").object()}};
-    auto info = framebeam::parseHubPluginInfo(hub);
+    auto info = uzume::parseHubPluginInfo(hub);
     QVERIFY(info);
     QCOMPARE(info->runSettings.size(), 1);
     QCOMPARE(info->runSettingsStrings.value("en").toObject().value("l").toString(), QString("Label"));
     hub.insert("run_settings", QJsonDocument::fromJson(R"([{"key":"A","type":"boolean","label":"l","default":true}])").array());
-    info = framebeam::parseHubPluginInfo(hub);  // invalid run_settings: the plugin stays, without rules
+    info = uzume::parseHubPluginInfo(hub);  // invalid run_settings: the plugin stays, without rules
     QVERIFY(info);
     QVERIFY(info->runSettings.isEmpty());
     hub.remove("run_settings");
-    QVERIFY(framebeam::parseHubPluginInfo(hub)->runSettings.isEmpty());
+    QVERIFY(uzume::parseHubPluginInfo(hub)->runSettings.isEmpty());
   }
   // The shared corpus of the Hub (server/internal/pluginpkg/testdata/manifests): valid-* must parse here, invalid-* must not.
   void sharedCorpusAgreesWithTheHub() {

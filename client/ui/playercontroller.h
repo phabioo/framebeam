@@ -53,7 +53,7 @@
 #include "updatescontroller.h"
 #include "reportcontroller.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class PlayerController : public QObject {
   Q_OBJECT
@@ -77,7 +77,7 @@ class PlayerController : public QObject {
   Q_PROPERTY(QString hubAddress READ hubAddress NOTIFY hubChanged)
   // Link to the Hub: online | connecting | offline (handshake state plus the Sessions socket when the Hub offers Sessions).
   Q_PROPERTY(QString hubLink READ hubLink NOTIFY hubLinkChanged)
-  Q_PROPERTY(framebeam::ui::LibraryModel* library READ library CONSTANT)
+  Q_PROPERTY(uzume::ui::LibraryModel* library READ library CONSTANT)
   Q_PROPERTY(QString libraryState READ libraryState NOTIFY libraryStateChanged)  // loading | ready | error
   Q_PROPERTY(QString libraryError READ libraryError NOTIFY libraryStateChanged)
   Q_PROPERTY(QString selectedGameId READ selectedGameId NOTIFY selectedGameChanged)
@@ -92,7 +92,7 @@ class PlayerController : public QObject {
   Q_PROPERTY(QVariantMap saveConflict READ saveConflict NOTIFY saveConflictChanged)
   Q_PROPERTY(QString saveNote READ saveNote NOTIFY hubChanged)
   // Game view
-  Q_PROPERTY(framebeam::ui::GameSession* gameSession READ gameSession CONSTANT)
+  Q_PROPERTY(uzume::ui::GameSession* gameSession READ gameSession CONSTANT)
   // Appearance (Settings page), upload, core warnings
   Q_PROPERTY(QString appearance READ appearance WRITE setAppearance NOTIFY appearanceChanged)  // dark | light | system
   // ROM cache (Settings): limitBytes (0 = unlimited), limitText, usedBytes, usedText, clearableBytes, clearableText, files,
@@ -116,24 +116,24 @@ class PlayerController : public QObject {
   Q_PROPERTY(QVariantMap coreUpdate READ coreUpdate NOTIFY coreUpdateChanged)
   Q_PROPERTY(QVariantList coreWarnings READ coreWarnings NOTIFY hubChanged)  // core_missing / core_version_mismatch
   // Emulation page (3e), Controllers page (3f), applied settings
-  Q_PROPERTY(framebeam::ui::EmulationController* emulation READ emulation CONSTANT)
-  Q_PROPERTY(framebeam::ui::ControllersController* controllers READ controllers CONSTANT)
-  Q_PROPERTY(bool fullscreenOnStart READ fullscreenOnStart NOTIFY emulationSettingsChanged)  // effective FrameBeam option
+  Q_PROPERTY(uzume::ui::EmulationController* emulation READ emulation CONSTANT)
+  Q_PROPERTY(uzume::ui::ControllersController* controllers READ controllers CONSTANT)
+  Q_PROPERTY(bool fullscreenOnStart READ fullscreenOnStart NOTIFY emulationSettingsChanged)  // effective Uzume option
   // Sessions (3c list, 3g panel, multiview, diagnostics)
-  Q_PROPERTY(framebeam::ui::SessionController* sessions READ sessions CONSTANT)
+  Q_PROPERTY(uzume::ui::SessionController* sessions READ sessions CONSTANT)
   // Updates (Settings section + banner)
-  Q_PROPERTY(framebeam::ui::UpdatesController* updates READ updates CONSTANT)
+  Q_PROPERTY(uzume::ui::UpdatesController* updates READ updates CONSTANT)
   // "Report a problem" dialog (Settings > Diagnostics, game "⋯" menu)
-  Q_PROPERTY(framebeam::ui::ReportController* report READ report CONSTANT)
+  Q_PROPERTY(uzume::ui::ReportController* report READ report CONSTANT)
   // "Set up a Hub on this PC" (connection screen, pairing form, Settings > Hubs)
-  Q_PROPERTY(framebeam::ui::LocalHubController* localHub READ localHub CONSTANT)
+  Q_PROPERTY(uzume::ui::LocalHubController* localHub READ localHub CONSTANT)
   // Plugins (Settings > Plugins, Plugin console tab of the game panel)
-  Q_PROPERTY(framebeam::ui::PluginsController* plugins READ plugins CONSTANT)
-  Q_PROPERTY(framebeam::ui::RunsController* runs READ runs CONSTANT)
+  Q_PROPERTY(uzume::ui::PluginsController* plugins READ plugins CONSTANT)
+  Q_PROPERTY(uzume::ui::RunsController* runs READ runs CONSTANT)
   // Connection check dialog (design 6e): Hub reachable, STUN, TURN, NAT type, test connection
-  Q_PROPERTY(framebeam::ui::ConnectionCheckController* connectionCheck READ connectionCheck CONSTANT)
+  Q_PROPERTY(uzume::ui::ConnectionCheckController* connectionCheck READ connectionCheck CONSTANT)
   // Save slot picker, history/restore, snapshots, "save changed elsewhere" notice (ADR 0012 D7)
-  Q_PROPERTY(framebeam::ui::SaveHistoryController* saveHistory READ saveHistory CONSTANT)
+  Q_PROPERTY(uzume::ui::SaveHistoryController* saveHistory READ saveHistory CONSTANT)
   // Log file path (empty when file logging is not active) and "open folder" (Settings)
   Q_PROPERTY(QString logFile READ logFile CONSTANT)
   // Shell (sidebar user block, Settings footer)
@@ -150,7 +150,7 @@ class PlayerController : public QObject {
     bool probeCoreVersions = true;  // determine core version for the handshake (briefly loads the core)
     bool enableGamepads = true;     // SDL3 gamepads (tests without hardware use SDL virtual joysticks)
     bool enableUpdates = false;     // schedule update checks (the app enables it; tests never touch the network)
-    QString updateIndexUrl;         // tests/CI: instead of env FRAMEBEAM_PLAYER_UPDATE_INDEX_URL / the default
+    QString updateIndexUrl;         // tests/CI: instead of env UZUME_APP_UPDATE_INDEX_URL / the default
     int gamepadPollMs = 8;          // <= 0: no poll timer (tests call controllers()->gamepads()->poll())
     std::function<std::unique_ptr<ConnectionProbes>()> connectionProbes;  // tests: fake probes for the connection check; empty = real
     std::function<void(ConnectionTarget&)> connectionTargetPatch;         // tests: adds the STUN/TURN servers a fake Hub does not hand out
@@ -303,7 +303,7 @@ class PlayerController : public QObject {
   Q_INVOKABLE void openLogFolder();
   // "Collect logs" (Settings -> Diagnostics): diagnostics bundle zip (core/diagbundle.h). The info is gathered here, the
   // zip is built off the GUI thread; diagnosticsCollected() reports the result.
-  Q_INVOKABLE QString diagnosticsFileName() const;     // framebeam-player-diagnostics-<UTC timestamp>.zip
+  Q_INVOKABLE QString diagnosticsFileName() const;     // uzume-diagnostics-<UTC timestamp>.zip
   Q_INVOKABLE QString diagnosticsFolderUrl() const;    // Desktop or Downloads (file URL) for the save dialog
   Q_INVOKABLE void collectDiagnostics(const QString& pathOrUrl);
   Q_INVOKABLE void showInFolder(const QString& pathOrUrl);
@@ -378,7 +378,7 @@ class PlayerController : public QObject {
   void refreshAttention();
   void adoptUploadedRom(const QString& srcPath, const QString& sha256, const QString& romFilename);  // off-thread copy into the cache
   void trimRomCache();  // applies the size limit (LRU); called at start, after a ROM became ready, when a game ends
-  void applyFrameBeamOptions();
+  void applyUzumeOptions();
   void onUploadFinished(const UploadResult& result, const QString& srcPath);
   void startLibraryScan();
   void registerLocalFiles();      // files of the folders the Hub does not know yet
@@ -509,4 +509,4 @@ class PlayerController : public QObject {
   QVariantMap conflict_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

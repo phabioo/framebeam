@@ -45,17 +45,17 @@ jobs:
       - name: Cache buildbot cores (per week)
         uses: actions/cache@v6
         with:
-          path: ~/.cache/framebeam/cores/buildbot
+          path: ~/.cache/uzume/cores/buildbot
           key: cores-linux-${{ steps.week.outputs.image }}-${{ steps.week.outputs.week }}
       - name: Cache libdatachannel
         uses: actions/cache@v6
         with:
-          path: ~/.cache/framebeam/deps/libdatachannel
+          path: ~/.cache/uzume/deps/libdatachannel
           key: libdatachannel-linux-${{ steps.week.outputs.image }}-${{ hashFiles('scripts/libdatachannel.pin', 'scripts/fetch-libdatachannel.sh') }}
       - name: Cache SDL3
         uses: actions/cache@v6
         with:
-          path: ~/.cache/framebeam/deps/sdl3
+          path: ~/.cache/uzume/deps/sdl3
           key: sdl3-linux-${{ steps.week.outputs.image }}-${{ hashFiles('scripts/sdl3.pin', 'scripts/fetch-sdl3.sh') }}
       - name: Restore ccache
         uses: actions/cache/restore@v6
@@ -81,8 +81,8 @@ jobs:
         timeout-minutes: 60
         env:
           # Fetches melonDS DS and DeSmuME from the buildbot (a failed fetch fails the job) and fails when a real-core test skips.
-          FRAMEBEAM_REQUIRE_CORES: "1"
-          FRAMEBEAM_CTEST_REGEX: ${{ env.CORE_TESTS }}
+          UZUME_REQUIRE_CORES: "1"
+          UZUME_CTEST_REGEX: ${{ env.CORE_TESTS }}
           CMAKE_C_COMPILER_LAUNCHER: ccache
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: xvfb-run -a make check-client
@@ -94,7 +94,7 @@ jobs:
     env:
       VCPKG_ROOT: ${{ github.workspace }}\.vcpkg
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
-      FRAMEBEAM_CACHE_DIR: ${{ github.workspace }}\.framebeam-cache
+      UZUME_CACHE_DIR: ${{ github.workspace }}\.uzume-cache
     steps:
       - uses: actions/checkout@v7
       - name: Cache vcpkg checkout
@@ -126,7 +126,7 @@ jobs:
       - name: Cache buildbot cores (per week)
         uses: actions/cache@v6
         with:
-          path: ${{ github.workspace }}\.framebeam-cache\cores\buildbot
+          path: ${{ github.workspace }}\.uzume-cache\cores\buildbot
           key: cores-windows-${{ steps.week.outputs.week }}
       - name: Install Qt 6.8
         timeout-minutes: 30
@@ -170,7 +170,7 @@ jobs:
       - name: Configure
         timeout-minutes: 200
         working-directory: client
-        run: cmake --preset windows-msvc-release "-DFRAMEBEAM_MELONDS_DS_CORE=${{ steps.cores.outputs.melondsds }}" "-DFRAMEBEAM_DESMUME_CORE=${{ steps.cores.outputs.desmume }}"
+        run: cmake --preset windows-msvc-release "-DUZUME_MELONDS_DS_CORE=${{ steps.cores.outputs.melondsds }}" "-DUZUME_DESMUME_CORE=${{ steps.cores.outputs.desmume }}"
       - name: Build
         timeout-minutes: 60
         working-directory: client

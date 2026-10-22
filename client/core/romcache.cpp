@@ -11,7 +11,7 @@
 
 #include "fsutil.h"
 
-namespace framebeam {
+namespace uzume {
 
 RomCache::RomCache(const QString& dir) : dir_(dir) { QDir().mkpath(dir_); }
 
@@ -367,4 +367,4 @@ RomCache::CommitResult RomCache::adoptFile(const QString& srcPath, const QString
   return CommitResult::Ok;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -15,9 +15,9 @@
 #include "plugin_test_util.h"
 #include "profilestore.h"
 
-using namespace framebeam;
-using namespace framebeam::plugins;
-using namespace framebeam::plugins::testutil;
+using namespace uzume;
+using namespace uzume::plugins;
+using namespace uzume::plugins::testutil;
 using State = HubConnection::State;
 
 namespace {

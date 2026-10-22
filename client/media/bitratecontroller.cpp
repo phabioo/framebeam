@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 // Decoder names are libavcodec names ("h264", "h264_cuvid"): short, no spaces; anything else is not shown.
@@ -107,4 +107,4 @@ std::optional<int> BitrateController::report(const QString& viewerId, const RxRe
   return target_;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

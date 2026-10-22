@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-run-event-entry.schema.json",
+  "$id": "https://uzume.invalid/schemas/ws-run-event-entry.schema.json",
   "title": "Run event (as REST RunEvent, shared by run_event)",
   "type": "object",
   "required": [
@@ -30,7 +30,7 @@
         "string",
         "null"
       ],
-      "description": "null for Hub events (who it is about is in the payload)"
+      "description": "null for server events (who it is about is in the payload)"
     },
     "user_name": {
       "type": "string"
@@ -63,7 +63,7 @@
     },
     "payload": {
       "type": "object",
-      "description": "Opaque to the Hub (at most 4 KiB)"
+      "description": "Opaque to the server (at most 4 KiB)"
     },
     "client_id": {
       "type": "string",

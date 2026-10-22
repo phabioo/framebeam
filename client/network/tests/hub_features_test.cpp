@@ -18,7 +18,7 @@
 #include "hubsystems.h"
 #include "profilestore.h"
 
-using namespace framebeam;
+using namespace uzume;
 using State = HubConnection::State;
 
 namespace {
@@ -180,7 +180,7 @@ class HubFeaturesTest : public QObject {
     GameUploader up(conn_.get());
     QSignalSpy progress(&up, &GameUploader::progress);
     QSignalSpy finished(&up, &GameUploader::finished);
-    const QByteArray rom = QByteArray(600 * 1024, 'r') + "FRAMEBEAM-DUMMY-ROM";
+    const QByteArray rom = QByteArray(600 * 1024, 'r') + "UZUME-DUMMY-ROM";
     const QString path = writeTemp(QStringLiteral("Demo ROM.nds"), rom);
     QVERIFY(up.upload(path, QStringLiteral("Mein Spiel")));
     QVERIFY(up.busy());

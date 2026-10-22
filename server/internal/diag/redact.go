@@ -1,6 +1,6 @@
 package diag
 
-import "github.com/phabioo/framebeam/server/internal/redact"
+import "github.com/phabioo/uzume/server/internal/redact"
 
 // Redact removes secrets from text: TURN credentials and secrets, tokens, passwords, invite codes, Authorization
 // headers and session cookies. Host names and IP addresses stay. The rules live in internal/redact.

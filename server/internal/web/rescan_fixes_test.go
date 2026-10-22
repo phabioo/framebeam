@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // R-H1: the row links work without JavaScript, so the filter query must not be percent-encoded inside href.
-// R-H5: the delete text of a game that only lives on Players does not claim a Hub file.
+// R-H5: the delete text of a game that only lives on apps does not claim a server file.
 func TestRescanLibraryHrefsAndLocalOnlyDelete(t *testing.T) {
 	e := newEnv(t, true, nil)
 	c := e.client()
@@ -42,10 +42,10 @@ func TestRescanLibraryHrefsAndLocalOnlyDelete(t *testing.T) {
 	notContains(t, rec, "%26", "%3d", "%3D")
 
 	rec = c.get("/library?delete="+local.ID, nil)
-	contains(t, rec, "The game is removed from the Hub library. The files on the Players stay where they are.")
-	notContains(t, rec, "The ROM file is removed from this Hub")
+	contains(t, rec, "The game is removed from the server library. The files on the apps stay where they are.")
+	notContains(t, rec, "The ROM file is removed from this server")
 	rec = c.get("/library?delete="+stored.ID, nil)
-	contains(t, rec, "The ROM file is removed from this Hub.")
+	contains(t, rec, "The ROM file is removed from this server.")
 	// Rename: Save comes before Cancel.
 	rec = c.get("/library?rename="+stored.ID, nil)
 	if s := rec.Body.String(); strings.Index(s, "Save title") > strings.Index(s, ">Cancel</a>") {

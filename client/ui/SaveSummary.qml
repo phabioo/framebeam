@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Compact SAVE block of the detail column (3c-2): slot, current version, meta, sync pill and the slot/version counts.
 // "Manage saves →" ("View saves →" offline) opens the saves view. States: normal, sync pending, Hub offline,

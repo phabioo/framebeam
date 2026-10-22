@@ -1,4 +1,4 @@
-// FrameBeam Player launcher (Windows): {app}\framebeam_player.exe starts {app}\bin\framebeam_player.exe with the
+// Uzume launcher (Windows): {app}\Uzume.exe starts {app}\bin\Uzume.exe with the
 // same arguments, passes its std handles on, waits and returns the exit code of the child.
 // Deliberately tiny: no Qt, no C++ runtime features beyond the static CRT.
 #include <windows.h>
@@ -58,8 +58,8 @@ std::wstring sha256HexOfFile(HANDLE file) {
 // PC-3: re-verifies the MSI the Player verified earlier (the file lies in a folder the user can write to, and an
 // elevated msiexec follows). Opens it read-only with FILE_SHARE_READ only, so nobody can write, rename or delete it
 // while we hold the handle (kept in *lock until msiexec ended). False = do not install.
-bool verifyAndLockMsi(const framebeam::launcher::MsiUpdateRequest& req, HANDLE* lock) {
-  using namespace framebeam::launcher;
+bool verifyAndLockMsi(const uzume::launcher::MsiUpdateRequest& req, HANDLE* lock) {
+  using namespace uzume::launcher;
   if (!expectationComplete(req)) return false;
   HANDLE h = CreateFileW(req.msi.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (h == INVALID_HANDLE_VALUE) return false;
@@ -79,12 +79,12 @@ bool verifyAndLockMsi(const framebeam::launcher::MsiUpdateRequest& req, HANDLE* 
 
 // --apply-msi-update (temporary copy of the launcher, see msiupdate.h): wait until no Player instance runs, run
 // msiexec (elevated unless per-user), start the Player again, delete this copy.
-int applyMsiUpdate(const framebeam::launcher::MsiUpdateRequest& req) {
-  using namespace framebeam::launcher;
+int applyMsiUpdate(const uzume::launcher::MsiUpdateRequest& req) {
+  using namespace uzume::launcher;
   // Every Player instance holds the named mutex (app/main.cpp); max. 60 s.
   bool stillRunning = false;
   for (int i = 0; i < 120; ++i) {
-    HANDLE m = OpenMutexW(SYNCHRONIZE, FALSE, L"FrameBeamPlayer");
+    HANDLE m = OpenMutexW(SYNCHRONIZE, FALSE, L"UzumeApp");
     if (m == nullptr) break;
     CloseHandle(m);
     stillRunning = i == 119;
@@ -129,15 +129,15 @@ int applyMsiUpdate(const framebeam::launcher::MsiUpdateRequest& req) {
   }
   if (lock != INVALID_HANDLE_VALUE) CloseHandle(lock);
   if (stillRunning) {
-    MessageBoxW(nullptr, L"FrameBeam Player is still running, so the update was not installed. Close the Player and start the update again.",
-                L"FrameBeam Player", MB_OK | MB_ICONWARNING);
+    MessageBoxW(nullptr, L"Uzume is still running, so the update was not installed. Close the Player and start the update again.",
+                L"Uzume", MB_OK | MB_ICONWARNING);
   } else if (refused) {
     MessageBoxW(nullptr, L"The installer file does not match the verified update (it was changed or could not be checked). Nothing was installed.",
-                L"FrameBeam Player", MB_OK | MB_ICONERROR);
+                L"Uzume", MB_OK | MB_ICONERROR);
   } else if (code != 0 && code != 3010) {  // 3010 = success, restart required
     wchar_t msg[256];
-    _snwprintf_s(msg, _countof(msg), _TRUNCATE, L"The FrameBeam update could not be installed (code %lu).", code);
-    MessageBoxW(nullptr, msg, L"FrameBeam Player", MB_OK | MB_ICONERROR);
+    _snwprintf_s(msg, _countof(msg), _TRUNCATE, L"The Uzume update could not be installed (code %lu).", code);
+    MessageBoxW(nullptr, msg, L"Uzume", MB_OK | MB_ICONERROR);
   }
   // Start the Player again (the installed one after success, otherwise the previous one).
   std::vector<std::wstring> relaunch;
@@ -175,14 +175,14 @@ int applyMsiUpdate(const framebeam::launcher::MsiUpdateRequest& req) {
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-  SetCurrentProcessExplicitAppUserModelID(L"FrameBeam.Player");
+  SetCurrentProcessExplicitAppUserModelID(L"Uzume.App");
 
   {
     int argc = 0;
     LPWSTR* argvw = CommandLineToArgvW(GetCommandLineW(), &argc);
     if (argvw != nullptr) {
-      framebeam::launcher::MsiUpdateRequest req;
-      const bool msi = framebeam::launcher::parseMsiUpdate(std::vector<std::wstring>(argvw, argvw + argc), &req);
+      uzume::launcher::MsiUpdateRequest req;
+      const bool msi = uzume::launcher::parseMsiUpdate(std::vector<std::wstring>(argvw, argvw + argc), &req);
       LocalFree(argvw);
       if (msi) return applyMsiUpdate(req);
     }
@@ -196,8 +196,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   if (slash == std::wstring::npos) return 1;
   dir.resize(slash);
 
-  const std::wstring child = dir + L"\\bin\\framebeam_player.exe";
-  std::wstring cmd = framebeam::launcher::childCommandLine(child, GetCommandLineW());
+  // The real app is bin\Uzume.exe, independent of this launcher's own file name.
+  const std::wstring child = dir + L"\\bin\\Uzume.exe";
+  std::wstring cmd = uzume::launcher::childCommandLine(child, GetCommandLineW());
 
   // GUI subsystem (no console window, like the Player itself): hand our std handles to the child explicitly,
   // so a redirected stdout (e.g. `--version-json` captured by CI) reaches the caller. Only valid handles.
@@ -227,8 +228,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                       nullptr /* keep the caller's working directory */, &si, &pi)) {
     const DWORD code = GetLastError();
     wchar_t msg[512];
-    _snwprintf_s(msg, _countof(msg), _TRUNCATE, L"FrameBeam Player could not be started (%lu):\n%ls", code, child.c_str());
-    MessageBoxW(nullptr, msg, L"FrameBeam Player", MB_OK | MB_ICONERROR);
+    _snwprintf_s(msg, _countof(msg), _TRUNCATE, L"Uzume could not be started (%lu):\n%ls", code, child.c_str());
+    MessageBoxW(nullptr, msg, L"Uzume", MB_OK | MB_ICONERROR);
     return 1;
   }
   CloseHandle(pi.hThread);

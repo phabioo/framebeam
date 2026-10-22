@@ -95,9 +95,9 @@ func Verify(index, sig []byte, keys []ed25519.PublicKey) error {
 // Signing contexts (domain separation, ADR 0016 amendment 2026-10-19). A signature made with one context never
 // verifies for another document type, even when the JSON shapes overlap.
 const (
-	ContextUpdatesIndex = "framebeam-updates-index-v2"
-	ContextPluginIndex  = "framebeam-plugin-index-v2"
-	ContextCoresIndex   = "framebeam-cores-index-v2"
+	ContextUpdatesIndex = "uzume-updates-index-v1"
+	ContextPluginIndex  = "uzume-plugin-index-v1"
+	ContextCoresIndex   = "uzume-cores-index-v1"
 )
 
 const ctxSigTag = "ed25519ctx"

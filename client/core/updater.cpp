@@ -1,4 +1,5 @@
 #include "updater.h"
+#include "envvar.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -18,9 +19,9 @@
 
 #include "updatesig.h"
 
-namespace framebeam::update {
+namespace uzume::update {
 
-Q_LOGGING_CATEGORY(lcUpdate, "framebeam.update")
+Q_LOGGING_CATEGORY(lcUpdate, "uzume.update")
 
 namespace {
 
@@ -32,7 +33,7 @@ QNetworkRequest makeRequest(const QUrl& url) {
   QNetworkRequest req(url);
   req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
   req.setTransferTimeout(30000);
-  req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FrameBeam-Player/") + QCoreApplication::applicationVersion());
+  req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Uzume/") + QCoreApplication::applicationVersion());
   return req;
 }
 
@@ -255,7 +256,7 @@ void UpdateManager::fetchIndex(QNetworkAccessManager* nam, const QUrl& indexUrl,
 UpdateManager::UpdateManager(const Config& config, PlayerSettings* settings, QObject* parent)
     : QObject(parent), config_(config), settings_(settings) {
   indexUrl_ = config.indexUrl;
-  if (indexUrl_.isEmpty()) indexUrl_ = qEnvironmentVariable("FRAMEBEAM_PLAYER_UPDATE_INDEX_URL");
+  if (indexUrl_.isEmpty()) indexUrl_ = uzume::env::get("UZUME_APP_UPDATE_INDEX_URL");
   if (indexUrl_.isEmpty()) indexUrl_ = QLatin1String(kDefaultIndexUrl);
   if (config_.trustedKeys.isEmpty()) config_.trustedKeys = trustedKeysFromEnvironment();
   timer_.setSingleShot(true);
@@ -427,7 +428,7 @@ bool UpdateManager::applySupported() const {
 QString UpdateManager::applyUnsupportedReason() const {
 #ifdef Q_OS_WIN
   if (!canSelfUpdate(config_.installRoot)) {
-    return QStringLiteral("This copy of the FrameBeam Player was not installed with the installer (portable or development build).");
+    return QStringLiteral("This copy of Uzume was not installed with the installer (portable or development build).");
   }
   return {};
 #else
@@ -503,11 +504,11 @@ void UpdateManager::onIndex(const FetchedIndex& fi) {
       return;
     case Selection::Status::UpToDate:
       loadVerifiedStaged(config_.baseDir, config_.currentVersion, config_.trustedKeys, allowFileUrls());  // prune
-      setState(State::UpToDate, tr("FrameBeam Player %1 is up to date.").arg(config_.currentVersion));
+      setState(State::UpToDate, tr("Uzume %1 is up to date.").arg(config_.currentVersion));
       return;
     case Selection::Status::Incompatible:
       setState(State::Incompatible,
-               tr("FrameBeam Player %1 is available but needs a newer Hub. It is not installed automatically.")
+               tr("Uzume %1 is available but needs a newer Hub. It is not installed automatically.")
                    .arg(selection_.release.version));
       return;
     case Selection::Status::Available:
@@ -515,18 +516,18 @@ void UpdateManager::onIndex(const FetchedIndex& fi) {
   }
   const auto staged = loadVerifiedStaged(config_.baseDir, config_.currentVersion, config_.trustedKeys, allowFileUrls());
   if (staged && staged->version == selection_.release.version && applySupported()) {
-    setState(State::Ready, tr("FrameBeam Player %1 is ready to install.").arg(staged->version));
+    setState(State::Ready, tr("Uzume %1 is ready to install.").arg(staged->version));
     return;
   }
   if (!applySupported()) {
-    setState(State::Available, tr("FrameBeam Player %1 is available. %2").arg(selection_.release.version, applyUnsupportedReason()));
+    setState(State::Available, tr("Uzume %1 is available. %2").arg(selection_.release.version, applyUnsupportedReason()));
     return;
   }
   if (autoInstallEffective()) {
     startDownload(false);
     return;
   }
-  setState(State::Available, tr("FrameBeam Player %1 is available.").arg(selection_.release.version));
+  setState(State::Available, tr("Uzume %1 is available.").arg(selection_.release.version));
 }
 
 void UpdateManager::startDownload(bool applyAfter) {
@@ -555,7 +556,7 @@ void UpdateManager::beginDownload(const Release& release, const Artifact& art, c
   dlArtifact_ = art;
   dlRollback_ = rollback;
   progress_ = 0;
-  setState(State::Downloading, tr("Downloading FrameBeam Player %1…").arg(release.version));
+  setState(State::Downloading, tr("Downloading Uzume %1…").arg(release.version));
   QNetworkReply* reply = nam_.get(makeRequest(QUrl(art.url)));
   download_ = reply;
   file->setParent(reply);
@@ -635,7 +636,7 @@ void UpdateManager::finishDownload(const QString& partPath) {
     applyRollback(*staged);
     return;
   }
-  setState(State::Ready, tr("FrameBeam Player %1 is ready to install.").arg(dlRelease_.version));
+  setState(State::Ready, tr("Uzume %1 is ready to install.").arg(dlRelease_.version));
   if (applyAfterDownload_) {
     applyAfterDownload_ = false;
     installNow();
@@ -724,8 +725,8 @@ void UpdateManager::apply(const StagedUpdate& staged) {
     setState(State::Error, tr("The installer could not be started."));
     return;
   }
-  setState(State::Applying, tr("Installing FrameBeam Player %1…").arg(staged.version));
+  setState(State::Applying, tr("Installing Uzume %1…").arg(staged.version));
   emit quitRequested();
 }
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

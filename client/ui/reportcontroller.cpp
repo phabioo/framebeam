@@ -11,7 +11,7 @@
 
 #include "timeformat.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 constexpr qint64 kMiB = 1024 * 1024;
@@ -253,4 +253,4 @@ void ReportController::saveAsFile(const QString& pathOrUrl) {
   }));
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

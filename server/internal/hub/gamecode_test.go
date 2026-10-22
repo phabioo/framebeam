@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
 // Synthetic headers only (no real game data); the cases port client/emulation/tests/game_identity_test.cpp.
@@ -61,7 +61,7 @@ func TestReadGameIdentity(t *testing.T) {
 	if c, k := id("n.nds", ndsROM("A1B2"), "nds"); c != "A1B2" || k != "nds-gamecode" {
 		t.Fatalf("nds digits %q %q", c, k)
 	}
-	// Printable ASCII is accepted (as in the Player), including lower case and spaces.
+	// Printable ASCII is accepted (as in the app), including lower case and spaces.
 	if c, k := id("p.nds", ndsROM("ab D"), "nds"); c != "ab D" || k != "nds-gamecode" {
 		t.Fatalf("printable %q %q", c, k)
 	}
@@ -196,7 +196,7 @@ func TestBackfillGameCodes(t *testing.T) {
 	if filled, unreadable := svc.BackfillGameCodes(ctx); filled != 0 || unreadable != 0 {
 		t.Fatalf("second run filled %d unreadable %d", filled, unreadable)
 	}
-	// Same on a restart of the Hub (Open runs the backfill).
+	// Same on a restart of the server (Open runs the backfill).
 	svc2, _, _ := hubtest.OpenIn(t, dir, nil)
 	b2, _ := svc2.GetGame(ctx, bad.ID)
 	if b2.GameCode != "" || b2.GameCodeKind != "" {

@@ -1,4 +1,4 @@
-// Package statusinfo gathers the data of the Hub health view once, for the web Status page and the admin REST API,
+// Package statusinfo gathers the data of the server health view once, for the web Status page and the admin REST API,
 // so both show the same numbers and the same problem list.
 package statusinfo
 
@@ -11,17 +11,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/diag"
-	"github.com/phabioo/framebeam/server/internal/health"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/sysmetrics"
-	"github.com/phabioo/framebeam/server/internal/turnsrv"
+	"github.com/phabioo/uzume/server/internal/diag"
+	"github.com/phabioo/uzume/server/internal/health"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/sysmetrics"
+	"github.com/phabioo/uzume/server/internal/turnsrv"
 )
 
 // ErrorsWindow is how far back the error list looks.
 const ErrorsWindow = 24 * time.Hour
 
-// Source is what the Hub health view reads. Zero values are fine for optional parts.
+// Source is what the server health view reads. Zero values are fine for optional parts.
 type Source struct {
 	Svc *hub.Service
 	// TURN is the embedded TURN server (nil: off).
@@ -126,7 +126,7 @@ func HumanBytes(n uint64) string {
 	return fmt.Sprintf("%.1f %s", v, suffix[i])
 }
 
-// PublicAddress is the address Players use: the public host with its port if set, else fallbackHost.
+// PublicAddress is the address apps use: the public host with its port if set, else fallbackHost.
 func (s *Source) PublicAddress(fallbackHost string) string {
 	if h := strings.TrimSpace(s.PublicHost); h != "" {
 		port := s.PublicPort

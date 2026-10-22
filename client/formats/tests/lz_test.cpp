@@ -3,7 +3,7 @@
 
 #include <QtTest>
 
-using namespace framebeam::formats;
+using namespace uzume::formats;
 
 class LzTest : public QObject {
     Q_OBJECT
@@ -38,22 +38,22 @@ private slots:
         const std::string d = sample();
         for (int type : {0x10, 0x11}) {
             for (bool matches : {true, false}) {
-                const std::string enc = framebeam::synth::makeLz(d, type, matches);
+                const std::string enc = uzume::synth::makeLz(d, type, matches);
                 const Result r = lzDecompress(enc);
                 QVERIFY2(r.ok, r.error.c_str());
                 QVERIFY(r.data == d);
             }
         }
         // the compressed LZ11 stream really uses the long forms (smaller than literals)
-        QVERIFY(framebeam::synth::makeLz11(d).size() < d.size());
+        QVERIFY(uzume::synth::makeLz11(d).size() < d.size());
     }
     void emptyAndExtendedSize() {
-        QVERIFY(lzDecompress(framebeam::synth::makeLz11("")).ok);
-        QCOMPARE(lzDecompress(framebeam::synth::makeLz11("")).data, std::string());
-        QVERIFY(lzDecompress(framebeam::synth::makeLz10("")).ok);
+        QVERIFY(lzDecompress(uzume::synth::makeLz11("")).ok);
+        QCOMPARE(lzDecompress(uzume::synth::makeLz11("")).data, std::string());
+        QVERIFY(lzDecompress(uzume::synth::makeLz10("")).ok);
     }
     void limits() {
-        const std::string enc = framebeam::synth::makeLz11(std::string(1000, 'q'));
+        const std::string enc = uzume::synth::makeLz11(std::string(1000, 'q'));
         QVERIFY(lzDecompress(enc, 1000).ok);
         const Result r = lzDecompress(enc, 999);
         QVERIFY(!r.ok);
@@ -69,7 +69,7 @@ private slots:
         // reference before the start of the output
         QVERIFY(!lzDecompress(std::string("\x10\x04\x00\x00\x80\x10\x05", 7)).ok);
         // every strict prefix of a valid stream fails cleanly
-        const std::string enc = framebeam::synth::makeLz11(sample());
+        const std::string enc = uzume::synth::makeLz11(sample());
         for (size_t n = 0; n < enc.size(); n += 7) QVERIFY(!lzDecompress(std::string_view(enc).substr(0, n)).ok);
     }
 };

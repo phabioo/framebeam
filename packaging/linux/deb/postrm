@@ -1,5 +1,5 @@
 #!/bin/sh
-# framebeam-hub postrm: purge removes the configuration only. The data directory (database, saves, ROM library)
+# uzume-server postrm: purge removes the configuration only. The data directory (database, saves, ROM library)
 # and the system user are never deleted by the package.
 set -e
 
@@ -10,7 +10,7 @@ case "$1" in
 esac
 case "$1" in
   purge)
-    rm -rf /etc/framebeam
+    rm -rf /etc/uzume
     ;;
   upgrade|failed-upgrade|abort-install|abort-upgrade|disappear|remove)
     ;;

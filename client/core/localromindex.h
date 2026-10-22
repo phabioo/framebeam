@@ -14,7 +14,7 @@
 #include <functional>
 #include <optional>
 
-namespace framebeam {
+namespace uzume {
 
 struct LocalRomFile {
   QString path;
@@ -104,4 +104,4 @@ class LocalRomIndex : public QObject {
   quint64 generation_ = 0;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

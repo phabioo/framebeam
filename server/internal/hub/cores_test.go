@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
-// bbEnv is a Hub on a fake buildbot with a few dummy cores.
+// bbEnv is a server on a fake buildbot with a few dummy cores.
 func bbEnv(t *testing.T, mod func(*hub.Options)) (*hub.Service, *hubtest.Buildbot) {
 	t.Helper()
 	bb := hubtest.NewBuildbot(t)

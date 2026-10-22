@@ -3,7 +3,7 @@
 
 #include "credentialstore.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 class WindowsCredentialStoreTest : public QObject {
   Q_OBJECT

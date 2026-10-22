@@ -10,8 +10,8 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// ErrLocked: another process (the running Hub) holds the data directory.
-var ErrLocked = errors.New("the data directory is in use by a running Hub")
+// ErrLocked: another process (the running server) holds the data directory.
+var ErrLocked = errors.New("the data directory is in use by a running server")
 
 // LockDataDir takes the exclusive lock of the data directory (hub.lock), see the unix version.
 func LockDataDir(dataDir string) (release func(), err error) {

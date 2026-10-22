@@ -7,13 +7,13 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
-// This file mirrors the manifest rules of the Player (client/plugins/manifest.cpp): permission whitelist, the
+// This file mirrors the manifest rules of the app (client/plugins/manifest.cpp): permission whitelist, the
 // `requires` range grammar and the `ui` field. The shared corpus in testdata/manifests/ keeps both sides in step.
 
-// supportedPermissions are the permissions the Player can grant today.
+// supportedPermissions are the permissions the app can grant today.
 var supportedPermissions = map[string]bool{
 	"memory.read":   true,
 	"rom.read":      true,
@@ -32,7 +32,7 @@ func permissionError(p string) error {
 	return invalid("unknown permission '%s'", p)
 }
 
-// looseVersion pads "1", "1.2" and "1.2.3[-pre]" like the Player; pre-release only on full versions.
+// looseVersion pads "1", "1.2" and "1.2.3[-pre]" like the app; pre-release only on full versions.
 func looseVersion(s string) bool {
 	core, _, hasPre := strings.Cut(s, "-")
 	parts := strings.Split(core, ".")
@@ -54,7 +54,7 @@ func looseVersion(s string) bool {
 	return updates.ValidSemVer(full)
 }
 
-// validRange reports whether s is a version range the Player accepts: "*" (or empty), ^x[.y[.z]], ~x[.y[.z]],
+// validRange reports whether s is a version range the app accepts: "*" (or empty), ^x[.y[.z]], ~x[.y[.z]],
 // >=x[.y[.z]] or an exact version.
 func validRange(s string) bool {
 	t := strings.TrimSpace(s)
@@ -97,7 +97,7 @@ func validateUITitle(v json.RawMessage, field string) error {
 	return nil
 }
 
-// validateUI checks the (non-null) value of "ui" by the Player rules.
+// validateUI checks the (non-null) value of "ui" by the app rules.
 func validateUI(raw json.RawMessage) error {
 	var o map[string]json.RawMessage
 	if json.Unmarshal(raw, &o) != nil || o == nil {

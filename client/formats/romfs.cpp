@@ -12,7 +12,7 @@
 #include <memory>
 #include <mutex>
 
-namespace framebeam::formats {
+namespace uzume::formats {
 namespace {
 
 using detail::inRange;
@@ -88,7 +88,7 @@ public:
             return false;
         }
         if (!(static_cast<uint8_t>(hdr[0x18F]) & 0x4)) {
-            err = "encrypted game: FrameBeam needs a decrypted game file";
+            err = "encrypted game: Uzume needs a decrypted game file";
             return false;
         }
         uint32_t romOff = 0, romSize = 0;
@@ -375,4 +375,4 @@ std::vector<RomfsEntry> romfsList(const QString& romPath, std::string_view dir, 
     return out;
 }
 
-}  // namespace framebeam::formats
+}  // namespace uzume::formats

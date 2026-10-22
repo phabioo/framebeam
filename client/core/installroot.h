@@ -1,28 +1,31 @@
 #pragma once
 // Install layout of the Windows Player (spec 0.3 S6):
-//   {app}\framebeam_player.exe        tiny launcher (launcher/), starts bin\framebeam_player.exe
-//   {app}\bin\framebeam_player.exe    the real Player (+ DLLs, Qt plugins, qml)
-//   {app}\data\                       portable data (ADR 0004), {app}\framebeam-player.msi-installed = installed via the MSI
+//   {app}\Uzume.exe                  tiny launcher (launcher/), starts bin\Uzume.exe
+//   {app}\bin\Uzume.exe              the real app (+ DLLs, Qt plugins, qml)
+//   {app}\data\                       portable data (ADR 0004), {app}\uzume-app.msi-installed = installed via the MSI
 
 #include <QString>
 #include <QStringList>
 
-namespace framebeam::update {
+namespace uzume::update {
 
-inline constexpr const char* kPlayerExeName = "framebeam_player.exe";
+inline constexpr const char* kPlayerExeName = "Uzume.exe";
 
-// When the executable's directory is named "bin" and its parent contains framebeam_player.exe, the install
+// File name of the launcher in `installRoot` (kPlayerExeName); empty if it does not exist.
+QString launcherFileName(const QString& installRoot);
+
+// When the executable's directory is named "bin" and its parent contains the launcher, the install
 // root is the parent; otherwise the executable's directory itself (flat/portable layout, Linux, dev builds).
 QString installRootFor(const QString& exeDir);
 
-inline constexpr const char* kPlayerMsiMarker = "framebeam-player.msi-installed";  // next to the launcher (MSI install)
-inline constexpr const char* kHubMsiMarker = "framebeam-hub.msi-installed";        // next to framebeam-hub.exe
+inline constexpr const char* kPlayerMsiMarker = "uzume-app.msi-installed";  // next to the launcher (MSI install)
+inline constexpr const char* kHubMsiMarker = "uzume-server.msi-installed";      // next to uzume-server.exe
 
 // The root contains the MSI marker of the Player feature.
 bool hasMsiMarker(const QString& installRoot);
 // Only an installed copy (MSI marker) may update itself.
 bool canSelfUpdate(const QString& installRoot);
-// The per-machine MSI installs the Hub as a sibling of the Player directory (<ProgramFiles>\FrameBeam\{Player,Hub}).
+// The per-machine MSI installs the Hub as a sibling of the Player directory (<ProgramFiles>\Uzume\{App,Server}).
 bool hubInstalledNear(const QString& installRoot);
 bool isMsiFile(const QString& path);
 // A file can really be created and removed in the directory (a permission check is not enough).
@@ -45,7 +48,7 @@ QString msiScopeName(MsiScope s);  // user | machine | machine-hub | setup-hub
 bool msiScopeNeedsElevation(MsiScope s);
 // /i <msi> /qn /norestart + properties of the scope.
 QStringList msiexecArguments(const QString& msiPath, MsiScope scope);
-// Copies <root>\framebeam_player.exe to a fresh folder below tempBase; returns the copy ("" + error on failure).
+// Copies <root>\Uzume.exe to a fresh folder below tempBase; returns the copy ("" + error on failure).
 QString copyLauncherToTemp(const QString& installRoot, const QString& tempBase, QString* error = nullptr);
 // <launcherCopy> --apply-msi-update [--sha256 <hex> --size <n>] <msi> <scope> <relaunchExe> [relaunchArgs...]: the copy
 // waits until no Player runs, re-verifies size and SHA-256 of the MSI (refuses on mismatch, mandatory for elevated
@@ -54,7 +57,7 @@ QString copyLauncherToTemp(const QString& installRoot, const QString& tempBase, 
 InstallerCommand msiRelaunchCommand(const QString& launcherCopy, const QString& msiPath, MsiScope scope,
                                     const QString& relaunchExe, const QStringList& relaunchArgs = {},
                                     const QString& sha256 = {}, qint64 size = -1);
-// Where the per-machine Player lives after "Set up a Hub on this PC" (<programFiles>\FrameBeam\Player).
+// Where the per-machine Player lives after "Set up a Hub on this PC" (<programFiles>\Uzume\App).
 QString perMachinePlayerExe(const QString& programFilesDir);
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

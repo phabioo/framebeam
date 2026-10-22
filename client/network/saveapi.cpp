@@ -6,7 +6,7 @@
 #include <QTimer>
 #include <QUrl>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 QString str(const QJsonObject& o, const char* k) { return o.value(QLatin1String(k)).toString(); }
@@ -126,7 +126,7 @@ void SaveApi::run(QNetworkReply* reply, Expect expect, Callback cb) {
   connect(reply, &QNetworkReply::finished, this, [this, reply, expect, cb = std::move(cb)]() {
     SaveApiResult res;
     const QByteArray etag = reply->rawHeader("ETag");
-    const int headerRev = reply->rawHeader("X-FrameBeam-Save-Revision").toInt();
+    const int headerRev = reply->rawHeader("X-Uzume-Save-Revision").toInt();
     const HttpResult r = HubHttp::resultOf(reply);
     reply->deleteLater();
     res.status = r.status;
@@ -241,9 +241,9 @@ void SaveApi::putSave(const QString& gameId, const QString& slot, const QByteArr
   }
   const QByteArray sha = QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex();
   QNetworkReply* reply = conn_ ? conn_->authorizedSend("PUT", slotPath(gameId, slot), data,
-                                                       {{"X-FrameBeam-Base-Revision", QByteArray::number(baseRevision)},
-                                                        {"X-FrameBeam-Content-SHA256", sha},
-                                                        {"X-FrameBeam-Sync-Reason", reason.toLatin1()}})
+                                                       {{"X-Uzume-Base-Revision", QByteArray::number(baseRevision)},
+                                                        {"X-Uzume-Content-SHA256", sha},
+                                                        {"X-Uzume-Sync-Reason", reason.toLatin1()}})
                                : nullptr;
   if (reply == nullptr) {
     immediate(SaveApiResult::Kind::Offline, QStringLiteral("not_connected"), std::move(cb));
@@ -309,8 +309,8 @@ void SaveApi::uploadFile(const QString& gameId, const QString& slot, const QByte
   }
   const QByteArray sha = QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex();
   QNetworkReply* reply = conn_ ? conn_->authorizedSend("POST", slotPath(gameId, slot) + QStringLiteral("/upload"), data,
-                                                       {{"X-FrameBeam-Content-SHA256", sha},
-                                                        {"X-FrameBeam-Expected-Revision", QByteArray::number(expectedRevision)}},
+                                                       {{"X-Uzume-Content-SHA256", sha},
+                                                        {"X-Uzume-Expected-Revision", QByteArray::number(expectedRevision)}},
                                                        "application/octet-stream")
                                : nullptr;
   if (reply == nullptr) {
@@ -369,4 +369,4 @@ void SaveApi::createSnapshot(const QString& gameId, const QString& slot, const Q
   run(reply, Expect::Snapshot, std::move(cb));
 }
 
-}  // namespace framebeam
+}  // namespace uzume

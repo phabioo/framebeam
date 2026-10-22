@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <deque>
 
-namespace framebeam {
+namespace uzume {
 
 // True when an Annex B access unit carries a parameter set (SPS) or an IDR slice, i.e. decoding can restart there.
 inline bool startsKeyframe(const QByteArray& d) {
@@ -73,4 +73,4 @@ class VideoBacklog {
   bool needKey_ = false;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

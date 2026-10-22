@@ -14,7 +14,7 @@
 
 struct retro_memory_map;
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 class MemoryMap {
  public:
@@ -55,4 +55,4 @@ class MemoryMap {
   std::vector<Descriptor> m_descs;  // select resolved
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

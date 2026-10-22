@@ -1,8 +1,8 @@
 #pragma once
 // EmulationController: data and actions of the Emulation page (3e). Local settings only
 // (<data>/settings/emulation.json): partial overrides in the hierarchy Global -> System/Core -> Game Override.
-// Core options are listed exactly as the core reports them (core_options.h); FrameBeam's own options come
-// from a small fixed list ("framebeam.*"). Options that FrameBeam controls (manifest-locked, firmware) are not offered.
+// Core options are listed exactly as the core reports them (core_options.h); Uzume's own options come
+// from a small fixed list ("uzume.*"). Options that Uzume controls (manifest-locked, firmware) are not offered.
 // Changes are applied at the next launch.
 
 #include <QAbstractListModel>
@@ -20,7 +20,7 @@
 #include "emulationsettings.h"
 #include "system_manifest.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 // Rows of the per-game picker ({pickValue: game id, pickLabel: "Title · System"}). A model instead of a QVariantList so QML
 // never converts thousands of maps into JS objects (that is what made big libraries crawl); delegates are created lazily.
@@ -87,17 +87,17 @@ class EmulationController : public QObject {
   Q_PROPERTY(bool restartHint READ restartHint NOTIFY groupsChanged)    // a changed option applies only after the next game start
   Q_PROPERTY(bool gameRunning READ gameRunning NOTIFY gameRunningChanged)
   Q_PROPERTY(bool coreProbing READ coreProbing NOTIFY coreProbingChanged)  // a core is being read for its options (worker thread)
-  Q_PROPERTY(int lockedCount READ lockedCount NOTIFY groupsChanged)  // options of the core that FrameBeam controls
+  Q_PROPERTY(int lockedCount READ lockedCount NOTIFY groupsChanged)  // options of the core that Uzume controls
   Q_PROPERTY(QString coreNote READ coreNote NOTIFY groupsChanged)    // why the core group is empty, else empty
 
  public:
-  static constexpr const char* kCoreKey = EmulationSettings::kCoreKey;  // "framebeam.core": core of a system (ADR 0020 D6)
-  static constexpr const char* kFullscreenKey = "framebeam.fullscreen_on_start";
-  static constexpr const char* kMultiviewKey = "framebeam.default_multiview";
-  static constexpr const char* kScreenLayoutKey = "framebeam.screen_layout";  // default DS/3DS screen layout (3e-3)
-  static constexpr const char* kSpeedUpRatioKey = "framebeam.speedup_ratio";
-  static constexpr const char* kSpeedUpOnStartKey = "framebeam.speedup_on_start";
-  static constexpr const char* kSpeedUpAudioKey = "framebeam.speedup_audio";
+  static constexpr const char* kCoreKey = EmulationSettings::kCoreKey;  // "uzume.core": core of a system (ADR 0020 D6)
+  static constexpr const char* kFullscreenKey = "uzume.fullscreen_on_start";
+  static constexpr const char* kMultiviewKey = "uzume.default_multiview";
+  static constexpr const char* kScreenLayoutKey = "uzume.screen_layout";  // default DS/3DS screen layout (3e-3)
+  static constexpr const char* kSpeedUpRatioKey = "uzume.speedup_ratio";
+  static constexpr const char* kSpeedUpOnStartKey = "uzume.speedup_on_start";
+  static constexpr const char* kSpeedUpAudioKey = "uzume.speedup_audio";
 
   EmulationController(const QString& dataDir, const emu::ManifestRegistry* manifests, QObject* parent = nullptr);
 
@@ -142,8 +142,8 @@ class EmulationController : public QObject {
   const emu::CoreProbe* coreProbe(const QString& coreId) const;
   void loadCoreCache(const QString& coreId);  // when no probe is possible
 
-  // Effective value of a FrameBeam option for a system (and game): game > system > global > default.
-  QString frameBeamValue(const QString& key, const QString& systemId, const QString& gameId = QString()) const;
+  // Effective value of an Uzume option for a system (and game): game > system > global > default.
+  QString uzumeValue(const QString& key, const QString& systemId, const QString& gameId = QString()) const;
   // Explicit user values for the launch (merged game > system > global).
   QMap<QString, QString> launchOverrides(const QString& systemId, const QString& gameId) const;
 
@@ -162,7 +162,7 @@ class EmulationController : public QObject {
   void coreProbingChanged();
   void gamesChanged();
   void gameSelectionChanged();  // the PlayerController makes sure the game's core options are known
-  void frameBeamOptionsChanged();  // a "framebeam.*" value changed (the PlayerController applies it)
+  void uzumeOptionsChanged();  // a "uzume.*" value changed (the PlayerController applies it)
   void coreChoiceChanged();        // the core of a system was chosen or reset (the PlayerController refreshes the core state)
 
  private:
@@ -174,7 +174,7 @@ class EmulationController : public QObject {
     QString defaultValue;
     bool perSystem = false;  // also offered (and stored) per system, not only globally
   };
-  static const QList<FbOption>& frameBeamOptions();
+  static const QList<FbOption>& uzumeOptions();
   // Effective manifest of the selected system for its effective core (card field "coreId"); the system-only manifest
   // when the card names no core.
   std::optional<emu::SystemManifest> selectedManifest() const;
@@ -182,7 +182,7 @@ class EmulationController : public QObject {
   void rebuild();
   QVariantMap row(const QString& key, const QString& label, const QString& description, const QString& category,
                   const QList<emu::CoreOptionValue>& values, const QString& manifestDefault, const QString& coreDefault,
-                  bool frameBeam) const;
+                  bool uzume) const;
   bool knownOption(const QString& key, QList<emu::CoreOptionValue>* values) const;
   EmulationSettings::Level levelEnum() const;
   QString defaultValueOf(const QString& key) const;  // default the current scope falls back to (without its own value)
@@ -219,4 +219,4 @@ class EmulationController : public QObject {
   QString coreNote_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

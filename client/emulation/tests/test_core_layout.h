@@ -1,5 +1,5 @@
 #pragma once
-// Frame layout of the FrameBeam test core (test_core.cpp), shared with the tests that read it back. Header-only, no Qt.
+// Frame layout of the Uzume test core (test_core.cpp), shared with the tests that read it back. Header-only, no Qt.
 //
 // Frame (software path): 256x384 XRGB8888, two NDS-like screens stacked without a gap.
 //   Top screen (y 0..191): four quadrants red | green over blue | white, plus an 8x8 cyan square in rows 0..7
@@ -11,7 +11,7 @@
 // OpenGL path (render mode "opengl"): the same quadrants and magenta, scaled by the resolution option, no strips.
 #include <cstdint>
 
-namespace framebeam::testcore {
+namespace uzume::testcore {
 constexpr int kWidth = 256;
 constexpr int kHeight = 384;
 constexpr int kStripY0 = 192;       // port 0; port 1 starts 16 rows lower
@@ -74,4 +74,4 @@ constexpr int kLateMapFrame = 30;
 }  // namespace mem
 
 constexpr uint32_t pixel(uint32_t value24) { return 0xFF000000u | (value24 & 0xFFFFFFu); }
-}  // namespace framebeam::testcore
+}  // namespace uzume::testcore

@@ -15,12 +15,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/turnsrv"
+	"github.com/phabioo/uzume/server/internal/turnsrv"
 )
 
-// Cloudflare Realtime TURN as an optional relay provider next to the embedded TURN server. The Hub fetches one
+// Cloudflare Realtime TURN as an optional relay provider next to the embedded TURN server. The server fetches one
 // shared credential set from the Cloudflare API (ttl 24 h), refreshes it at half the TTL and hands it to every
-// Player in hello_ack, the join response and ice_update. The API token only exists in memory and in the request
+// App in hello_ack, the join response and ice_update. The API token only exists in memory and in the request
 // header; it is never logged, stored or part of an error.
 
 const (
@@ -96,7 +96,7 @@ func (c *cloudflareState) set(stun []string, creds *turnsrv.Credentials) {
 }
 
 // StartCloudflareTURN starts the background refresh of the Cloudflare TURN credentials; it ends with ctx. It
-// returns at once; Players get the credentials by ice_update as soon as the first fetch succeeded.
+// returns at once; apps get the credentials by ice_update as soon as the first fetch succeeded.
 func (s *Service) StartCloudflareTURN(ctx context.Context, o CloudflareTURNOptions) {
 	if o.BaseURL == "" {
 		o.BaseURL = DefaultCloudflareTURNBase

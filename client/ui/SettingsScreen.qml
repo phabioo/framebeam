@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // 3p: Player settings. Section column (jump list, D2) | one scrolling page with Updates, Hubs, Appearance,
 // Diagnostics. Clicking a section scrolls to it and highlights the item. Saved on this device only.

@@ -14,10 +14,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
-// Platforms of the fake buildbot: FrameBeam platform, buildbot path, library suffix.
+// Platforms of the fake buildbot: Uzume platform, buildbot path, library suffix.
 var buildbotPlatforms = []struct{ ID, Dir, Suffix string }{
 	{"windows-x64", "windows/x86_64", ".dll"},
 	{"linux-x64", "linux/x86_64", ".so"},
@@ -64,7 +64,7 @@ func NewBuildbot(t *testing.T) *Buildbot {
 	return b
 }
 
-// Apply points the Hub options at the fake buildbot.
+// Apply points the server options at the fake buildbot.
 func (b *Buildbot) Apply(o *hub.Options) {
 	o.CoreBuildbotURL = b.Server.URL + "/nightly"
 	o.CoreInfoURL = b.Server.URL + "/assets/frontend/info.zip"

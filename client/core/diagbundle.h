@@ -18,7 +18,7 @@
 #include <QPair>
 #include <QString>
 
-namespace framebeam::diag {
+namespace uzume::diag {
 
 inline constexpr const char* kEntryReadme = "README.txt";
 inline constexpr const char* kEntryInfo = "player-info.json";
@@ -33,7 +33,7 @@ inline constexpr const char* kCutMarker = "[older content cut: size cap of the b
 // Host names and IP addresses stay. Same patterns as the Hub (server/internal/diag/redact.go).
 QByteArray redact(const QByteArray& text);
 
-// framebeam-player-diagnostics-<UTC timestamp>.zip
+// uzume-diagnostics-<UTC timestamp>.zip
 QString fileName(const QDateTime& when);
 
 struct Options {
@@ -68,4 +68,4 @@ QByteArray recentLogs(const QString& logDir, int days, qint64 maxBytes, const QD
 // Minimal zip reader (tests, store and deflate): entry name -> content; false when the archive is damaged or a CRC differs.
 bool readZip(const QString& path, QMap<QString, QByteArray>* entries, QString* error = nullptr);
 
-}  // namespace framebeam::diag
+}  // namespace uzume::diag

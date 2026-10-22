@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/store"
 )
 
 func TestOpenRemovesLegacyCores(t *testing.T) {
 	dir := t.TempDir()
-	db, err := store.Open(filepath.Join(dir, "framebeam.db"))
+	db, err := store.Open(filepath.Join(dir, "uzume.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,11 +25,11 @@ func TestOpenRemovesLegacyCores(t *testing.T) {
 		}
 	}
 	exec(`INSERT INTO system_cores(system_id, core_id, version, installed_at, origin, display_name, license) VALUES
-		('nds','melonds_ds','1.4.0',1,'framebeam','melonDS DS','GPL-3.0'),
+		('nds','melonds_ds','1.4.0',1,'legacy-mirror','melonDS DS','GPL-3.0'),
 		('nds','desmume','2026.10.09',1,'libretro-buildbot','DeSmuME','GPLv2')`)
 	exec(`UPDATE systems SET default_core_id = 'melonds_ds' WHERE id = 'nds'`)
 	exec(`INSERT INTO core_packages(core_id, version, platform, license, source_url, source_ref, origin, synced_at) VALUES
-		('melonds_ds','1.4.0','linux-x86_64','GPL-3.0','','','framebeam',1),
+		('melonds_ds','1.4.0','linux-x86_64','GPL-3.0','','','legacy-mirror',1),
 		('desmume','2026.10.09','linux-x86_64','GPLv2','','','libretro-buildbot',1)`)
 	legacyDir := filepath.Join(dir, "cores", "melonds_ds", "1.4.0", "linux-x86_64")
 	keepDir := filepath.Join(dir, "cores", "desmume", "2026.10.09", "linux-x86_64")
@@ -44,9 +44,9 @@ func TestOpenRemovesLegacyCores(t *testing.T) {
 			t.Fatal(err)
 		}
 		var n int
-		db.QueryRow(`SELECT COUNT(*) FROM system_cores WHERE origin = 'framebeam'`).Scan(&n)
+		db.QueryRow(`SELECT COUNT(*) FROM system_cores WHERE origin = 'legacy-mirror'`).Scan(&n)
 		var p int
-		db.QueryRow(`SELECT COUNT(*) FROM core_packages WHERE origin = 'framebeam'`).Scan(&p)
+		db.QueryRow(`SELECT COUNT(*) FROM core_packages WHERE origin = 'legacy-mirror'`).Scan(&p)
 		if n != 0 || p != 0 {
 			t.Fatalf("legacy rows left: %d %d", n, p)
 		}
@@ -65,7 +65,7 @@ func TestOpenRemovesLegacyCores(t *testing.T) {
 	// Only legacy core: the default is cleared and the system has no core.
 	exec(`DELETE FROM system_cores`)
 	exec(`INSERT INTO system_cores(system_id, core_id, version, installed_at, origin, display_name, license)
-		VALUES ('nds','melonds_ds','1.4.0',1,'framebeam','melonDS DS','GPL-3.0')`)
+		VALUES ('nds','melonds_ds','1.4.0',1,'legacy-mirror','melonDS DS','GPL-3.0')`)
 	exec(`UPDATE systems SET default_core_id = 'melonds_ds' WHERE id = 'nds'`)
 	svc, err := hub.Open(context.Background(), db, hub.Options{DataDir: dir, PasswordParams: &fast})
 	if err != nil {
@@ -98,7 +98,7 @@ func TestCheckCoresAliasAndServedCores(t *testing.T) {
 	if p := check(e, hub.CoreReport{ID: "desmume", Version: "old"}); len(p) != 1 || p[0].Code != hub.ProblemCoreVersionMismatch {
 		t.Fatalf("%+v", p)
 	}
-	// A core the Hub does not serve for the system does not count.
+	// A core the server does not serve for the system does not count.
 	if p := check(e, hub.CoreReport{ID: "noods", Version: "1"}); len(p) != 1 || p[0].Code != hub.ProblemCoreMissing {
 		t.Fatalf("%+v", p)
 	}

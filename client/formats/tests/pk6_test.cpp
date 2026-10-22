@@ -3,7 +3,7 @@
 
 #include <QtTest>
 
-using namespace framebeam::formats;
+using namespace uzume::formats;
 
 class Pk6Test : public QObject {
     Q_OBJECT
@@ -25,7 +25,7 @@ private slots:
         for (bool party : {false, true}) {
             for (unsigned sv = 0; sv < 32; ++sv) {
                 const uint32_t ec = (sv << 13) | 0xA5000000u | (sv * 977);
-                const auto s = framebeam::synth::makePk6(ec, uint16_t(100 + sv), party, sv + 1);
+                const auto s = uzume::synth::makePk6(ec, uint16_t(100 + sv), party, sv + 1);
                 const Pk6 d = pk6Decrypt(s.encrypted);
                 QVERIFY2(d.ok, d.error.c_str());
                 QVERIFY2(d.data == s.plain, "decrypt differs from synth plain");
@@ -39,7 +39,7 @@ private slots:
         }
     }
     void corruptionDetected() {
-        auto s = framebeam::synth::makePk6(0x12345678, 25);
+        auto s = uzume::synth::makePk6(0x12345678, 25);
         s.encrypted[100] = char(s.encrypted[100] ^ 1);
         const Pk6 d = pk6Decrypt(s.encrypted);
         QVERIFY(d.ok);

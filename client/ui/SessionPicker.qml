@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // "Running sessions" picker (3r-2, docs/design/player.md "Anchored popover"): content of the popover under "+ Add".
 // Row per watchable session with "Add" or "✓ Added", the empty and full states and the footer note. It never opens on

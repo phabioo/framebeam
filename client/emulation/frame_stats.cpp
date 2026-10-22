@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 void FrameTimingStats::reset() {
   QMutexLocker l(&mutex_);
@@ -72,4 +72,4 @@ FrameTimingStats::Snapshot FrameTimingStats::snapshot(qint64 nowMs) const {
   return out;
 }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

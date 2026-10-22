@@ -1,6 +1,6 @@
 # ADR 0030: One app, one server, new name Uzume (0.18)
 
-- Status: Accepted. Name, no web admin, server commands instead of an emergency web, accounts for all users, runs without a plugin and the milestone order were decided by Fabio on 2026-10-22. Fabio decided on 2026-10-22 (later the same day) that browser watching goes too and the code keeps no browser components. The timing of the web admin removal (D2), the plugin IDs (D7) and the waves without their own design round (D8) follow the recommendations of the 0.18 plan, taken on 2026-10-22; Fabio may still change them.
+- Status: Accepted. Name, no web admin, server commands instead of an emergency web, accounts for all users, runs without a plugin and the milestone order were decided by Fabio on 2026-10-22. Fabio decided on 2026-10-22 (later the same day) that browser watching goes too and the code keeps no browser components. The timing of the web admin removal (D2), the plugin IDs (D7) and the waves without their own design round (D8) follow the recommendations of the 0.18 plan, taken on 2026-10-22; Fabio may still change them. On the same day he decided that the rename has no backward compatibility (amendment of D1).
 - Date: 2026-10-22
 - Deciders: Fabio
 
@@ -18,9 +18,34 @@ This ADR supersedes parts of [ADR 0015](0015-hub-ui-pass.md) (Hub web UI), [ADR 
 
 - The product is **Uzume**. The app (formerly FrameBeam Player) is called "Uzume", the server (formerly FrameBeam Hub) "Uzume server", in running text "the server". The terms Hub and Player leave the UI and the docs; the code directories `client/` and `server/` keep their names.
 - "Session" stays the term for a shared running game.
-- Package 2 of 0.18 renames the identifiers: Go module path `github.com/phabioo/uzume`, programs `Uzume` and `uzume-server`, Windows service `UzumeServer`, data folders with a copying migration (the old folder stays in place, as in [ADR 0004](0004-player-portable-data.md)), environment variables `UZUME_*` (`FRAMEBEAM_*` are still read, with a log hint), links `uzume://` (`framebeam://` stays registered), Docker image `ghcr.io/<owner>/uzume-server` (`framebeam-hub` is still published for a few versions, then frozen with a notice), invite codes `UZ-` (`FB-` stays valid), update and plugin index URLs on the new repository.
-- What stays: the product keys `player` and `hub` in the signed update index (old installations must keep finding updates), the plugin API namespace `fb.*`, the release signing key, the `.fbplugin` package format.
-- Never create a repository with an old name again: that would break GitHub's redirect, which old installations use to reach the update index.
+- Package 2 of 0.18 renames every identifier, with no compatibility to FrameBeam (see the amendment below): Go module path `github.com/phabioo/uzume`, programs `Uzume` and `uzume-server`, Windows services `UzumeServer` and `UzumeServerUpdater`, install and data folders, environment variables `UZUME_*` (`FRAMEBEAM_*` are not read), links `uzume://`, Docker image `ghcr.io/<owner>/uzume-server` only, invite codes `UZ-` only, wire names, database file `uzume.db`, signed-data contexts, update and plugin index URLs on the new repository.
+- What stays: the product keys `player` and `hub` in the signed update index (they are not FrameBeam strings), the plugin API namespace `fb.*`, the release signing key, the `.fbplugin` package format.
+- Never create a repository with an old name again: that would break GitHub's redirect for old links.
+
+#### Amendment (package 2, 2026-10-22): no compatibility
+
+Fabio decided on 2026-10-22 that the rename has no backward compatibility: he sets up his server fresh and the few app installs reinstall once. Package 2 therefore renames everything, in two rounds. Round 1 kept some names for installed systems; round 2 removed them. Nothing of FrameBeam is read, migrated or kept alive: not the `FRAMEBEAM_*` variables, `FB-` invite codes, the `framebeam-hub` image, old backups, old data folders, the `FrameBeam/` credential targets, the wire names, the signature contexts or the installed-system names.
+
+New names, as built:
+
+- **Wire protocol**: headers `X-Uzume-Base-Revision`, `X-Uzume-Content-SHA256`, `X-Uzume-Sync-Reason`, `X-Uzume-Save-Revision`, `X-Uzume-Expected-Revision`; info path `/.well-known/uzume`; core origin `legacy-mirror`; TURN realm `uzume`. OpenAPI 1.27.0.
+- **Signed data**: contexts `uzume-updates-index-v1`, `uzume-plugin-index-v1`, `uzume-cores-index-v1`, plugin signature prefix `uzume-plugin-v1`. The release key stays.
+- **Persisted names**: database `uzume.db` (with `-wal`, `-shm`, `.restoring`, `.rollback`), app option keys `uzume.*`, backups `uzume-server-<name>-<UTC timestamp>[-safety].tar` with the members `database/uzume.db` and `config/server.env`, dev cache `$HOME/.cache/uzume/`.
+- **Linux**: package `uzume-server` (`uzume-server_<version>_<arch>.deb`), units `uzume-server.service` and `uzume-server-update.{path,service}`, user `uzume`, `/etc/uzume/server.env`, `/var/lib/uzume`, `/run/uzume`, script `packaging/linux/install-server.sh`. No `framebeam-hub` symlink.
+- **Windows**: services `UzumeServer` and `UzumeServerUpdater` (`NT SERVICE\UzumeServer`), `%ProgramFiles%\Uzume\App` and `\Server`, `%LOCALAPPDATA%\Programs\Uzume`, registry `Software\Uzume\App` and `\Server`, `%ProgramData%\Uzume\Server` and `\ServerUpdater`, markers `uzume-app.msi-installed` and `uzume-server.msi-installed`, AppUserModelId `Uzume.App`. The MSI UpgradeCode stays (a GUID), so the MSI replaces the installed FrameBeam product.
+- **Docker**: only `ghcr.io/<owner>/uzume-server`.
+- **Links**: `uzume://` only; `framebeam://` never existed.
+- **Environment**: only `UZUME_*` (`HUB` became `SERVER`, `PLAYER` became `APP` inside the name). Invite codes `UZ-XXXX-XXXX` only. Metrics `uzume_*`.
+
+The only name that keeps FrameBeam is the GitHub secret `FRAMEBEAM_SIGNING_KEY` (workflows pass it to the tool as `UZUME_SIGNING_KEY`): a secret can only be renamed by re-entering the private key.
+
+Consequences:
+
+- Old apps and servers cannot verify the new updates index (other signature context) and do not find updates. They are reinstalled once from the release page.
+- The MSI replaces the old product through the same UpgradeCode, but it does not take over the old app data folder. The app is paired again.
+- The plugin index and the plugins must be signed again with "Publish plugin" so that they verify again; old signatures do not.
+- Docker users switch to the `uzume-server` image and `UZUME_*` variables, with a new volume.
+- Old backups (`framebeam-hub-*.tar`) cannot be restored.
 
 ### D2 One app, no web admin
 
@@ -51,10 +76,10 @@ This ADR supersedes parts of [ADR 0015](0015-hub-ui-pass.md) (Hub web UI), [ADR 
 
 ### D6 Install modes and "On this PC"
 
-- One installer per platform with three options: the app only, the app with a server on this PC, the server only (Windows MSI as in ADR 0021; Linux packages `uzume` and `uzume-server` with Replaces/Conflicts on the old packages; Docker for the server).
+- One installer per platform with three options: the app only, the app with a server on this PC, the server only (Windows MSI as in ADR 0021; Linux packages `uzume` and `uzume-server`; Docker for the server).
 - **Only on this PC** replaces the standalone mode of ADR 0021 D7: the app starts the server as a child process on loopback, per user, with data in the user's folder, without a service and without UAC.
 - **Share with others** turns it into the system service once (one UAC prompt, data moved, never overwritten); **Stop sharing** returns to "On this PC" and keeps accounts and saves.
-- The MSI upgrade from FrameBeam stops and removes the `FrameBeamHub` service, installs `UzumeServer` and takes the data over; the UpgradeCode stays.
+- The MSI keeps the UpgradeCode, so it replaces an installed FrameBeam product. It does not take over data: a FrameBeam install is not migrated (amendment of D1).
 
 ### D7 Runs without a plugin
 
@@ -79,7 +104,7 @@ This ADR supersedes parts of [ADR 0015](0015-hub-ui-pass.md) (Hub web UI), [ADR 
 - **Keep the OBS stream view or browser watching as the only web pages.** Both would keep a web stack (templates, static assets, browser WebRTC) in the server for one feature each; Fabio wants no browser components in the code.
 - **Remove the web admin only with the Linux app (0.23).** The web would be maintained for five more milestones for Linux-only admins; the server commands cover emergencies until then.
 - **Two milestones** (0.18 name, server and accounts; 0.19 admin in the app and installer): the packages depend on each other closely, and the "every beta stays usable" rule keeps one milestone manageable.
-- **Rename the update index product keys.** Old installations would stop finding updates.
+- **Rename the update index product keys `player` and `hub`.** They are not FrameBeam strings; the index format keeps them.
 - **Plugin IDs `io.github.phabioo.*`.** Provably ours but long; `uzume.*` fits the reverse-DNS rule of the plugin API (at least two parts).
 
 ## Consequences
@@ -87,5 +112,5 @@ This ADR supersedes parts of [ADR 0015](0015-hub-ui-pass.md) (Hub web UI), [ADR 
 - The Hub web code (handlers, templates, JavaScript, static assets, tests) is deleted in package 12; nothing browser-facing stays in the server.
 - The admin API grows the OpenAPI contract considerably; the app's admin area is the largest UI work of the milestone.
 - Accounts change the identity model of architecture 10 (passwords for all, sign-in on new devices, user switching). The migration keeps existing users and devices working without a password.
-- Docker users change the image name once (`framebeam-hub` to `uzume-server`); everyone else updates without manual steps through the redirect of the old repository.
+- There is no upgrade path from FrameBeam: the server is set up fresh, the app is installed again and paired again, Docker users switch to the `uzume-server` image (amendment of D1).
 - Docs use the new terms from this PR on; identifiers in docs follow the code and change with package 2. ADRs before 0030 keep the old terms as historical records.

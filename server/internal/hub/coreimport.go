@@ -18,7 +18,7 @@ type CoreImportSummary struct {
 	Problems                      []string
 }
 
-// ImportCores installs buildbot zips from a directory (offline Hub, ADR 0020 D8):
+// ImportCores installs buildbot zips from a directory (offline server, ADR 0020 D8):
 // <dir>/<platform>/<core>_libretro.<suffix>.zip, optionally <dir>/info.zip (core metadata, else the cached
 // catalog is used) and <dir>/<platform>/.index-extended (CRC32 and build date, else the CRC32 is only recorded and
 // the file date is the build date). The same checks as for a download apply. A core goes to every system that

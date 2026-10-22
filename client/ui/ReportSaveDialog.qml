@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Dialogs
-import FrameBeam.Player
+import Uzume.App
 
 // Native save dialog of "Report a problem" -> "Save as file…". Its own file with a real import so deployment tools
 // (windeployqt --qmldir) see the QtQuick.Dialogs dependency; ReportProblemDialog loads it through a Loader.

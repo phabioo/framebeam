@@ -1,4 +1,5 @@
 #include "hw_render.h"
+#include "envvar.h"
 
 #include <QGuiApplication>
 #include <QLoggingCategory>
@@ -13,10 +14,10 @@
 #include <cmath>
 #include <vector>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 namespace {
-Q_LOGGING_CATEGORY(lcHw, "framebeam.emulation.hw")
+Q_LOGGING_CATEGORY(lcHw, "uzume.emulation.hw")
 
 constexpr int kInitialSize = 640;
 
@@ -456,7 +457,7 @@ HwRenderContext::~HwRenderContext() {
 
 bool HwRenderContext::allowed() {
   if (qobject_cast<QGuiApplication*>(QCoreApplication::instance()) == nullptr) return false;
-  return qEnvironmentVariable("FRAMEBEAM_DISABLE_HW_RENDER") != QLatin1String("1");
+  return uzume::env::get("UZUME_DISABLE_HW_RENDER") != QLatin1String("1");
 }
 
 void HwRenderContext::prepareSurface() {
@@ -520,7 +521,7 @@ bool HwRenderContext::createContext(bool coreProfile, unsigned major, unsigned m
   d->f->initializeOpenGLFunctions();
   d->fx = d->ctx->extraFunctions();
   if (d->fx) d->fx->initializeOpenGLFunctions();
-  d->async = d->fx != nullptr && qEnvironmentVariable("FRAMEBEAM_SYNC_READBACK") != QLatin1String("1");
+  d->async = d->fx != nullptr && uzume::env::get("UZUME_SYNC_READBACK") != QLatin1String("1");
   {
     // QSurfaceFormat may echo the request; the driver's real version is authoritative.
     GLint ma = 0, mi = 0;
@@ -860,4 +861,4 @@ bool HwRenderContext::displayBlit(int w, int h, bool bottomLeftOrigin, const QSi
   return true;
 }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

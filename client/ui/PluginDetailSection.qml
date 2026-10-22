@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Plugin sections in the game detail column (design 4h-2): one block per plugin that set its "detail" slot, under a header
 // with the plugin name (and the origin marker for non-official plugins). Nothing is shown while no plugin has content.

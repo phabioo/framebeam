@@ -11,7 +11,7 @@
 
 #include "profilestore.h"
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 constexpr const char* kStateFile = "sync.json";
@@ -307,4 +307,4 @@ bool SaveStore::migrateLegacy(const QString& legacy, const QStringList& basename
   return false;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -1,5 +1,5 @@
-# Network sources of the core (hub client, signaling later). Belongs to the framebeam_core target.
-target_sources(framebeam_core PRIVATE
+# Network sources of the core (hub client, signaling later). Belongs to the uzume_core target.
+target_sources(uzume_core PRIVATE
   hubprotocol.cpp
   hubhttp.cpp
   hubconnection.cpp
@@ -25,31 +25,32 @@ target_sources(framebeam_core PRIVATE
   connectionprobes.cpp
   reportuploader.cpp
 )
-target_link_libraries(framebeam_core PUBLIC Qt6::WebSockets)
-target_include_directories(framebeam_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(uzume_core PUBLIC Qt6::WebSockets)
+target_include_directories(uzume_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Developer tool against a real hub (pairing, library, saves, Sessions: session-share / session-watch).
-add_executable(framebeam_player_cli cli/main.cpp cli/sessioncommands.cpp cli/sessioncommands.h)
-target_link_libraries(framebeam_player_cli PRIVATE framebeam_core framebeam_media)
-framebeam_warnings(framebeam_player_cli)
+add_executable(uzume_cli cli/main.cpp cli/sessioncommands.cpp cli/sessioncommands.h)
+target_link_libraries(uzume_cli PRIVATE uzume_core uzume_media)
+uzume_warnings(uzume_cli)
+set_target_properties(uzume_cli PROPERTIES OUTPUT_NAME uzume-cli)
 
 set(FB_TESTDATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tests/testdata")
 set(FB_FAKEHUB tests/fakehub.cpp tests/fakehub.h)
 
-framebeam_add_test(network_hub_flow tests/hub_flow_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
-framebeam_add_test(network_library_rom tests/library_rom_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
-framebeam_add_test(network_savesync tests/savesync_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
-framebeam_add_test(network_sessions tests/sessions_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
-framebeam_add_test(network_hub_features tests/hub_features_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
-framebeam_add_test(network_coreprovisioner tests/coreprovisioner_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
-framebeam_add_test(network_coreupdater tests/coreupdater_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
-framebeam_add_test(network_pluginhub tests/pluginhub_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
-framebeam_add_test(network_runs tests/runclient_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
-framebeam_add_test(network_report_upload tests/report_upload_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
-framebeam_add_test(network_local_roms tests/local_roms_test.cpp ${FB_FAKEHUB} LIBS framebeam_core framebeam_emulation)
-framebeam_add_test(network_corechoice tests/corechoice_test.cpp LIBS framebeam_core)
-framebeam_add_test(network_connectioncheck tests/connectioncheck_test.cpp LIBS framebeam_core)
-framebeam_add_test(network_connectionprobes tests/connectionprobes_test.cpp ${FB_FAKEHUB} LIBS framebeam_core)
+uzume_add_test(network_hub_flow tests/hub_flow_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
+uzume_add_test(network_library_rom tests/library_rom_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
+uzume_add_test(network_savesync tests/savesync_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
+uzume_add_test(network_sessions tests/sessions_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
+uzume_add_test(network_hub_features tests/hub_features_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
+uzume_add_test(network_coreprovisioner tests/coreprovisioner_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
+uzume_add_test(network_coreupdater tests/coreupdater_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
+uzume_add_test(network_pluginhub tests/pluginhub_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
+uzume_add_test(network_runs tests/runclient_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
+uzume_add_test(network_report_upload tests/report_upload_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
+uzume_add_test(network_local_roms tests/local_roms_test.cpp ${FB_FAKEHUB} LIBS uzume_core uzume_emulation)
+uzume_add_test(network_corechoice tests/corechoice_test.cpp LIBS uzume_core)
+uzume_add_test(network_connectioncheck tests/connectioncheck_test.cpp LIBS uzume_core)
+uzume_add_test(network_connectionprobes tests/connectionprobes_test.cpp ${FB_FAKEHUB} LIBS uzume_core)
 if(BUILD_TESTING)
   foreach(t network_hub_flow network_library_rom network_savesync network_sessions network_hub_features network_coreprovisioner network_coreupdater network_pluginhub network_runs network_local_roms network_report_upload network_connectionprobes)
     target_compile_definitions(test_${t} PRIVATE FB_TEST_DATA_DIR="${FB_TESTDATA_DIR}")

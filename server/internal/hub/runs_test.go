@@ -10,9 +10,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/pluginpkg"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/pluginpkg"
 )
 
 type onePlugin struct{ id, version string }
@@ -73,7 +73,7 @@ func TestRunEventLimit(t *testing.T) {
 	if _, _, err := svc.AppendRunEvent(ctx, in); !errors.Is(err, hub.ErrConflict) {
 		t.Fatalf("over the limit: %v", err)
 	}
-	// Hub events still get recorded at the limit (a run can always be ended).
+	// Server events still get recorded at the limit (a run can always be ended).
 	if _, err := svc.SetRunStatus(ctx, admin.ID, run.ID, "active"); err != nil {
 		t.Fatal(err)
 	}

@@ -3,7 +3,7 @@
 
 #include "frame_stats.h"
 
-using framebeam::emu::FrameTimingStats;
+using uzume::emu::FrameTimingStats;
 
 class FrameStatsTest : public QObject {
   Q_OBJECT

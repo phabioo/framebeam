@@ -1,24 +1,25 @@
 # Packaging
 
-Release artifacts and how they are built (PoC platforms: [07-poc-scope.md](../architecture/07-poc-scope.md); other platforms are planned, see [08-repo-and-open-points.md](../architecture/08-repo-and-open-points.md)): the Windows MSI for app and server (below), the server `.deb` (ships `/usr/share/doc/framebeam-hub/copyright` and `THIRD-PARTY-NOTICES.txt`; the raw server binaries on a release come with `LICENSE` and `THIRD-PARTY-NOTICES-hub.txt`; regenerate with `make notices`) and the systemd script ([hub-install.md](hub-install.md)). macOS is dropped (2026-10-11); a Linux app package follows after 1.0 ([roadmap](../roadmap.md)).
+Release artifacts and how they are built (PoC platforms: [07-poc-scope.md](../architecture/07-poc-scope.md); other platforms are planned, see [08-repo-and-open-points.md](../architecture/08-repo-and-open-points.md)): the Windows MSI for app and server (below), the server `.deb` (package `uzume-server`; ships `/usr/share/doc/uzume-server/copyright` and `THIRD-PARTY-NOTICES.txt`; the raw server binaries on a release come with `LICENSE` and `THIRD-PARTY-NOTICES-hub.txt`; regenerate with `make notices`) and the systemd script ([hub-install.md](hub-install.md)). macOS is dropped (2026-10-11); a Linux app package follows after 1.0 ([roadmap](../roadmap.md)).
 
 ## Windows installer
 
-One MSI for app, server or both: `packaging/windows/framebeam.wxs` (WiX v5, [ADR 0021](../adr/0021-one-windows-installer.md), proposed). It replaces the Inno Setup script `framebeam-player.iss` (ADR 0007 D8, removed); the Inno migration shell was removed on 2026-10-11. Unsigned (SmartScreen warning).
+One MSI for app, server or both: `packaging/windows/uzume.wxs` (WiX v5, [ADR 0021](../adr/0021-one-windows-installer.md), proposed). It replaced the Inno Setup script of FrameBeam (ADR 0007 D8, removed); the Inno migration shell was removed on 2026-10-11. Unsigned (SmartScreen warning).
 
-- Built by the Windows CI job (`.github/workflows/ci.yml`) from the assembled package `dist\framebeam-player` and the Windows server binary. Artifacts: `framebeam-windows-x64-msi` (the MSI) plus the portable zip.
-- Local build (Windows only: the WiX binder needs msi.dll; .NET SDK 6+; the script installs WiX 5.0.2 and its extensions): `pwsh packaging\windows\build-msi.ps1 -ProductVersion 0.0.0.1 -PackageDir dist\framebeam-player -HubExe server\dist\framebeam-hub-windows-amd64.exe -OutFile dist\msi\framebeam.msi`. Details: [packaging/windows/README.md](../../packaging/windows/README.md).
+- Built by the Windows CI job (`.github/workflows/ci.yml`) from the assembled package `dist\uzume-app` and the Windows server binary. Artifacts: `uzume-windows-x64-msi` (the MSI) plus the portable zip.
+- Local build (Windows only: the WiX binder needs msi.dll; .NET SDK 6+; the script installs WiX 5.0.2 and its extensions): `pwsh packaging\windows\build-msi.ps1 -ProductVersion 0.0.0.1 -PackageDir dist\uzume-app -HubExe server\dist\uzume-server-windows-amd64.exe -OutFile dist\msi\uzume.msi`. Details: [packaging/windows/README.md](../../packaging/windows/README.md).
 
 ### Features, scope and properties
 
-- Features `Player` and `Hub`. A silent install without properties is app only, per user, in `%LOCALAPPDATA%\Programs\FrameBeam Player` (portable `data\` stays writable, [ADR 0004](../adr/0004-player-portable-data.md)).
-- `INSTALL_HUB=1` installs per machine (`ALLUSERS=1`): app in `%ProgramFiles%\FrameBeam\Player`, server in `%ProgramFiles%\FrameBeam\Hub`. `INSTALL_PLAYER=0` with `INSTALL_HUB=1` is server only. Other properties: `HUB_PORT` (default 8443), `NETWORK_SHARING` (1 server only, 0 app plus server), `DESKTOP_SHORTCUT`.
-- Example: `msiexec /i framebeam.msi /qn ALLUSERS=1 INSTALL_HUB=1 HUB_PORT=8443 NETWORK_SHARING=1`.
-- Server: services `FrameBeamHub` (`NT SERVICE\FrameBeamHub`) and `FrameBeamHubUpdater` (LocalSystem), data `%ProgramData%\FrameBeam\Hub`, updater folder `%ProgramData%\FrameBeam\HubUpdater` (SYSTEM and Administrators only), two firewall rules for `framebeam-hub.exe`, registry `HKLM\Software\FrameBeam\Hub` (`Port`, `InstallDir`).
-- Markers next to the executables: `framebeam-hub.msi-installed`, `framebeam-player.msi-installed` (self-update allowed). Package layout, notices and licenses as before: launcher `framebeam_player.exe`, `THIRD-PARTY-NOTICE.txt`, `LICENSE.txt`, `licenses\` at the top, the real app, DLLs, plugins and qml in `bin\`, data in `data\`.
+- Display names, shortcuts and dialogs say Uzume. The installed-system identity is Uzume too (service names, install folders, registry keys, ProgramData folders, markers, AppUserModelId `Uzume.App`). The MSI keeps the UpgradeCode, so it replaces an installed FrameBeam product, but it does not take over the old app data folder: the app is paired again ([ADR 0030](../adr/0030-one-app-one-server-uzume.md)).
+- Features `Player` and `Hub`. A silent install without properties is app only, per user, in `%LOCALAPPDATA%\Programs\Uzume` (portable `data\` stays writable, [ADR 0004](../adr/0004-player-portable-data.md)).
+- `INSTALL_HUB=1` installs per machine (`ALLUSERS=1`): app in `%ProgramFiles%\Uzume\App`, server in `%ProgramFiles%\Uzume\Server`. `INSTALL_PLAYER=0` with `INSTALL_HUB=1` is server only. Other properties: `HUB_PORT` (default 8443), `NETWORK_SHARING` (1 server only, 0 app plus server), `DESKTOP_SHORTCUT`.
+- Example: `msiexec /i uzume.msi /qn ALLUSERS=1 INSTALL_HUB=1 HUB_PORT=8443 NETWORK_SHARING=1`.
+- Server: services `UzumeServer` (`NT SERVICE\UzumeServer`) and `UzumeServerUpdater` (LocalSystem), data `%ProgramData%\Uzume\Server`, updater folder `%ProgramData%\Uzume\ServerUpdater` (SYSTEM and Administrators only), two firewall rules for `uzume-server.exe`, registry `HKLM\Software\Uzume\Server` (`Port`, `InstallDir`).
+- Markers next to the executables: `uzume-server.msi-installed`, `uzume-app.msi-installed` (self-update allowed). Package layout, notices and licenses as before: launcher `Uzume.exe`, `THIRD-PARTY-NOTICE.txt`, `LICENSE.txt`, `licenses\` at the top, the real app, DLLs, plugins and qml in `bin\`, data in `data\`.
 - Uninstall keeps `data\` (ROM cache, profiles, saves) and the server data in ProgramData.
 
 ### Migration and upgrades
 
-- A per-machine install removes the per-user MSI product (`HKCU\Software\FrameBeam\Player\ProductCode`) asynchronously, after about 15 s. MajorUpgrade handles later versions.
+- A per-machine install removes the per-user MSI product (`HKCU\Software\Uzume\App\ProductCode`) asynchronously, after about 15 s. MajorUpgrade handles later versions.
 - The CI job installs silently, plants an old layout plus `data\marker`, upgrades and checks the result. Known limitations: [ADR 0021](../adr/0021-one-windows-installer.md).

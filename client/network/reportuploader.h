@@ -18,7 +18,7 @@
 
 #include "hubconnection.h"
 
-namespace framebeam {
+namespace uzume {
 
 class ReportUploader : public QObject {
   Q_OBJECT
@@ -43,7 +43,7 @@ class ReportUploader : public QObject {
   void reset();   // any state -> Idle, forgets the body
 
  signals:
-  void stateChanged(framebeam::ReportUploader::State state);
+  void stateChanged(uzume::ReportUploader::State state);
   void progress(qint64 sent, qint64 total);
 
  private:
@@ -62,4 +62,4 @@ class ReportUploader : public QObject {
   bool renewed_ = false;  // a 401 was answered by renewing the token once
 };
 
-}  // namespace framebeam
+}  // namespace uzume

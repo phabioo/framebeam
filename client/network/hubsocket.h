@@ -18,7 +18,7 @@
 class QWebSocket;
 class QSslError;
 
-namespace framebeam {
+namespace uzume {
 
 // WSS client of the Hub (`GET /api/v1/ws`, ADR 0006 D3): Bearer upgrade with the same leaf pinning as HubHttp,
 // `hello` after connect, typed signals for every Hub message, WebSocket ping every 20 s, automatic reconnect
@@ -54,17 +54,17 @@ class HubSocket : public QObject {
   }
 
  signals:
-  void stateChanged(framebeam::HubSocket::State state);
-  void helloAcked(const framebeam::HelloAck& ack);  // connection usable
-  void iceUpdated(const framebeam::HelloAck& ack);  // `ice_update` applied: ack.iceServers / ack.turnServers are the new config
-  void presenceUpdated(const framebeam::PresenceUpdate& update);
-  void sessionUpdated(const framebeam::SessionInfo& session);
-  void sessionInvited(const framebeam::SessionInfo& session);
-  void sessionEnded(const framebeam::SessionEnded& ended);
-  void viewerJoined(const framebeam::ViewerJoined& viewer);
-  void viewerLeft(const framebeam::ViewerLeft& viewer);
-  void signalReceived(const framebeam::SessionSignal& signal);
-  void saveUpdated(const framebeam::SaveUpdate& update);  // saves_v2: a slot checkpoint changed on another device
+  void stateChanged(uzume::HubSocket::State state);
+  void helloAcked(const uzume::HelloAck& ack);  // connection usable
+  void iceUpdated(const uzume::HelloAck& ack);  // `ice_update` applied: ack.iceServers / ack.turnServers are the new config
+  void presenceUpdated(const uzume::PresenceUpdate& update);
+  void sessionUpdated(const uzume::SessionInfo& session);
+  void sessionInvited(const uzume::SessionInfo& session);
+  void sessionEnded(const uzume::SessionEnded& ended);
+  void viewerJoined(const uzume::ViewerJoined& viewer);
+  void viewerLeft(const uzume::ViewerLeft& viewer);
+  void signalReceived(const uzume::SessionSignal& signal);
+  void saveUpdated(const uzume::SaveUpdate& update);  // saves_v2: a slot checkpoint changed on another device
   // runs_v1: raw payloads, parsed by the RunClient.
   void runUpdated(const QJsonObject& run);
   void runStateReceived(const QJsonObject& payload);  // {run_id, user_id, state_rev, state}
@@ -117,4 +117,4 @@ class HubSocket : public QObject {
   std::optional<Queued> queuedPresence_;  // presence is a state: only the latest one is kept
 };
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -1,6 +1,6 @@
 // Package corepkg holds the identifier formats and version compare of core packages (ADR 0020) and the Ed25519
 // signing and verification used for the updates index (ADR 0011). The legacy core index types remain for the
-// framebeam-sign tool. It is shared by the Hub and the framebeam-sign tool.
+// uzume-sign tool. It is shared by the server and the uzume-sign tool.
 package corepkg
 
 import (

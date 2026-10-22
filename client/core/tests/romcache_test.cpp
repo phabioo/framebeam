@@ -5,10 +5,10 @@
 
 #include "romcache.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
-QByteArray dummyRom() { return QByteArray(5000, 'x') + "FRAMEBEAM-DUMMY"; }
+QByteArray dummyRom() { return QByteArray(5000, 'x') + "UZUME-DUMMY"; }
 QString shaOf(const QByteArray& d) { return QString::fromLatin1(QCryptographicHash::hash(d, QCryptographicHash::Sha256).toHex()); }
 void writeFile(const QString& path, const QByteArray& d) {
   QFile f(path);

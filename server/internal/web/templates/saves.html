@@ -59,7 +59,7 @@
 </div>{{end}}
 {{define "newslot-card"}}<div class="confirm newslot" role="group" aria-label="New slot">
   <div class="confirm-title">New slot for “{{.Game}}”</div>
-  <p class="help">Starts from the current version of “{{.FromLabel}}”. Players can pick the slot in the game details.</p>
+  <p class="help">Starts from the current version of “{{.FromLabel}}”. Apps can pick the slot in the game details.</p>
   <form class="inline" method="post" action="{{.PostHref}}" hx-post="{{.PostHref}}" hx-target="#newslot-form" hx-swap="innerHTML">
     <label class="field">Slot name <input type="text" name="name" value="{{.Value}}" placeholder="Speedrun" maxlength="{{.Max}}" required autocomplete="off" autofocus aria-describedby="newslot-hint"{{if .Error}} aria-invalid="true"{{end}}></label>
     <p id="newslot-hint" class="help">Lowercase letters, digits, - and _ (up to {{.Max}} characters), for example speedrun.</p>
@@ -81,7 +81,7 @@
 </div>
 {{if .RenameOpen}}<div class="confirm newslot" role="group" aria-label="Rename slot">
   <div class="confirm-title">Rename this slot</div>
-  <p class="help">Checkpoint, history and conflicts move with the slot. Players pick up the new name on their next sync.</p>
+  <p class="help">Checkpoint, history and conflicts move with the slot. Apps pick up the new name on their next sync.</p>
   <form class="inline" method="post" action="{{.RenameHref}}" hx-post="{{.RenameHref}}" hx-target="#save-detail" hx-swap="outerHTML">
     <label class="field">New name <input type="text" name="name" value="{{.Value}}" maxlength="{{.Max}}" required autocomplete="off" autofocus aria-describedby="rename-hint"></label>
     <p id="rename-hint" class="help">Lowercase letters, digits, - and _ (up to {{.Max}} characters).</p>
@@ -93,7 +93,7 @@
 </div>{{end}}
 {{if .DeleteOpen}}<div class="confirm" role="group" aria-label="Confirm deletion of the slot">
   <div class="confirm-title">{{if .Main}}Delete the main slot?{{else}}Delete this slot?{{end}}</div>
-  <p class="help">{{if .Main}}The main slot with all its history is deleted for good; this cannot be undone. The Player starts it fresh on the next play unless it still has unsynced local progress. {{end}}The latest checkpoint is Rev {{.Rev}} from {{.When}} ({{.Device}}, {{.Size}}), with {{.Versions}} history {{if eq .Versions 1}}version{{else}}versions{{end}}. {{if not .Main}}The slot, its checkpoint and its whole history are removed for good; this cannot be undone. {{end}}If the slot changed in the meantime, nothing is deleted.</p>
+  <p class="help">{{if .Main}}The main slot with all its history is deleted for good; this cannot be undone. The app starts it fresh on the next play unless it still has unsynced local progress. {{end}}The latest checkpoint is Rev {{.Rev}} from {{.When}} ({{.Device}}, {{.Size}}), with {{.Versions}} history {{if eq .Versions 1}}version{{else}}versions{{end}}. {{if not .Main}}The slot, its checkpoint and its whole history are removed for good; this cannot be undone. {{end}}If the slot changed in the meantime, nothing is deleted.</p>
   <form class="inline" method="post" action="{{.DeleteHref}}" hx-post="{{.DeleteHref}}">
     <input type="hidden" name="expected_revision" value="{{.Rev}}">
     <a class="btn small" href="{{.CancelHref}}" hx-get="{{.CancelHref}}" hx-target="#save-detail" hx-swap="outerHTML" hx-push-url="true">Cancel</a>
@@ -176,11 +176,11 @@
     </div>
   </div>
   <div class="actions">
-    <form method="post" action="{{.ResolveHref}}" hx-post="{{.ResolveHref}}" hx-confirm="Use the Hub version? The secured upload stays in the history.">
+    <form method="post" action="{{.ResolveHref}}" hx-post="{{.ResolveHref}}" hx-confirm="Use the server version? The secured upload stays in the history.">
       <input type="hidden" name="resolution" value="use_hub"><input type="hidden" name="expected_revision" value="{{.ExpectedRev}}">
-      <button class="btn" type="submit">Use Hub version</button>
+      <button class="btn" type="submit">Use server version</button>
     </form>
-    <form method="post" action="{{.ResolveHref}}" hx-post="{{.ResolveHref}}" hx-confirm="Adopt the secured upload as the new current version? The current Hub version stays in the history.">
+    <form method="post" action="{{.ResolveHref}}" hx-post="{{.ResolveHref}}" hx-confirm="Adopt the secured upload as the new current version? The current server version stays in the history.">
       <input type="hidden" name="resolution" value="use_local"><input type="hidden" name="expected_revision" value="{{.ExpectedRev}}">
       <button class="btn" type="submit">Adopt local save as new current version</button>
     </form>

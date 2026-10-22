@@ -3,7 +3,7 @@
 #include <QByteArray>
 #include <QString>
 
-namespace framebeam {
+namespace uzume {
 
 // Content-addressed firmware cache: <dir>/<system>/<sha256> (dir = <data>/system/firmware), separate from ROMs.
 // A hit counts only after size and SHA-256 were checked. Contents are never logged (only ids and hashes).
@@ -30,4 +30,4 @@ class FirmwareCache {
   QString dir_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

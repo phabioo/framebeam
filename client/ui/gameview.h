@@ -13,12 +13,12 @@ class QSGTexture;
 #include "gamesession.h"
 #include "screenlayout.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class GameView : public QQuickItem {
   Q_OBJECT
   QML_ELEMENT
-  Q_PROPERTY(framebeam::ui::GameSession* session READ session WRITE setSession NOTIFY sessionChanged)
+  Q_PROPERTY(uzume::ui::GameSession* session READ session WRITE setSession NOTIFY sessionChanged)
   Q_PROPERTY(bool integerScale READ integerScale WRITE setIntegerScale NOTIFY integerScaleChanged)
   Q_PROPERTY(QRectF frameRect READ frameRect NOTIFY frameRectChanged)
   // In-game screen layout (0.6 D12): "stacked" (as delivered by the core) | "side" | "top"; applies to this game only.
@@ -81,4 +81,4 @@ class GameView : public QQuickItem {
   ScreenPlacement placement_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

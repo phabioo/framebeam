@@ -261,14 +261,14 @@ func (e AdminUpdateVersionData) Valid() bool {
 
 // Defines values for CoreOrigin.
 const (
-	Framebeam        CoreOrigin = "framebeam"
+	LegacyMirror     CoreOrigin = "legacy-mirror"
 	LibretroBuildbot CoreOrigin = "libretro-buildbot"
 )
 
 // Valid indicates whether the value is a known member of the CoreOrigin enum.
 func (e CoreOrigin) Valid() bool {
 	switch e {
-	case Framebeam:
+	case LegacyMirror:
 		return true
 	case LibretroBuildbot:
 		return true
@@ -967,7 +967,7 @@ type AdminBackupRun struct {
 	Finished time.Time `json:"finished"`
 	Name     *string   `json:"name,omitempty"`
 
-	// NoSpace The backup folder had too little free space. The Hub never deletes backups to make room.
+	// NoSpace The backup folder had too little free space. The server never deletes backups to make room.
 	NoSpace   *bool   `json:"no_space,omitempty"`
 	Ok        bool    `json:"ok"`
 	PruneNote *string `json:"prune_note,omitempty"`
@@ -988,7 +988,7 @@ type AdminBackupSettings struct {
 	Keep int                     `json:"keep"`
 	Mode AdminBackupSettingsMode `json:"mode"`
 
-	// Time Time of day in the Hub's local time zone
+	// Time Time of day in the server's local time zone
 	Time string `json:"time"`
 
 	// Weekday 0 = Sunday; used by weekly
@@ -1013,7 +1013,7 @@ type AdminBackupSettingsUpdateMode string
 
 // AdminBackupStatus defines model for AdminBackupStatus.
 type AdminBackupStatus struct {
-	// CanRestore This Hub can restart itself, so a restore from the API is possible
+	// CanRestore This server can restart itself, so a restore from the API is possible
 	CanRestore bool                 `json:"can_restore"`
 	DiskFree   *int64               `json:"disk_free,omitempty"`
 	DiskTotal  *int64               `json:"disk_total,omitempty"`
@@ -1053,7 +1053,7 @@ type AdminMetricsUpdate struct {
 
 // AdminProblem defines model for AdminProblem.
 type AdminProblem struct {
-	// ActionHref Web interface path of the action; informational for Players
+	// ActionHref Web interface path of the action; informational for apps
 	ActionHref *string `json:"action_href,omitempty"`
 
 	// ActionLabel Label of the suggested action, empty when none
@@ -1150,7 +1150,7 @@ type AdminRestoreResult struct {
 
 // AdminRollbackRequest defines model for AdminRollbackRequest.
 type AdminRollbackRequest struct {
-	// ConfirmDataLoss Required when `data` is `restore`: accept that changes since `lost_since` leave the running Hub
+	// ConfirmDataLoss Required when `data` is `restore`: accept that changes since `lost_since` leave the running server
 	ConfirmDataLoss *bool  `json:"confirm_data_loss,omitempty"`
 	Version         string `json:"version"`
 }
@@ -1185,7 +1185,7 @@ type AdminStatus struct {
 	HubName    string             `json:"hub_name"`
 	HubVersion string             `json:"hub_version"`
 	Memory     struct {
-		// ProcessBytes Memory the Hub process holds
+		// ProcessBytes Memory the server process holds
 		ProcessBytes int64 `json:"process_bytes"`
 
 		// SystemTotalBytes Absent where the platform has no reader
@@ -1198,7 +1198,7 @@ type AdminStatus struct {
 	// Problems Open problems, the most urgent first (empty when all is well)
 	Problems []AdminProblem `json:"problems"`
 
-	// PublicAddress host:port Players use; the host of the request when no public host is set
+	// PublicAddress host:port apps use; the host of the request when no public host is set
 	PublicAddress string               `json:"public_address"`
 	Sessions      []AdminStatusSession `json:"sessions"`
 
@@ -1241,12 +1241,12 @@ type AdminStatusErrorLevel string
 type AdminStatusPlayer struct {
 	DeviceName string `json:"device_name"`
 
-	// Outdated The Player version is below the Hub version
+	// Outdated The app version is below the server version
 	Outdated bool                   `json:"outdated"`
 	State    AdminStatusPlayerState `json:"state"`
 	User     string                 `json:"user"`
 
-	// Version Player version
+	// Version App version
 	Version string `json:"version"`
 }
 
@@ -1297,14 +1297,14 @@ type AdminUpdateVersion struct {
 	// DbBackup The automatic database backup used by `restore`
 	DbBackup *string `json:"db_backup,omitempty"`
 
-	// FirstUsed First time this version ran on this Hub (local history)
+	// FirstUsed First time this version ran on this server (local history)
 	FirstUsed *time.Time `json:"first_used,omitempty"`
 	LastUsed  *time.Time `json:"last_used,omitempty"`
 
 	// LostSince With `restore`: changes after this time are only in the safety backup
 	LostSince *time.Time `json:"lost_since,omitempty"`
 
-	// ManualCommand What to do by hand when the Hub cannot go back itself
+	// ManualCommand What to do by hand when the server cannot go back itself
 	ManualCommand *string   `json:"manual_command,omitempty"`
 	NotesUrl      *string   `json:"notes_url,omitempty"`
 	PublishedAt   time.Time `json:"published_at"`
@@ -1328,17 +1328,17 @@ type AdminUpdateVersions struct {
 	// BackupFolder Where the safety backup is written
 	BackupFolder string `json:"backup_folder"`
 
-	// CanRollback This Hub can go back by itself: package install, not a container, updates on
+	// CanRollback This server can go back by itself: package install, not a container, updates on
 	CanRollback      bool `json:"can_rollback"`
 	ConnectedPlayers int  `json:"connected_players"`
 
-	// Current The running Hub version
+	// Current The running server version
 	Current string `json:"current"`
 
 	// CurrentSchema Database schema version in use
 	CurrentSchema int `json:"current_schema"`
 
-	// InContainer The Hub runs in the official image; go back by pulling the older image tag
+	// InContainer The server runs in the official image; go back by pulling the older image tag
 	InContainer bool              `json:"in_container"`
 	Paused      *AdminUpdatePause `json:"paused,omitempty"`
 
@@ -1359,7 +1359,7 @@ type CoreInfo struct {
 	Version string `json:"version"`
 }
 
-// CoreOrigin `libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed FrameBeam source.
+// CoreOrigin `libretro-buildbot` = installed from the libretro buildbot; `legacy-mirror` = legacy package from the retired signed Uzume source.
 type CoreOrigin string
 
 // CorePackage defines model for CorePackage.
@@ -1370,7 +1370,7 @@ type CorePackage struct {
 	// License License name. Packages from the libretro buildbot carry no license file; the name comes from the core info (`files` then has no `license` role entry).
 	License string `json:"license"`
 
-	// Origin `libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed FrameBeam source.
+	// Origin `libretro-buildbot` = installed from the libretro buildbot; `legacy-mirror` = legacy package from the retired signed Uzume source.
 	Origin    *CoreOrigin  `json:"origin,omitempty"`
 	Platform  CorePlatform `json:"platform"`
 	SourceRef string       `json:"source_ref"`
@@ -1380,7 +1380,7 @@ type CorePackage struct {
 
 // CorePackageFile defines model for CorePackageFile.
 type CorePackageFile struct {
-	// Available True when the file is in the Hub cache
+	// Available True when the file is in the server cache
 	Available bool   `json:"available"`
 	Name      string `json:"name"`
 
@@ -1452,7 +1452,7 @@ type FirmwareMode string
 type Game struct {
 	AddedAt time.Time `json:"added_at"`
 
-	// GameCode Identity read from the ROM header on upload/import: 4-character NDS or GBA game code, 16 uppercase hex digits (3DS program ID) or the Game Boy header title (1 to 16 printable ASCII characters); the kind is `game_code_kind`; empty when unknown or unreadable. Absent on Hubs before 1.16.0.
+	// GameCode Identity read from the ROM header on upload/import: 4-character NDS or GBA game code, 16 uppercase hex digits (3DS program ID) or the Game Boy header title (1 to 16 printable ASCII characters); the kind is `game_code_kind`; empty when unknown or unreadable. Absent on servers before 1.16.0.
 	GameCode *string `json:"game_code,omitempty"`
 
 	// GameCodeKind Kind of `game_code`; empty when unknown. `gba-gamecode`: 4-character GBA game code; `gb-title`: Game Boy / Game Boy Color header title (only with a valid header checksum).
@@ -1462,10 +1462,10 @@ type Game struct {
 	GameVersion *int               `json:"game_version,omitempty"`
 	Id          openapi_types.UUID `json:"id"`
 
-	// OnHub At least one file of the game is stored on the Hub (`local_roms_v1`; absent on older Hubs, then true). A game that is not on the Hub is only visible to the users who registered a file of it.
+	// OnHub At least one file of the game is stored on the server (`local_roms_v1`; absent on older servers, then true). A game that is not on the server is only visible to the users who registered a file of it.
 	OnHub *bool `json:"on_hub,omitempty"`
 
-	// Rom A file stored on the Hub if the game has one, else the primary file.
+	// Rom A file stored on the server if the game has one, else the primary file.
 	Rom RomInfo `json:"rom"`
 
 	// Roms All known files of the game, the primary file first (`local_roms_v1`). Different dumps of the same identity are files of one game.
@@ -1473,7 +1473,7 @@ type Game struct {
 	System string     `json:"system"`
 	Title  string     `json:"title"`
 
-	// UploadedBy Hub-local user ID
+	// UploadedBy Server-local user ID
 	UploadedBy string `json:"uploaded_by"`
 }
 
@@ -1529,22 +1529,22 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only), `reports_v1` = problem reports (`POST /reports`; the admin endpoints under `/admin/reports`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+	// Features Optional server feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the server (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the server pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only), `reports_v1` = problem reports (`POST /reports`; the admin endpoints under `/admin/reports`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
 	Problems           []HandshakeProblem `json:"problems"`
 	ProtocolVersion    int                `json:"protocol_version"`
 
-	// User The Hub user the authenticated device belongs to (additive, protocol_version unchanged). Lets the Player show who is signed in.
+	// User The server user the authenticated device belongs to (additive, protocol_version unchanged). Lets the app show who is signed in.
 	User *HandshakeUser `json:"user,omitempty"`
 }
 
-// HandshakeUser The Hub user the authenticated device belongs to (additive, protocol_version unchanged). Lets the Player show who is signed in.
+// HandshakeUser The server user the authenticated device belongs to (additive, protocol_version unchanged). Lets the app show who is signed in.
 type HandshakeUser struct {
 	DisplayName string `json:"display_name"`
 
-	// Id Hub-local user ID
+	// Id Server-local user ID
 	Id   string            `json:"id"`
 	Role HandshakeUserRole `json:"role"`
 }
@@ -1569,7 +1569,7 @@ type InviteRedeemApproved struct {
 	HubId            openapi_types.UUID         `json:"hub_id"`
 	Status           InviteRedeemApprovedStatus `json:"status"`
 
-	// UserId Hub-local user ID of the new user
+	// UserId Server-local user ID of the new user
 	UserId string `json:"user_id"`
 }
 
@@ -1580,12 +1580,12 @@ type InviteRedeemApprovedStatus string
 type InviteRedeemRequest struct {
 	Arch string `json:"arch"`
 
-	// Code Invite code, format FB-XXXX-XXXX
+	// Code Invite code, format UZ-XXXX-XXXX
 	Code       string             `json:"code"`
 	DeviceId   openapi_types.UUID `json:"device_id"`
 	DeviceName string             `json:"device_name"`
 
-	// DisplayName Trimmed; unique per Hub (case-insensitive)
+	// DisplayName Trimmed; unique per server (case-insensitive)
 	DisplayName     string `json:"display_name"`
 	Platform        string `json:"platform"`
 	PlayerVersion   string `json:"player_version"`
@@ -1606,7 +1606,7 @@ type LocalPairRequest struct {
 
 // LocalSettingsUpdate defines model for LocalSettingsUpdate.
 type LocalSettingsUpdate struct {
-	// ImportDir Absolute path of an existing directory the Hub can read
+	// ImportDir Absolute path of an existing directory the server can read
 	ImportDir      *string `json:"import_dir,omitempty"`
 	NetworkSharing *bool   `json:"network_sharing,omitempty"`
 }
@@ -1619,7 +1619,7 @@ type LocalStatus struct {
 	// ImportDir Library import folder
 	ImportDir string `json:"import_dir"`
 
-	// NetworkSharing false = the Hub listens on loopback only and the built-in TURN relay is off
+	// NetworkSharing false = the server listens on loopback only and the built-in TURN relay is off
 	NetworkSharing bool `json:"network_sharing"`
 }
 
@@ -1656,7 +1656,7 @@ type PairingStatus struct {
 	HubId  *openapi_types.UUID `json:"hub_id,omitempty"`
 	Status PairingStatusStatus `json:"status"`
 
-	// UserId Hub-local user ID; only when approved
+	// UserId Server-local user ID; only when approved
 	UserId *string `json:"user_id,omitempty"`
 }
 
@@ -1677,7 +1677,7 @@ type PluginInfo struct {
 	Games       []PluginGame `json:"games"`
 	Name        string       `json:"name"`
 
-	// Origin `official` = valid signature of a trusted FrameBeam key; `unverified` = unsigned (or not verifiable), offered by the Hub admin.
+	// Origin `official` = valid signature of a trusted Uzume key; `unverified` = unsigned (or not verifiable), offered by the server admin.
 	Origin      PluginOrigin `json:"origin"`
 	Permissions []string     `json:"permissions"`
 	PluginId    string       `json:"plugin_id"`
@@ -1686,7 +1686,7 @@ type PluginInfo struct {
 	// Requires Plugin id to version range, from the manifest
 	Requires map[string]string `json:"requires"`
 
-	// RunSettings Validated manifest field `run_settings`; absent when the manifest has none. Absent on Hubs before 1.17.0.
+	// RunSettings Validated manifest field `run_settings`; absent when the manifest has none. Absent on servers before 1.17.0.
 	RunSettings *[]PluginRunSetting `json:"run_settings,omitempty"`
 
 	// RunSettingsStrings Language (file name of `i18n/<lang>.json`, e.g. `en`, `de`, `pt-BR`) to i18n key to text, holding only the
@@ -1703,10 +1703,10 @@ type PluginList struct {
 	Plugins []PluginInfo `json:"plugins"`
 }
 
-// PluginOrigin `official` = valid signature of a trusted FrameBeam key; `unverified` = unsigned (or not verifiable), offered by the Hub admin.
+// PluginOrigin `official` = valid signature of a trusted Uzume key; `unverified` = unsigned (or not verifiable), offered by the server admin.
 type PluginOrigin string
 
-// PluginRunSetting One rule of the manifest field `run_settings`, shown in the Player's "Start a run" dialog. The Player sends
+// PluginRunSetting One rule of the manifest field `run_settings`, shown in the app's "Start a run" dialog. The app sends
 // the chosen values as `settings[<plugin_id>]` when it creates a run, nested by the key segments: keys `mode`
 // and `rules.dupes_clause` become `{"mode": "soullink", "rules": {"dupes_clause": true}}`.
 type PluginRunSetting struct {
@@ -1752,10 +1752,10 @@ type PluginRunSettingOption struct {
 type RegisterGameRequest struct {
 	Filename string `json:"filename"`
 
-	// GameCode Identity read from the ROM header by the Player (same format as `Game.game_code`). Ignored when it does not fit the system.
+	// GameCode Identity read from the ROM header by the app (same format as `Game.game_code`). Ignored when it does not fit the system.
 	GameCode *string `json:"game_code,omitempty"`
 
-	// GameVersion ROM version read by the Player; only used together with `game_code`.
+	// GameVersion ROM version read by the app; only used together with `game_code`.
 	GameVersion *int   `json:"game_version,omitempty"`
 	Sha256      string `json:"sha256"`
 	Size        int64  `json:"size"`
@@ -1795,7 +1795,7 @@ type RomInfo struct {
 	Sha256   string `json:"sha256"`
 	Size     int64  `json:"size"`
 
-	// Stored The file is stored on the Hub and downloadable via `GET /roms/{sha256}`; false = only registered by a Player (`local_roms_v1`; absent on older Hubs, then true).
+	// Stored The file is stored on the server and downloadable via `GET /roms/{sha256}`; false = only registered by an app (`local_roms_v1`; absent on older servers, then true).
 	Stored *bool `json:"stored,omitempty"`
 }
 
@@ -1811,18 +1811,18 @@ type Run struct {
 	Plugins      []RunPlugin        `json:"plugins"`
 	RunId        openapi_types.UUID `json:"run_id"`
 
-	// Settings An opaque JSON object the Hub stores byte-exact and never interprets.
+	// Settings An opaque JSON object the server stores byte-exact and never interprets.
 	Settings RunJsonObject `json:"settings"`
 	Status   RunStatus     `json:"status"`
 
-	// StatusBy User id (a participant or the Hub admin) who set the last status
+	// StatusBy User id (a participant or the server admin) who set the last status
 	StatusBy  string    `json:"status_by"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // RunBoardRequest defines model for RunBoardRequest.
 type RunBoardRequest struct {
-	// Tree An opaque JSON object the Hub stores byte-exact and never interprets.
+	// Tree An opaque JSON object the server stores byte-exact and never interprets.
 	Tree RunJsonObject `json:"tree"`
 }
 
@@ -1838,7 +1838,7 @@ type RunCreateRequest struct {
 	Name          string             `json:"name"`
 	Plugins       []RunPluginRef     `json:"plugins"`
 
-	// Settings An opaque JSON object the Hub stores byte-exact and never interprets.
+	// Settings An opaque JSON object the server stores byte-exact and never interprets.
 	Settings *RunJsonObject `json:"settings,omitempty"`
 }
 
@@ -1848,7 +1848,7 @@ type RunEvent struct {
 	CreatedAt time.Time          `json:"created_at"`
 	DeviceId  *string            `json:"device_id"`
 
-	// Payload An opaque JSON object the Hub stores byte-exact and never interprets.
+	// Payload An opaque JSON object the server stores byte-exact and never interprets.
 	Payload  RunJsonObject `json:"payload"`
 	PluginId *string       `json:"plugin_id"`
 
@@ -1857,10 +1857,10 @@ type RunEvent struct {
 	Source RunEventSource `json:"source"`
 	Text   string         `json:"text"`
 
-	// Type Hub events: `run.created`, `run.joined`, `run.declined`, `run.invited`, `run.left`, `run.status`
+	// Type server events: `run.created`, `run.joined`, `run.declined`, `run.invited`, `run.left`, `run.status`
 	Type string `json:"type"`
 
-	// UserId null for Hub events (who it is about is in the payload)
+	// UserId null for server events (who it is about is in the payload)
 	UserId   *string `json:"user_id"`
 	UserName string  `json:"user_name"`
 }
@@ -1878,7 +1878,7 @@ type RunEventList struct {
 type RunEventRequest struct {
 	ClientId openapi_types.UUID `json:"client_id"`
 
-	// Payload An opaque JSON object the Hub stores byte-exact and never interprets.
+	// Payload An opaque JSON object the server stores byte-exact and never interprets.
 	Payload  *RunJsonObject        `json:"payload,omitempty"`
 	PluginId string                `json:"plugin_id"`
 	Source   RunEventRequestSource `json:"source"`
@@ -1904,7 +1904,7 @@ type RunJoinRequest struct {
 	GameId openapi_types.UUID `json:"game_id"`
 }
 
-// RunJsonObject An opaque JSON object the Hub stores byte-exact and never interprets.
+// RunJsonObject An opaque JSON object the server stores byte-exact and never interprets.
 type RunJsonObject = json.RawMessage
 
 // RunList defines model for RunList.
@@ -1914,10 +1914,10 @@ type RunList struct {
 
 // RunParticipant defines model for RunParticipant.
 type RunParticipant struct {
-	// Color Player colour in join order; null until the first join
+	// Color App colour in join order; null until the first join
 	Color *int `json:"color"`
 
-	// GameId Hub library game; set on join
+	// GameId Server library game; set on join
 	GameId *openapi_types.UUID `json:"game_id"`
 
 	// States State per plugin id; only plugins that have a row (a missing plugin means state `{}` with revision 0)
@@ -1934,7 +1934,7 @@ type RunParticipantStatus string
 type RunPlugin struct {
 	PluginId string `json:"plugin_id"`
 
-	// Sha256 SHA-256 of the .fbplugin the Hub offered when the run was created
+	// Sha256 SHA-256 of the .fbplugin the server offered when the run was created
 	Sha256  string `json:"sha256"`
 	Version string `json:"version"`
 }
@@ -1947,7 +1947,7 @@ type RunPluginRef struct {
 
 // RunPluginState defines model for RunPluginState.
 type RunPluginState struct {
-	// State An opaque JSON object the Hub stores byte-exact and never interprets.
+	// State An opaque JSON object the server stores byte-exact and never interprets.
 	State     RunJsonObject `json:"state"`
 	StateRev  int64         `json:"state_rev"`
 	UpdatedAt time.Time     `json:"updated_at"`
@@ -1961,7 +1961,7 @@ type RunStateConflictError struct {
 		Message string    `json:"message"`
 	} `json:"error"`
 
-	// State An opaque JSON object the Hub stores byte-exact and never interprets.
+	// State An opaque JSON object the server stores byte-exact and never interprets.
 	State    *RunJsonObject `json:"state,omitempty"`
 	StateRev *int64         `json:"state_rev,omitempty"`
 }
@@ -1970,7 +1970,7 @@ type RunStateConflictError struct {
 type RunStateRequest struct {
 	BaseRev int64 `json:"base_rev"`
 
-	// State An opaque JSON object the Hub stores byte-exact and never interprets.
+	// State An opaque JSON object the server stores byte-exact and never interprets.
 	State RunJsonObject `json:"state"`
 }
 
@@ -2011,7 +2011,7 @@ type SaveConflict struct {
 	Id         string              `json:"id"`
 	ResolvedAt *time.Time          `json:"resolved_at"`
 
-	// ResolvedBy Hub-local user ID or device ID of the resolver
+	// ResolvedBy Server-local user ID or device ID of the resolver
 	ResolvedBy *string                   `json:"resolved_by"`
 	Secured    SaveConflictSecuredUpload `json:"secured"`
 	Slot       string                    `json:"slot"`
@@ -2140,7 +2140,7 @@ type Session struct {
 	// Viewers Only for the owner device
 	Viewers *[]SessionViewerInfo `json:"viewers,omitempty"`
 
-	// Visibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this Hub.
+	// Visibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this server.
 	// `invite_only`: devices of the owner user plus invited users who have not declined.
 	Visibility SessionVisibility `json:"visibility"`
 }
@@ -2158,7 +2158,7 @@ type SessionInviteInfoState string
 
 // SessionJoinResponse defines model for SessionJoinResponse.
 type SessionJoinResponse struct {
-	// IceServers `stun:` URLs from the Hub config (default `stun:stun.cloudflare.com:3478`, empty with `-ice-servers none`), plus the Hub's own STUN when the embedded TURN server is on
+	// IceServers `stun:` URLs from the server config (default `stun:stun.cloudflare.com:3478`, empty with `-ice-servers none`), plus the server's own STUN when the embedded TURN server is on
 	IceServers  []string           `json:"ice_servers"`
 	Permissions SessionPermissions `json:"permissions"`
 
@@ -2190,14 +2190,14 @@ type SessionPermissions struct {
 type SessionPublishRequest struct {
 	GameId openapi_types.UUID `json:"game_id"`
 
-	// Visibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this Hub.
+	// Visibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this server.
 	// `invite_only`: devices of the owner user plus invited users who have not declined.
 	Visibility SessionVisibility `json:"visibility"`
 }
 
 // SessionUpdateRequest defines model for SessionUpdateRequest.
 type SessionUpdateRequest struct {
-	// Visibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this Hub.
+	// Visibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this server.
 	// `invite_only`: devices of the owner user plus invited users who have not declined.
 	Visibility SessionVisibility `json:"visibility"`
 }
@@ -2211,7 +2211,7 @@ type SessionViewerInfo struct {
 	ViewerId    openapi_types.UUID `json:"viewer_id"`
 }
 
-// SessionVisibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this Hub.
+// SessionVisibility `private`: only devices of the owner user. `hub_users`: every authenticated device of this server.
 // `invite_only`: devices of the owner user plus invited users who have not declined.
 type SessionVisibility string
 
@@ -2222,29 +2222,29 @@ type SystemCore struct {
 	CoreId      string              `json:"core_id"`
 	DisplayName string              `json:"display_name"`
 
-	// Experimental True when the Player has no core profile for this core. Set by the Hub from its list of profiled cores.
+	// Experimental True when the app has no core profile for this core. Set by the server from its list of profiled cores.
 	Experimental bool   `json:"experimental"`
 	License      string `json:"license"`
 
-	// Origin `libretro-buildbot` = installed from the libretro buildbot; `framebeam` = legacy package from the retired signed FrameBeam source.
+	// Origin `libretro-buildbot` = installed from the libretro buildbot; `legacy-mirror` = legacy package from the retired signed Uzume source.
 	Origin CoreOrigin `json:"origin"`
 
 	// RequiredHwApi Graphics API requirement from the core info, e.g. `OpenGL Core >= 3.2`; null when none.
 	RequiredHwApi *string `json:"required_hw_api"`
 
-	// Version Package version: the Hub build id (UTC date of the upstream build, `2026.10.09`, `.N` appended for a second build the same day) or a legacy semver such as `1.4.0`. The Player provisions exactly this version.
+	// Version Package version: the server build id (UTC date of the upstream build, `2026.10.09`, `.N` appended for a second build the same day) or a legacy semver such as `1.4.0`. The app provisions exactly this version.
 	Version string `json:"version"`
 }
 
 // SystemInfo defines model for SystemInfo.
 type SystemInfo struct {
-	// CorePackageVersion Version of the preferred core the Hub serves (`cores_v1`) = `expected_core_version` if set, else the highest version with a cached package; null when none. The Player provisions exactly this version. Optional (absent on Hubs without `cores_v1`).
+	// CorePackageVersion Version of the preferred core the server serves (`cores_v1`) = `expected_core_version` if set, else the highest version with a cached package; null when none. The app provisions exactly this version. Optional (absent on servers without `cores_v1`).
 	CorePackageVersion *string `json:"core_package_version"`
 
-	// Cores One entry per installed core of the system (`cores_v2`). Optional (absent on Hubs without `cores_v2`).
+	// Cores One entry per installed core of the system (`cores_v2`). Optional (absent on servers without `cores_v2`).
 	Cores *[]SystemCore `json:"cores,omitempty"`
 
-	// DefaultCoreId Id of the system's default core (`cores_v2`); null when no core is installed. Optional (absent on Hubs without `cores_v2`).
+	// DefaultCoreId Id of the system's default core (`cores_v2`); null when no core is installed. Optional (absent on servers without `cores_v2`).
 	DefaultCoreId *string `json:"default_core_id"`
 	DisplayName   string  `json:"display_name"`
 
@@ -2256,7 +2256,7 @@ type SystemInfo struct {
 	FirmwareMode FirmwareMode `json:"firmware_mode"`
 	Id           string       `json:"id"`
 
-	// PreferredCoreId The default core. Together with `expected_core_version` and `core_package_version` it keeps describing the default core for Players without `cores_v2`.
+	// PreferredCoreId The default core. Together with `expected_core_version` and `core_package_version` it keeps describing the default core for apps without `cores_v2`.
 	PreferredCoreId string `json:"preferred_core_id"`
 }
 
@@ -2279,10 +2279,10 @@ type TokenResponse struct {
 // TokenResponseTokenType defines model for TokenResponse.TokenType.
 type TokenResponseTokenType string
 
-// TurnServer Relay credentials from a relay provider of the Hub (`turn_v1`): the embedded TURN server (TURN REST API scheme),
+// TurnServer Relay credentials from a relay provider of the server (`turn_v1`): the embedded TURN server (TURN REST API scheme),
 // Cloudflare TURN or an external TURN server configured by the admin. Credentials are short-lived (`expires_at`)
-// except the static username and password of an external TURN server, which have no `expires_at`. The Hub may
-// send several entries; a Player offers all of them to ICE.
+// except the static username and password of an external TURN server, which have no `expires_at`. The server may
+// send several entries; an app offers all of them to ICE.
 type TurnServer struct {
 	Credential string `json:"credential"`
 
@@ -2303,7 +2303,7 @@ type UploadProgress struct {
 
 // UploadSession defines model for UploadSession.
 type UploadSession struct {
-	// ChunkSize Largest chunk the Hub accepts (64 MiB)
+	// ChunkSize Largest chunk the server accepts (64 MiB)
 	ChunkSize int64 `json:"chunk_size"`
 
 	// Offset Bytes received so far; the next chunk starts here
@@ -2451,21 +2451,21 @@ type DeleteSaveSlotParams struct {
 
 // PutSaveParams defines parameters for PutSave.
 type PutSaveParams struct {
-	// XFrameBeamBaseRevision Checkpoint revision the upload is based on; 0 = the Player had no Hub save.
-	XFrameBeamBaseRevision int `json:"X-FrameBeam-Base-Revision"`
+	// XUzumeBaseRevision Checkpoint revision the upload is based on; 0 = the app had no server save.
+	XUzumeBaseRevision int `json:"X-Uzume-Base-Revision"`
 
-	// XFrameBeamContentSHA256 Lowercase hex SHA-256 of the body; verified by the Hub.
-	XFrameBeamContentSHA256 string         `json:"X-FrameBeam-Content-SHA256"`
-	XFrameBeamSyncReason    SaveSyncReason `json:"X-FrameBeam-Sync-Reason"`
+	// XUzumeContentSHA256 Lowercase hex SHA-256 of the body; verified by the server.
+	XUzumeContentSHA256 string         `json:"X-Uzume-Content-SHA256"`
+	XUzumeSyncReason    SaveSyncReason `json:"X-Uzume-Sync-Reason"`
 }
 
 // UploadSaveFileParams defines parameters for UploadSaveFile.
 type UploadSaveFileParams struct {
-	// XFrameBeamExpectedRevision Current checkpoint revision the caller saw; 0 = the slot must not exist yet.
-	XFrameBeamExpectedRevision int `json:"X-FrameBeam-Expected-Revision"`
+	// XUzumeExpectedRevision Current checkpoint revision the caller saw; 0 = the slot must not exist yet.
+	XUzumeExpectedRevision int `json:"X-Uzume-Expected-Revision"`
 
-	// XFrameBeamContentSHA256 Lowercase hex SHA-256 of the body; verified by the Hub.
-	XFrameBeamContentSHA256 string `json:"X-FrameBeam-Content-SHA256"`
+	// XUzumeContentSHA256 Lowercase hex SHA-256 of the body; verified by the server.
+	XUzumeContentSHA256 string `json:"X-Uzume-Content-SHA256"`
 }
 
 // GetPluginFileParams defines parameters for GetPluginFile.
@@ -3048,8 +3048,8 @@ func (t *PluginRunSetting_Default) UnmarshalJSON(b []byte) error {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Hub info (no auth, grants no rights)
-	// (GET /.well-known/framebeam)
+	// Server info (no auth, grants no rights)
+	// (GET /.well-known/uzume)
 	GetHubInfo(w http.ResponseWriter, r *http.Request)
 	// List the backup files of the backup folder (admin)
 	// (GET /api/v1/admin/backups)
@@ -3108,10 +3108,10 @@ type ServerInterface interface {
 	// Mark a problem report as seen (admin only)
 	// (POST /api/v1/admin/reports/{id}/seen)
 	MarkAdminReportSeen(w http.ResponseWriter, r *http.Request, id int64)
-	// Hub health (admin only)
+	// Server health (admin only)
 	// (GET /api/v1/admin/status)
 	GetAdminStatus(w http.ResponseWriter, r *http.Request)
-	// Download the recent Hub log (admin only)
+	// Download the recent server log (admin only)
 	// (GET /api/v1/admin/status/log)
 	GetAdminStatusLog(w http.ResponseWriter, r *http.Request)
 	// Resume automatic updates after going back (admin)
@@ -3120,7 +3120,7 @@ type ServerInterface interface {
 	// Go back to an earlier version (admin)
 	// (POST /api/v1/admin/updates/rollback)
 	RollbackAdminUpdate(w http.ResponseWriter, r *http.Request)
-	// Earlier versions the Hub can go back to (admin)
+	// Earlier versions the server can go back to (admin)
 	// (GET /api/v1/admin/updates/versions)
 	GetAdminUpdateVersions(w http.ResponseWriter, r *http.Request)
 	// Device revokes itself
@@ -3138,7 +3138,7 @@ type ServerInterface interface {
 	// Game library
 	// (GET /api/v1/games)
 	ListGames(w http.ResponseWriter, r *http.Request)
-	// Upload a ROM (admin, or users when the Hub allows user uploads)
+	// Upload a ROM (admin, or users when the server allows user uploads)
 	// (POST /api/v1/games)
 	UploadGame(w http.ResponseWriter, r *http.Request, params UploadGameParams)
 	// Register a ROM file that exists only on the caller's device (`local_roms_v1`)
@@ -3192,13 +3192,13 @@ type ServerInterface interface {
 	// Redeem an onboarding invite code (no auth)
 	// (POST /api/v1/invites/redeem)
 	RedeemInvite(w http.ResponseWriter, r *http.Request)
-	// Pair the calling Player as an existing admin (`local_setup_v1`, loopback only)
+	// Pair the calling app as an existing admin (`local_setup_v1`, loopback only)
 	// (POST /api/v1/local/pair)
 	LocalPair(w http.ResponseWriter, r *http.Request)
 	// Change network sharing and the import folder (`local_setup_v1`, loopback only, admin device)
 	// (PUT /api/v1/local/settings)
 	UpdateLocalSettings(w http.ResponseWriter, r *http.Request)
-	// Create the first admin and pair the calling Player as that admin (`local_setup_v1`, loopback only)
+	// Create the first admin and pair the calling app as that admin (`local_setup_v1`, loopback only)
 	// (POST /api/v1/local/setup)
 	LocalSetup(w http.ResponseWriter, r *http.Request)
 	// State of the local setup (`local_setup_v1`, loopback callers only)
@@ -3210,16 +3210,16 @@ type ServerInterface interface {
 	// Poll pairing request status (bearer = poll_token)
 	// (GET /api/v1/pairing/requests/{request_id})
 	GetPairingRequest(w http.ResponseWriter, r *http.Request, requestId openapi_types.UUID)
-	// Plugin versions this Hub offers to Players (`plugins_v1`, any trusted device)
+	// Plugin versions this server offers to apps (`plugins_v1`, any trusted device)
 	// (GET /api/v1/plugins)
 	ListPlugins(w http.ResponseWriter, r *http.Request)
 	// Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
 	// (GET /api/v1/plugins/{plugin_id}/{version}/file)
 	GetPluginFile(w http.ResponseWriter, r *http.Request, pluginId PluginId, version PluginVersion, params GetPluginFileParams)
-	// Send a problem report to the Hub (`reports_v1`)
+	// Send a problem report to the server (`reports_v1`)
 	// (POST /api/v1/reports)
 	CreateReport(w http.ResponseWriter, r *http.Request)
-	// ROM download (range support). Only files stored on the Hub (`stored`); a file that is only registered as local is 404.
+	// ROM download (range support). Only files stored on the server (`stored`); a file that is only registered as local is 404.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(w http.ResponseWriter, r *http.Request, sha256 string, params DownloadRomParams)
 	// Runs the caller participates in (any participant status, not archived), most recently changed first
@@ -3231,7 +3231,7 @@ type ServerInterface interface {
 	// One run with every participant's per-plugin states (participants of any status only; others get 404)
 	// (GET /api/v1/runs/{run_id})
 	GetRun(w http.ResponseWriter, r *http.Request, runId RunId)
-	// Publish the plugin's board (building-block tree, at most 64 KiB) for the Hub web run page
+	// Publish the plugin's board (building-block tree, at most 64 KiB) for the server web run page
 	// (PUT /api/v1/runs/{run_id}/boards/{plugin_id})
 	PutRunBoard(w http.ResponseWriter, r *http.Request, runId RunId, pluginId RunPluginId)
 	// Decline the invite (only from invited; declining again is a no-op)
@@ -3282,7 +3282,7 @@ type ServerInterface interface {
 	// Withdraw an invite (owner device); removes that user's viewers
 	// (DELETE /api/v1/sessions/{session_id}/invites/{user_id})
 	WithdrawSessionInvite(w http.ResponseWriter, r *http.Request, sessionId SessionId, userId UserId)
-	// Invite a user of this Hub (owner device); a declined invite becomes open again
+	// Invite a user of this server (owner device); a declined invite becomes open again
 	// (PUT /api/v1/sessions/{session_id}/invites/{user_id})
 	InviteSessionUser(w http.ResponseWriter, r *http.Request, sessionId SessionId, userId UserId)
 	// Join as viewer (ACL checked here)
@@ -3309,7 +3309,7 @@ type ServerInterface interface {
 	// Upload one chunk (`local_roms_v1`)
 	// (PUT /api/v1/uploads/{upload_id})
 	PutUploadChunk(w http.ResponseWriter, r *http.Request, uploadId openapi_types.UUID, params PutUploadChunkParams)
-	// Users of this Hub (for the invite field)
+	// Users of this server (for the invite field)
 	// (GET /api/v1/users)
 	ListUsers(w http.ResponseWriter, r *http.Request)
 	// WSS upgrade (presence, Session events, signaling; documentation only, the upgrade is not a JSON call)
@@ -4400,72 +4400,72 @@ func (siw *ServerInterfaceWrapper) PutSave(w http.ResponseWriter, r *http.Reques
 
 	headers := r.Header
 
-	// ------------- Required header parameter "X-FrameBeam-Base-Revision" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Base-Revision")]; found {
-		var XFrameBeamBaseRevision int
+	// ------------- Required header parameter "X-Uzume-Base-Revision" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Uzume-Base-Revision")]; found {
+		var XUzumeBaseRevision int
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Base-Revision", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Uzume-Base-Revision", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Base-Revision", valueList[0], &XFrameBeamBaseRevision, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "integer", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Uzume-Base-Revision", valueList[0], &XUzumeBaseRevision, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "integer", Format: ""})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Base-Revision", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Uzume-Base-Revision", Err: err})
 			return
 		}
 
-		params.XFrameBeamBaseRevision = XFrameBeamBaseRevision
+		params.XUzumeBaseRevision = XUzumeBaseRevision
 
 	} else {
-		err := fmt.Errorf("Header parameter X-FrameBeam-Base-Revision is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Base-Revision", Err: err})
+		err := fmt.Errorf("Header parameter X-Uzume-Base-Revision is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Uzume-Base-Revision", Err: err})
 		return
 	}
 
-	// ------------- Required header parameter "X-FrameBeam-Content-SHA256" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Content-SHA256")]; found {
-		var XFrameBeamContentSHA256 string
+	// ------------- Required header parameter "X-Uzume-Content-SHA256" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Uzume-Content-SHA256")]; found {
+		var XUzumeContentSHA256 string
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Content-SHA256", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Uzume-Content-SHA256", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Content-SHA256", valueList[0], &XFrameBeamContentSHA256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Uzume-Content-SHA256", valueList[0], &XUzumeContentSHA256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Uzume-Content-SHA256", Err: err})
 			return
 		}
 
-		params.XFrameBeamContentSHA256 = XFrameBeamContentSHA256
+		params.XUzumeContentSHA256 = XUzumeContentSHA256
 
 	} else {
-		err := fmt.Errorf("Header parameter X-FrameBeam-Content-SHA256 is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+		err := fmt.Errorf("Header parameter X-Uzume-Content-SHA256 is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Uzume-Content-SHA256", Err: err})
 		return
 	}
 
-	// ------------- Required header parameter "X-FrameBeam-Sync-Reason" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Sync-Reason")]; found {
-		var XFrameBeamSyncReason SaveSyncReason
+	// ------------- Required header parameter "X-Uzume-Sync-Reason" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Uzume-Sync-Reason")]; found {
+		var XUzumeSyncReason SaveSyncReason
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Sync-Reason", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Uzume-Sync-Reason", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Sync-Reason", valueList[0], &XFrameBeamSyncReason, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Uzume-Sync-Reason", valueList[0], &XUzumeSyncReason, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Sync-Reason", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Uzume-Sync-Reason", Err: err})
 			return
 		}
 
-		params.XFrameBeamSyncReason = XFrameBeamSyncReason
+		params.XUzumeSyncReason = XUzumeSyncReason
 
 	} else {
-		err := fmt.Errorf("Header parameter X-FrameBeam-Sync-Reason is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Sync-Reason", Err: err})
+		err := fmt.Errorf("Header parameter X-Uzume-Sync-Reason is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Uzume-Sync-Reason", Err: err})
 		return
 	}
 
@@ -4879,49 +4879,49 @@ func (siw *ServerInterfaceWrapper) UploadSaveFile(w http.ResponseWriter, r *http
 
 	headers := r.Header
 
-	// ------------- Required header parameter "X-FrameBeam-Expected-Revision" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Expected-Revision")]; found {
-		var XFrameBeamExpectedRevision int
+	// ------------- Required header parameter "X-Uzume-Expected-Revision" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Uzume-Expected-Revision")]; found {
+		var XUzumeExpectedRevision int
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Expected-Revision", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Uzume-Expected-Revision", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Expected-Revision", valueList[0], &XFrameBeamExpectedRevision, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "integer", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Uzume-Expected-Revision", valueList[0], &XUzumeExpectedRevision, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "integer", Format: ""})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Expected-Revision", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Uzume-Expected-Revision", Err: err})
 			return
 		}
 
-		params.XFrameBeamExpectedRevision = XFrameBeamExpectedRevision
+		params.XUzumeExpectedRevision = XUzumeExpectedRevision
 
 	} else {
-		err := fmt.Errorf("Header parameter X-FrameBeam-Expected-Revision is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Expected-Revision", Err: err})
+		err := fmt.Errorf("Header parameter X-Uzume-Expected-Revision is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Uzume-Expected-Revision", Err: err})
 		return
 	}
 
-	// ------------- Required header parameter "X-FrameBeam-Content-SHA256" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-FrameBeam-Content-SHA256")]; found {
-		var XFrameBeamContentSHA256 string
+	// ------------- Required header parameter "X-Uzume-Content-SHA256" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Uzume-Content-SHA256")]; found {
+		var XUzumeContentSHA256 string
 		n := len(valueList)
 		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-FrameBeam-Content-SHA256", Count: n})
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Uzume-Content-SHA256", Count: n})
 			return
 		}
 
-		err = runtime.BindStyledParameterWithOptions("simple", "X-FrameBeam-Content-SHA256", valueList[0], &XFrameBeamContentSHA256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Uzume-Content-SHA256", valueList[0], &XUzumeContentSHA256, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
 		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Uzume-Content-SHA256", Err: err})
 			return
 		}
 
-		params.XFrameBeamContentSHA256 = XFrameBeamContentSHA256
+		params.XUzumeContentSHA256 = XUzumeContentSHA256
 
 	} else {
-		err := fmt.Errorf("Header parameter X-FrameBeam-Content-SHA256 is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-FrameBeam-Content-SHA256", Err: err})
+		err := fmt.Errorf("Header parameter X-Uzume-Content-SHA256 is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Uzume-Content-SHA256", Err: err})
 		return
 	}
 
@@ -6354,7 +6354,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/.well-known/framebeam", wrapper.GetHubInfo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/.well-known/uzume", wrapper.GetHubInfo)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/backups", wrapper.ListAdminBackups)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/backups", wrapper.StartAdminBackup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/backups/cancel", wrapper.CancelAdminBackup)
@@ -9088,9 +9088,9 @@ type DownloadSaveContentResponseObject interface {
 }
 
 type DownloadSaveContent200ResponseHeaders struct {
-	ContentLength          *int64
-	ETag                   *string
-	XFrameBeamSaveRevision *int
+	ContentLength      *int64
+	ETag               *string
+	XUzumeSaveRevision *int
 }
 
 type DownloadSaveContent200ApplicationoctetStreamResponse struct {
@@ -9111,8 +9111,8 @@ func (response DownloadSaveContent200ApplicationoctetStreamResponse) VisitDownlo
 	if response.Headers.ETag != nil {
 		w.Header().Set("ETag", fmt.Sprint(*response.Headers.ETag))
 	}
-	if response.Headers.XFrameBeamSaveRevision != nil {
-		w.Header().Set("X-FrameBeam-Save-Revision", fmt.Sprint(*response.Headers.XFrameBeamSaveRevision))
+	if response.Headers.XUzumeSaveRevision != nil {
+		w.Header().Set("X-Uzume-Save-Revision", fmt.Sprint(*response.Headers.XUzumeSaveRevision))
 	}
 	w.WriteHeader(200)
 
@@ -9317,9 +9317,9 @@ type DownloadSaveHistoryContentResponseObject interface {
 }
 
 type DownloadSaveHistoryContent200ResponseHeaders struct {
-	ContentLength          *int64
-	ETag                   *string
-	XFrameBeamSaveRevision *int
+	ContentLength      *int64
+	ETag               *string
+	XUzumeSaveRevision *int
 }
 
 type DownloadSaveHistoryContent200ApplicationoctetStreamResponse struct {
@@ -9340,8 +9340,8 @@ func (response DownloadSaveHistoryContent200ApplicationoctetStreamResponse) Visi
 	if response.Headers.ETag != nil {
 		w.Header().Set("ETag", fmt.Sprint(*response.Headers.ETag))
 	}
-	if response.Headers.XFrameBeamSaveRevision != nil {
-		w.Header().Set("X-FrameBeam-Save-Revision", fmt.Sprint(*response.Headers.XFrameBeamSaveRevision))
+	if response.Headers.XUzumeSaveRevision != nil {
+		w.Header().Set("X-Uzume-Save-Revision", fmt.Sprint(*response.Headers.XUzumeSaveRevision))
 	}
 	w.WriteHeader(200)
 
@@ -13123,8 +13123,8 @@ func (response ConnectWebSocket401JSONResponse) VisitConnectWebSocketResponse(w 
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Hub info (no auth, grants no rights)
-	// (GET /.well-known/framebeam)
+	// Server info (no auth, grants no rights)
+	// (GET /.well-known/uzume)
 	GetHubInfo(ctx context.Context, request GetHubInfoRequestObject) (GetHubInfoResponseObject, error)
 	// List the backup files of the backup folder (admin)
 	// (GET /api/v1/admin/backups)
@@ -13183,10 +13183,10 @@ type StrictServerInterface interface {
 	// Mark a problem report as seen (admin only)
 	// (POST /api/v1/admin/reports/{id}/seen)
 	MarkAdminReportSeen(ctx context.Context, request MarkAdminReportSeenRequestObject) (MarkAdminReportSeenResponseObject, error)
-	// Hub health (admin only)
+	// Server health (admin only)
 	// (GET /api/v1/admin/status)
 	GetAdminStatus(ctx context.Context, request GetAdminStatusRequestObject) (GetAdminStatusResponseObject, error)
-	// Download the recent Hub log (admin only)
+	// Download the recent server log (admin only)
 	// (GET /api/v1/admin/status/log)
 	GetAdminStatusLog(ctx context.Context, request GetAdminStatusLogRequestObject) (GetAdminStatusLogResponseObject, error)
 	// Resume automatic updates after going back (admin)
@@ -13195,7 +13195,7 @@ type StrictServerInterface interface {
 	// Go back to an earlier version (admin)
 	// (POST /api/v1/admin/updates/rollback)
 	RollbackAdminUpdate(ctx context.Context, request RollbackAdminUpdateRequestObject) (RollbackAdminUpdateResponseObject, error)
-	// Earlier versions the Hub can go back to (admin)
+	// Earlier versions the server can go back to (admin)
 	// (GET /api/v1/admin/updates/versions)
 	GetAdminUpdateVersions(ctx context.Context, request GetAdminUpdateVersionsRequestObject) (GetAdminUpdateVersionsResponseObject, error)
 	// Device revokes itself
@@ -13213,7 +13213,7 @@ type StrictServerInterface interface {
 	// Game library
 	// (GET /api/v1/games)
 	ListGames(ctx context.Context, request ListGamesRequestObject) (ListGamesResponseObject, error)
-	// Upload a ROM (admin, or users when the Hub allows user uploads)
+	// Upload a ROM (admin, or users when the server allows user uploads)
 	// (POST /api/v1/games)
 	UploadGame(ctx context.Context, request UploadGameRequestObject) (UploadGameResponseObject, error)
 	// Register a ROM file that exists only on the caller's device (`local_roms_v1`)
@@ -13267,13 +13267,13 @@ type StrictServerInterface interface {
 	// Redeem an onboarding invite code (no auth)
 	// (POST /api/v1/invites/redeem)
 	RedeemInvite(ctx context.Context, request RedeemInviteRequestObject) (RedeemInviteResponseObject, error)
-	// Pair the calling Player as an existing admin (`local_setup_v1`, loopback only)
+	// Pair the calling app as an existing admin (`local_setup_v1`, loopback only)
 	// (POST /api/v1/local/pair)
 	LocalPair(ctx context.Context, request LocalPairRequestObject) (LocalPairResponseObject, error)
 	// Change network sharing and the import folder (`local_setup_v1`, loopback only, admin device)
 	// (PUT /api/v1/local/settings)
 	UpdateLocalSettings(ctx context.Context, request UpdateLocalSettingsRequestObject) (UpdateLocalSettingsResponseObject, error)
-	// Create the first admin and pair the calling Player as that admin (`local_setup_v1`, loopback only)
+	// Create the first admin and pair the calling app as that admin (`local_setup_v1`, loopback only)
 	// (POST /api/v1/local/setup)
 	LocalSetup(ctx context.Context, request LocalSetupRequestObject) (LocalSetupResponseObject, error)
 	// State of the local setup (`local_setup_v1`, loopback callers only)
@@ -13285,16 +13285,16 @@ type StrictServerInterface interface {
 	// Poll pairing request status (bearer = poll_token)
 	// (GET /api/v1/pairing/requests/{request_id})
 	GetPairingRequest(ctx context.Context, request GetPairingRequestRequestObject) (GetPairingRequestResponseObject, error)
-	// Plugin versions this Hub offers to Players (`plugins_v1`, any trusted device)
+	// Plugin versions this server offers to apps (`plugins_v1`, any trusted device)
 	// (GET /api/v1/plugins)
 	ListPlugins(ctx context.Context, request ListPluginsRequestObject) (ListPluginsResponseObject, error)
 	// Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
 	// (GET /api/v1/plugins/{plugin_id}/{version}/file)
 	GetPluginFile(ctx context.Context, request GetPluginFileRequestObject) (GetPluginFileResponseObject, error)
-	// Send a problem report to the Hub (`reports_v1`)
+	// Send a problem report to the server (`reports_v1`)
 	// (POST /api/v1/reports)
 	CreateReport(ctx context.Context, request CreateReportRequestObject) (CreateReportResponseObject, error)
-	// ROM download (range support). Only files stored on the Hub (`stored`); a file that is only registered as local is 404.
+	// ROM download (range support). Only files stored on the server (`stored`); a file that is only registered as local is 404.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(ctx context.Context, request DownloadRomRequestObject) (DownloadRomResponseObject, error)
 	// Runs the caller participates in (any participant status, not archived), most recently changed first
@@ -13306,7 +13306,7 @@ type StrictServerInterface interface {
 	// One run with every participant's per-plugin states (participants of any status only; others get 404)
 	// (GET /api/v1/runs/{run_id})
 	GetRun(ctx context.Context, request GetRunRequestObject) (GetRunResponseObject, error)
-	// Publish the plugin's board (building-block tree, at most 64 KiB) for the Hub web run page
+	// Publish the plugin's board (building-block tree, at most 64 KiB) for the server web run page
 	// (PUT /api/v1/runs/{run_id}/boards/{plugin_id})
 	PutRunBoard(ctx context.Context, request PutRunBoardRequestObject) (PutRunBoardResponseObject, error)
 	// Decline the invite (only from invited; declining again is a no-op)
@@ -13357,7 +13357,7 @@ type StrictServerInterface interface {
 	// Withdraw an invite (owner device); removes that user's viewers
 	// (DELETE /api/v1/sessions/{session_id}/invites/{user_id})
 	WithdrawSessionInvite(ctx context.Context, request WithdrawSessionInviteRequestObject) (WithdrawSessionInviteResponseObject, error)
-	// Invite a user of this Hub (owner device); a declined invite becomes open again
+	// Invite a user of this server (owner device); a declined invite becomes open again
 	// (PUT /api/v1/sessions/{session_id}/invites/{user_id})
 	InviteSessionUser(ctx context.Context, request InviteSessionUserRequestObject) (InviteSessionUserResponseObject, error)
 	// Join as viewer (ACL checked here)
@@ -13384,7 +13384,7 @@ type StrictServerInterface interface {
 	// Upload one chunk (`local_roms_v1`)
 	// (PUT /api/v1/uploads/{upload_id})
 	PutUploadChunk(ctx context.Context, request PutUploadChunkRequestObject) (PutUploadChunkResponseObject, error)
-	// Users of this Hub (for the invite field)
+	// Users of this server (for the invite field)
 	// (GET /api/v1/users)
 	ListUsers(ctx context.Context, request ListUsersRequestObject) (ListUsersResponseObject, error)
 	// WSS upgrade (presence, Session events, signaling; documentation only, the upgrade is not a JSON call)

@@ -1,4 +1,4 @@
-// FrameBeam test core: a small deterministic libretro core of our own (test only, never installed or packaged). It
+// Uzume test core: a small deterministic libretro core of our own (test only, never installed or packaged). It
 // exercises the frontend (LibretroBackend, core options, CoreLocator, EmulationRunner, GameSession, save sync) without a
 // real emulator, so merge-gating CI needs no melonDS/DeSmuME. Real cores run in the nightly workflow.
 //
@@ -14,12 +14,12 @@
 //     retro_load_game, also with NULL), fps/sample rate in the AV info.
 // Flavors (FB_TEST_CORE_FLAVOR) give it the option keys and names of the product core profiles so the profiles'
 // defaults and locks resolve against it:
-//   generic (default)  library "FrameBeam Test Core", test_* options
-//   melondsds          library "FrameBeam Test Core (melonDS DS options)", the melonds_* keys of manifests/cores/melondsds.json
-//   desmume            library "FrameBeam Test Core (DeSmuME options)", desmume_* keys, no SAVE_RAM
+//   generic (default)  library "Uzume Test Core", test_* options
+//   melondsds          library "Uzume Test Core (melonDS DS options)", the melonds_* keys of manifests/cores/melondsds.json
+//   desmume            library "Uzume Test Core (DeSmuME options)", desmume_* keys, no SAVE_RAM
 // Other environment: FB_TEST_CORE_OPTIONS (v2 default | v1 | v0), FB_TEST_CORE_NO_BITMASK=1, FB_TEST_CORE_SRAM_SIZE
 // (default 8192), FB_TEST_CORE_SRAM_DELAY_FRAMES, FB_TEST_CORE_SRAM_WRITE (byte written into SRAM[0] by the "game"),
-// FB_TEST_CORE_FF_INHIBIT=1, FB_TEST_CORE_WRITE_DIRS=1 (writes framebeam_test_core_dirs.txt into the save directory),
+// FB_TEST_CORE_FF_INHIBIT=1, FB_TEST_CORE_WRITE_DIRS=1 (writes uzume_test_core_dirs.txt into the save directory),
 // FB_TEST_CORE_FPS, FB_TEST_CORE_SAMPLE_RATE, FB_TEST_CORE_NO_NOGAME=1 (does not declare SET_SUPPORT_NO_GAME).
 #include <algorithm>
 #include <cmath>
@@ -44,7 +44,7 @@
 #endif
 
 namespace {
-namespace tc = framebeam::testcore;
+namespace tc = uzume::testcore;
 
 enum class Flavor { Generic, Melonds, Desmume };
 
@@ -464,7 +464,7 @@ void fillParty(uint8_t* block) {
   putU32(block, tc::mem::kPartySlots);
   for (uint32_t i = 0; i < tc::mem::kPartySlots; ++i) {
     const uint32_t ec = tc::mem::kSlotEcBase | (tc::mem::kSlotMarker + i);
-    const auto pk = framebeam::synth::makePk6(ec, static_cast<uint16_t>(tc::mem::kSpeciesBase + i), true, 100 + i);
+    const auto pk = uzume::synth::makePk6(ec, static_cast<uint16_t>(tc::mem::kSpeciesBase + i), true, 100 + i);
     std::memcpy(block + 4 + i * tc::mem::kPartySlotSize, pk.encrypted.data(), tc::mem::kPartySlotSize);
   }
 }
@@ -526,9 +526,9 @@ FB_EXPORT void retro_deinit() {}
 FB_EXPORT void retro_get_system_info(retro_system_info* i) {
   std::memset(i, 0, sizeof(*i));
   switch (flavor()) {
-    case Flavor::Melonds: i->library_name = "FrameBeam Test Core (melonDS DS options)"; break;
-    case Flavor::Desmume: i->library_name = "FrameBeam Test Core (DeSmuME options)"; break;
-    default: i->library_name = "FrameBeam Test Core"; break;
+    case Flavor::Melonds: i->library_name = "Uzume Test Core (melonDS DS options)"; break;
+    case Flavor::Desmume: i->library_name = "Uzume Test Core (DeSmuME options)"; break;
+    default: i->library_name = "Uzume Test Core"; break;
   }
   i->library_version = "1.0-test";
   i->valid_extensions = "nds|bin";
@@ -560,7 +560,7 @@ FB_EXPORT bool retro_load_game(const retro_game_info* info) {
   if (g_env && g_env(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &sys) && sys) g_dirsFlags |= 1;
   if (g_env && g_env(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &save) && save) g_dirsFlags |= 2;
   if (envSet("FB_TEST_CORE_WRITE_DIRS") && save) {
-    const std::string path = std::string(save) + "/framebeam_test_core_dirs.txt";
+    const std::string path = std::string(save) + "/uzume_test_core_dirs.txt";
     if (std::FILE* f = std::fopen(path.c_str(), "wb")) {
       std::fprintf(f, "system=%s\nsave=%s\n", sys ? sys : "", save);
       std::fclose(f);

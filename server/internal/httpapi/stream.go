@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/phabioo/framebeam/server/internal/rollwrite"
+	"github.com/phabioo/uzume/server/internal/rollwrite"
 )
 
 // isStreamRoute reports whether a GET request serves file content that is streamed to the client (core files,

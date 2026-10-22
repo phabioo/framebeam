@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/backup"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/backup"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
 func str(s string) *string { return &s }
@@ -122,7 +122,7 @@ func TestBackupRunRetentionAndList(t *testing.T) {
 		t.Fatalf("no problem expected: %+v", p)
 	}
 	// Delete: only a plain archive name of the folder.
-	if err := e.svc.DeleteBackup(ctx, "../framebeam.db"); !errors.Is(err, hub.ErrNotFound) {
+	if err := e.svc.DeleteBackup(ctx, "../uzume.db"); !errors.Is(err, hub.ErrNotFound) {
 		t.Fatalf("%v", err)
 	}
 	if err := e.svc.DeleteBackup(ctx, list[1].Name); err != nil {
@@ -250,7 +250,7 @@ func TestBackupContainsDatabaseAndData(t *testing.T) {
 	for _, x := range m.Members {
 		names[x.Name] = true
 	}
-	for _, want := range []string{"database/framebeam.db", "data/saves/u/g/main/aaaa", "data/plugins/p/1/main.lua"} {
+	for _, want := range []string{"database/uzume.db", "data/saves/u/g/main/aaaa", "data/plugins/p/1/main.lua"} {
 		if !names[want] {
 			t.Errorf("missing %s", want)
 		}
@@ -280,7 +280,7 @@ func TestRestorePreparesAndRejectsBadBackups(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := e.svc.StartRestore(ctx, newer.Name, "admin"); err == nil || !strings.Contains(err.Error(), "newer FrameBeam Hub") {
+	if err := e.svc.StartRestore(ctx, newer.Name, "admin"); err == nil || !strings.Contains(err.Error(), "newer Uzume server") {
 		t.Fatalf("newer schema: %v", err)
 	}
 	if _, err := e.svc.RestoreInfo(ctx, newer.Name); err == nil {
@@ -290,7 +290,7 @@ func TestRestorePreparesAndRejectsBadBackups(t *testing.T) {
 		t.Fatal("nothing may be pending")
 	}
 
-	// A damaged file: the safety backup is made, then the checksum check stops it and the Hub runs as before.
+	// A damaged file: the safety backup is made, then the checksum check stops it and the server runs as before.
 	b, _ := os.ReadFile(filepath.Join(e.folder, name))
 	i := bytes.Index(b, []byte("SYNTHETIC-SAVE-CONTENT"))
 	b[i] ^= 0xff
@@ -332,7 +332,7 @@ func TestRestorePreparesAndRejectsBadBackups(t *testing.T) {
 	if !backup.HasPending(e.data) {
 		t.Fatal("restore must be pending for the next start")
 	}
-	if _, err := os.Stat(filepath.Join(e.data, backup.StagingDir, "framebeam.db")); err != nil {
+	if _, err := os.Stat(filepath.Join(e.data, backup.StagingDir, "uzume.db")); err != nil {
 		t.Fatal("staging must hold the database")
 	}
 	st = e.svc.BackupStatus(ctx)

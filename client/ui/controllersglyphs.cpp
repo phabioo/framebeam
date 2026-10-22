@@ -2,7 +2,7 @@
 
 #include "controllerprofiles.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 
@@ -55,11 +55,11 @@ const Direction kDirections[] = {
     {"rightx-", "left", "Right stick", "rstick"}, {"rightx+", "right", "Right stick", "rstick"},
 };
 
-// Generic name of a physical button: the label of the FrameBeam input that the built-in profile binds first to it.
+// Generic name of a physical button: the label of the Uzume input that the built-in profile binds first to it.
 QString genericName(const QString& sdlName) {
   const ControllerProfile def = ControllerProfiles::builtinProfile(QStringLiteral("gamepad"));
   const QString token = padToken(sdlName);
-  for (const InputDef& in : frameBeamInputs()) {
+  for (const InputDef& in : uzumeInputs()) {
     const QStringList t = def.bindings.value(in.id);
     if (!t.isEmpty() && t.first() == token) return in.label;
   }
@@ -159,7 +159,7 @@ QVariantList inputTestCells(const QString& setIn) {
     const QString sdl = QString::fromLatin1(p.sdl);
     const QString token = padToken(sdl);
     QString id = QString::fromLatin1(p.fallbackId);
-    for (const InputDef& in : frameBeamInputs()) {
+    for (const InputDef& in : uzumeInputs()) {
       const QStringList t = def.bindings.value(in.id);
       if (!t.isEmpty() && t.first() == token) id = in.id;
     }
@@ -184,4 +184,4 @@ QVariantList inputTestCells(const QString& setIn) {
   return cells;
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

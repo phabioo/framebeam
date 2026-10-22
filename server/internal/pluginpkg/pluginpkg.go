@@ -1,5 +1,5 @@
-// Package pluginpkg is the .fbplugin file format of FrameBeam plugins (0.11, docs/architecture/12-plugins.md
-// section 16.10): validation of the zip, the manifest rules shared with the Player (client/plugins/manifest.cpp),
+// Package pluginpkg is the .fbplugin file format of Uzume plugins (0.11, docs/architecture/12-plugins.md
+// section 16.10): validation of the zip, the manifest rules shared with the app (client/plugins/manifest.cpp),
 // the optional SIGNATURE.json with its Ed25519 signature, and the signed plugin index.
 package pluginpkg
 
@@ -21,11 +21,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
-// Limits of a .fbplugin file (identical in the Hub and the Player).
+// Limits of a .fbplugin file (identical in the server and the app).
 const (
 	MaxCompressedBytes   = 32 << 20
 	MaxUncompressedBytes = 64 << 20
@@ -42,9 +42,9 @@ const (
 )
 
 // SignaturePrefix starts the signed message (see SignedMessage).
-const SignaturePrefix = "framebeam-plugin-v1\n"
+const SignaturePrefix = "uzume-plugin-v1\n"
 
-// APIVersion is the only plugin API version this Hub knows.
+// APIVersion is the only plugin API version this server knows.
 const APIVersion = 1
 
 // ErrInvalid wraps every validation failure of a file (errors.Is).
@@ -65,7 +65,7 @@ type Game struct {
 	Codes  []string `json:"codes"`
 }
 
-// Manifest is the part of manifest.json the Hub needs. The unmodified bytes are kept in Package.RawManifest.
+// Manifest is the part of manifest.json the server needs. The unmodified bytes are kept in Package.RawManifest.
 type Manifest struct {
 	API         int               `json:"api"`
 	ID          string            `json:"id"`
@@ -266,7 +266,7 @@ func (p *Package) Data() []byte { return p.data }
 // HasSignature reports whether SIGNATURE.json is present.
 func (p *Package) HasSignature() bool { return p.hasSig }
 
-// ParseManifest checks manifest.json by the Player rules: api == 1, id, name, version (SemVer 2.0), type script,
+// ParseManifest checks manifest.json by the app rules: api == 1, id, name, version (SemVer 2.0), type script,
 // entry (relative .lua path), and the shape of requires, provides, permissions, games and assets. Other fields are
 // ignored.
 func ParseManifest(raw []byte) (Manifest, error) {
@@ -287,7 +287,7 @@ func ParseManifest(raw []byte) (Manifest, error) {
 		return m, invalid("manifest field 'api' must be an integer")
 	}
 	if int(api) != APIVersion {
-		return m, invalid("plugin API %d is not supported (this Hub knows API %d)", int(api), APIVersion)
+		return m, invalid("plugin API %d is not supported (this server knows API %d)", int(api), APIVersion)
 	}
 	m.API = APIVersion
 	str := func(key string, required bool) (string, error) {
@@ -475,7 +475,7 @@ type SignatureFile struct {
 	Signature string            `json:"signature"`
 }
 
-// SignedMessage is the byte string that is signed: "framebeam-plugin-v1\n" and, for each file sorted by path (byte
+// SignedMessage is the byte string that is signed: "uzume-plugin-v1\n" and, for each file sorted by path (byte
 // order), "<sha256>  <path>\n" (two spaces).
 func SignedMessage(files map[string]string) []byte {
 	names := make([]string, 0, len(files))

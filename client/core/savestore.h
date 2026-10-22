@@ -5,7 +5,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace framebeam {
+namespace uzume {
 
 class ProfileStore;
 
@@ -85,4 +85,4 @@ class SaveStore {
                             const QString& expectedName);
 };
 
-}  // namespace framebeam
+}  // namespace uzume

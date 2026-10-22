@@ -1,15 +1,15 @@
 # Protocol reference
 
-Shared protocol definition for server and app: `protocol/openapi/framebeam.yaml` (OpenAPI 3.0.3) and `protocol/schemas/` (WSS message schemas, draft 2020-12, with examples). Summary and navigation: [protocol/README.md](../../protocol/README.md). Rules for agents: `protocol/CLAUDE.md`.
+Shared protocol definition for server and app: `protocol/openapi/uzume.yaml` (OpenAPI 3.0.3) and `protocol/schemas/` (WSS message schemas, draft 2020-12, with examples). Summary and navigation: [protocol/README.md](../../protocol/README.md). Rules for agents: `protocol/CLAUDE.md`.
 
 - Current `protocol_version`: **1** (integer, separate from product versions). Server and app each report `protocol_version` and `min_protocol_version`.
 - Compatibility: `Player.protocol_version < Hub.min_protocol_version` -> `player_too_old`; `Hub.protocol_version < Player.min_protocol_version` -> `hub_too_old`.
 - Error format: `{"error": {"code": <enum>, "message": string}}`. Auth: Bearer (`fba_` access token, 15 min, `fbd_` device credential, `fbp_` poll token).
-- Current OpenAPI spec version: 1.26.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only while a relay provider is on: embedded TURN, Cloudflare TURN and/or an external TURN server), `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `cores_v2`, `local_setup_v1`, `ice_update_v1`, `plugins_v1`, `runs_v1`, `local_roms_v1`, `reports_v1`; `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
+- Current OpenAPI spec version: 1.27.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only while a relay provider is on: embedded TURN, Cloudflare TURN and/or an external TURN server), `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `cores_v2`, `local_setup_v1`, `ice_update_v1`, `plugins_v1`, `runs_v1`, `local_roms_v1`, `reports_v1`; `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
 
 | Method | Path | Auth | operationId |
 |---|---|---|---|
-| GET | `/.well-known/framebeam` | none | getHubInfo |
+| GET | `/.well-known/uzume` | none | getHubInfo |
 | POST | `/api/v1/pairing/requests` | none | createPairingRequest |
 | GET | `/api/v1/pairing/requests/{request_id}` | poll token | getPairingRequest |
 | POST | `/api/v1/auth/token` | none | createAccessToken |
@@ -20,14 +20,14 @@ Shared protocol definition for server and app: `protocol/openapi/framebeam.yaml`
 | GET | `/api/v1/roms/{sha256}` | Bearer | downloadRom (Range, ETag) |
 | GET | `/api/v1/saves` | Bearer | listSaves |
 | GET | `/api/v1/games/{game_id}/saves/{slot}` | Bearer | getSaveSlot |
-| PUT | `/api/v1/games/{game_id}/saves/{slot}` | Bearer | putSave (raw body, `X-FrameBeam-Base-Revision`/`-Content-SHA256`/`-Sync-Reason`, 409 `save_conflict`) |
-| GET | `/api/v1/games/{game_id}/saves/{slot}/content` | Bearer | downloadSaveContent (ETag, `X-FrameBeam-Save-Revision`) |
+| PUT | `/api/v1/games/{game_id}/saves/{slot}` | Bearer | putSave (raw body, `X-Uzume-Base-Revision`/`-Content-SHA256`/`-Sync-Reason`, 409 `save_conflict`) |
+| GET | `/api/v1/games/{game_id}/saves/{slot}/content` | Bearer | downloadSaveContent (ETag, `X-Uzume-Save-Revision`) |
 | GET | `/api/v1/games/{game_id}/saves/{slot}/history` | Bearer | listSaveHistory |
 | GET | `/api/v1/games/{game_id}/saves/{slot}/history/{version}/content` | Bearer | downloadSaveHistoryContent |
 | POST | `/api/v1/games/{game_id}/saves/{slot}/history/{version}/restore` | Bearer | restoreSaveHistoryVersion (`{expected_revision}`, 200 SaveSlot, 409 `save_conflict_stale`; `saves_v2`) |
 | POST | `/api/v1/games/{game_id}/saves/{slot}/snapshots` | Bearer | createSaveSnapshot (optional `{label}`, 201 SaveHistoryVersion, 404 without checkpoint; `saves_v2`) |
 | DELETE | `/api/v1/games/{game_id}/saves/{slot}/history/{version}` | Bearer | deleteSaveVersion (204; any history version since `saves_v6`, before only `manual_snapshot` (409 `save_not_snapshot`, no longer returned); 409 `conflict` for the secured version of an open conflict; 404 when missing; `saves_v3`) |
-| POST | `/api/v1/games/{game_id}/saves/{slot}/upload` | Bearer | uploadSaveFile (409 `session_running` while a Session of the caller runs the game since `saves_v5`; raw `application/octet-stream`, headers `X-FrameBeam-Content-SHA256` and `X-FrameBeam-Expected-Revision`, 0 = slot must not exist; 200 SaveSlot, 400 `bad_request`, 404, 409 `save_conflict_stale`, 413 `payload_too_large`; `saves_v4`) |
+| POST | `/api/v1/games/{game_id}/saves/{slot}/upload` | Bearer | uploadSaveFile (409 `session_running` while a Session of the caller runs the game since `saves_v5`; raw `application/octet-stream`, headers `X-Uzume-Content-SHA256` and `X-Uzume-Expected-Revision`, 0 = slot must not exist; 200 SaveSlot, 400 `bad_request`, 404, 409 `save_conflict_stale`, 413 `payload_too_large`; `saves_v4`) |
 | POST | `/api/v1/games/{game_id}/saves/{slot}/rename` | Bearer | renameSaveSlot (`{name}`, 200 SaveSlot under the new name; 400 invalid or same name incl. Windows reserved names, 404 unknown slot, 409 `save_slot_exists`, 409 `save_slot_protected` for `default` (rename only; the main slot can be deleted since `saves_v6`), 409 `session_running`; `saves_v5`) |
 | DELETE | `/api/v1/games/{game_id}/saves/{slot}` | Bearer | deleteSaveSlot (required query `confirm_revision` = the checkpoint revision the caller saw; 204, hard delete of checkpoint, history, conflicts and content; 400 missing or invalid `confirm_revision`, 404 unknown slot, 409 `save_conflict_stale` on a different revision, 409 `save_slot_protected` for `default`, 409 `session_running`, 409 `conflict` while the slot has an open conflict; `saves_v5`) |
 | POST | `/api/v1/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve` | Bearer | resolveSaveConflict (409 `save_conflict_stale`) |
@@ -112,7 +112,7 @@ Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.sc
 
 The release feed of the updaters is specified in [update-index.md](update-index.md).
 
-0.7.x "Upload a save file" (OpenAPI 1.8.0, `protocol_version` stays 1). Added: handshake feature `saves_v4`; `uploadSaveFile` (`POST .../saves/{slot}/upload`): deliberate replacement of a slot's checkpoint with a file from outside the sync flow (for example a `.sav` from another emulator); it never creates a conflict, a stale `X-FrameBeam-Expected-Revision` returns 409 `save_conflict_stale`, an existing checkpoint is secured in the history first; `SaveSyncReason` `upload`, `SaveHistoryReason` `before_upload`; `save_updated` `reason` `upload`. The server web admin offers the same upload for admins.
+0.7.x "Upload a save file" (OpenAPI 1.8.0, `protocol_version` stays 1). Added: handshake feature `saves_v4`; `uploadSaveFile` (`POST .../saves/{slot}/upload`): deliberate replacement of a slot's checkpoint with a file from outside the sync flow (for example a `.sav` from another emulator); it never creates a conflict, a stale `X-Uzume-Expected-Revision` returns 409 `save_conflict_stale`, an existing checkpoint is secured in the history first; `SaveSyncReason` `upload`, `SaveHistoryReason` `before_upload`; `save_updated` `reason` `upload`. The server web admin offers the same upload for admins.
 
 0.8 "Cores from the libretro buildbot" (OpenAPI 1.9.0, ADR 0020, `protocol_version` stays 1). Added: handshake feature `cores_v2`; optional `default_core_id` and `cores` (`SystemCore`: `core_id`, `display_name`, `version`, `license`, `experimental`, `required_hw_api`, `origin`, optional `build_date`) in `SystemInfo`; optional `origin` in `CorePackage`; core ids relaxed to `^[a-z0-9][a-z0-9_-]{0,63}$`. `preferred_core_id`, `expected_core_version` and `core_package_version` keep describing the default core for apps without `cores_v2`. Removed: `cores_index_v1`, `getCoresIndex`, `getCoresIndexSignature`. Packages from the buildbot carry no license file.
 
@@ -145,3 +145,7 @@ The release feed of the updaters is specified in [update-index.md](update-index.
 0.17 "Report a problem" (OpenAPI 1.25.0, `protocol_version` stays 1, handshake feature `reports_v1`, ADR 0029 D3). Added: `createReport` (`POST /api/v1/reports`, any paired device, `multipart/form-data` with the JSON part `meta` first, then `files`; 201 `{id}`; 400 `bad_request`, 413 `payload_too_large` above 25 MiB or 12 files, 429 `rate_limited` above 5 per device and hour); admin only: `listAdminReports` (`GET /api/v1/admin/reports?status=new|seen`), `getAdminReport`, `deleteAdminReport` (`/api/v1/admin/reports/{id}`), `markAdminReportSeen` (`POST .../seen`), `getAdminReportFile` (`GET .../files/{name}`) and `getAdminReportArchive` (`GET .../archive`, `application/zip`). Reports are kept until an admin deletes them.
 
 0.17 "Update rollback" (OpenAPI 1.26.0, `protocol_version` stays 1, no new feature, ADR 0029 D4). Added, admin only: `getAdminUpdateVersions` (`GET /api/v1/admin/updates/versions`: earlier versions from the signed index, pause state), `rollbackAdminUpdate` (`POST /api/v1/admin/updates/rollback`; 409 when the version is refused or needs `confirm_data_loss`) and `resumeAdminUpdates` (`POST /api/v1/admin/updates/resume`). The update index gains the optional entry fields `schema_version` (server) and `msi_downgrade` (app MSI); the plugin manifest gains the optional `min_player`.
+
+0.18 "Rename to Uzume" (OpenAPI 1.26.1, `protocol_version` stays 1, no new feature, [ADR 0030](../adr/0030-one-app-one-server-uzume.md)). Changed: the file is `protocol/openapi/uzume.yaml` with the title "Uzume server API", texts say server and app, the JSON schema `$id` host is `uzume.invalid`, the invite example is `UZ-...`. Unchanged: all message names and JSON fields and the error codes (`player_too_old`, `hub_too_old`). New invite codes look like `UZ-XXXX-XXXX`.
+
+0.18 "Rename, round 2" (OpenAPI 1.27.0, `protocol_version` stays 1, no new feature, [ADR 0030](../adr/0030-one-app-one-server-uzume.md)). Changed on the wire, without compatibility: the info path is `/.well-known/uzume`, the headers are `X-Uzume-Base-Revision`, `X-Uzume-Content-SHA256`, `X-Uzume-Sync-Reason`, `X-Uzume-Save-Revision` and `X-Uzume-Expected-Revision`, the core origin value is `legacy-mirror`. Only `UZ-` invite codes are accepted. An app and a server of the two naming generations do not work together.

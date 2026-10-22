@@ -12,7 +12,7 @@
 
 #include "rtcutil.h"
 
-namespace framebeam {
+namespace uzume {
 
 struct ConnectionTestRunner::Impl {
   std::mutex m;
@@ -180,4 +180,4 @@ std::unique_ptr<ConnectionProbes> makeConnectionProbes(const ProbeTimings& timin
   return makeQtConnectionProbes(std::move(test), std::move(cancel), timings);
 }
 
-}  // namespace framebeam
+}  // namespace uzume

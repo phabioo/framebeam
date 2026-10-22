@@ -13,7 +13,7 @@
 
 #include "savestore.h"
 
-namespace framebeam::sdtree {
+namespace uzume::sdtree {
 
 namespace {
 
@@ -466,4 +466,4 @@ QString fingerprint(const QString& root) {
   return QString::fromLatin1(h.result().toHex());
 }
 
-}  // namespace framebeam::sdtree
+}  // namespace uzume::sdtree

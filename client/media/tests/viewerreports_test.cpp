@@ -3,7 +3,7 @@
 
 #include "viewerreports.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 class ViewerReportsTest : public QObject {
   Q_OBJECT

@@ -6,7 +6,7 @@
 
 #include "emulationsettings.h"
 
-using namespace framebeam;
+using namespace uzume;
 using L = EmulationSettings::Level;
 using S = EmulationSettings::Source;
 
@@ -98,11 +98,11 @@ class EmulationSettingsTest : public QObject {
              QStringLiteral("melonds_ds"));
   }
 
-  // The core choice (ADR 0020 D6) is a FrameBeam key at system and game level and survives a reload.
+  // The core choice (ADR 0020 D6) is an Uzume key at system and game level and survives a reload.
   void coreChoiceRoundTrip() {
     QTemporaryDir dir;
     const QString key = QString::fromLatin1(EmulationSettings::kCoreKey);
-    QCOMPARE(key, QStringLiteral("framebeam.core"));
+    QCOMPARE(key, QStringLiteral("uzume.core"));
     {
       EmulationSettings s(dir.path());
       QVERIFY(s.setValue(L::System, QStringLiteral("nds"), key, QStringLiteral("desmume")));

@@ -1,12 +1,12 @@
 #pragma once
-// GpuDisplayTarget: producer of the zero-copy game view (ADR 0027). framebeam_emulation only defines the interface;
-// the implementation (a platform display ring behind framebeam::DisplayProducer) lives outside and is injected by the UI.
+// GpuDisplayTarget: producer of the zero-copy game view (ADR 0027). uzume_emulation only defines the interface;
+// the implementation (a platform display ring behind uzume::DisplayProducer) lives outside and is injected by the UI.
 // Unlike GpuEncodeTarget the target owns the GL texture that receives the frame; HwRenderContext only attaches it to an
 // FBO, blits into it and never deletes it.
 #include <QSize>
 #include <QString>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 class GpuDisplayTarget {
  public:
@@ -30,4 +30,4 @@ class GpuDisplayTarget {
   virtual void fail(const QString& reason) = 0;
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

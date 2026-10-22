@@ -5,7 +5,7 @@
 #include "lauxlib.h"
 #include "lua.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 namespace {
 
@@ -182,4 +182,4 @@ std::string shortText(const Value& v, size_t maxLen) {
   return out;
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

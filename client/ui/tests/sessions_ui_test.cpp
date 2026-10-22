@@ -1,5 +1,5 @@
 // UI: sessions in the library, watching, Session panel, multiview, diagnostics (offscreen, FakeHub, no real network).
-// Tests with a running game need the DS core and the homebrew test ROM (QSKIP without FRAMEBEAM_MELONDS_DS_CORE; ui_sessions_testcore runs them against the FrameBeam test core).
+// Tests with a running game need the DS core and the homebrew test ROM (QSKIP without UZUME_MELONDS_DS_CORE; ui_sessions_testcore runs them against the Uzume test core).
 #include <QFile>
 #include <QQmlContext>
 #include <QQmlProperty>
@@ -18,8 +18,8 @@
 #define QTRY_VERIFY2(expr, msg) QTRY_VERIFY2_WITH_TIMEOUT(expr, msg, 15000)
 #define QTRY_COMPARE(actual, expected) QTRY_COMPARE_WITH_TIMEOUT(actual, expected, 15000)
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 namespace {
@@ -192,7 +192,7 @@ class SessionsUiTest : public QObject {
   };
 
   static bool startGame(GameRig& r, bool share) {
-    if (qEnvironmentVariableIsEmpty("FRAMEBEAM_MELONDS_DS_CORE")) {
+    if (qEnvironmentVariableIsEmpty("UZUME_MELONDS_DS_CORE")) {
       return false;
     }
     QFile f(QStringLiteral(FB_TEST_ROM_PATH));
@@ -203,7 +203,7 @@ class SessionsUiTest : public QObject {
     const QString sha = uitest::sha256Hex(r.rom);
     prepareHub(r.hub);
     QJsonArray games;
-    games.append(uitest::gameJson(QStringLiteral("t1"), QStringLiteral("Framebeam Test"), sha, r.rom.size(), QStringLiteral("framebeam_test.nds")));
+    games.append(uitest::gameJson(QStringLiteral("t1"), QStringLiteral("Uzume Test"), sha, r.rom.size(), QStringLiteral("uzume_test.nds")));
     r.hub.games = QJsonObject{{QStringLiteral("games"), games}};
     r.hub.roms.insert(sha, r.rom);
     r.hub.fakeUsers = QJsonArray{
@@ -263,7 +263,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(h.start());
     QCOMPARE(h.controller->sessions()->visibility(), QStringLiteral("private"));
     QVERIFY(!QFile::exists(legacy));
-    QCOMPARE(framebeam::PlayerSettings(h.dir.path()).sessionVisibility(), QStringLiteral("private"));
+    QCOMPARE(uzume::PlayerSettings(h.dir.path()).sessionVisibility(), QStringLiteral("private"));
   }
 
   void sessionsSectionRenderingAndActions() {

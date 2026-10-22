@@ -76,7 +76,7 @@ Do not return full logs or file contents. Do not commit.
 ## Packages and PRs
 
 - One PR per package with green CI, one topic per PR.
-- Every PR description has a `## Changelog` section (`### Added|Changed|Fixed|Removed|Security`, optional `Hub:`/`Player:` prefix, or `none` for CI, docs, test and refactoring-only PRs); the check "Changelog section" requires it ([ADR 0028](adr/0028-release-notes-and-changelogs.md)).
+- Every PR description has a `## Changelog` section (`### Added|Changed|Fixed|Removed|Security`, optional `Server:`/`App:` prefix (`Hub:`/`Player:` still accepted), or `none` for CI, docs, test and refactoring-only PRs); the check "Changelog section" requires it ([ADR 0028](adr/0028-release-notes-and-changelogs.md)).
 - At every milestone, the PR updates `docs/roadmap.md` (status), the status line in `README.md`, `docs/features.md` and the affected guides under `docs/guides/`; READMEs stay short, detail goes to `docs/`.
 
 ## Phase plan

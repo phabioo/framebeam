@@ -10,7 +10,7 @@ import (
 func (s *sessEnv) uploadSave(d dev, slot string, expected int, data []byte) *httptest.ResponseRecorder {
 	s.t.Helper()
 	return s.do("POST", s.savePath(slot, "/upload"), nil, opt{token: d.tok, data: data, ctype: "application/octet-stream", raw: true,
-		header: map[string]string{"X-FrameBeam-Expected-Revision": fmt.Sprint(expected), "X-FrameBeam-Content-SHA256": hexSHA(data)}})
+		header: map[string]string{"X-Uzume-Expected-Revision": fmt.Sprint(expected), "X-Uzume-Content-SHA256": hexSHA(data)}})
 }
 
 func (s *sessEnv) deleteSlot(d dev, slot, confirm string) *httptest.ResponseRecorder {
@@ -143,7 +143,7 @@ func TestDeleteSaveSlotAPI(t *testing.T) {
 	wantStatus(t, s.deleteSlot(d1, "run", "2"), 409, "conflict")
 	wantStatus(t, s.putSave(d1, "other", 0, []byte("o"), "checkpoint"), 200, "")
 
-	// Resolve the conflict (use the Hub version), then delete.
+	// Resolve the conflict (use the server version), then delete.
 	sl := decode[slotResp](t, s.api(d1, "GET", s.savePath("run", ""), nil))
 	wantStatus(t, s.api(d1, "POST", s.savePath("run", "/conflicts/"+sl.OpenConflicts[0].ID+"/resolve"),
 		map[string]any{"resolution": "use_hub", "expected_revision": 2}), 200, "")

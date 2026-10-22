@@ -22,7 +22,7 @@
 #include "plugin_value.h"
 #include "plugin_video.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 // Thread-safe console data shared with the UI thread.
 class ConsoleStore {
@@ -196,4 +196,4 @@ void registerFbApi(PluginEngine& engine, Plugin& p);
 // Formats one watched value ("u8", "u16", "u32", "s32", "hex"); nullopt when not in the snapshot.
 std::optional<QString> formatWatched(const MemoryProvider& mem, const DevWatch& w);
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

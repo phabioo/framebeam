@@ -4,7 +4,7 @@
 #include <QStringList>
 #include <optional>
 
-namespace framebeam::update {
+namespace uzume::update {
 
 // SemVer 2.0.0. Build metadata (+...) is parsed but ignored for precedence and for toString().
 struct SemVer {
@@ -28,4 +28,4 @@ std::optional<int> compareVersions(const QString& a, const QString& b);
 enum class CoreVersionVerdict { Compatible, Warn, Block };
 CoreVersionVerdict coreVersionVerdict(const QString& coreVersion, const QString& expectedVersion);
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

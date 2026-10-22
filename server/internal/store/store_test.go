@@ -65,7 +65,7 @@ func TestBackupBeforeMigration(t *testing.T) {
 	nowFunc = func() time.Time { return time.Date(2026, 10, 7, 12, 30, 45, 0, time.UTC) }
 	t.Cleanup(func() { nowFunc = old })
 	dir := t.TempDir()
-	p := filepath.Join(dir, "framebeam.db")
+	p := filepath.Join(dir, "uzume.db")
 
 	// A fresh database is not backed up.
 	db, err := Open(p)
@@ -210,8 +210,8 @@ func TestMigration0009AdoptsLegacyCoreAsDefault(t *testing.T) {
 			cachedAt = "5"
 		}
 		for _, q := range []string{
-			`INSERT INTO core_packages VALUES ('melonds_ds','1.3.0','linux-x64','GPL-3.0','u','r','FrameBeam CI',1)`,
-			`INSERT INTO core_packages VALUES ('melonds_ds','1.4.0','linux-x64','GPL-3.0','u','r','FrameBeam CI',2)`,
+			`INSERT INTO core_packages VALUES ('melonds_ds','1.3.0','linux-x64','GPL-3.0','u','r','Uzume CI',1)`,
+			`INSERT INTO core_packages VALUES ('melonds_ds','1.4.0','linux-x64','GPL-3.0','u','r','Uzume CI',2)`,
 			`INSERT INTO core_package_files VALUES ('melonds_ds','1.3.0','linux-x64','a.so','library',1,'aa','u',5)`,
 			`INSERT INTO core_package_files VALUES ('melonds_ds','1.4.0','linux-x64','a.so','library',1,'bb','u',` + cachedAt + `)`,
 		} {
@@ -228,7 +228,7 @@ func TestMigration0009AdoptsLegacyCoreAsDefault(t *testing.T) {
 	db := setup(t, true)
 	var ver, origin, def, lib string
 	if err := db.QueryRow(`SELECT version, origin FROM system_cores WHERE system_id = 'nds' AND core_id = 'melonds_ds'`).Scan(&ver, &origin); err != nil ||
-		ver != "1.4.0" || origin != "framebeam" {
+		ver != "1.4.0" || origin != "legacy-mirror" {
 		t.Fatalf("%q %q %v", ver, origin, err)
 	}
 	db.QueryRow(`SELECT default_core_id, libretro_ids FROM systems WHERE id = 'nds'`).Scan(&def, &lib)
@@ -236,7 +236,7 @@ func TestMigration0009AdoptsLegacyCoreAsDefault(t *testing.T) {
 		t.Fatalf("default %q libretro %q", def, lib)
 	}
 	db.QueryRow(`SELECT origin FROM core_packages WHERE version = '1.3.0'`).Scan(&origin)
-	if origin != "framebeam" {
+	if origin != "legacy-mirror" {
 		t.Fatalf("package origin %q", origin)
 	}
 	var n int
@@ -267,7 +267,7 @@ func TestMigration0009WithoutLegacyPackagesInstallsNothing(t *testing.T) {
 
 // Migration 0015 (local ROMs): every existing game becomes a stored file of itself; the version column stays NULL.
 func TestMigration0015ExistingGames(t *testing.T) {
-	p := filepath.Join(t.TempDir(), "framebeam.db")
+	p := filepath.Join(t.TempDir(), "uzume.db")
 	raw := rawDB(t, p)
 	if err := migrate(raw, "", 14); err != nil {
 		t.Fatal(err)
@@ -323,7 +323,7 @@ func TestMigration0015ExistingGames(t *testing.T) {
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 
 func TestMigration0017ExistingRowsGetDefaults(t *testing.T) {
-	p := filepath.Join(t.TempDir(), "framebeam.db")
+	p := filepath.Join(t.TempDir(), "uzume.db")
 	raw := rawDB(t, p)
 	if err := migrate(raw, "", 16); err != nil {
 		t.Fatal(err)
@@ -347,7 +347,7 @@ func TestMigration0017ExistingRowsGetDefaults(t *testing.T) {
 	var sys, core string
 	var forUser sql.NullString
 	if err := db.QueryRow(`SELECT COALESCE((SELECT MIN(core_auto_update) FROM systems), 'none')`).Scan(&sys); err != nil || sys != "" {
-		t.Fatalf("systems.core_auto_update %q (%v): existing systems follow the Hub default", sys, err)
+		t.Fatalf("systems.core_auto_update %q (%v): existing systems follow the server default", sys, err)
 	}
 	if err := db.QueryRow(`SELECT auto_update FROM system_cores WHERE core_id = 'testcore'`).Scan(&core); err != nil || core != "" {
 		t.Fatalf("system_cores.auto_update %q (%v): existing cores follow the system", core, err)

@@ -23,7 +23,7 @@
 #include "processguard.h"
 
 using Microsoft::WRL::ComPtr;
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 

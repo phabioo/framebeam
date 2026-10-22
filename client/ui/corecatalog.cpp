@@ -14,7 +14,7 @@
 #include "semver.h"
 #include "version.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 CoreCatalog::CoreCatalog(const Deps& d, QObject* parent)
     : QObject(parent),
@@ -492,4 +492,4 @@ QString CoreCatalog::systemDir() const {
   return systemDirIn(profiles_->baseDir());
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

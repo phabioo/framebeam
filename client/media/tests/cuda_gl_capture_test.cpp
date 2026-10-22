@@ -19,7 +19,7 @@
 #include "cudaglcapture.h"
 #include "processguard.h"
 
-using namespace framebeam;
+using namespace uzume;
 using fbtest::FakeCuda;
 using Status = CudaGlCapture::Status;
 

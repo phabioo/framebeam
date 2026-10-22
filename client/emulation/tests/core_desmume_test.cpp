@@ -1,5 +1,5 @@
 // Smoke test with the real DeSmuME core and the self-generated homebrew test ROM (ADR 0020 D6 profile).
-// Without FRAMEBEAM_DESMUME_CORE: return code 77 (ctest: SKIP).
+// Without UZUME_DESMUME_CORE: return code 77 (ctest: SKIP).
 #include <QCoreApplication>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -8,7 +8,7 @@
 #include "libretro_backend.h"
 #include "system_manifest.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 class DesmumeCoreTest : public QObject {
   Q_OBJECT
@@ -67,8 +67,8 @@ class DesmumeCoreTest : public QObject {
 };
 
 int main(int argc, char** argv) {
-  if (qEnvironmentVariableIsEmpty("FRAMEBEAM_DESMUME_CORE")) {
-    std::puts("FRAMEBEAM_DESMUME_CORE not set - test skipped");
+  if (qEnvironmentVariableIsEmpty("UZUME_DESMUME_CORE")) {
+    std::puts("UZUME_DESMUME_CORE not set - test skipped");
     return 77;
   }
   QCoreApplication app(argc, argv);

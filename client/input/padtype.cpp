@@ -2,7 +2,7 @@
 
 #include <SDL3/SDL.h>
 
-namespace framebeam::input {
+namespace uzume::input {
 
 namespace {
 constexpr quint16 kVendorMicrosoft = 0x045e;
@@ -53,4 +53,4 @@ PadType padTypeFromId(const QString& id, PadType fallback) {
   return fallback;
 }
 
-}  // namespace framebeam::input
+}  // namespace uzume::input

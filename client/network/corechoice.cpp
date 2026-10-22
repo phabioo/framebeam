@@ -1,6 +1,6 @@
 #include "corechoice.h"
 
-namespace framebeam {
+namespace uzume {
 
 CoreChoice chooseCore(const SystemInfo& system, const EmulationSettings& settings, const QString& gameId,
                       const std::function<QString(const QString&)>& canonical) {
@@ -49,4 +49,4 @@ CoreChoice chooseCore(const SystemInfo& system, const EmulationSettings& setting
   return out;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 func TestRenameUserKeepsNamesUnique(t *testing.T) {
@@ -76,7 +76,7 @@ func TestCreateUserWithCodePairsThatUser(t *testing.T) {
 	if _, _, _, err := svc.CreateUserWithCode(ctx, admin.ID, "sam", time.Hour); !errors.Is(err, hub.ErrDisplayNameTaken) {
 		t.Fatalf("duplicate: %v", err)
 	}
-	// The name the Player sends is ignored: the device belongs to the created user.
+	// The name the app sends is ignored: the device belongs to the created user.
 	res, err := svc.RedeemInvite(ctx, redeemIn(code, "Whoever"))
 	if err != nil || !res.Approved || res.UserID != u.ID {
 		t.Fatalf("%+v %v", res, err)
@@ -139,7 +139,7 @@ func TestRunAdminStartFinishAndInvites(t *testing.T) {
 	if _, err := svc.InviteRun(ctx, admin.ID, run.ID, []string{sam.ID, lena.ID}); err != nil {
 		t.Fatal(err)
 	}
-	// Resend and remove need an open invitation and write a Hub event each.
+	// Resend and remove need an open invitation and write a server event each.
 	if err := svc.ResendRunInvite(ctx, admin.ID, run.ID, sam.ID); err != nil {
 		t.Fatal(err)
 	}

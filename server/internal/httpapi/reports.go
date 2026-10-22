@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // Problem reports (0.17, feature reports_v1): any paired device sends one, admins read them. Admin tokens only for
@@ -177,6 +177,6 @@ func (s *Server) GetAdminReportArchive(ctx context.Context, req api.GetAdminRepo
 	}
 	pr, pw := io.Pipe()
 	go func() { pw.CloseWithError(s.svc.WriteReportArchive(context.WithoutCancel(ctx), req.Id, pw)) }()
-	cd := `attachment; filename="framebeam-report-` + strconv.FormatInt(req.Id, 10) + `.zip"`
+	cd := `attachment; filename="uzume-report-` + strconv.FormatInt(req.Id, 10) + `.zip"`
 	return api.GetAdminReportArchive200ApplicationzipResponse{Body: pr, Headers: api.GetAdminReportArchive200ResponseHeaders{ContentDisposition: &cd}}, nil
 }

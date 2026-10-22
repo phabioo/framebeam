@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // Participant avatars of a run row in the player colours (initial on a coloured disc). `participants` is a list of
 // {name, color} with color 0..7 (-1 = none yet); the Repeater counts instead of iterating the JS array (Qt 6.4 handles

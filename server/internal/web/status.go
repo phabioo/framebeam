@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/health"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/statusinfo"
-	"github.com/phabioo/framebeam/server/internal/sysmetrics"
+	"github.com/phabioo/uzume/server/internal/health"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/statusinfo"
+	"github.com/phabioo/uzume/server/internal/sysmetrics"
 )
 
-// Admin Status page (design 6f): the Hub's health at a glance, refreshed every 10 s. The sidebar badge shows the
+// Admin Status page (design 6f): the server's health at a glance, refreshed every 10 s. The sidebar badge shows the
 // title of the most urgent problem.
 
 // statusRefresh is the polling interval of the page in seconds.
@@ -69,7 +69,7 @@ type statusBody struct {
 	MetricsURL                        string
 }
 
-// publicAddress is the address Players use: the public host with its port if set, else the host of this request.
+// publicAddress is the address apps use: the public host with its port if set, else the host of this request.
 func (s *Server) publicAddress(r *http.Request) string { return s.src.PublicAddress(r.Host) }
 
 // formatDuration is a coarse uptime: "12 days 4 h", "3 h 12 min", "5 min".
@@ -107,9 +107,9 @@ func (s *Server) statusData(r *http.Request) (statusBody, error) {
 		b.Meters = append(b.Meters, meterView{Label: "CPU", Value: "n/a", Sub: "Not available on this platform"})
 	}
 	mem := st.Memory
-	mv := meterView{Label: "Memory", Value: humanBytes(mem.Process), Sub: "Hub process"}
+	mv := meterView{Label: "Memory", Value: humanBytes(mem.Process), Sub: "Server process"}
 	if mem.SystemOK && mem.SystemTotal > 0 {
-		mv.Sub = fmt.Sprintf("Hub process · system %s of %s", humanBytes(mem.SystemUsed), humanBytes(mem.SystemTotal))
+		mv.Sub = fmt.Sprintf("Server process · system %s of %s", humanBytes(mem.SystemUsed), humanBytes(mem.SystemTotal))
 		mv.Percent, mv.Show = int(sysmetrics.UsedPercent(mem.SystemTotal, mem.SystemTotal-mem.SystemUsed)+.5), true
 	}
 	b.Meters = append(b.Meters, mv)
@@ -142,7 +142,7 @@ func (s *Server) statusData(r *http.Request) (statusBody, error) {
 		b.TURNLine = fmt.Sprintf("TURN relay %d of %d", st.TURN.Allocations, st.TURN.RelayPorts)
 	}
 
-	// Players.
+	// Apps.
 	for _, p := range st.Players {
 		sp := statusPlayer{Device: p.DeviceName, Sub: p.User, Version: p.Version, State: playerStateLabel(p.State), Outdated: p.Outdated}
 		if p.Outdated {
@@ -176,7 +176,7 @@ func visibilityLabel(v hub.Visibility) string {
 	case hub.VisibilityInviteOnly:
 		return "Invite only"
 	}
-	return "Hub users"
+	return "Server users"
 }
 
 func playerStateLabel(st string) string {
@@ -222,7 +222,7 @@ func (s *Server) statusGet(w http.ResponseWriter, r *http.Request, sess *session
 func (s *Server) statusLog(w http.ResponseWriter, r *http.Request, sess *session) {
 	h := w.Header()
 	h.Set("Content-Type", "text/plain; charset=utf-8")
-	h.Set("Content-Disposition", `attachment; filename="framebeam-hub-log-`+time.Now().UTC().Format("20060102-150405")+`.txt"`)
+	h.Set("Content-Disposition", `attachment; filename="uzume-server-log-`+time.Now().UTC().Format("20060102-150405")+`.txt"`)
 	h.Set("Cache-Control", "no-store")
 	w.Write(s.src.LogSnapshot())
 }

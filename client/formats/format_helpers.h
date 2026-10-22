@@ -11,7 +11,7 @@
 #include <string_view>
 #include <vector>
 
-namespace framebeam::formats {
+namespace uzume::formats {
 
 struct Result {
     bool ok = false;
@@ -38,7 +38,7 @@ Result garcFile(std::string_view in, size_t index, size_t sub = 0);
 
 // ---- 3DS RomFS inside a decrypted NCCH (.cxi) or NCSD (.3ds/.cci, partition 0) ----
 // Files are huge: the ROM is accessed with seeks, never loaded whole.
-// Encrypted games fail with "encrypted game: FrameBeam needs a decrypted game file".
+// Encrypted games fail with "encrypted game: Uzume needs a decrypted game file".
 Result romfsRead(const QString& romPath, std::string_view path, size_t maxOut = 256u << 20);  // "/a/b.bin"
 struct RomfsEntry {
     std::string name;  // UTF-8
@@ -100,4 +100,4 @@ struct Pk6 {
 Pk6 pk6Decrypt(std::string_view in);  // -> decrypted, blocks in A,B,C,D order
 Pk6 pk6Encrypt(std::string_view in);  // inverse; recomputes nothing, the caller keeps the checksum
 
-}  // namespace framebeam::formats
+}  // namespace uzume::formats

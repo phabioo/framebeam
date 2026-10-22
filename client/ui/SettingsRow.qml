@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // SettingsRow (player.md "Components (revision v4) -> SettingsRow"): the one row of the Emulation (3e-2) and Settings
 // (3p-2) pages. Grid 14 | flex | 280 | 72: the changed-dot slot (the label never shifts), the text column, the control column

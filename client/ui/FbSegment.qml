@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Segment control (tokens.md): padding 3, radius 7, surface; active option #2c2d32 radius 5.
 // options: [{ value, label, name, disabled, underline }] (name = objectName of the segment).

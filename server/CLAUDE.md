@@ -8,7 +8,7 @@ Details only when needed, from `docs/architecture/` (index: `docs/architecture/R
 - No large framework. See `01-overview.md`.
 
 ## Storage locations
-- ROMs, saves, firmware as files under `/var/lib/framebeam/`; SQLite holds metadata only, no binary data.
+- ROMs, saves, firmware as files under `/var/lib/uzume/`; SQLite holds metadata only, no binary data.
 - Firmware/BIOS is provided by the admin only (`05-emulation.md`).
 
 ## Save model (hub view)

@@ -6,7 +6,7 @@ import (
 )
 
 func TestMigration0019ReportsKeepExistingDataAndCascade(t *testing.T) {
-	p := filepath.Join(t.TempDir(), "framebeam.db")
+	p := filepath.Join(t.TempDir(), "uzume.db")
 	raw := rawDB(t, p)
 	if err := migrate(raw, "", 18); err != nil {
 		t.Fatal(err)

@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // Frame-time sparkline of the last 5 s (3t-3y): total frame time (accent, area below), emulation part (grey) and the
 // dashed reference line at the core's frame time (16.7 ms at 60 fps). total/emu are arrays of milliseconds, oldest first.

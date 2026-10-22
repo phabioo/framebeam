@@ -11,25 +11,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/config"
-	"github.com/phabioo/framebeam/server/internal/diag"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/tlsutil"
-	"github.com/phabioo/framebeam/server/internal/turnsrv"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/diag"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/tlsutil"
+	"github.com/phabioo/uzume/server/internal/turnsrv"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
-// NetConfig is what the Network settings need to know about the running Hub (set by cmd/framebeam-hub).
+// NetConfig is what the Network settings need to know about the running server (set by cmd/uzume-server).
 type NetConfig struct {
-	// Base is the configuration from hub.env and flags, without the values saved on the web interface.
+	// Base is the configuration from server.env and flags, without the values saved on the web interface.
 	Base config.Config
-	// Running is the effective configuration the Hub started with (Base plus saved values, after fallbacks).
+	// Running is the effective configuration the server started with (Base plus saved values, after fallbacks).
 	Running config.Config
-	// Issues are saved values that could not be applied at startup (the Hub then runs with a fallback).
+	// Issues are saved values that could not be applied at startup (the server then runs with a fallback).
 	Issues []NetIssue
 	// RequestRestart asks the process to shut down gracefully and re-execute itself (nil: not supported).
 	RequestRestart func()
-	// TestBind checks that the Hub can listen on an address (default config.TestBind).
+	// TestBind checks that the server can listen on an address (default config.TestBind).
 	TestBind func(addr string) error
 }
 
@@ -57,28 +57,28 @@ var turnKeys = map[string]bool{config.NetTURN: true, config.NetPublicHost: true,
 // Settings sections (GET /settings/{section}), in the order of the section column, grouped as in design 0-3 E.
 // Backups and Storage join the DATA group with their pages.
 var settingsSections = []struct{ ID, Title, Subtitle, Group string }{
-	{"general", "General", "How the hub appears to Players and users", "HUB"},
-	{"network", "Network & TURN", "Ports, public address and relay for Players outside your network", ""},
+	{"general", "General", "How the server appears to apps and users", "HUB"},
+	{"network", "Network & TURN", "Ports, public address and relay for apps outside your network", ""},
 	{"security", "Security", "Transport, certificate and the admin account", ""},
-	{"updates", "Updates", "Versions, channel and automatic installs for this hub", ""},
+	{"updates", "Updates", "Versions, channel and automatic installs for this server", ""},
 	{"diagnostics", "Diagnostics", "One file with logs and settings to hand over when something does not work", ""},
 	{"backups", "Backups", "Database, saves and snapshots, save states, plugins. ROMs only if you include them.", "DATA"},
-	{"saves", "Saves retention", "How many older versions of each save the hub keeps", ""},
+	{"saves", "Saves retention", "How many older versions of each save the server keeps", ""},
 	{"metrics", "Metrics", "An optional read-only endpoint for your own monitoring tools", "INTEGRATIONS"},
 }
 
 // settingsFlash holds the success texts of the settings pages that are not in the shared flash table.
 var settingsFlash = map[string]string{
 	"netsaved":       "Network setting saved.",
-	"extturnsaved":   "External TURN servers saved. New joins and connected Players use them now.",
-	"netreset":       "Reset to the hub.env value.",
-	"namesaved":      "Hub name saved.",
-	"restarting":     "The hub is restarting.",
+	"extturnsaved":   "External TURN servers saved. New joins and connected apps use them now.",
+	"netreset":       "Reset to the server.env value.",
+	"namesaved":      "Server name saved.",
+	"restarting":     "The server is restarting.",
 	"metrics":        "Metrics setting saved.",
 	"backupsaved":    "Backup settings saved.",
 	"backupstarted":  "Backup started.",
 	"backupdeleted":  "Backup deleted.",
-	"restorestarted": "Restore started. The Hub restarts in a moment.",
+	"restorestarted": "Restore started. The server restarts in a moment.",
 	"metricstoken":   "New token created. The previous token no longer works.",
 }
 
@@ -178,8 +178,8 @@ type netField struct {
 	Key      string
 	Value    string // shown in the input
 	Min, Max string // relay range inputs
-	Web      bool   // saved on the web interface (otherwise it comes from hub.env/flags)
-	EnvText  string // the hub.env/flag value, shown on the reset button
+	Web      bool   // saved on the web interface (otherwise it comes from server.env/flags)
+	EnvText  string // the server.env/flag value, shown on the reset button
 	CSRF     string // for the reset form
 	Err      string
 }
@@ -243,7 +243,7 @@ func sectionIndex(id string) int {
 	return -1
 }
 
-// netDesired returns the configuration as it is meant to be: hub.env/flags plus the saved values.
+// netDesired returns the configuration as it is meant to be: server.env/flags plus the saved values.
 func (s *Server) netDesired(ctx context.Context) (config.Config, map[string]string, error) {
 	stored, err := s.svc.NetOverrides(ctx)
 	if err != nil {
@@ -361,7 +361,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	s.render(w, status, "settings", "layout", d)
 }
 
-// playerAddress is the address Players use: the public host if set (with its external port, else the listen port), otherwise the host
+// playerAddress is the address apps use: the public host if set (with its external port, else the listen port), otherwise the host
 // the admin used to open this page.
 func (s *Server) playerAddress(r *http.Request, nb netBody) string {
 	port := s.cfg.Net.Running.ListenPort()
@@ -544,7 +544,7 @@ func (s *Server) netBody(r *http.Request, sess *session, res settingsRes) (netBo
 	switch {
 	case turnOn && host != "":
 		nb.ReachOK, nb.ReachTitle = true, "Prepared for the internet"
-		nb.ReachText = fmt.Sprintf("%s is set as the public address and the built-in relay is on. Remote Players can connect once the ports listed below are forwarded to this hub. The hub cannot test this from outside.", host)
+		nb.ReachText = fmt.Sprintf("%s is set as the public address and the built-in relay is on. Remote apps can connect once the ports listed below are forwarded to this server. The server cannot test this from outside.", host)
 	default:
 		nb.ReachTitle = "Only in local network"
 		var missing []string
@@ -554,7 +554,7 @@ func (s *Server) netBody(r *http.Request, sess *session, res settingsRes) (netBo
 		if !turnOn {
 			missing = append(missing, "the built-in TURN relay")
 		}
-		nb.ReachText = "Players on your network connect normally. For Players outside it the hub still needs " + strings.Join(missing, " and ") + "."
+		nb.ReachText = "Apps on your network connect normally. For apps outside it the server still needs " + strings.Join(missing, " and ") + "."
 	}
 	if s.cfg.TURN != nil {
 		st := s.cfg.TURN.Status()
@@ -715,7 +715,7 @@ func (s *Server) settingsPassword(w http.ResponseWriter, r *http.Request, sess *
 	s.redirect(w, r, "/settings/security?ok=password")
 }
 
-// certInfo returns the current certificate fingerprint and expiry (live when the Hub can renew at runtime).
+// certInfo returns the current certificate fingerprint and expiry (live when the server can renew at runtime).
 func (s *Server) certInfo() (string, time.Time) {
 	if s.cfg.CertState != nil {
 		return s.cfg.CertState()
@@ -735,7 +735,7 @@ func (s *Server) settingsRenewCert(w http.ResponseWriter, r *http.Request, sess 
 		s.redirect(w, r, "/settings/security?err=renewfailed")
 		return
 	}
-	s.log.Warn("TLS certificate renewed from Settings; Players must confirm the new fingerprint", "new_sha256_fingerprint", fp, "admin", sess.User.Username)
+	s.log.Warn("TLS certificate renewed from Settings; apps must confirm the new fingerprint", "new_sha256_fingerprint", fp, "admin", sess.User.Username)
 	s.redirect(w, r, "/settings/security?ok=certrenewed")
 }
 
@@ -761,7 +761,7 @@ func (s *Server) settingsUpdatesCheck(w http.ResponseWriter, r *http.Request, se
 }
 
 // settingsUpdatesInstall stages the update and asks the root helper to install it. The browser asks for
-// confirmation first (hx-confirm); an update that breaks recent Players is only installed with confirm_breaking=1.
+// confirmation first (hx-confirm); an update that breaks recent apps is only installed with confirm_breaking=1.
 func (s *Server) settingsUpdatesInstall(w http.ResponseWriter, r *http.Request, sess *session) {
 	_, err := s.svc.InstallUpdate(r.Context(), r.PostFormValue("confirm_breaking") == "1")
 	switch {
@@ -1015,7 +1015,7 @@ func (s *Server) settingsExternalTURNDelete(w http.ResponseWriter, r *http.Reque
 	s.settingsDone(w, r, sess, "network", settingsRes{OK: "extturnsaved"}, false)
 }
 
-// settingsExternalTURNReset drops the saved list: the -turn-external flags/hub.env apply again.
+// settingsExternalTURNReset drops the saved list: the -turn-external flags/server.env apply again.
 func (s *Server) settingsExternalTURNReset(w http.ResponseWriter, r *http.Request, sess *session) {
 	if err := s.svc.ResetExternalTURN(r.Context()); err != nil {
 		s.fail(w, r, err)
@@ -1024,7 +1024,7 @@ func (s *Server) settingsExternalTURNReset(w http.ResponseWriter, r *http.Reques
 	s.settingsDone(w, r, sess, "network", settingsRes{OK: "extturnsaved"}, false)
 }
 
-// settingsNetReset deletes the saved value: hub.env/flags apply again.
+// settingsNetReset deletes the saved value: server.env/flags apply again.
 func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *session) {
 	key := r.PathValue("key")
 	if !validNetKey(key) {
@@ -1073,7 +1073,7 @@ func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *
 // first; the shutdown waits for it to be written.
 func (s *Server) settingsNetRestart(w http.ResponseWriter, r *http.Request, sess *session) {
 	if s.cfg.Net.RequestRestart == nil {
-		s.settingsDone(w, r, sess, "network", settingsRes{Err: "This hub cannot restart itself. Restart the service manually."}, true)
+		s.settingsDone(w, r, sess, "network", settingsRes{Err: "This server cannot restart itself. Restart the service manually."}, true)
 		return
 	}
 	desired, _, err := s.netDesired(r.Context())
@@ -1105,14 +1105,14 @@ func (s *Server) settingsNetRestart(w http.ResponseWriter, r *http.Request, sess
 	s.cfg.Net.RequestRestart()
 }
 
-// turnForwards lists the router port forwards a public Hub needs (ADR 0012 D1).
+// turnForwards lists the router port forwards a public server needs (ADR 0012 D1).
 func turnForwards(listen string, st turnsrv.Status) []string {
 	hubPort := "8443"
 	if _, p, err := net.SplitHostPort(listen); err == nil && p != "" {
 		hubPort = p
 	}
 	return []string{
-		"TCP " + hubPort + " (Hub, HTTPS/WSS)",
+		"TCP " + hubPort + " (server, HTTPS/WSS)",
 		fmt.Sprintf("UDP and TCP %d (STUN/TURN)", st.Port),
 		fmt.Sprintf("UDP %d-%d (relay)", st.RelayMin, st.RelayMax),
 	}

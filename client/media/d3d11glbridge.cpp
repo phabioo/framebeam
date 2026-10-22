@@ -20,9 +20,9 @@
 #include <wrl/client.h>
 #endif
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcBridge, "framebeam.gpubridge")
+Q_LOGGING_CATEGORY(lcBridge, "uzume.gpubridge")
 
 #ifdef _WIN32
 
@@ -455,4 +455,4 @@ bool GlD3d11Bridge::unlock(void* const* registrations, int n) {
 
 #endif  // _WIN32
 
-}  // namespace framebeam
+}  // namespace uzume

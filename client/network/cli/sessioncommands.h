@@ -15,13 +15,13 @@
 #include "sessionhost.h"
 #include "sessionviewer.h"
 
-namespace framebeam {
+namespace uzume {
 
 // CLI session-share / session-watch (developer tool and E2E, headless). Needs a Connected HubConnection.
 //   session-share [--game <id>] [--visibility private|hub_users|invite_only] [--synthetic] [--seconds N] [--force-relay]
 //   session-watch (--session <id> | --first) [--seconds N] [--force-relay]
 // Output lines (stdout): SHARING / VIEWER-JOINED / WATCHING / STATS ... / SHARE-DONE / WATCH-OK / WATCH-FAIL; the last
-// connection type of the run as `CONNECTION direct (host)|relay (udp)|...|unknown` (--force-relay = FRAMEBEAM_FORCE_RELAY=1).
+// connection type of the run as `CONNECTION direct (host)|relay (udp)|...|unknown` (--force-relay = UZUME_FORCE_RELAY=1).
 class SessionCommands : public QObject {
   Q_OBJECT
  public:
@@ -73,4 +73,4 @@ class SessionCommands : public QObject {
   QString lastConnection_;  // last known connection type (stats are gone once the PeerConnection closed)
 };
 
-}  // namespace framebeam
+}  // namespace uzume

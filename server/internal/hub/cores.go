@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/corepkg"
 )
 
-// Handshake features for cores. cores_v2 = several cores per system (ADR 0020); cores_v1 stays for older Players.
+// Handshake features for cores. cores_v2 = several cores per system (ADR 0020); cores_v1 stays for older apps.
 const (
 	FeatureCoresV1 = "cores_v1"
 	FeatureCoresV2 = "cores_v2"
@@ -28,7 +28,7 @@ const (
 // Origins of a core package.
 const (
 	OriginBuildbot = "libretro-buildbot"
-	OriginLegacy   = "framebeam" // packages of the retired signed FrameBeam source
+	OriginLegacy   = "legacy-mirror" // packages of the retired signed Uzume source
 )
 
 // Defaults of the core source (ADR 0020 D1).
@@ -221,14 +221,14 @@ func ValidCoreID(id string) bool { return corepkg.ValidCoreID(id) }
 
 // ---- Queries ----
 
-// CorePackageFile is a file of a core package; Available = in the Hub cache.
+// CorePackageFile is a file of a core package; Available = in the server cache.
 type CorePackageFile struct {
 	Name, Role, SHA256 string
 	Size               int64
 	Available          bool
 }
 
-// CorePackage is a package known to the Hub.
+// CorePackage is a package known to the server.
 type CorePackage struct {
 	CoreID, Version, Platform, License, SourceURL, SourceRef, Origin string
 	Files                                                            []CorePackageFile
@@ -299,7 +299,7 @@ func (s *Service) loadCorePackages(ctx context.Context, where string, args ...an
 	return out, nil
 }
 
-// GetCorePackage returns one package (ErrCorePackageNotFound if the Hub does not know it).
+// GetCorePackage returns one package (ErrCorePackageNotFound if the server does not know it).
 func (s *Service) GetCorePackage(ctx context.Context, coreID, version, platform string) (CorePackage, error) {
 	if !corepkg.ValidCoreID(coreID) || !corepkg.ValidVersion(version) || !corepkg.PlatformValid(platform) {
 		return CorePackage{}, ErrCorePackageNotFound

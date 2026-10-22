@@ -1,14 +1,14 @@
 #pragma once
 // MSI update mode of the launcher (no Qt, header only, testable on any platform):
-//   framebeam_player.exe --apply-msi-update [--sha256 <hex>] [--size <bytes>] <msi> <scope> <relaunchExe> [relaunchArgs...]
+//   Uzume.exe --apply-msi-update [--sha256 <hex>] [--size <bytes>] <msi> <scope> <relaunchExe> [relaunchArgs...]
 // --sha256/--size: what the Player verified (signed update index); the launcher checks them again right before msiexec
 // (mandatory for elevated scopes) and keeps the file open read-only until msiexec ended, so it cannot be swapped.
 // The Player starts a temporary copy of its launcher in this mode and quits; the copy installs the MSI and starts the
-// Player again. The msiexec arguments mirror framebeam::update::msiexecArguments (client/core/installroot.cpp).
+// Player again. The msiexec arguments mirror uzume::update::msiexecArguments (client/core/installroot.cpp).
 #include <string>
 #include <vector>
 
-namespace framebeam::launcher {
+namespace uzume::launcher {
 
 struct MsiUpdateRequest {
   std::wstring sha256;       // expected SHA-256 (hex), empty = not given
@@ -85,8 +85,8 @@ inline bool msiMatches(const MsiUpdateRequest& r, unsigned long long actualSize,
   return expectationComplete(r) && r.size == actualSize && sha256Equal(r.sha256, actualSha256);
 }
 
-// "Set up a Hub on this PC" downloads the MSI into <temp>\framebeam-hub-setup-<uuid>; the launcher copy removes that
-// folder after msiexec. Empty for every other call (a staged update MSI stays in the Player's cache).
+// "Set up a server on this PC" downloads the MSI into <temp>\uzume-server-setup-<uuid>;
+// the launcher copy removes that folder after msiexec. Empty for every other call (a staged update MSI stays in the Player's cache).
 inline std::wstring setupDirToRemove(const MsiUpdateRequest& r) {
   if (r.scope != L"setup-hub") return {};
   const size_t slash = r.msi.find_last_of(L"\\/");
@@ -94,8 +94,9 @@ inline std::wstring setupDirToRemove(const MsiUpdateRequest& r) {
   const std::wstring dir = r.msi.substr(0, slash);
   const size_t leafAt = dir.find_last_of(L"\\/");
   const std::wstring leaf = leafAt == std::wstring::npos ? dir : dir.substr(leafAt + 1);
-  static const wchar_t kPrefix[] = L"framebeam-hub-setup-";
-  return leaf.compare(0, (sizeof(kPrefix) / sizeof(kPrefix[0])) - 1, kPrefix) == 0 ? dir : std::wstring();
+  static const wchar_t kPrefix[] = L"uzume-server-setup-";
+  const bool ours = leaf.compare(0, (sizeof(kPrefix) / sizeof(kPrefix[0])) - 1, kPrefix) == 0;
+  return ours ? dir : std::wstring();
 }
 
 // Command line parameters for msiexec.exe (without the program name); empty for an unknown scope.
@@ -126,4 +127,4 @@ inline std::wstring quoteArgs(const std::vector<std::wstring>& args) {
   return s;
 }
 
-}  // namespace framebeam::launcher
+}  // namespace uzume::launcher

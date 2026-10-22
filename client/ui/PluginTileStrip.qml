@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import FrameBeam.Player
+import Uzume.App
 
 // Tile strip of a remote Multiview tile (docs/design/plugins.md 4e): 20 high, shows the first text row of the plugin's tile
 // tree (with the player colour dot of its first avatar and "▾"); a click or A expands it to at most 300 x 120 over the top

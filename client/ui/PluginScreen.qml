@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Plugin sidebar screen (docs/design/plugins.md 4f): title row (title, icon, plugin name with its origin badge, "Plugin
 // settings"), then the plugin's "screen" tree full width, scrolling vertically. It follows the app theme.

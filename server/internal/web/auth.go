@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 type setupBody struct {
@@ -39,7 +39,7 @@ func (s *Server) setupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !isLoopback(r) {
-		http.Error(w, "Setup is possible only from the machine the FrameBeam Hub runs on", http.StatusForbidden)
+		http.Error(w, "Setup is possible only from the machine the Uzume server runs on", http.StatusForbidden)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)

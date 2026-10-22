@@ -3,7 +3,7 @@
 #include <QList>
 #include <cmath>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 void LinearResampler::setRates(int inRate, int outRate) {
   in_ = inRate > 0 ? inRate : 48000;
@@ -62,4 +62,4 @@ QByteArray LinearResampler::process(const QByteArray& pcm) {
   return QByteArray(reinterpret_cast<const char*>(out.constData()), out.size() * static_cast<qsizetype>(sizeof(qint16)));
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

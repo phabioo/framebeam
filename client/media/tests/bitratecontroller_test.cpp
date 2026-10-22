@@ -5,7 +5,7 @@
 
 #include "bitratecontroller.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 RxReport mk(double loss, double kbps) {

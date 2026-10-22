@@ -40,7 +40,7 @@
       </section>
       <section class="set-card">
         <div class="eyebrow">LAST ERRORS · 24 H{{if .ErrorCount}} · {{.ErrorCount}}{{end}}</div>
-        <div class="status-row-head"><span class="help">Warnings and errors from the Hub log. Secrets are removed.</span><a class="btn small" href="/status/log">Download log</a></div>
+        <div class="status-row-head"><span class="help">Warnings and errors from the server log. Secrets are removed.</span><a class="btn small" href="/status/log">Download log</a></div>
         {{range .Errors}}
         <div class="status-err"><span class="mono" title="{{.Time.Title}}">{{.Time.Text}}</span> <span class="pill sm{{if eq .Level "ERROR"}} error{{else}} amber{{end}}">{{.Level}}</span> <span class="status-err-text">{{.Text}}</span></div>
         {{else}}
@@ -56,7 +56,7 @@
         <div class="status-row"><div><div class="label">{{.Device}}</div><div class="help">{{.Sub}}</div></div>
           <div class="status-player"><span class="mono{{if .Outdated}} warn{{end}}">{{.Version}}</span><span class="help{{if .Outdated}} warn{{end}}">{{.State}}</span></div></div>
         {{else}}
-        <div class="help">No Player is connected.</div>
+        <div class="help">No app is connected.</div>
         {{end}}
       </section>
       <section class="set-card">

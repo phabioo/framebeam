@@ -8,9 +8,9 @@
 #include <cstdint>
 #include <cstring>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
-Q_LOGGING_CATEGORY(lcAudio, "framebeam.audio")
+Q_LOGGING_CATEGORY(lcAudio, "uzume.audio")
 
 namespace {
 constexpr int kFallbackRate = 48000;
@@ -302,4 +302,4 @@ qint64 AudioQueueDevice::readData(char* data, qint64 maxlen) {
   return len;
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

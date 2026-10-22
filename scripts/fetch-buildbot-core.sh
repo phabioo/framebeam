@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # Downloads a libretro core from the nightly buildbot (ADR 0020 D10, CI test dependency) and prints its path (stdout, last line).
 #   scripts/fetch-buildbot-core.sh <core>      e.g. desmume  ->  desmume_libretro.so
-# Source: ${FRAMEBEAM_BUILDBOT_URL:-https://buildbot.libretro.com/nightly}/linux/x86_64/latest/<core>_libretro.so.zip
+# Source: ${UZUME_BUILDBOT_URL:-https://buildbot.libretro.com/nightly}/linux/x86_64/latest/<core>_libretro.so.zip
 # The CRC32 of the extracted library is verified against ".index-extended" of the same directory; exactly one library is extracted
-# to $HOME/.cache/framebeam/cores/buildbot/<core>/<date>-<crc>/ (FRAMEBEAM_CACHE_DIR overrides $HOME/.cache/framebeam).
+# to $HOME/.cache/uzume/cores/buildbot/<core>/<date>-<crc>/ (UZUME_CACHE_DIR overrides $HOME/.cache/uzume).
 # No pin on purpose: CI tests against the current nightly; date and CRC are logged (stderr).
 # Idempotent: the same date+crc already cached = no zip download. Retries with backoff and timeouts.
-# Env: FRAMEBEAM_FETCH_RETRIES (default 4), FRAMEBEAM_FETCH_BACKOFF seconds (default 2, doubled per attempt).
+# Env: UZUME_FETCH_RETRIES (default 4), UZUME_FETCH_BACKOFF seconds (default 2, doubled per attempt).
 # http:// is accepted only for 127.0.0.1 (tests). All messages go to stderr.
 set -euo pipefail
 
 core="${1:-}"
 [[ "$core" =~ ^[a-z0-9_]+$ ]] || { echo "usage: fetch-buildbot-core.sh <core>  (lower-case core name, e.g. desmume)" >&2; exit 2; }
 
-BASE="${FRAMEBEAM_BUILDBOT_URL:-https://buildbot.libretro.com/nightly}"
+BASE="${UZUME_BUILDBOT_URL:-https://buildbot.libretro.com/nightly}"
 BASE="${BASE%/}"
 case "$BASE" in
   https://*|http://127.0.0.1|http://127.0.0.1:*|http://127.0.0.1/*) ;;
@@ -25,9 +25,9 @@ for t in curl unzip python3; do command -v "$t" >/dev/null || { echo "buildbot c
 DIR_URL="$BASE/linux/x86_64/latest"
 lib="${core}_libretro.so"
 zipname="$lib.zip"
-RETRIES="${FRAMEBEAM_FETCH_RETRIES:-4}"
-BACKOFF="${FRAMEBEAM_FETCH_BACKOFF:-2}"
-CACHE="${FRAMEBEAM_CACHE_DIR:-$HOME/.cache/framebeam}"
+RETRIES="${UZUME_FETCH_RETRIES:-4}"
+BACKOFF="${UZUME_FETCH_BACKOFF:-2}"
+CACHE="${UZUME_CACHE_DIR:-$HOME/.cache/uzume}"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

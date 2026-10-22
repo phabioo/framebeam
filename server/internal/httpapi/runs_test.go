@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // Runs over REST and WSS (0.11 package 3): contract sections 5 and 6.
@@ -203,7 +203,7 @@ func TestRunCreateAndVisibility(t *testing.T) {
 		t.Fatalf("anna %+v", an)
 	}
 
-	// The Hub logged the creation: run.created and run.joined, as Hub events.
+	// The server logged the creation: run.created and run.joined, as server events.
 	evs := r.events(d1, run.RunID, 0)
 	if len(evs) != 2 || evs[0].Seq != 1 || evs[0].Type != "run.created" || evs[1].Seq != 2 || evs[1].Type != "run.joined" {
 		t.Fatalf("%+v", evs)
@@ -331,7 +331,7 @@ func TestRunMembership(t *testing.T) {
 		t.Fatalf("carol %+v", p)
 	}
 
-	// Hub events: joins, the leave, the decline.
+	// Server events: joins, the leave, the decline.
 	var types []string
 	for _, e := range r.events(d1, run.RunID, 0) {
 		types = append(types, e.Type)
@@ -385,7 +385,7 @@ func TestRunStatusTransitions(t *testing.T) {
 		t.Fatalf("%+v", resumed)
 	}
 
-	// Status changes are Hub events with the previous and new status and who did it.
+	// Status changes are server events with the previous and new status and who did it.
 	evs := r.events(d1, id, 0)
 	var statuses []string
 	for _, e := range evs {
@@ -445,7 +445,7 @@ func TestRunStateRevisionsAndLimits(t *testing.T) {
 	if conf.StateRev != 1 || string(conf.State) != `{"team":["one"]}` {
 		t.Fatalf("%+v %s", conf, conf.State)
 	}
-	wantStatus(t, r.putState(d1, id, 2, map[string]any{}), 409, "state_conflict") // base ahead of the Hub
+	wantStatus(t, r.putState(d1, id, 2, map[string]any{}), 409, "state_conflict") // base ahead of the server
 	wantStatus(t, r.putState(d1, id, 1, map[string]any{"team": []any{"two"}}), 200, "")
 	got := r.get(d1, id) // Anna is only invited: she would not see states (TestRunAuthz*)
 	if p := got.part(r.admin.ID).States[pluginA]; p.StateRev != 2 || string(p.State) != `{"team":["two"]}` || p.UpdatedAt == "" {
@@ -463,7 +463,7 @@ func TestRunStateRevisionsAndLimits(t *testing.T) {
 	wantStatus(t, r.do("PUT", "/api/v1/runs/"+id+"/state/"+pluginA, map[string]any{"base_rev": 2, "state": []any{1}}, opt{token: d1.tok, raw: true}), 400, "bad_request")
 	wantStatus(t, r.do("PUT", "/api/v1/runs/"+id+"/state/"+pluginA, map[string]any{"base_rev": 2}, opt{token: d1.tok, raw: true}), 400, "bad_request")
 	wantStatus(t, r.putState(d1, id, 2, map[string]any{"pad": strings.Repeat("x", 64<<10)}), 413, "too_large")
-	// The Hub keeps opaque numbers exactly.
+	// The server keeps opaque numbers exactly.
 	rec = r.do("PUT", "/api/v1/runs/"+id+"/state/"+pluginA, nil, opt{token: d1.tok, ctype: "application/json", data: []byte(`{"base_rev":2,"state":{"id":9007199254740993,"f":0.10}}`)})
 	wantStatus(t, rec, 200, "")
 	if p := r.get(d1, id).part(r.admin.ID).States[pluginA]; string(p.State) != `{"id":9007199254740993,"f":0.10}` {
@@ -686,7 +686,7 @@ func TestRunEventSeqGaplessUnderConcurrency(t *testing.T) {
 		t.Fatalf("%v", failures)
 	}
 	evs := r.events(devs[0], run.RunID, 0)
-	if want := 4 + len(devs)*perDevice; len(evs) != want { // run.created and 3 x run.joined are the 4 Hub events
+	if want := 4 + len(devs)*perDevice; len(evs) != want { // run.created and 3 x run.joined are the 4 server events
 		t.Fatalf("%d events, want %d", len(evs), want)
 	}
 	for i, e := range evs {
@@ -837,7 +837,7 @@ func TestRunWSFanOut(t *testing.T) {
 	wa.quiet("run_event")
 	wb.quiet("run_event")
 
-	// Anna joins: everybody involved gets run_updated, the joined (now including Anna) get the Hub event.
+	// Anna joins: everybody involved gets run_updated, the joined (now including Anna) get the server event.
 	r.mustJoin(a1, id)
 	for _, w := range []*wsClient{wd1, wd1b, wa, wb} {
 		w.awaitWhere("run_updated", func(m wsMsg) bool { return runUpdated(m).part(r.anna.ID).Status == "joined" })
@@ -1024,7 +1024,7 @@ func TestRunWSCatchUpAfterHello(t *testing.T) {
 			t.Fatalf("got seq %d, want %d", e.Seq, want)
 		}
 	}
-	// The Player pages the rest over REST.
+	// The app pages the rest over REST.
 	if evs := r.events(a1, id, 100); len(evs) != 500 || evs[0].Seq != 101 {
 		t.Fatalf("%d events, first %d", len(evs), evs[0].Seq)
 	}
@@ -1082,7 +1082,7 @@ func TestRunInvite(t *testing.T) {
 	wantStatus(t, r.post(d1, id, "invite", map[string]any{"user_ids": []string{"u_nobody"}}), 400, "bad_request")
 	wantStatus(t, r.do("POST", "/api/v1/runs/"+id+"/invite", map[string]any{"user_ids": []string{}}, opt{token: d1.tok, raw: true}), 400, "bad_request")
 
-	// A joined participant invites; the Hub event names the invited users, run_updated reaches everybody involved.
+	// A joined participant invites; the server event names the invited users, run_updated reaches everybody involved.
 	got := decode[runResp](t, r.post(d1, id, "invite", map[string]any{"user_ids": []string{r.bob.ID, r.carol.ID, r.bob.ID, r.admin.ID, r.anna.ID}}))
 	if len(got.Participants) != 4 || got.part(r.bob.ID).Status != "invited" || got.part(r.carol.ID).Status != "invited" {
 		t.Fatalf("%+v", got)

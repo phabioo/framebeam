@@ -17,18 +17,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/config"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/version"
+	"github.com/phabioo/uzume/server/internal/config"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/version"
 )
 
-// Bundle layout (the Player bundle mirrors it):
+// Bundle layout (the app bundle mirrors it):
 //
 //	README.txt        what the bundle contains and what was removed
 //	hub-info.json     versions, platform, network, cores, counts, devices (redacted)
-//	logs/<name>       the Hub's log files, newest first (hub.log, hub.log.1, updater.log ...), redacted
-//	logs/recent.log   running mode: the Hub's last log lines from memory (about 5000 lines / 4 MiB), redacted
-//	logs/journal.txt  Linux: recent journal of the framebeam-hub unit, redacted (when journalctl is available)
+//	logs/<name>       the server's log files, newest first (hub.log, hub.log.1, updater.log ...), redacted
+//	logs/recent.log   running mode: the server's last log lines from memory (about 5000 lines / 4 MiB), redacted
+//	logs/journal.txt  Linux: recent journal of the uzume-server unit, redacted (when journalctl is available)
 const (
 	EntryReadme  = "README.txt"
 	EntryInfo    = "hub-info.json"
@@ -39,21 +39,21 @@ const (
 	InfoVersion = 1
 	// DefaultMaxLogBytes caps the log content of one bundle (before compression).
 	DefaultMaxLogBytes int64 = 50 << 20
-	journalUnit              = "framebeam-hub"
+	journalUnit              = "uzume-server"
 )
 
 var processStart = time.Now()
 
-// FileName is the download name framebeam-hub-diagnostics-<UTC timestamp>.zip.
+// FileName is the download name uzume-diagnostics-<UTC timestamp>.zip.
 func FileName(t time.Time) string {
-	return "framebeam-hub-diagnostics-" + t.UTC().Format("20060102T150405Z") + ".zip"
+	return "uzume-diagnostics-" + t.UTC().Format("20060102T150405Z") + ".zip"
 }
 
 // Options controls what the bundle contains.
 type Options struct {
 	// Config is the effective (running) configuration; DataDir and the network values are reported from it.
 	Config config.Config
-	// LogDir holds the Hub's log files (default <data-dir>/logs).
+	// LogDir holds the server's log files (default <data-dir>/logs).
 	LogDir string
 	// MaxLogBytes caps the log content (default DefaultMaxLogBytes). The newest file comes first; the oldest file
 	// that does not fit completely is cut to its newest lines, further files are left out.
@@ -253,10 +253,10 @@ func Collect(ctx context.Context, svc *hub.Service, o Options) (Info, error) {
 
 // ---- zip ----
 
-const readmeText = `FrameBeam Hub diagnostics bundle
+const readmeText = `Uzume server diagnostics bundle
 
-hub-info.json   versions, platform, network configuration, installed cores, counts, paired Players
-logs/           the Hub's log files, newest first, and on Linux the recent journal of the framebeam-hub service
+hub-info.json   versions, platform, network configuration, installed cores, counts, paired apps
+logs/           the server's log files, newest first, and on Linux the recent journal of the uzume-server service
 
 This bundle contains IP addresses and host names (they are needed to debug connections), but no passwords or
 tokens. Removed before packing: TURN secret and credentials (username/credential), tokens, passwords, invite
@@ -415,7 +415,7 @@ func copyRedacted(w io.Writer, r io.Reader) error {
 	}
 }
 
-// journal returns the recent journal of the Hub unit (Linux, best effort, empty when unavailable).
+// journal returns the recent journal of the server unit (Linux, best effort, empty when unavailable).
 func journal(ctx context.Context, max int64) []byte {
 	if runtime.GOOS != "linux" {
 		return nil
@@ -444,7 +444,7 @@ func journal(ctx context.Context, max int64) []byte {
 type ExternalTURNInfo struct {
 	Configured bool                 `json:"configured"`
 	Source     string               `json:"source"` // "web" (saved in Settings, replaces the flags) or "flags" (-turn-external)
-	Active     bool                 `json:"active"` // handed to Players (false while Network sharing is off)
+	Active     bool                 `json:"active"` // handed to apps (false while Network sharing is off)
 	Servers    []ExternalTURNServer `json:"servers,omitempty"`
 }
 

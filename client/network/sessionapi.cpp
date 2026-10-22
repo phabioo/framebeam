@@ -5,7 +5,7 @@
 #include <QTimer>
 #include <QUrl>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 QString enc(const QString& s) { return QString::fromLatin1(QUrl::toPercentEncoding(s)); }
@@ -147,4 +147,4 @@ void SessionApi::removeViewer(const QString& sessionId, const QString& viewerId,
 
 void SessionApi::listUsers(Callback cb) { request("GET", QStringLiteral("/users"), {}, false, Expect::Users, std::move(cb)); }
 
-}  // namespace framebeam
+}  // namespace uzume

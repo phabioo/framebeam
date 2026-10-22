@@ -16,8 +16,8 @@
 #include "savesync.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 using S = HubConnection::State;
 
@@ -166,7 +166,7 @@ class LibrarySavesUiTest : public QObject {
 
  private slots:
   void initTestCase() {
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     uitest::installWarningCounter();
   }
   void init() { uitest::warningCount() = 0; }
@@ -1116,7 +1116,7 @@ class LibrarySavesUiTest : public QObject {
     QFile qml(dir.filePath(QStringLiteral("GridHost.qml")));
     QVERIFY(qml.open(QIODevice::WriteOnly));
     qml.write(R"(import QtQuick
-import FrameBeam.Player
+import Uzume.App
 Item {
     id: root
     width: 1200

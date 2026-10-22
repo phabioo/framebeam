@@ -1,5 +1,5 @@
 // Screenshots of the out-of-game screens (design v4): Connection, Pairing, Library, Conflict dialog, Emulation,
-// Controllers, Settings with the hub edit row. Skipped unless FRAMEBEAM_SCREENSHOT_DIR is set. FakeHub, dummy
+// Controllers, Settings with the hub edit row. Skipped unless UZUME_SCREENSHOT_DIR is set. FakeHub, dummy
 // bytes only (no ROM/BIOS/firmware). Files: <dir>/<name>.png (not checked into git).
 #include <QSignalSpy>
 #include <QtTest>
@@ -8,8 +8,8 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 using S = HubConnection::State;
 
@@ -53,15 +53,15 @@ class ShellScreenshotsTest : public QObject {
   }
 
   static void size(Harness& h) {
-    h.window->resize(qEnvironmentVariableIntValue("FRAMEBEAM_SHOT_WIDTH") > 0 ? qEnvironmentVariableIntValue("FRAMEBEAM_SHOT_WIDTH") : 1440, 900);
+    h.window->resize(qEnvironmentVariableIntValue("UZUME_SHOT_WIDTH") > 0 ? qEnvironmentVariableIntValue("UZUME_SHOT_WIDTH") : 1440, 900);
     QTest::qWait(100);
   }
 
  private slots:
   void initTestCase() {
-    dir_ = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
-    if (dir_.isEmpty()) QSKIP("FRAMEBEAM_SCREENSHOT_DIR not set");
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    dir_ = qEnvironmentVariable("UZUME_SCREENSHOT_DIR");
+    if (dir_.isEmpty()) QSKIP("UZUME_SCREENSHOT_DIR not set");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     uitest::installWarningCounter();
   }
   void init() { uitest::warningCount() = 0; }
@@ -120,8 +120,8 @@ class ShellScreenshotsTest : public QObject {
     QTest::qWait(150);
     shot(h, QStringLiteral("3e-emulation-system"));
     QVERIFY(h.click("defaultsCard"));
-    QTRY_VERIFY(h.item("optionToggle_framebeam.fullscreen_on_start") != nullptr);
-    QVERIFY(h.click("optionToggle_framebeam.fullscreen_on_start"));
+    QTRY_VERIFY(h.item("optionToggle_uzume.fullscreen_on_start") != nullptr);
+    QVERIFY(h.click("optionToggle_uzume.fullscreen_on_start"));
     shot(h, QStringLiteral("3e-emulation-defaults"));
     // A system's core options (Nintendo DS): the list uses the full window width.
     h.controller->showEmulation();

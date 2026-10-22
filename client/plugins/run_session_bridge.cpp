@@ -5,7 +5,7 @@
 #include <QUuid>
 #include <algorithm>
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 namespace {
 constexpr int kMaxEvents = 500;
@@ -262,4 +262,4 @@ void RunSessionBridge::flushBoards() {
   for (const auto& [pluginId, tree] : boards) client_->setBoard(runId_, pluginId, tree);
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

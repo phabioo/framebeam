@@ -12,14 +12,14 @@
 #include <algorithm>
 #include <memory>
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcSaveSync, "framebeam.savesync")
+Q_LOGGING_CATEGORY(lcSaveSync, "uzume.savesync")
 
 SaveSync::SaveSync(HubConnection* connection, ProfileStore* profiles, QObject* parent)
     : QObject(parent), conn_(connection), profiles_(profiles), api_(connection, this) {
-  qRegisterMetaType<framebeam::SaveSync::ConflictView>();
-  qRegisterMetaType<framebeam::SaveSync::Kind>();
+  qRegisterMetaType<uzume::SaveSync::ConflictView>();
+  qRegisterMetaType<uzume::SaveSync::Kind>();
   pollTimer_.setInterval(timing_.pollMs);
   connect(&pollTimer_, &QTimer::timeout, this, &SaveSync::poll);
   retryTimer_.setSingleShot(true);
@@ -2430,4 +2430,4 @@ void SaveSync::handleSaveUpdate(const SaveUpdate& u) {
   emit saveChangedElsewhere(u, isRunning(u.gameId, u.slot));
 }
 
-}  // namespace framebeam
+}  // namespace uzume

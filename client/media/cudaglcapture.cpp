@@ -20,7 +20,7 @@ extern "C" {
 #include <libavutil/pixfmt.h>
 }
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 
@@ -627,4 +627,4 @@ int cudaHealthCheck(AVBufferRef* framesCtx) {
   return r;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

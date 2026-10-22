@@ -3,7 +3,7 @@ package web
 import (
 	"bufio"
 	"context"
-	"github.com/phabioo/framebeam/server/internal/httpapi"
+	"github.com/phabioo/uzume/server/internal/httpapi"
 	"io"
 	"log/slog"
 	"net/http"
@@ -193,7 +193,7 @@ func TestEventsThroughLogRequests(t *testing.T) {
 	c := e.client()
 	c.login()
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	ts := httptest.NewServer(httpapi.LogRequests(log, e.mux)) // same wrapping as cmd/framebeam-hub
+	ts := httptest.NewServer(httpapi.LogRequests(log, e.mux)) // same wrapping as cmd/uzume-server
 	defer ts.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

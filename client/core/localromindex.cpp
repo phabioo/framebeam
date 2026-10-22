@@ -15,7 +15,7 @@
 
 #include <memory>
 
-namespace framebeam {
+namespace uzume {
 
 QString LocalRomFile::filename() const { return QFileInfo(path).fileName(); }
 
@@ -240,4 +240,4 @@ void LocalRomIndex::clear() {
   QFile::remove(cacheFile_);
 }
 
-}  // namespace framebeam
+}  // namespace uzume

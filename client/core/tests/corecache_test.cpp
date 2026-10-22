@@ -10,7 +10,7 @@
 
 #include "corecache.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 QString shaOf(const QByteArray& d) { return QString::fromLatin1(QCryptographicHash::hash(d, QCryptographicHash::Sha256).toHex()); }

@@ -11,7 +11,7 @@
 #include <QString>
 #include <optional>
 
-namespace framebeam {
+namespace uzume {
 
 struct HostState {
   bool paused = false;
@@ -23,4 +23,4 @@ QByteArray makeHostState(bool paused, const QString& by);
 // "by" is dropped when it is not a string, empty or longer than 64 characters (control characters are removed).
 std::optional<HostState> parseHostState(const QByteArray& message);
 
-}  // namespace framebeam
+}  // namespace uzume

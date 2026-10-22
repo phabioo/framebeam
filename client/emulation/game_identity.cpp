@@ -4,7 +4,7 @@
 
 #include <cstring>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 namespace {
 bool readAt(QFile& f, qint64 pos, char* buf, qint64 len) {
@@ -107,4 +107,4 @@ GameIdentity readGameIdentity(const QString& path, const QString& reader) {
   return {};
 }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

@@ -11,8 +11,8 @@
 #include "savesync.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 namespace {
@@ -559,10 +559,10 @@ class InGameUiTest : public QObject {
     QVERIFY(c->gameSession()->isActive());
   }
 
-  // ---- screenshots (FRAMEBEAM_SHOT_DIR only) ----
+  // ---- screenshots (UZUME_SHOT_DIR only) ----
 
   void zScreenshots() {
-    if (qEnvironmentVariableIsEmpty("FRAMEBEAM_SHOT_DIR")) QSKIP("FRAMEBEAM_SHOT_DIR not set");
+    if (qEnvironmentVariableIsEmpty("UZUME_SHOT_DIR")) QSKIP("UZUME_SHOT_DIR not set");
     FakeHub hub(QStringLiteral("a"));
     Harness h;
     pair(hub, h, true);
@@ -579,7 +579,7 @@ class InGameUiTest : public QObject {
     startPreview(h, true);
     resize(h, 1440, 900);
     shot("3g-2-session-1440");
-    if (const int w = qEnvironmentVariableIntValue("FRAMEBEAM_SHOT_WIDTH"); w > 0 && w != 1440) {   // extra width, e.g. 1920
+    if (const int w = qEnvironmentVariableIntValue("UZUME_SHOT_WIDTH"); w > 0 && w != 1440) {   // extra width, e.g. 1920
       resize(h, w, 1080);
       shot((QByteArray("3g-2-session-") + QByteArray::number(w)).constData());
       resize(h, 1440, 900);

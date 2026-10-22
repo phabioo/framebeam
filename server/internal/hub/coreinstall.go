@@ -39,7 +39,7 @@ type InstalledCore struct {
 	UpdateAvailable                                                        bool
 	UpdateDate                                                             string // upstream date when UpdateAvailable
 	// AutoUpdate is the per-core setting: "" follows the system, CoreAutoUpdateOff pins the core (never updated
-	// automatically). AutoUpdateEffective is the resulting behavior after the Hub default and the system override.
+	// automatically). AutoUpdateEffective is the resulting behavior after the server default and the system override.
 	AutoUpdate          string
 	AutoUpdateEffective bool
 	Platforms           []string
@@ -400,7 +400,7 @@ func (s *Service) packageVersionExists(ctx context.Context, coreID, version stri
 func (s *Service) installCore(ctx context.Context, e SystemEntry, info coreInfo, srcs []buildSource, replace bool) (InstalledCore, error) {
 	var zero InstalledCore
 	if len(srcs) == 0 {
-		return zero, badRequest("No build of %s is available for the platforms of this Hub", info.DisplayName)
+		return zero, badRequest("No build of %s is available for the platforms of this server", info.DisplayName)
 	}
 	if err := os.MkdirAll(filepath.Join(s.dataDir, "tmp"), 0o750); err != nil {
 		return zero, internal(err)
@@ -745,7 +745,7 @@ func (s *Service) SetDefaultCore(ctx context.Context, systemID, coreID string) (
 	return internal2(err)
 }
 
-// removeLegacyCores deletes every core of the retired signed FrameBeam source (origin framebeam, ADR 0020): installed
+// removeLegacyCores deletes every core of the retired signed Uzume source (origin legacy-mirror, ADR 0020): installed
 // rows, package rows and the stored files. A removed default core is replaced by another installed core of the system
 // (profiled first) or cleared. Idempotent; saves are never touched.
 func (s *Service) removeLegacyCores(ctx context.Context) error {
@@ -830,7 +830,7 @@ func (s *Service) removeLegacyCores(ctx context.Context) error {
 				return internal(err)
 			}
 		}
-		slog.Info("removed retired FrameBeam-source core", "system", x.sys, "core", x.core)
+		slog.Info("removed retired Uzume-source core", "system", x.sys, "core", x.core)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM core_packages WHERE origin = ?`, OriginLegacy); err != nil {
 		return internal(err)

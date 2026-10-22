@@ -8,12 +8,12 @@
 
 #include "sessioncontroller.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class RemoteView : public QQuickPaintedItem {
   Q_OBJECT
   QML_ELEMENT
-  Q_PROPERTY(framebeam::ui::SessionController* controller READ controller WRITE setController NOTIFY controllerChanged)
+  Q_PROPERTY(uzume::ui::SessionController* controller READ controller WRITE setController NOTIFY controllerChanged)
   Q_PROPERTY(QString surfaceId READ surfaceId WRITE setSurfaceId NOTIFY surfaceIdChanged)  // Session id
   // Screen layout (0.6 D12) "stacked" | "side" | "top"; applies to frames with two stacked screens, others stay as they are.
   Q_PROPERTY(QString layout READ layout WRITE setLayout NOTIFY layoutChanged)
@@ -38,4 +38,4 @@ class RemoteView : public QQuickPaintedItem {
   QString layout_ = QStringLiteral("stacked");
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

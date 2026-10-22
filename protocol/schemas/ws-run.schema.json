@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-run.schema.json",
+  "$id": "https://uzume.invalid/schemas/ws-run.schema.json",
   "title": "Run object (as REST Run, shared by run_updated)",
   "type": "object",
   "required": [
@@ -50,7 +50,7 @@
     },
     "settings": {
       "type": "object",
-      "description": "Opaque to the Hub (plugin run rules)"
+      "description": "Opaque to the server (plugin run rules)"
     },
     "plugins": {
       "type": "array",
@@ -108,7 +108,7 @@
               "null"
             ],
             "format": "uuid",
-            "description": "Hub library game; set on join"
+            "description": "Server library game; set on join"
           },
           "color": {
             "type": [
@@ -117,7 +117,7 @@
             ],
             "minimum": 0,
             "maximum": 7,
-            "description": "Player colour in join order; null until the first join"
+            "description": "App colour in join order; null until the first join"
           },
           "states": {
             "type": "object",
@@ -132,7 +132,7 @@
               "properties": {
                 "state": {
                   "type": "object",
-                  "description": "Opaque to the Hub (at most 64 KiB)"
+                  "description": "Opaque to the server (at most 64 KiB)"
                 },
                 "state_rev": {
                   "type": "integer",

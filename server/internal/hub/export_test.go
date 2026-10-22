@@ -3,7 +3,7 @@ package hub
 import (
 	"context"
 
-	"github.com/phabioo/framebeam/server/internal/turnsrv"
+	"github.com/phabioo/uzume/server/internal/turnsrv"
 )
 
 // Test seams for the grace-timer generation check.

@@ -366,7 +366,7 @@ func TestVerifyRejects(t *testing.T) {
 func TestSignedMessageFormat(t *testing.T) {
 	got := string(SignedMessage(map[string]string{"b.lua": "bb", "B.lua": "BB", "a/z": "az", "a.lua": "aa"}))
 	// Byte order: "B.lua" < "a.lua" < "a/z" < "b.lua" ('.' 0x2e < '/' 0x2f).
-	want := "framebeam-plugin-v1\nBB  B.lua\naa  a.lua\naz  a/z\nbb  b.lua\n"
+	want := "uzume-plugin-v1\nBB  B.lua\naa  a.lua\naz  a/z\nbb  b.lua\n"
 	if got != want {
 		t.Fatalf("message %q, want %q", got, want)
 	}

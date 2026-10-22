@@ -7,7 +7,7 @@
 #include <QJsonDocument>
 #include <QSaveFile>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
 const QString kGlobal = QStringLiteral("global");
@@ -158,4 +158,4 @@ bool EmulationSettings::save() const {
   return f.commit();
 }
 
-}  // namespace framebeam
+}  // namespace uzume

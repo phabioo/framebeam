@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // The games a participant may bring into a run (RunsController.games). One is selected (radio).
 Rectangle {

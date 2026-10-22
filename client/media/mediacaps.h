@@ -5,7 +5,7 @@
 
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 // What this Player can really do with libavcodec/libopus (verified by opening the codec), for the handshake.
 struct MediaCapabilities {
@@ -20,4 +20,4 @@ MediaCapabilities detectMediaCapabilities();
 // Sets h264Encode/h264Decode/encoders/opus of the handshake data from detectMediaCapabilities().
 void applyMediaCapabilities(HandshakeInfo* info);
 
-}  // namespace framebeam
+}  // namespace uzume

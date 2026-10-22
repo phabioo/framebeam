@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/diag"
-	"github.com/phabioo/framebeam/server/internal/statusinfo"
+	"github.com/phabioo/uzume/server/internal/diag"
+	"github.com/phabioo/uzume/server/internal/statusinfo"
 )
 
 func adminEnv(t *testing.T, ring *diag.ErrorRing, logRing *diag.Ring) (*env, string) {

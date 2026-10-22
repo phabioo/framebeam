@@ -8,7 +8,7 @@
 #include "hubconnection.h"
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 // Library of the active hub (GET /games). Cleared on disconnect; never merged across hubs.
 class HubLibrary : public QObject {
@@ -37,4 +37,4 @@ class HubLibrary : public QObject {
   quint64 generation_ = 0;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

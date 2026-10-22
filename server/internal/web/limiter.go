@@ -231,5 +231,5 @@ func (s *Server) acquireVerify(ctx context.Context) (release func(), ok bool) {
 // busy answers a request that found no free verification slot.
 func busy(w http.ResponseWriter) {
 	w.Header().Set("Retry-After", "5")
-	http.Error(w, "The Hub is busy verifying passwords. Please try again in a moment.", http.StatusServiceUnavailable)
+	http.Error(w, "The server is busy verifying passwords. Please try again in a moment.", http.StatusServiceUnavailable)
 }

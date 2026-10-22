@@ -8,7 +8,7 @@
 #include <QStringList>
 #include <QVariantMap>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class KeyedRowsModel : public QAbstractListModel {
   Q_OBJECT
@@ -35,4 +35,4 @@ class KeyedRowsModel : public QAbstractListModel {
   QList<QVariantMap> rows_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

@@ -1,7 +1,7 @@
 #pragma once
 // ControllersController: data and actions of the Controllers page (3f) and the bridge between devices and the game.
 // Owns the SDL3 GamepadService and the local controller profiles (<data>/settings/controllers.json).
-// Mapping chain: physical -> profile -> FrameBeam input -> system input profile -> libretro joypad (merged with the
+// Mapping chain: physical -> profile -> Uzume input -> system input profile -> libretro joypad (merged with the
 // keyboard in GameSession). The mouse is the touch input (fixed, no profile).
 
 #include <QHash>
@@ -16,7 +16,7 @@
 #include "controllerprofiles.h"
 #include "gamepadservice.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class ControllersController : public QObject {
   Q_OBJECT
@@ -65,7 +65,7 @@ class ControllersController : public QObject {
   Q_PROPERTY(QString systemLabel READ systemLabel NOTIFY labelsChanged)
   Q_PROPERTY(QString touchLabel READ touchLabel NOTIFY labelsChanged)
   Q_PROPERTY(bool hasTouch READ hasTouch NOTIFY labelsChanged)  // the current system has a touch screen
-  // Input test: ids of the FrameBeam inputs that are active on the selected device.
+  // Input test: ids of the Uzume inputs that are active on the selected device.
   Q_PROPERTY(QStringList activeInputs READ activeInputs NOTIFY testChanged)
   // Button labels (glyph sets, design 3f-2/3f-3). labelChoice = saved choice of the selected gamepad ("auto" | "xbox" |
   // "playstation" | "generic"; saved per physical device), labelSet = effective set id (adds "keyboard" for the keyboard),
@@ -120,7 +120,7 @@ class ControllersController : public QObject {
   QString hotkeyNote() const { return hotkeyNote_; }
   QVariantMap hotkeyLabels() const;
   QSet<int> hotkeyKeys() const;  // assigned hotkey keys (Esc not included)
-  // FrameBeam keys that plugin hotkeys can never use: combination (Qt::Key | modifiers) -> label of the owner. The hotkeys,
+  // Uzume keys that plugin hotkeys can never use: combination (Qt::Key | modifiers) -> label of the owner. The hotkeys,
   // Esc, F4 (hide all HUD widgets) and Alt+1 ... Alt+9 (panel tabs).
   QMap<int, QString> reservedKeyOwners() const;
   QString padHotkeyListening() const { return padHotkeyListening_; }
@@ -218,4 +218,4 @@ class ControllersController : public QObject {
   QSet<int> heldKeys_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

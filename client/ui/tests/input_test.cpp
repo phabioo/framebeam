@@ -10,8 +10,8 @@
 #include "librarymodel.h"
 #include "system_manifest.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using emu::JoypadButton;
 using emu::buttonMask;
 

@@ -4,7 +4,7 @@
 
 #include "screenlayout.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 RemoteView::RemoteView(QQuickItem* parent) : QQuickPaintedItem(parent) { setAntialiasing(false); }
 
@@ -73,4 +73,4 @@ void RemoteView::paint(QPainter* p) {
   p->drawImage(target, img);
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

@@ -2,7 +2,7 @@
 
 #include <QRegularExpression>
 
-namespace framebeam::update {
+namespace uzume::update {
 
 namespace {
 
@@ -92,4 +92,4 @@ CoreVersionVerdict coreVersionVerdict(const QString& coreVersion, const QString&
   return a->major != b->major ? CoreVersionVerdict::Block : CoreVersionVerdict::Warn;
 }
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

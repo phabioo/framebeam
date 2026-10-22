@@ -2,7 +2,7 @@
 
 #include "bytes.h"
 
-namespace framebeam::formats {
+namespace uzume::formats {
 namespace {
 
 constexpr size_t kStored = 232, kParty = 260, kBlock = 56, kBlocksStart = 8;
@@ -79,4 +79,4 @@ Pk6 pk6Encrypt(std::string_view in) {
     return r;
 }
 
-}  // namespace framebeam::formats
+}  // namespace uzume::formats

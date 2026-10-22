@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // "⋯" button with a menu (round 3, sheet 0-2 "Row actions"): 30 x 30, the last column of a row. Items are
 // [{ name, label, danger?, divider?, enabled? }]; a destructive item is red, comes after a divider and ends with "…".

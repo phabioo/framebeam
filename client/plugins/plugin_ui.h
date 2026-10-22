@@ -13,7 +13,7 @@
 
 #include "plugin_value.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 inline constexpr int kUiMaxDepth = 24;
 inline constexpr int kUiMaxNodes = 2000;
@@ -78,4 +78,4 @@ class UiStore {
   int m_nextToast = 1;
 };
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

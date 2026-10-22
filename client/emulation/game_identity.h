@@ -3,7 +3,7 @@
 // Reads only the few header bytes needed (seeks; game files can be several GB).
 #include <QString>
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 struct GameIdentity {
   QString code;  // NDS/GBA: 4-character game code; 3DS: program ID as 16 uppercase hex digits; GB/GBC: the header title; empty when unknown
@@ -28,4 +28,4 @@ inline constexpr const char* kIdentityGbaHeader = "gba_header";
 // compressed containers that do not show the magic yield an empty identity.
 GameIdentity readGameIdentity(const QString& path, const QString& reader);
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

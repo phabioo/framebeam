@@ -1,7 +1,7 @@
 // Round 3 "Player A" artboards (0.14): 3a-3 connection / pairing lost, 3c-6 Library at 1280 and 3840, 3c-7 detail variants
 // (Hub game, local file, local copy of a Hub game, Hub offline), 3p-3 Settings (hubs, library folders). The plugin
 // artboards 4a-3, 4a-4 (plugins_ui_test), 4f-3 (plugin_slots_ui_test) and 4j-3 (runs_ui_test) write their shots there.
-// Skipped unless FRAMEBEAM_SCREENSHOT_DIR is set. Homebrew-style dummy bytes only (no ROM/BIOS/firmware).
+// Skipped unless UZUME_SCREENSHOT_DIR is set. Homebrew-style dummy bytes only (no ROM/BIOS/firmware).
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -9,8 +9,8 @@
 #include "fakehub.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 using S = HubConnection::State;
 
@@ -47,9 +47,9 @@ class ShotsPlayerATest : public QObject {
 
  private slots:
   void initTestCase() {
-    dir_ = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
-    if (dir_.isEmpty()) QSKIP("FRAMEBEAM_SCREENSHOT_DIR not set");
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    dir_ = qEnvironmentVariable("UZUME_SCREENSHOT_DIR");
+    if (dir_.isEmpty()) QSKIP("UZUME_SCREENSHOT_DIR not set");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     uitest::installWarningCounter();
   }
   void init() { uitest::warningCount() = 0; }

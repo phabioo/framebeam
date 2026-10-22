@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# E2E: framebeam_player_cli against a real FrameBeam Hub (built locally, self-signed TLS, loopback).
+# E2E: uzume-cli against a real Uzume server (built locally, self-signed TLS, loopback).
 # Quiet: only "ok  <step>" / "FAIL <step>" + log tail. Dummy data, no real ROMs.
-# Usage: scripts/e2e-player-hub.sh [path/to/framebeam_player_cli]
-#   Default: client/build/linux-debug/network/framebeam_player_cli
+# Usage: scripts/e2e-player-hub.sh [path/to/uzume-cli]
+#   Default: client/build/linux-debug/network/uzume-cli
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLI="${1:-$ROOT/client/build/linux-debug/network/framebeam_player_cli}"
+CLI="${1:-$ROOT/client/build/linux-debug/network/uzume-cli}"
 export CGO_ENABLED=0 GOTOOLCHAIN=local
 PW="e2e-dummy-password"
 TMP="$(mktemp -d)"
@@ -32,7 +32,7 @@ wait_for() { local n=$(( $1 * 10 )); shift; while [ "$n" -gt 0 ]; do "$@" >/dev/
 [ -x "$CLI" ] || die "CLI not found: $CLI"
 
 # 1. Build the Hub
-(cd "$ROOT/server" && go build -o "$TMP/framebeam-hub" ./cmd/framebeam-hub) >"$TMP/build.log" 2>&1 || die "hub build" "$TMP/build.log"
+(cd "$ROOT/server" && go build -o "$TMP/uzume-server" ./cmd/uzume-server) >"$TMP/build.log" 2>&1 || die "hub build" "$TMP/build.log"
 ok "hub build"
 
 # 1b. Core import (ADR 0020): dummy library (random bytes, no real core) zipped like the libretro buildbot does,
@@ -58,15 +58,15 @@ PY
 ok "core: import directory built (melondsds $CORE_PLATFORM)"
 
 # 2. Create admin, start Hub (self-signed TLS, free loopback port)
-export FRAMEBEAM_DATA_DIR="$TMP/hub"
-printf '%s\n' "$PW" | "$TMP/framebeam-hub" setup-admin -username admin >"$TMP/setup.log" 2>&1 || die "setup-admin" "$TMP/setup.log"
-"$TMP/framebeam-hub" import-cores "$CDIR" >"$TMP/import.log" 2>&1 || die "core: import-cores" "$TMP/import.log"
+export UZUME_DATA_DIR="$TMP/hub"
+printf '%s\n' "$PW" | "$TMP/uzume-server" setup-admin -username admin >"$TMP/setup.log" 2>&1 || die "setup-admin" "$TMP/setup.log"
+"$TMP/uzume-server" import-cores "$CDIR" >"$TMP/import.log" 2>&1 || die "core: import-cores" "$TMP/import.log"
 ok "core: import-cores"
 PORT="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1])')"
 ADDR="127.0.0.1:$PORT"
-"$TMP/framebeam-hub" -listen "$ADDR" -plugin-index-url none -core-buildbot-url "https://127.0.0.1:1/nightly" >"$TMP/hub.log" 2>&1 &
+"$TMP/uzume-server" -listen "$ADDR" -plugin-index-url none -core-buildbot-url "https://127.0.0.1:1/nightly" >"$TMP/hub.log" 2>&1 &
 HUB_PID=$!
-wait_for 15 curl -fsk "https://$ADDR/.well-known/framebeam" || die "hub start" "$TMP/hub.log"
+wait_for 15 curl -fsk "https://$ADDR/.well-known/uzume" || die "hub start" "$TMP/hub.log"
 ok "hub start $ADDR"
 
 # 3. Web interface: login (CSRF), upload a dummy ROM
@@ -185,7 +185,7 @@ ok "save: second resolve of the same conflict -> STALE (exit 4)"
 mkinvite() { # mkinvite -> prints the invite code (shown once in the Users page response)
   local b
   b=$("${CURL[@]}" -H "X-CSRF-Token: $tok" -H "HX-Request: true" --data-urlencode "expiry=1h" --data-urlencode "authorize=1" "https://$ADDR/users/invites")
-  printf '%s' "$b" | grep -o 'FB-[0-9A-Z]\{4\}-[0-9A-Z]\{4\}' | head -n1
+  printf '%s' "$b" | grep -o 'UZ-[0-9A-Z]\{4\}-[0-9A-Z]\{4\}' | head -n1
 }
 INV="$(mkinvite)"
 [ -n "$INV" ] || die "invite: no code in the Users page response" "$TMP/hub.log"

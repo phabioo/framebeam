@@ -3,9 +3,9 @@
 #include <QLoggingCategory>
 #include <QTimer>
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
-Q_LOGGING_CATEGORY(lcDelivery, "framebeam.plugins.delivery")
+Q_LOGGING_CATEGORY(lcDelivery, "uzume.plugins.delivery")
 
 namespace {
 
@@ -22,7 +22,7 @@ QString problemText(const PluginDownloadResult& r) {
 
 PluginDelivery::PluginDelivery(PluginManager* manager, PluginHubClient* hub, QObject* parent)
     : QObject(parent), manager_(manager), hub_(hub) {
-  qRegisterMetaType<framebeam::plugins::DeliveryResult>("framebeam::plugins::DeliveryResult");
+  qRegisterMetaType<uzume::plugins::DeliveryResult>("uzume::plugins::DeliveryResult");
   connect(hub_, &PluginHubClient::downloadFinished, this, &PluginDelivery::onDownloaded);
 }
 
@@ -107,4 +107,4 @@ void PluginDelivery::onDownloaded(const PluginDownloadResult& r) {
   for (const Callback& cb : callbacks) cb(out);
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

@@ -5,7 +5,7 @@
 #include "profilestore.h"
 #include "savestore.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 void writeFile(const QString& path, const QByteArray& d) {

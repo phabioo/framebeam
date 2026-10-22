@@ -45,4 +45,4 @@ The server performs no emulation, no encoding, no decoding and no multiview rend
 
 The Hub manages Hub-local users and device pairing. The Player manages the local device identity and stored Hub profiles; a connected Player instance uses exactly one active Hub (see section 14). A central metadata service with a provider abstraction and artwork cache is planned exclusively as a later extension (see section 15).
 
-The server runs as a single service, on Linux for example via `systemd`, with SQLite and data under `/var/lib/framebeam/`. Docker is optional. Node.js, Redis, PostgreSQL and Kubernetes are not required for the planned baseline.
+The server runs as a single service, on Linux for example via `systemd`, with SQLite and data under `/var/lib/uzume/`. Docker is optional. Node.js, Redis, PostgreSQL and Kubernetes are not required for the planned baseline.

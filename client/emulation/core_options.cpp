@@ -13,7 +13,7 @@
 
 #include "libretro_backend.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 CoreProbe probeCore(const QString& corePath, const QString& systemDir, const QString& saveDir) {
   CoreProbe p;
@@ -167,7 +167,7 @@ QMap<QString, QString> launchCoreOptions(const SystemManifest& manifest, const Q
                                          const QMap<QString, QString>& firmwareOptions) {
   QMap<QString, QString> out = manifest.coreOptions;
   for (auto it = userOverrides.cbegin(); it != userOverrides.cend(); ++it) {
-    if (it.key().startsWith(QLatin1String("framebeam.")) || isLockedCoreOption(manifest, it.key())) continue;
+    if (it.key().startsWith(QLatin1String("uzume.")) || isLockedCoreOption(manifest, it.key())) continue;
     out.insert(it.key(), it.value());
   }
   for (auto it = firmwareOptions.cbegin(); it != firmwareOptions.cend(); ++it) {
@@ -179,4 +179,4 @@ QMap<QString, QString> launchCoreOptions(const SystemManifest& manifest, const Q
   return out;
 }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

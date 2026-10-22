@@ -13,12 +13,12 @@
 #include "hw_render.h"
 #include "libretro_backend.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 using emu::EmulationRunner;
 
 namespace {
-Q_LOGGING_CATEGORY(lcDisplayHost, "framebeam.gpudisplay")
+Q_LOGGING_CATEGORY(lcDisplayHost, "uzume.gpudisplay")
 std::function<PlatformDisplay(QString*)>& platformDisplayFactory() {
   static std::function<PlatformDisplay(QString*)> f;
   return f;
@@ -621,4 +621,4 @@ void GameSession::setPointer(const QPointF& p, bool pressed) {
   }
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

@@ -1,6 +1,6 @@
 #pragma once
 // Shared helpers of the UI tests: harness (controller + Main.qml offscreen), QML warning counter,
-// screenshots (only if FRAMEBEAM_SHOT_DIR is set; never in the repo).
+// screenshots (only if UZUME_SHOT_DIR is set; never in the repo).
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -29,7 +29,7 @@
 
 #include "playercontroller.h"
 
-Q_IMPORT_QML_PLUGIN(FrameBeam_PlayerPlugin)
+Q_IMPORT_QML_PLUGIN(Uzume_AppPlugin)
 
 namespace uitest {
 
@@ -78,14 +78,14 @@ inline void crashSignal(int sig) {
   std::fflush(stderr);
   std::_Exit(3);
 }
-// FRAMEBEAM_TEST_LOG_DIR=<dir>: also write the QtTest log to <dir>/<test exe name>.txt (see testutil/processguard.h).
+// UZUME_TEST_LOG_DIR=<dir>: also write the QtTest log to <dir>/<test exe name>.txt (see testutil/processguard.h).
 inline std::vector<std::string> logArgs(const char* argv0) {
-  const QByteArray dir = qgetenv("FRAMEBEAM_TEST_LOG_DIR");
+  const QByteArray dir = qgetenv("UZUME_TEST_LOG_DIR");
   if (dir.isEmpty()) {
     return {};
   }
   QString name = QFileInfo(QString::fromLocal8Bit(argv0)).completeBaseName();
-  if (qEnvironmentVariableIntValue("FRAMEBEAM_TEST_WIDE_FONT") != 0) {
+  if (qEnvironmentVariableIntValue("UZUME_TEST_WIDE_FONT") != 0) {
     name += QStringLiteral("_widefont");   // the *_widefont ctest variants run the same exe: keep both logs
   }
   QDir().mkpath(QString::fromLocal8Bit(dir));
@@ -125,7 +125,7 @@ inline void prepareProcess() {
 
 // Custom main instead of QTEST_MAIN: unbuffered, console executable, "-v2" (every test function is reported).
 // A test that needs a core: QSKIP without one (real-core tests, nightly); in the *_testcore variants (FB_TEST_CORE, the
-// FrameBeam test core is always present) a missing precondition must fail instead of silently skipping.
+// Uzume test core is always present) a missing precondition must fail instead of silently skipping.
 #ifdef FB_TEST_CORE
 #define UITEST_SKIP_NO_CORE(msg) QFAIL(msg)
 #else
@@ -153,12 +153,12 @@ inline void prepareProcess() {
     return rc;                                                  \
   }
 
-// FRAMEBEAM_TEST_WIDE_FONT=1: noticeably wider text, the way Windows renders the same pixel sizes. Layout tests then
+// UZUME_TEST_WIDE_FONT=1: noticeably wider text, the way Windows renders the same pixel sizes. Layout tests then
 // catch items that only fit with Linux font metrics. QML text sets its own pixel size but inherits the application
 // font's letter spacing, so a large absolute spacing (about +30%) widens nearly all text at creation time, before any
 // layout runs. Must run before QML loads.
 inline void applyWideFontIfRequested() {
-  const int v = qEnvironmentVariableIntValue("FRAMEBEAM_TEST_WIDE_FONT");   // 1 = 3 px spacing, larger = that many px
+  const int v = qEnvironmentVariableIntValue("UZUME_TEST_WIDE_FONT");   // 1 = 3 px spacing, larger = that many px
   if (v == 0) return;
   QFont f = QGuiApplication::font();
   f.setLetterSpacing(QFont::AbsoluteSpacing, qMax(3, v));
@@ -185,7 +185,7 @@ inline QJsonObject gameJson(const QString& id, const QString& title, const QStri
 }
 
 inline void saveShot(QQuickWindow* w, const QString& name) {
-  const QString dir = qEnvironmentVariable("FRAMEBEAM_SHOT_DIR");
+  const QString dir = qEnvironmentVariable("UZUME_SHOT_DIR");
   if (dir.isEmpty() || w == nullptr) {
     return;
   }
@@ -210,7 +210,7 @@ inline bool isAllBlack(const QImage& img) {
 // Controller + Main.qml in an offscreen window.
 struct Harness {
   QTemporaryDir dir;
-  std::unique_ptr<framebeam::ui::PlayerController> controller;
+  std::unique_ptr<uzume::ui::PlayerController> controller;
   std::unique_ptr<QQmlApplicationEngine> engine;
   QQuickWindow* window = nullptr;
   // SDL gamepads are off by default (most tests need no input devices). The Controllers tests turn them on and
@@ -218,11 +218,11 @@ struct Harness {
   bool gamepads = false;
   int gamepadPollMs = 0;
   // Connection check: fake probes (tests never touch the network); empty = the real probes.
-  std::function<std::unique_ptr<framebeam::ConnectionProbes>()> connectionProbes;
-  std::function<void(framebeam::ConnectionTarget&)> connectionTargetPatch;
+  std::function<std::unique_ptr<uzume::ConnectionProbes>()> connectionProbes;
+  std::function<void(uzume::ConnectionTarget&)> connectionTargetPatch;
 
   bool start(bool probeCores = false) {
-    framebeam::ui::PlayerController::Options o;
+    uzume::ui::PlayerController::Options o;
     o.dataDir = dir.path();
     o.memoryCredentials = true;
     o.probeCoreVersions = probeCores;
@@ -231,12 +231,12 @@ struct Harness {
     o.connectionProbes = connectionProbes;
     o.connectionTargetPatch = connectionTargetPatch;
     o.allowHttp = true;
-    controller = std::make_unique<framebeam::ui::PlayerController>(o);
+    controller = std::make_unique<uzume::ui::PlayerController>(o);
     controller->connection()->setPollIntervalMs(80);
     engine = std::make_unique<QQmlApplicationEngine>();
     engine->addImportPath(QStringLiteral("qrc:/qt/qml"));
     engine->setInitialProperties({{QStringLiteral("player"), QVariant::fromValue(controller.get())}});
-    engine->load(QUrl(QStringLiteral("qrc:/qt/qml/FrameBeam/Player/Main.qml")));
+    engine->load(QUrl(QStringLiteral("qrc:/qt/qml/Uzume/App/Main.qml")));
     if (engine->rootObjects().isEmpty()) {
       return false;
     }

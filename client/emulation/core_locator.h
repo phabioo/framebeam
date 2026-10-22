@@ -1,7 +1,7 @@
 #pragma once
 // CoreLocator: finds the core library for a manifest.
 // Order: 1. explicitly set path (setExplicitPath), 2. environment variable
-// FRAMEBEAM_<CORE_ID>_CORE (e.g. FRAMEBEAM_MELONDS_DS_CORE), 3. core cache <root>/<core_id>/<version>/<platform>/
+// UZUME_<CORE_ID>_CORE (e.g. UZUME_MELONDS_DS_CORE), 3. core cache <root>/<core_id>/<version>/<platform>/
 // (package.json + library; preferred version if cached, otherwise the newest cached version), 4. <app-dir>/cores/
 // <basename>.<so|dll|dylib> (legacy/dev). The cache check is light (package.json, library present with the size
 // from package.json); SHA-256 validation is done by CoreCache when the package is stored and before a game start.
@@ -13,7 +13,7 @@
 
 #include "system_manifest.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 struct CoreLocation {
   QString path;    // empty = not found
@@ -45,4 +45,4 @@ class CoreLocator {
   QMap<QString, QString> m_explicit;
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

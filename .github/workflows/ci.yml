@@ -201,7 +201,7 @@ jobs:
           make build-hub
           make package-hub-deb
           # The amd64 binary runs on the runner: its version --json is the release info of the Hub.
-          server/dist/framebeam-hub-linux-amd64 version --json > server/dist/hub-release-info.json
+          server/dist/uzume-server-linux-amd64 version --json > server/dist/hub-release-info.json
           cat server/dist/hub-release-info.json
           grep -qF "\"version\":\"$HUB_VERSION\"" server/dist/hub-release-info.json
           grep -qF "\"channel\":\"$HUB_CHANNEL\"" server/dist/hub-release-info.json
@@ -211,15 +211,15 @@ jobs:
           ls -l server/dist
       - name: E2E Hub install and update (systemd)
         timeout-minutes: 15
-        # Real install on the runner: install-hub.sh, .deb migration, signed update round trip (uses sudo).
+        # Real install on the runner: install-server.sh, .deb install, signed update round trip (uses sudo).
         run: scripts/e2e-hub-update.sh
       - uses: actions/upload-artifact@v7
         with:
-          name: framebeam-hub-linux
+          name: uzume-server-linux
           path: |
-            server/dist/framebeam-hub-linux-amd64
-            server/dist/framebeam-hub-linux-arm64
-            server/dist/framebeam-hub_*.deb
+            server/dist/uzume-server-linux-amd64
+            server/dist/uzume-server-linux-arm64
+            server/dist/uzume-server_*.deb
             server/dist/hub-release-info.json
             server/dist/LICENSE
             server/dist/THIRD-PARTY-NOTICES.txt
@@ -227,8 +227,8 @@ jobs:
           retention-days: 7
       - uses: actions/upload-artifact@v7
         with:
-          name: framebeam-hub-windows
-          path: server/dist/framebeam-hub-windows-amd64.exe
+          name: uzume-server-windows
+          path: server/dist/uzume-server-windows-amd64.exe
           if-no-files-found: error
           retention-days: 7
 
@@ -252,12 +252,12 @@ jobs:
             --build-arg HUB_VERSION="$HUB_VERSION" --build-arg HUB_CHANNEL="$HUB_CHANNEL" --build-arg HUB_COMMIT="$HUB_COMMIT" .
       - name: Start the amd64 image
         run: |
-          docker buildx build --platform linux/amd64 --load -t framebeam-hub:ci -f packaging/docker/Dockerfile \
+          docker buildx build --platform linux/amd64 --load -t uzume-server:ci -f packaging/docker/Dockerfile \
             --build-arg HUB_VERSION="$HUB_VERSION" --build-arg HUB_CHANNEL="$HUB_CHANNEL" --build-arg HUB_COMMIT="$HUB_COMMIT" .
-          docker run --rm framebeam-hub:ci version --json | tee "$RUNNER_TEMP/image-version.json"
+          docker run --rm uzume-server:ci version --json | tee "$RUNNER_TEMP/image-version.json"
           grep -qF "\"version\":\"$HUB_VERSION\"" "$RUNNER_TEMP/image-version.json"
           # A fresh named volume is writable by the non-root user: the Hub creates its database and answers on HTTPS.
-          docker run -d --name hub-ci -p 8443:8443 -v hub-ci-data:/data framebeam-hub:ci
+          docker run -d --name hub-ci -p 8443:8443 -v hub-ci-data:/data uzume-server:ci
           for _ in $(seq 1 30); do
             curl -ksf -o /dev/null https://127.0.0.1:8443/ && ok=1 && break
             sleep 1
@@ -299,9 +299,9 @@ jobs:
         run: |
           mkdir -p dist
           go build -trimpath \
-            -ldflags "-s -w -X github.com/phabioo/framebeam/server/internal/version.Version=$HUB_VERSION -X github.com/phabioo/framebeam/server/internal/version.Channel=$HUB_CHANNEL -X github.com/phabioo/framebeam/server/internal/version.Commit=$HUB_COMMIT" \
-            -o dist/framebeam-hub-windows-amd64.exe ./cmd/framebeam-hub
-          dist/framebeam-hub-windows-amd64.exe version --json | tee dist/hub-windows-info.json
+            -ldflags "-s -w -X github.com/phabioo/uzume/server/internal/version.Version=$HUB_VERSION -X github.com/phabioo/uzume/server/internal/version.Channel=$HUB_CHANNEL -X github.com/phabioo/uzume/server/internal/version.Commit=$HUB_COMMIT" \
+            -o dist/uzume-server-windows-amd64.exe ./cmd/uzume-server
+          dist/uzume-server-windows-amd64.exe version --json | tee dist/hub-windows-info.json
           grep -qF "\"version\":\"$HUB_VERSION\"" dist/hub-windows-info.json
           grep -qF "\"channel\":\"$HUB_CHANNEL\"" dist/hub-windows-info.json
 
@@ -315,9 +315,9 @@ jobs:
     outputs:
       flaky: ${{ steps.flaky.outputs.flaky }}
     env:
-      FRAMEBEAM_VERSION: ${{ needs.version.outputs.version }}
-      FRAMEBEAM_CHANNEL: ${{ needs.version.outputs.channel }}
-      FRAMEBEAM_COMMIT: ${{ needs.version.outputs.commit }}
+      UZUME_VERSION: ${{ needs.version.outputs.version }}
+      UZUME_CHANNEL: ${{ needs.version.outputs.channel }}
+      UZUME_COMMIT: ${{ needs.version.outputs.commit }}
       VCPKG_ROOT: ${{ github.workspace }}/.vcpkg
       # The Linux manifest has no dependencies (all vcpkg.json entries are Windows-only): no binary cache needed.
       VCPKG_BINARY_SOURCES: clear
@@ -342,13 +342,13 @@ jobs:
         id: cache-ddc
         uses: actions/cache/restore@v6
         with:
-          path: ~/.cache/framebeam/deps/libdatachannel
+          path: ~/.cache/uzume/deps/libdatachannel
           key: libdatachannel-linux-${{ steps.week.outputs.image }}-${{ hashFiles('scripts/libdatachannel.pin', 'scripts/fetch-libdatachannel.sh') }}
       - name: Restore SDL3
         id: cache-sdl3
         uses: actions/cache/restore@v6
         with:
-          path: ~/.cache/framebeam/deps/sdl3
+          path: ~/.cache/uzume/deps/sdl3
           key: sdl3-linux-${{ steps.week.outputs.image }}-${{ hashFiles('scripts/sdl3.pin', 'scripts/fetch-sdl3.sh') }}
       - name: Restore ccache
         id: cache-ccache
@@ -372,7 +372,7 @@ jobs:
         if: steps.cache-ddc.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: ~/.cache/framebeam/deps/libdatachannel
+          path: ~/.cache/uzume/deps/libdatachannel
           key: ${{ steps.cache-ddc.outputs.cache-primary-key }}
       - name: Build SDL3
         timeout-minutes: 45
@@ -381,18 +381,18 @@ jobs:
         if: steps.cache-sdl3.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: ~/.cache/framebeam/deps/sdl3
+          path: ~/.cache/uzume/deps/sdl3
           key: ${{ steps.cache-sdl3.outputs.cache-primary-key }}
       - name: Check Player
         timeout-minutes: 60
         env:
           # A failed test is retried once (scripts/check.sh); one that passes on the retry is a flaky-test warning, not a failure.
-          FRAMEBEAM_CTEST_RETRY: "1"
-          FRAMEBEAM_FLAKY_FILE: ${{ runner.temp }}/flaky-tests.txt
+          UZUME_CTEST_RETRY: "1"
+          UZUME_FLAKY_FILE: ${{ runner.temp }}/flaky-tests.txt
           # Merge CI uses the in-repo test core (ADR 0020 update 2026-10-11): no real core is fetched or built; the real-core
           # tests skip. A skipped *_testcore test fails the check; real cores are covered by cores-nightly.yml.
-          FRAMEBEAM_SKIP_CORES: "1"
-          FRAMEBEAM_REQUIRE_TESTCORE: "1"
+          UZUME_SKIP_CORES: "1"
+          UZUME_REQUIRE_TESTCORE: "1"
           CMAKE_C_COMPILER_LAUNCHER: ccache
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: xvfb-run -a make check-client
@@ -423,7 +423,7 @@ jobs:
           cache-dependency-path: server/go.sum
       - name: E2E Player CLI against Hub
         timeout-minutes: 20
-        # The E2E script builds the Hub and framebeam-sign itself (go build), no extra build step needed.
+        # The E2E script builds the Hub and uzume-sign itself (go build), no extra build step needed.
         run: |
           scripts/e2e-player-hub.sh
           scripts/e2e-session.sh
@@ -439,9 +439,9 @@ jobs:
     outputs:
       flaky: ${{ steps.test.outputs.flaky }}
     env:
-      FRAMEBEAM_VERSION: ${{ needs.version.outputs.version }}
-      FRAMEBEAM_CHANNEL: ${{ needs.version.outputs.channel }}
-      FRAMEBEAM_COMMIT: ${{ needs.version.outputs.commit }}
+      UZUME_VERSION: ${{ needs.version.outputs.version }}
+      UZUME_CHANNEL: ${{ needs.version.outputs.channel }}
+      UZUME_COMMIT: ${{ needs.version.outputs.commit }}
       VCPKG_ROOT: ${{ github.workspace }}\.vcpkg
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-binary-cache
       CCACHE_DIR: ${{ github.workspace }}\.ccache
@@ -553,8 +553,8 @@ jobs:
           CCACHE_EXE: ${{ steps.ccache.outputs.path }}
         # The launcher is a cache variable of this project only; vcpkg builds its ports in their own CMake runs.
         run: >-
-          cmake --preset windows-msvc-release "-DFRAMEBEAM_VERSION=$env:FRAMEBEAM_VERSION" "-DFRAMEBEAM_CHANNEL=$env:FRAMEBEAM_CHANNEL"
-          "-DFRAMEBEAM_COMMIT=$env:FRAMEBEAM_COMMIT" "-DCMAKE_C_COMPILER_LAUNCHER=$env:CCACHE_EXE" "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:CCACHE_EXE"
+          cmake --preset windows-msvc-release "-DUZUME_VERSION=$env:UZUME_VERSION" "-DUZUME_CHANNEL=$env:UZUME_CHANNEL"
+          "-DUZUME_COMMIT=$env:UZUME_COMMIT" "-DCMAKE_C_COMPILER_LAUNCHER=$env:CCACHE_EXE" "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:CCACHE_EXE"
       # Save the binary cache right after vcpkg install (part of configure), even if
       # later steps fail, so a long FFmpeg build is never repeated. Only when this run added or changed entries
       # (file count or total size differs from the restored state): an unchanged cache is not uploaded again, which keeps
@@ -604,7 +604,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           # Tests also write their QtTest log here, so an intermittent failure shows its assertion from the first run.
-          FRAMEBEAM_TEST_LOG_DIR: ${{ github.workspace }}\testlogs
+          UZUME_TEST_LOG_DIR: ${{ github.workspace }}\testlogs
         run: |
           # Merge CI uses the in-repo test core only: the real-core tests skip (cores-nightly.yml runs them), every other
           # skip, in particular any *_testcore test, is an error (allowlist below). Tests run in parallel (own temp dirs, port 0).
@@ -614,7 +614,7 @@ jobs:
             # console, followed by the files and the exit code (0xC0000005 = access violation, 3/4 = abort/terminate).
             $failed = Select-String -Path ctest.log -Pattern '^\s*\d+/\d+ Test\s+#\d+: (\S+) \.+\*{3}(Failed|Exception|Timeout)' |
               ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique
-            $logDir = $env:FRAMEBEAM_TEST_LOG_DIR
+            $logDir = $env:UZUME_TEST_LOG_DIR
             # The direct rerun is the retry: a test that passes now is flaky (warning), any other outcome keeps the job red.
             $flaky = @()
             $stillFailing = @()
@@ -636,7 +636,7 @@ jobs:
                 Set-Item -Path "env:$k" -Value $v
               }
               # The first-run log is printed above and the rerun writes its own file; a second stdout logger makes QtTest exit at once.
-              Remove-Item Env:FRAMEBEAM_TEST_LOG_DIR -ErrorAction SilentlyContinue
+              Remove-Item Env:UZUME_TEST_LOG_DIR -ErrorAction SilentlyContinue
               Push-Location $exe.DirectoryName
               # Two -o: file (survives a crash) AND stdout. "$t.txt,txt" is one argument "<file>,<format>".
               $txt = Join-Path $exe.DirectoryName "$t.txt"
@@ -677,23 +677,23 @@ jobs:
         shell: pwsh
         run: |
           # Layout (spec 0.3 S6): the tiny launcher and the notice at the top, everything else in bin\.
-          $dist = "$env:GITHUB_WORKSPACE\dist\framebeam-player"
+          $dist = "$env:GITHUB_WORKSPACE\dist\uzume-app"
           $bin = "$dist\bin"
           New-Item -ItemType Directory -Force $bin | Out-Null
-          # The launcher (target framebeam_player_launcher) is built to <build>\launcher\framebeam_player.exe; the real Player
-          # is the only other framebeam_player.exe in the build tree.
+          # The launcher (target uzume_launcher) is built to <build>\launcher\Uzume.exe; the real Player
+          # is the only other Uzume.exe in the build tree.
           $build = "client\build\windows-msvc-release"
-          $launcher = Get-Item "$build\launcher\framebeam_player.exe" -ErrorAction SilentlyContinue
-          if (-not $launcher) { throw "launcher not found: $build\launcher\framebeam_player.exe" }
+          $launcher = Get-Item "$build\launcher\Uzume.exe" -ErrorAction SilentlyContinue
+          if (-not $launcher) { throw "launcher not found: $build\launcher\Uzume.exe" }
           $launcherDir = (Resolve-Path "$build\launcher").Path
-          $reals = @(Get-ChildItem -Recurse -Filter framebeam_player.exe $build | Where-Object { -not $_.DirectoryName.StartsWith($launcherDir, [StringComparison]::OrdinalIgnoreCase) })
-          if ($reals.Count -ne 1) { throw "expected exactly one real framebeam_player.exe outside launcher\, found $($reals.Count): $($reals.FullName -join ', ')" }
+          $reals = @(Get-ChildItem -Recurse -Filter Uzume.exe $build | Where-Object { -not $_.DirectoryName.StartsWith($launcherDir, [StringComparison]::OrdinalIgnoreCase) })
+          if ($reals.Count -ne 1) { throw "expected exactly one real Uzume.exe outside launcher\, found $($reals.Count): $($reals.FullName -join ', ')" }
           $real = $reals[0]
           if ($launcher.Length -ge $real.Length) { throw "launcher ($($launcher.Length) bytes) is not smaller than the Player ($($real.Length) bytes)" }
           Write-Host "Launcher: $($launcher.FullName)"
           Write-Host "Player:   $($real.FullName)"
-          Copy-Item $launcher.FullName "$dist\framebeam_player.exe"
-          Copy-Item $real.FullName "$bin\framebeam_player.exe"
+          Copy-Item $launcher.FullName "$dist\Uzume.exe"
+          Copy-Item $real.FullName "$bin\Uzume.exe"
           # vcpkg runtime DLLs (libdatachannel, FFmpeg, OpenH264, Opus, SDL3 and their transitive DLLs): windeployqt only
           # deploys Qt. vcpkg's applocal step puts them next to the exe; fall back to the release bin directory of
           # the manifest install (never debug\bin). Qt DLLs are left to windeployqt.
@@ -711,10 +711,10 @@ jobs:
           foreach ($need in 'datachannel', 'avutil', 'avcodec', 'swscale', 'opus', 'SDL3') {
             if (-not (Get-ChildItem $bin -Filter "*$need*.dll")) { throw "Runtime DLL matching *$need*.dll is missing from the package" }
           }
-          windeployqt --release --no-translations --qmldir client\ui "$bin\framebeam_player.exe"
+          windeployqt --release --no-translations --qmldir client\ui "$bin\Uzume.exe"
           if ($LASTEXITCODE -ne 0) { throw "windeployqt failed" }
           if (Get-ChildItem $dist -Filter *.dll) { throw "DLLs at the top level of the package: only the launcher belongs there" }
-          # No emulator cores in the package: the Player downloads them from the FrameBeam Hub on demand. Guard: no
+          # No emulator cores in the package: the app downloads them from the Uzume server on demand. Guard: no
           # *_libretro.* library and no cores directory anywhere in the dist (the MSI is harvested from this directory).
           $coreLeak = @(Get-ChildItem -Path $dist -Recurse -Force | Where-Object { $_.Name -like '*_libretro.*' -or ($_.PSIsContainer -and $_.Name -ieq 'cores') })
           if ($coreLeak.Count -gt 0) { $coreLeak | ForEach-Object { Write-Host "::error::emulator core in package: $($_.FullName)" }; throw "Emulator cores must not be part of the package" }
@@ -738,9 +738,9 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          $dist = "$env:GITHUB_WORKSPACE\dist\framebeam-player"
+          $dist = "$env:GITHUB_WORKSPACE\dist\uzume-app"
           $bin = "$dist\bin"
-          $launcher = "$dist\framebeam_player.exe"
+          $launcher = "$dist\Uzume.exe"
           # 0) License material: notice, LICENSE.txt and a non-empty licenses\ directory.
           foreach ($f in 'THIRD-PARTY-NOTICE.txt', 'LICENSE.txt') {
             if (-not (Test-Path "$dist\$f")) { throw "$f is missing from the package" }
@@ -750,7 +750,7 @@ jobs:
           $dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue
           if ($dumpbin) {
             $missing = @()
-            foreach ($bin1 in (@($launcher, "$bin\framebeam_player.exe") + (Get-ChildItem $bin -Filter *.dll | ForEach-Object FullName))) {
+            foreach ($bin1 in (@($launcher, "$bin\Uzume.exe") + (Get-ChildItem $bin -Filter *.dll | ForEach-Object FullName))) {
               $dir = [IO.Path]::GetDirectoryName($bin1)
               foreach ($line in (& $dumpbin.Source /dependents $bin1)) {
                 if ($line -match '^\s+(\S+\.dll)\s*$') {
@@ -773,11 +773,11 @@ jobs:
             $null = $p.Handle  # cache the handle, otherwise ExitCode can be empty
             if (-not $p.WaitForExit(60000)) { $p.Kill(); throw "$argSet did not exit within 60 s" }
             $code = $p.ExitCode
-            Write-Host "framebeam_player.exe $argSet exit code: $code (0x$('{0:X8}' -f $code))"
+            Write-Host "Uzume.exe $argSet exit code: $code (0x$('{0:X8}' -f $code))"
             if ($code -eq -1073741515 -or $code -eq 3221225781) {
               throw "STATUS_DLL_NOT_FOUND (0xC0000135): a runtime DLL is missing from the package"
             }
-            if ($code -ne 0) { throw "framebeam_player.exe $argSet failed with exit code $code" }
+            if ($code -ne 0) { throw "Uzume.exe $argSet failed with exit code $code" }
           }
           # 3) Release info: --version-json with redirected stdout (the launcher passes its handles on).
           $out = "$env:GITHUB_WORKSPACE\dist\zip\player-release-info.json"
@@ -791,17 +791,17 @@ jobs:
           Get-Content $out | Write-Host
           $info = Get-Content $out -Raw | ConvertFrom-Json
           if ($info.product -ne 'player') { throw "release info: product is '$($info.product)'" }
-          if ($info.version -ne $env:FRAMEBEAM_VERSION) { throw "release info: version '$($info.version)' != $env:FRAMEBEAM_VERSION" }
-          if ($info.channel -ne $env:FRAMEBEAM_CHANNEL) { throw "release info: channel '$($info.channel)' != $env:FRAMEBEAM_CHANNEL" }
+          if ($info.version -ne $env:UZUME_VERSION) { throw "release info: version '$($info.version)' != $env:UZUME_VERSION" }
+          if ($info.channel -ne $env:UZUME_CHANNEL) { throw "release info: channel '$($info.channel)' != $env:UZUME_CHANNEL" }
           # 4) Portable zip (one top-level folder).
-          $zip = "$env:GITHUB_WORKSPACE\dist\zip\framebeam-player-$($env:FRAMEBEAM_VERSION)-windows-x64.zip"
+          $zip = "$env:GITHUB_WORKSPACE\dist\zip\uzume-$($env:UZUME_VERSION)-windows-x64.zip"
           Compress-Archive -Path $dist -DestinationPath $zip -CompressionLevel Optimal
           Get-Item $zip | Format-Table Name, Length
       - uses: actions/upload-artifact@v7
         with:
-          name: framebeam-player-windows-x64
+          name: uzume-app-windows-x64
           path: |
-            dist/zip/framebeam-player-*-windows-x64.zip
+            dist/zip/uzume-*-windows-x64.zip
             dist/zip/player-release-info.json
           if-no-files-found: error
           retention-days: 7
@@ -819,10 +819,10 @@ jobs:
         run: |
           mkdir -p ../dist/hub
           go build -trimpath \
-            -ldflags "-s -w -X github.com/phabioo/framebeam/server/internal/version.Version=$FRAMEBEAM_VERSION -X github.com/phabioo/framebeam/server/internal/version.Channel=$FRAMEBEAM_CHANNEL -X github.com/phabioo/framebeam/server/internal/version.Commit=$FRAMEBEAM_COMMIT" \
-            -o ../dist/hub/framebeam-hub.exe ./cmd/framebeam-hub
-          ../dist/hub/framebeam-hub.exe version --json | tee ../dist/hub/hub-info.json
-          grep -qF "\"version\":\"$FRAMEBEAM_VERSION\"" ../dist/hub/hub-info.json
+            -ldflags "-s -w -X github.com/phabioo/uzume/server/internal/version.Version=$UZUME_VERSION -X github.com/phabioo/uzume/server/internal/version.Channel=$UZUME_CHANNEL -X github.com/phabioo/uzume/server/internal/version.Commit=$UZUME_COMMIT" \
+            -o ../dist/hub/uzume-server.exe ./cmd/uzume-server
+          ../dist/hub/uzume-server.exe version --json | tee ../dist/hub/hub-info.json
+          grep -qF "\"version\":\"$UZUME_VERSION\"" ../dist/hub/hub-info.json
       - name: Build MSI (WiX v5)
         timeout-minutes: 30
         shell: pwsh
@@ -832,39 +832,39 @@ jobs:
           # ProductVersion must be numeric: X.Y.Z plus the run number as 4th field (ignored by Windows Installer's upgrade logic).
           # Compression: the published beta MSI (push to main) keeps the release setting high; dev builds use mszip and the two
           # test-only MSIs none, which binds in a fraction of the time (high LZX over the whole package takes over a minute each).
-          $level = if ($env:FRAMEBEAM_CHANNEL -eq 'beta') { 'high' } else { 'mszip' }
-          $msi = "$env:GITHUB_WORKSPACE\dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi"
+          $level = if ($env:UZUME_CHANNEL -eq 'beta') { 'high' } else { 'mszip' }
+          $msi = "$env:GITHUB_WORKSPACE\dist\msi\uzume-$($env:UZUME_VERSION)-windows-x64.msi"
           packaging\windows\build-msi.ps1 -ProductVersion "$env:CORE_VERSION.${{ github.run_number }}" -CompressionLevel $level `
-            -PackageDir "$env:GITHUB_WORKSPACE\dist\framebeam-player" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\framebeam-hub.exe" -OutFile $msi
+            -PackageDir "$env:GITHUB_WORKSPACE\dist\uzume-app" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\uzume-server.exe" -OutFile $msi
           if (-not (Test-Path $msi)) { throw "MSI was not produced" }
           # An older build of the same product (other product code) for the per-user -> per-machine switch test.
           packaging\windows\build-msi.ps1 -ProductVersion "0.0.1.0" -CompressionLevel none `
-            -PackageDir "$env:GITHUB_WORKSPACE\dist\framebeam-player" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\framebeam-hub.exe" `
-            -OutFile "$env:GITHUB_WORKSPACE\dist\msi-old\framebeam-old.msi"
+            -PackageDir "$env:GITHUB_WORKSPACE\dist\uzume-app" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\uzume-server.exe" `
+            -OutFile "$env:GITHUB_WORKSPACE\dist\msi-old\uzume-old.msi"
           # Same version, new product code: an upgrade of the main MSI (as the Hub updater runs it).
           packaging\windows\build-msi.ps1 -ProductVersion "$env:CORE_VERSION.${{ github.run_number }}" -CompressionLevel none `
-            -PackageDir "$env:GITHUB_WORKSPACE\dist\framebeam-player" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\framebeam-hub.exe" `
-            -OutFile "$env:GITHUB_WORKSPACE\dist\msi-upgrade\framebeam-upgrade.msi"
+            -PackageDir "$env:GITHUB_WORKSPACE\dist\uzume-app" -HubExe "$env:GITHUB_WORKSPACE\dist\hub\uzume-server.exe" `
+            -OutFile "$env:GITHUB_WORKSPACE\dist\msi-upgrade\uzume-upgrade.msi"
       - name: MSI test (a) Player only, per user
         timeout-minutes: 15
         shell: pwsh
-        run: scripts\test-windows-msi.ps1 -Scenario user -Msi "dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi"
+        run: scripts\test-windows-msi.ps1 -Scenario user -Msi "dist\msi\uzume-$($env:UZUME_VERSION)-windows-x64.msi"
       - name: MSI test (b) Player and Hub, per machine
         timeout-minutes: 15
         shell: pwsh
-        run: scripts\test-windows-msi.ps1 -Scenario machine -Msi "dist\msi\framebeam-$($env:FRAMEBEAM_VERSION)-windows-x64.msi" -OldMsi dist\msi-old\framebeam-old.msi -UpgradeMsi dist\msi-upgrade\framebeam-upgrade.msi -Version $env:FRAMEBEAM_VERSION
+        run: scripts\test-windows-msi.ps1 -Scenario machine -Msi "dist\msi\uzume-$($env:UZUME_VERSION)-windows-x64.msi" -OldMsi dist\msi-old\uzume-old.msi -UpgradeMsi dist\msi-upgrade\uzume-upgrade.msi -Version $env:UZUME_VERSION
       - name: Upload MSI test logs
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: framebeam-msi-test-logs
-          path: ${{ runner.temp }}/fb-msi-test-*/*.log
+          name: uzume-msi-test-logs
+          path: ${{ runner.temp }}/uzume-msi-test-*/*.log
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v7
         with:
-          name: framebeam-windows-x64-msi
-          path: dist/msi/framebeam-*-windows-x64.msi
+          name: uzume-windows-x64-msi
+          path: dist/msi/uzume-*-windows-x64.msi
           if-no-files-found: error
           retention-days: 7
 

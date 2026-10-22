@@ -10,8 +10,8 @@
 #include "fbplugin.h"
 #include "fbplugin_testutil.h"
 
-using namespace framebeam::plugins;
-using namespace framebeam::plugins::testutil;
+using namespace uzume::plugins;
+using namespace uzume::plugins::testutil;
 
 namespace {
 
@@ -224,7 +224,7 @@ class FbPluginTest : public QObject {
     h.insert("B/x", QString(64, 'c'));
     h.insert(QString::fromUtf8("\xC3\xA9.txt"), QString(64, 'd'));  // e-acute sorts after ASCII by bytes
     h.insert("a/b", QString(64, 'e'));
-    QByteArray expect = "framebeam-plugin-v1\n";
+    QByteArray expect = "uzume-plugin-v1\n";
     expect += QByteArray(64, 'c') + "  B/x\n";
     expect += QByteArray(64, 'e') + "  a/b\n";
     expect += QByteArray(64, 'b') + "  main.lua\n";
@@ -354,8 +354,8 @@ class FbPluginTest : public QObject {
     QMap<QString, QString> h;
     for (auto it = files.begin(); it != files.end(); ++it) h.insert(it.key(), sha256Hex(it.value()));
     const QByteArray msg = pluginSignatureMessage(h);
-    QCOMPARE(msg.left(20), QByteArray("framebeam-plugin-v1\n"));
-    QCOMPARE(ed25519Sign(key, msg).toBase64(), QByteArray("6xdZ4IZsw1k4eiqQXSn3mtUiunKt2Xyw3W6lJgStjk18KBXhRmj5h9AhnnMkwFjMifsIUQofFp6dGDlAveOGBg=="));
+    QCOMPARE(msg.left(16), QByteArray("uzume-plugin-v1\n"));
+    QCOMPARE(ed25519Sign(key, msg).toBase64(), QByteArray("oJfjgZSOzLHD5cDbKOkqU06+fME0niaRpl3CqqAC/EHtKqh683SRiwzSIA43bOgvu7caoP0yhS6LnvBgo4iZCA=="));
   }
 
   // Vector written by the Hub (server/internal/pluginpkg/testdata): same message, same signature, same file.

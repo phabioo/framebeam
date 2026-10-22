@@ -17,7 +17,7 @@ extern "C" {
 #include <libavutil/pixfmt.h>
 }
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 
@@ -64,7 +64,7 @@ class CudaTest : public QObject {
   void resolveFindsNoSuchLibrary() {
     cuda::Api api;
     QString why;
-    QVERIFY(!cuda::Driver::resolve("framebeam-no-such-cuda", &api, &why));
+    QVERIFY(!cuda::Driver::resolve("uzume-no-such-cuda", &api, &why));
     QVERIFY2(why.contains(QLatin1String("not found")), qPrintable(why));
   }
 
@@ -165,31 +165,31 @@ class CudaTest : public QObject {
 
   void gpuInputConfiguredFollowsTheEnvironment() {
     {
-      EnvGuard disable("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
-      EnvGuard forced("FRAMEBEAM_H264_ENCODER", nullptr);
+      EnvGuard disable("UZUME_DISABLE_GPU_ENCODE", nullptr);
+      EnvGuard forced("UZUME_H264_ENCODER", nullptr);
       QString why;
       QVERIFY(VideoEncoder::gpuInputConfigured(&why));
       QVERIFY(VideoEncoder::gpuInputConfigured());
     }
     {
-      EnvGuard disable("FRAMEBEAM_DISABLE_GPU_ENCODE", "1");
-      EnvGuard forced("FRAMEBEAM_H264_ENCODER", nullptr);
+      EnvGuard disable("UZUME_DISABLE_GPU_ENCODE", "1");
+      EnvGuard forced("UZUME_H264_ENCODER", nullptr);
       QString why;
       QVERIFY(!VideoEncoder::gpuInputConfigured(&why));
-      QCOMPARE(why, QStringLiteral("FRAMEBEAM_DISABLE_GPU_ENCODE=1"));
+      QCOMPARE(why, QStringLiteral("UZUME_DISABLE_GPU_ENCODE=1"));
       QVERIFY(!VideoEncoder::gpuInputConfigured());  // why is optional
     }
     {
-      EnvGuard disable("FRAMEBEAM_DISABLE_GPU_ENCODE", "0");  // only "1" is the kill switch
-      EnvGuard forced("FRAMEBEAM_H264_ENCODER", nullptr);
+      EnvGuard disable("UZUME_DISABLE_GPU_ENCODE", "0");  // only "1" is the kill switch
+      EnvGuard forced("UZUME_H264_ENCODER", nullptr);
       QVERIFY(VideoEncoder::gpuInputConfigured());
     }
     for (const char* encoder : {"libx264", "h264_nvenc"}) {  // even the NVENC encoder keeps the readback path
-      EnvGuard disable("FRAMEBEAM_DISABLE_GPU_ENCODE", nullptr);
-      EnvGuard forced("FRAMEBEAM_H264_ENCODER", encoder);
+      EnvGuard disable("UZUME_DISABLE_GPU_ENCODE", nullptr);
+      EnvGuard forced("UZUME_H264_ENCODER", encoder);
       QString why;
       QVERIFY(!VideoEncoder::gpuInputConfigured(&why));
-      QCOMPARE(why, QStringLiteral("FRAMEBEAM_H264_ENCODER=%1 forces the readback path").arg(QLatin1String(encoder)));
+      QCOMPARE(why, QStringLiteral("UZUME_H264_ENCODER=%1 forces the readback path").arg(QLatin1String(encoder)));
     }
   }
 

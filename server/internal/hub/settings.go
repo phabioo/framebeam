@@ -6,7 +6,7 @@ import (
 	"errors"
 )
 
-// Hub settings live in the settings table (key/value).
+// Server settings live in the settings table (key/value).
 const (
 	settingAllowUserUploads = "allow_user_uploads"
 	settingAppearance       = "appearance"

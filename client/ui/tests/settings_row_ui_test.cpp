@@ -10,7 +10,7 @@ namespace {
 const char* kPageQml = R"(
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 Item {
     id: page
@@ -27,7 +27,7 @@ Item {
         SettingsRow { objectName: "rSel"; Layout.fillWidth: true; Layout.minimumWidth: 0; idKey: "x"; controlName: "cX"
                       label: "Microphone Input Mode"; meta: "Channel: beta"; values: [{value: "a", label: "Silence"}, {value: "b", label: "Microphone"}, {value: "c", label: "White noise"}, {value: "d", label: "Host microphone input"}]; current: "b" }
         SettingsRow { objectName: "rBtn"; Layout.fillWidth: true; Layout.minimumWidth: 0; resetMode: "none"; ctrl: "buttons"
-                      label: "Log file"; description: "/home/someone/.local/share/framebeam/logs/player.log"
+                      label: "Log file"; description: "/home/someone/.local/share/uzume/logs/player.log"
                       buttons: [{name: "b1", text: "Copy path to the clipboard"}, {name: "b2", text: "Open containing folder"}] }
         SettingsRow { objectName: "rVal"; Layout.fillWidth: true; Layout.minimumWidth: 0; resetMode: "none"; ctrl: "value"; controlName: "cV"
                       label: "Version"; valueText: "0.7.12"; description: "Windows x86-64 · Protocol v1" }

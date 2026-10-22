@@ -12,12 +12,12 @@
 #include <algorithm>
 
 // Explicitly initialize the Qt resource from a static library.
-static void initManifestResources() { Q_INIT_RESOURCE(framebeam_manifests); }
+static void initManifestResources() { Q_INIT_RESOURCE(uzume_manifests); }
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 namespace {
-const char kBuiltinDir[] = ":/framebeam/emulation/manifests";
+const char kBuiltinDir[] = ":/uzume/emulation/manifests";
 
 QStringList stringList(const QJsonValue& v) {
   QStringList out;
@@ -355,4 +355,4 @@ const SystemManifest* ManifestRegistry::forExtension(const QString& ext) const {
   return nullptr;
 }
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace framebeam::formats::detail {
+namespace uzume::formats::detail {
 
 inline bool inRange(size_t size, uint64_t off, uint64_t len) {
     return off <= size && len <= size - off;
@@ -28,4 +28,4 @@ inline bool rd64(std::string_view s, uint64_t o, uint64_t& v) {
     return true;
 }
 
-}  // namespace framebeam::formats::detail
+}  // namespace uzume::formats::detail

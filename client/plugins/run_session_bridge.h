@@ -13,7 +13,7 @@
 #include "run_bridge.h"
 #include "runclient.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 class RunSessionBridge : public QObject, public RunBridge {
   Q_OBJECT
@@ -62,4 +62,4 @@ class RunSessionBridge : public QObject, public RunBridge {
   std::atomic<int> eventsQueued_{0};
 };
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

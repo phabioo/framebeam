@@ -17,7 +17,7 @@
 #include "gpu_display_target.h"
 #include "gpu_encode_target.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 class HwRenderContext {
  public:
@@ -25,7 +25,7 @@ class HwRenderContext {
   ~HwRenderContext();
   Q_DISABLE_COPY(HwRenderContext)
 
-  // true: a QGuiApplication exists and FRAMEBEAM_DISABLE_HW_RENDER is not "1" (read on every call).
+  // true: a QGuiApplication exists and UZUME_DISABLE_HW_RENDER is not "1" (read on every call).
   static bool allowed();
 
   // GUI thread only; no-op when not allowed() or already created.
@@ -60,7 +60,7 @@ class HwRenderContext {
   // Reads the w x h region of the FBO into a new RGB32 image (alpha forced to 0xFF); null on failure.
   // Asynchronous via two pixel-pack buffers: the first call returns its own frame, every later call returns the
   // PREVIOUS call's frame (one frame of latency, no GPU stall). Falls back to a synchronous glReadPixels when
-  // PBOs or mapping fail or FRAMEBEAM_SYNC_READBACK=1 (read at createContext).
+  // PBOs or mapping fail or UZUME_SYNC_READBACK=1 (read at createContext).
   //
   // maxSize (width/height in pixels, empty or non-positive component = no limit): when the w x h frame is larger,
   // it is first downscaled on the GPU (aspect ratio kept, never upscaled) and only that is read back: exact 2:1
@@ -117,4 +117,4 @@ class HwRenderContext {
   std::unique_ptr<Impl> d;
 };
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

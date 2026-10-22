@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // Admin backup API (ADR 0029 D2): /api/v1/admin/backups. Every call needs the token of a device of an admin user.

@@ -3,7 +3,7 @@
 #include <QJsonArray>
 #include <QNetworkReply>
 
-namespace framebeam {
+namespace uzume {
 
 HubSystems::HubSystems(HubConnection* connection, QObject* parent) : QObject(parent), conn_(connection) {
   connect(connection, &HubConnection::stateChanged, this, [this](HubConnection::State s) {
@@ -72,4 +72,4 @@ void HubSystems::reload() {
   });
 }
 
-}  // namespace framebeam
+}  // namespace uzume

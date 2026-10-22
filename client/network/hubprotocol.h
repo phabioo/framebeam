@@ -7,9 +7,9 @@
 #include <QStringList>
 #include <optional>
 
-namespace framebeam {
+namespace uzume {
 
-// Protocol per ADR 0002 / protocol/openapi/framebeam.yaml.
+// Protocol per ADR 0002 / protocol/openapi/uzume.yaml.
 inline constexpr int kProtocolVersion = 1;
 inline constexpr int kMinProtocolVersion = 1;
 
@@ -166,4 +166,4 @@ struct GameEntry {
 };
 std::optional<GameEntry> parseGame(const QJsonObject& obj);
 
-}  // namespace framebeam
+}  // namespace uzume

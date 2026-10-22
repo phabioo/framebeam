@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // Plugin surfaces on the play area (docs/design/plugins.md 4e HUD, 4g-2 notices): HUD widgets in the bottom-left,
 // bottom-right and top-left corners (top right belongs to the diagnostics overlay), 16 px from the edge, and the notice

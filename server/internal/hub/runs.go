@@ -18,7 +18,7 @@ import (
 
 // Runs (0.11, ADR 0023 D9/D10, docs/architecture/12-plugins.md 16.11): a run is a shared object that plugins build
 // on: participants with a game and a JSON state per plugin each, an append-only event log and a board tree per plugin.
-// The Hub validates only shape and size and never runs plugin code. Run data never goes to another Hub.
+// The server validates only shape and size and never runs plugin code. Run data never goes to another server.
 
 // FeatureRunsV1 is the handshake feature flag for the runs REST API and the run_* WSS messages.
 const FeatureRunsV1 = "runs_v1"
@@ -55,8 +55,8 @@ const (
 	MaxRunPayloadBytes  = 4 << 10
 	MaxRunBoardBytes    = 64 << 10
 	MaxRunEventText     = 280
-	// RunCatchUpMax is how many missing events per run the Hub pushes after hello; with more missing it pushes none
-	// and the Player pages with GET /runs/{run_id}/events.
+	// RunCatchUpMax is how many missing events per run the server pushes after hello; with more missing it pushes none
+	// and the app pages with GET /runs/{run_id}/events.
 	RunCatchUpMax = 500
 	// MaxRunEventsPage is the largest page of GET /runs/{run_id}/events.
 	MaxRunEventsPage     = 500
@@ -94,7 +94,7 @@ var (
 	runEventTypeRe = regexp.MustCompile(`^[a-z0-9_.-]{1,64}$`)
 )
 
-// PluginCatalog tells the runs service which plugin versions the Hub offers to Players. The plugins part
+// PluginCatalog tells the runs service which plugin versions the server offers to apps. The plugins part
 // implements it (Service.SetPluginCatalog); without a catalog no plugin is offered and no run can be created.
 type PluginCatalog interface {
 	// OfferedPlugin reports whether version of plugin id is offered and returns the SHA-256 of its file.
@@ -157,7 +157,7 @@ func (r Run) Participant(userID string) (RunParticipant, bool) {
 // Finished reports a run that is over.
 func (r Run) Finished() bool { return r.Status == RunFinished || r.Status == RunAbandoned }
 
-// RunEvent is one entry of the append-only log. UserID, DeviceID and PluginID are nil for Hub events.
+// RunEvent is one entry of the append-only log. UserID, DeviceID and PluginID are nil for server events.
 type RunEvent struct {
 	Seq       int64           `json:"seq"`
 	CreatedAt time.Time       `json:"created_at"`
@@ -534,7 +534,7 @@ func insertEvent(ctx context.Context, q dbq, runID string, e RunEvent, now time.
 	return e, nil
 }
 
-// hubEvent builds a Hub event (no user, no device, no plugin); who it is about goes into the payload.
+// hubEvent builds a server event (no user, no device, no plugin); who it is about goes into the payload.
 func hubEvent(typ string, payload map[string]any) RunEvent {
 	b, _ := json.Marshal(payload)
 	return RunEvent{Source: EventHub, Type: typ, Payload: b, ClientID: uuid.NewString()}
@@ -692,14 +692,14 @@ func (s *Service) CreateRun(ctx context.Context, in CreateRunInput) (_ Run, err 
 		}
 		seen[p.PluginID] = true
 		if cat == nil {
-			return Run{}, badRequest("Plugin %s %s is not offered by this Hub", p.PluginID, p.Version)
+			return Run{}, badRequest("Plugin %s %s is not offered by this server", p.PluginID, p.Version)
 		}
 		sha, ok, err := cat.OfferedPlugin(ctx, p.PluginID, p.Version)
 		if err != nil {
 			return Run{}, err
 		}
 		if !ok {
-			return Run{}, badRequest("Plugin %s %s is not offered by this Hub", p.PluginID, p.Version)
+			return Run{}, badRequest("Plugin %s %s is not offered by this server", p.PluginID, p.Version)
 		}
 		plugins = append(plugins, RunPlugin{PluginID: p.PluginID, Version: p.Version, SHA256: sha})
 	}
@@ -746,7 +746,7 @@ func (s *Service) CreateRun(ctx context.Context, in CreateRunInput) (_ Run, err 
 			return Run{}, err
 		}
 		if !ok || sha != p.SHA256 {
-			return Run{}, badRequest("Plugin %s %s is not offered by this Hub", p.PluginID, p.Version)
+			return Run{}, badRequest("Plugin %s %s is not offered by this server", p.PluginID, p.Version)
 		}
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -1019,7 +1019,7 @@ func (s *Service) InviteRun(ctx context.Context, userID, runID string, userIDs [
 	})
 }
 
-// changeMembership runs f in a transaction for a participant of a run that is not over. f returns the Hub event to
+// changeMembership runs f in a transaction for a participant of a run that is not over. f returns the server event to
 // append and whether anything changed (false: nothing is written, nothing pushed).
 func (s *Service) changeMembership(ctx context.Context, userID, runID string,
 	f func(ctx context.Context, tx dbq, run Run, st string) (*RunEvent, bool, error)) (Run, error) {
@@ -1075,13 +1075,13 @@ func (s *Service) SetRunStatus(ctx context.Context, userID, runID, status string
 	return s.setRunStatus(ctx, userID, runID, status, false, false)
 }
 
-// SetRunStatusAdmin changes the status as the Hub admin (web interface), without being a participant: pause,
+// SetRunStatusAdmin changes the status as the server admin (web interface), without being a participant: pause,
 // resume, start (from "starting") and finish or abandon a run that is not over.
 func (s *Service) SetRunStatusAdmin(ctx context.Context, adminID, runID, status string) (Run, error) {
 	return s.setRunStatus(ctx, adminID, runID, status, true, false)
 }
 
-// StartRunAdmin starts a run that is still "starting" as the Hub admin (web interface "Start now"). With
+// StartRunAdmin starts a run that is still "starting" as the server admin (web interface "Start now"). With
 // withoutInvited, participants who are only invited and have not joined are removed first ("Start without Sam"),
 // in the same transaction as the status change.
 func (s *Service) StartRunAdmin(ctx context.Context, adminID, runID string, withoutInvited bool) (Run, error) {
@@ -1335,7 +1335,7 @@ func (s *Service) AppendRunEvent(ctx context.Context, in AppendRunEventInput) (s
 	return ev.Seq, true, nil
 }
 
-// PutRunBoard stores the board tree of a plugin of the run (the Hub web page renders it) and returns the new rev.
+// PutRunBoard stores the board tree of a plugin of the run (the server web page renders it) and returns the new rev.
 func (s *Service) PutRunBoard(ctx context.Context, userID, runID, pluginID string, tree json.RawMessage) (int64, error) {
 	s.runs.mu.Lock()
 	defer s.runs.mu.Unlock()
@@ -1392,7 +1392,7 @@ func (s *Service) ActiveRunCount(ctx context.Context) (int, error) {
 }
 
 // RunsFeatureVisible reports whether the sidebar shows "Runs": an offered plugin asks for the run.state permission,
-// or the Hub already holds a run (old runs stay reachable).
+// or the server already holds a run (old runs stay reachable).
 func (s *Service) RunsFeatureVisible(ctx context.Context) (bool, error) {
 	var n int
 	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM runs)`).Scan(&n); err != nil {
@@ -1497,7 +1497,7 @@ func (s *Service) ListRunEventsAdmin(ctx context.Context, runID string, after in
 	return evs, last, err
 }
 
-// ArchiveRun hides a finished or abandoned run from the lists (web only; Players do not see archived runs).
+// ArchiveRun hides a finished or abandoned run from the lists (web only; apps do not see archived runs).
 func (s *Service) ArchiveRun(ctx context.Context, runID string, archived bool) (err error) {
 	defer s.publishOK(&err, TopicRuns)
 	s.runs.mu.Lock()
@@ -1534,7 +1534,7 @@ func (s *Service) DeleteRun(ctx context.Context, runID string) (err error) {
 
 // ---- catch-up after hello ----
 
-// RunHello is one entry of the optional hello field runs: the last event the Player has seen of a run.
+// RunHello is one entry of the optional hello field runs: the last event the app has seen of a run.
 type RunHello struct {
 	RunID   string `json:"run_id"`
 	LastSeq int64  `json:"last_seq"`
@@ -1545,7 +1545,7 @@ const maxRunHello = 256
 
 // runCatchUp builds the messages sent after hello_ack: run_updated for every non-archived run the user participates
 // in, then for the runs listed in hello where the user is joined the run_events with seq > last_seq; when more than
-// RunCatchUpMax are missing none (the Player pages with GET /runs/{run_id}/events). Callers hold runs.mu.
+// RunCatchUpMax are missing none (the app pages with GET /runs/{run_id}/events). Callers hold runs.mu.
 func (s *Service) runCatchUp(ctx context.Context, userID string, listed []RunHello) [][]byte {
 	ids, err := s.runIDsOf(ctx, userID)
 	if err != nil || len(ids) == 0 {
@@ -1591,7 +1591,7 @@ const maxRunBuffered = 20000
 const runDeliverTimeout = time.Minute
 
 // sendRun queues a run message. While the catch-up of this connection is being delivered, live run messages wait
-// behind it so the Player sees them in order (state and events newer than the snapshot come after it).
+// behind it so the app sees them in order (state and events newer than the snapshot come after it).
 func (c *Client) sendRun(b []byte) {
 	c.mu.Lock()
 	if c.runGate {

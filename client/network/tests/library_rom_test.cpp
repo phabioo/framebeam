@@ -14,12 +14,12 @@
 #include "romcache.h"
 #include "romdownloader.h"
 
-using namespace framebeam;
+using namespace uzume;
 using State = HubConnection::State;
 
 namespace {
 // Dummy ROM (not a real ROM).
-QByteArray dummyRom(char fill) { return QByteArray(20000, fill) + "FRAMEBEAM-DUMMY-ROM"; }
+QByteArray dummyRom(char fill) { return QByteArray(20000, fill) + "UZUME-DUMMY-ROM"; }
 QString shaOf(const QByteArray& d) { return QString::fromLatin1(QCryptographicHash::hash(d, QCryptographicHash::Sha256).toHex()); }
 }  // namespace
 

@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/sysmetrics"
+	"github.com/phabioo/uzume/server/internal/sysmetrics"
 )
 
 // FormatVersion is the archive format written by this version.
@@ -29,7 +29,7 @@ const FormatVersion = 1
 const ManifestName = "manifest.json"
 
 // DBMember is the name of the database snapshot member.
-const DBMember = "database/framebeam.db"
+const DBMember = "database/uzume.db"
 
 // Groups of an archive, in the order they are written.
 const (
@@ -114,11 +114,11 @@ func (m *Manifest) ContentsText() string {
 
 // ---- names ----
 
-var nameRe = regexp.MustCompile(`^framebeam-hub-([a-z0-9][a-z0-9-]*)-(\d{8}T\d{6}Z)(-safety)?\.tar$`)
+var nameRe = regexp.MustCompile(`^uzume-server-([a-z0-9][a-z0-9-]*)-(\d{8}T\d{6}Z)(-safety)?\.tar$`)
 
 const tsLayout = "20060102T150405Z"
 
-// Slug turns a Hub name into the part of a file name: lower case letters and digits, other runs become one dash.
+// Slug turns a server name into the part of a file name: lower case letters and digits, other runs become one dash.
 func Slug(name string) string {
 	var b strings.Builder
 	dash := false
@@ -141,9 +141,9 @@ func Slug(name string) string {
 	return s
 }
 
-// FileName is framebeam-hub-<slug>-<UTC timestamp>[-safety].tar.
+// FileName is uzume-server-<slug>-<UTC timestamp>[-safety].tar.
 func FileName(hubName string, t time.Time, safety bool) string {
-	n := "framebeam-hub-" + Slug(hubName) + "-" + t.UTC().Format(tsLayout)
+	n := "uzume-server-" + Slug(hubName) + "-" + t.UTC().Format(tsLayout)
 	if safety {
 		n += "-safety"
 	}
@@ -175,7 +175,7 @@ func SafeName(name string) bool {
 
 // ---- errors ----
 
-// NoSpaceError: the target has too little free space. The Hub never deletes backups to make room (decision 26).
+// NoSpaceError: the target has too little free space. The server never deletes backups to make room (decision 26).
 type NoSpaceError struct {
 	Dir        string
 	Need, Free uint64
@@ -210,7 +210,7 @@ type DamagedError struct{ Reason string }
 
 func (e *DamagedError) Error() string { return "The backup file is damaged (" + e.Reason + ")." }
 
-// NewerError: the archive was made by a newer Hub than this one.
+// NewerError: the archive was made by a newer server than this one.
 type NewerError struct {
 	Schema, Known int
 	Format        bool
@@ -218,9 +218,9 @@ type NewerError struct {
 
 func (e *NewerError) Error() string {
 	if e.Format {
-		return "This backup was made by a newer FrameBeam Hub (archive format). Install the matching Hub version first."
+		return "This backup was made by a newer Uzume server (archive format). Install the matching server version first."
 	}
-	return fmt.Sprintf("This backup was made by a newer FrameBeam Hub (database schema %d, this Hub knows %d). Install the matching Hub version first.", e.Schema, e.Known)
+	return fmt.Sprintf("This backup was made by a newer Uzume server (database schema %d, this server knows %d). Install the matching server version first.", e.Schema, e.Known)
 }
 
 // FormatBytes is a short size text ("1.4 GB").
@@ -344,7 +344,7 @@ func Create(ctx context.Context, opt Options) (res Result, err error) {
 		return res, err
 	}
 	defer os.RemoveAll(dbTmp)
-	dbFile := filepath.Join(dbTmp, "framebeam.db")
+	dbFile := filepath.Join(dbTmp, "uzume.db")
 
 	unlock := func() {}
 	if opt.Lock != nil {
@@ -528,7 +528,7 @@ func plan(opt Options, dbFile string) ([]entry, int64, error) {
 		}
 		f, err := os.Open(x.Path)
 		if err != nil {
-			continue // unreadable for the Hub user
+			continue // unreadable for the server user
 		}
 		f.Close()
 		out = append(out, entry{name: "config/" + path.Base(x.Name), abs: x.Path, group: GroupSettings, size: info.Size()})
@@ -690,7 +690,7 @@ func stageRel(name string) (string, bool) {
 	}
 	switch {
 	case name == DBMember:
-		return "framebeam.db", true
+		return "uzume.db", true
 	case strings.HasPrefix(name, "data/"):
 		rest := name[len("data/"):]
 		top, _, _ := strings.Cut(rest, "/")
@@ -710,7 +710,7 @@ func stageRel(name string) (string, bool) {
 
 // ExtractOptions for Extract.
 type ExtractOptions struct {
-	// MaxSchema is the newest database schema this Hub knows; a newer archive is rejected before anything is read.
+	// MaxSchema is the newest database schema this server knows; a newer archive is rejected before anything is read.
 	MaxSchema int
 	// VerifyOnly checks every checksum and writes nothing.
 	VerifyOnly bool
@@ -867,7 +867,7 @@ func extract(ctx context.Context, file, staging string, m *Manifest, opt Extract
 	if opt.VerifyOnly {
 		return nil, nil
 	}
-	if _, err := os.Stat(filepath.Join(staging, "framebeam.db")); err != nil {
+	if _, err := os.Stat(filepath.Join(staging, "uzume.db")); err != nil {
 		return nil, &DamagedError{"database missing"}
 	}
 	ents, err := os.ReadDir(staging)

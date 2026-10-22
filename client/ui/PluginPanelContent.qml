@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Content of a plugin tab in the game panel (docs/design/plugins.md 4e): the plugin's "panel" tree rendered dark. A paused
 // plugin keeps its last tree, dimmed and without input, under a "Paused" banner with "Restart plugin".

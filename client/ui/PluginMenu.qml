@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // Small in-game menu for the plugin surfaces (HUD "⋯", notice "⋯", tile "⋯"; docs/design/plugins.md 4e, 4g-2): surface
 // #1d1e22, border #34353a, 30 high items. Fills its parent as a click-away scrim and places the menu next to

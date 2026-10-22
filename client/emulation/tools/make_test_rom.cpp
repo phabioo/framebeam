@@ -1,5 +1,5 @@
 // Generates a minimal, self-written NDS homebrew test ROM (no third-party content).
-//   framebeam_make_test_rom <output.nds>
+//   uzume_make_test_rom <output.nds>
 //
 // ARM9 (direct boot, loaded to 0x02000000): enables both LCDs and engine A/B, maps VRAM A
 // as LCDC, engine A in display mode "VRAM direct" and copies a 256x192 pattern (4 quadrants:

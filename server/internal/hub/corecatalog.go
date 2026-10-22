@@ -17,17 +17,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/corepkg"
 )
 
-// corePlatform maps a FrameBeam platform to its libretro buildbot path and library suffix (ADR 0020 D1).
+// corePlatform maps a Uzume platform to its libretro buildbot path and library suffix (ADR 0020 D1).
 type corePlatform struct {
-	ID     string // FrameBeam platform
+	ID     string // Uzume platform
 	Dir    string // <os>/<arch> below the buildbot base URL
 	Suffix string // library suffix, e.g. ".so"
 }
 
-// corePlatforms are the platforms the Hub offers cores for; others follow when the Player exists for them.
+// corePlatforms are the platforms the server offers cores for; others follow when the app exists for them.
 var corePlatforms = []corePlatform{
 	{"windows-x64", "windows/x86_64", ".dll"},
 	{"linux-x64", "linux/x86_64", ".so"},
@@ -266,14 +266,14 @@ func (s *Service) SetCoreAutoUpdate(ctx context.Context, on bool) (err error) {
 
 // Per-system override of the automatic core update (systems.core_auto_update) and per-core pin (system_cores.auto_update).
 const (
-	SystemAutoDefault = ""    // use the Hub default
-	SystemAutoOn      = "on"  // update this system's cores, whatever the Hub default says
+	SystemAutoDefault = ""    // use the server default
+	SystemAutoOn      = "on"  // update this system's cores, whatever the server default says
 	SystemAutoOff     = "off" // never update this system's cores automatically
 	CoreAutoFollow    = ""    // follow the system
 	CoreAutoOff       = "off" // pinned: this core is never updated automatically
 )
 
-// effectiveAutoUpdate resolves the Hub default, the system override and the per-core pin.
+// effectiveAutoUpdate resolves the server default, the system override and the per-core pin.
 func effectiveAutoUpdate(global bool, system, core string) bool {
 	if core == CoreAutoOff {
 		return false
@@ -329,7 +329,7 @@ func (s *Service) SetCoreAutoUpdatePin(ctx context.Context, systemID, coreID str
 	return nil
 }
 
-// autoUpdateWanted reports whether any core can be updated automatically: the Hub default is on or a system
+// autoUpdateWanted reports whether any core can be updated automatically: the server default is on or a system
 // overrides it to on.
 func (s *Service) autoUpdateWanted(ctx context.Context) bool {
 	if on, err := s.CoreAutoUpdate(ctx); err == nil && on {
@@ -343,7 +343,7 @@ func (s *Service) autoUpdateWanted(ctx context.Context) bool {
 }
 
 // autoUpdateCores updates every installed core that has a newer catalog build and whose effective automatic
-// update (Hub default, system override, per-core pin) is on, with the UpdateCore safeguards.
+// update (server default, system override, per-core pin) is on, with the UpdateCore safeguards.
 // One failing core does not stop the others; failures are recorded in the settings and returned in rep.
 func (s *Service) autoUpdateCores(ctx context.Context, rep *CoreSyncReport) {
 	entries, err := s.ListRegistry(ctx)
@@ -405,7 +405,7 @@ func (s *Service) RefreshCatalog(ctx context.Context) (_ CoreSyncReport, err err
 	for _, p := range corePlatforms {
 		idx, err := s.fetchCore(ctx, s.platformIndexURL(p), maxIndexExtBytes)
 		if err != nil {
-			// One platform's index being down must not stop the others (the Hub serves linux-x64 even when the
+			// One platform's index being down must not stop the others (the server serves linux-x64 even when the
 			// Windows index is unavailable): keep that platform's previous builds and report a warning.
 			failed++
 			rep.Warnings = append(rep.Warnings, fmt.Sprintf("build index for %s: %v", p.ID, err))

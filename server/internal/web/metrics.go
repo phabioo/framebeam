@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/sysmetrics"
+	"github.com/phabioo/uzume/server/internal/sysmetrics"
 )
 
 // Optional Prometheus endpoint (Settings > Metrics). Off by default. When on, GET /metrics needs the header
@@ -32,7 +32,7 @@ func (s *Server) metricsGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.svc.CheckMetricsToken(r.Context(), bearerToken(r)) {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="FrameBeam Hub metrics"`)
+		w.Header().Set("WWW-Authenticate", `Bearer realm="Uzume server metrics"`)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -83,8 +83,8 @@ func (s *Server) metricsText(r *http.Request) ([]byte, error) {
 	ctx := r.Context()
 	var p promWriter
 	info := s.svc.Info()
-	p.metric("framebeam_hub_info", "gauge", "FrameBeam Hub build information; the value is always 1.", `version="`+promLabel(info.HubVersion)+`"`, 1)
-	p.metric("framebeam_hub_uptime_seconds", "gauge", "Seconds since the Hub process started.", "", time.Since(sysmetrics.Started).Seconds())
+	p.metric("uzume_server_info", "gauge", "Uzume server build information; the value is always 1.", `version="`+promLabel(info.HubVersion)+`"`, 1)
+	p.metric("uzume_server_uptime_seconds", "gauge", "Seconds since the server process started.", "", time.Since(sysmetrics.Started).Seconds())
 
 	sess, err := s.svc.ActiveSessionSummaries(ctx)
 	if err != nil {
@@ -94,36 +94,36 @@ func (s *Server) metricsText(r *http.Request) ([]byte, error) {
 	for _, x := range sess {
 		viewers += x.Viewers
 	}
-	p.metric("framebeam_sessions_active", "gauge", "Running Sessions.", "", float64(len(sess)))
-	p.metric("framebeam_session_viewers", "gauge", "Viewers in running Sessions.", "", float64(viewers))
-	p.metric("framebeam_players_connected", "gauge", "Players with an open connection to the Hub.", "", float64(len(s.svc.ConnectedDeviceIDs())))
+	p.metric("uzume_sessions_active", "gauge", "Running Sessions.", "", float64(len(sess)))
+	p.metric("uzume_session_viewers", "gauge", "Viewers in running Sessions.", "", float64(viewers))
+	p.metric("uzume_apps_connected", "gauge", "Apps with an open connection to the server.", "", float64(len(s.svc.ConnectedDeviceIDs())))
 
 	turnOn := 0.0
 	if s.cfg.TURN != nil {
 		turnOn = 1
 	}
-	p.metric("framebeam_turn_enabled", "gauge", "1 when the built-in TURN relay runs.", "", turnOn)
+	p.metric("uzume_turn_enabled", "gauge", "1 when the built-in TURN relay runs.", "", turnOn)
 	if s.cfg.TURN != nil {
 		st := s.cfg.TURN.Status()
-		p.metric("framebeam_turn_allocations", "gauge", "Live relay allocations of the built-in TURN relay.", "", float64(st.Allocations))
-		p.metric("framebeam_turn_relay_ports", "gauge", "Size of the relay port range.", "", float64(st.RelayMax-st.RelayMin+1))
+		p.metric("uzume_turn_allocations", "gauge", "Live relay allocations of the built-in TURN relay.", "", float64(st.Allocations))
+		p.metric("uzume_turn_relay_ports", "gauge", "Size of the relay port range.", "", float64(st.RelayMax-st.RelayMin+1))
 	}
 
 	if total, free, ok := sysmetrics.Disk(s.svc.DataDir()); ok {
-		p.header("framebeam_disk_free_bytes", "gauge", "Free space of the volume holding the data folder.")
-		p.sample("framebeam_disk_free_bytes", "", float64(free))
-		p.header("framebeam_disk_total_bytes", "gauge", "Size of the volume holding the data folder.")
-		p.sample("framebeam_disk_total_bytes", "", float64(total))
+		p.header("uzume_disk_free_bytes", "gauge", "Free space of the volume holding the data folder.")
+		p.sample("uzume_disk_free_bytes", "", float64(free))
+		p.header("uzume_disk_total_bytes", "gauge", "Size of the volume holding the data folder.")
+		p.sample("uzume_disk_total_bytes", "", float64(total))
 	}
-	p.metric("framebeam_process_memory_bytes", "gauge", "Memory the Hub process holds from the operating system.", "", float64(sysmetrics.Memory().Process))
+	p.metric("uzume_process_memory_bytes", "gauge", "Memory the server process holds from the operating system.", "", float64(sysmetrics.Memory().Process))
 	if pct, ok := sysmetrics.CPUPercent(); ok {
-		p.metric("framebeam_cpu_usage_ratio", "gauge", "Machine-wide CPU load, 0 to 1.", "", pct/100)
+		p.metric("uzume_cpu_usage_ratio", "gauge", "Machine-wide CPU load, 0 to 1.", "", pct/100)
 	}
 
 	errs, warns := s.cfg.Errors.Totals()
-	p.header("framebeam_log_records_total", "counter", "WARN and ERROR log records since the Hub started.")
-	p.sample("framebeam_log_records_total", `level="error"`, float64(errs))
-	p.sample("framebeam_log_records_total", `level="warn"`, float64(warns))
+	p.header("uzume_log_records_total", "counter", "WARN and ERROR log records since the server started.")
+	p.sample("uzume_log_records_total", `level="error"`, float64(errs))
+	p.sample("uzume_log_records_total", `level="warn"`, float64(warns))
 	return p.buf.Bytes(), nil
 }
 

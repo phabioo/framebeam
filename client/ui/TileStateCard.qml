@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // State card centred on a Multiview tile (3r-3): "❚❚ Paused by Lena" / "Frozen picture · resumes here", "Jonas’s game is loading" /
 // "Connecting". Surface rgba(18,19,21,.88), border #34353a, radius 10, padding 10 16; title 14/600, sub 12 muted.

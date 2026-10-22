@@ -12,7 +12,7 @@
 #include <QString>
 #include <QUrl>
 
-namespace framebeam {
+namespace uzume {
 
 // Result of a finished request (read only in the finished slot with resultOf()).
 struct HttpResult {
@@ -77,4 +77,4 @@ class HubHttp : public QObject {
   QNetworkAccessManager nam_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

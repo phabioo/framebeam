@@ -9,10 +9,10 @@
 #include <QWebSocket>
 #include <algorithm>
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
-Q_LOGGING_CATEGORY(lcSocket, "framebeam.hubsocket")
+Q_LOGGING_CATEGORY(lcSocket, "uzume.hubsocket")
 
 qint64 nowMs() {
   static QElapsedTimer t = [] {
@@ -351,4 +351,4 @@ void HubSocket::onTextMessage(const QString& text) {
   }
 }
 
-}  // namespace framebeam
+}  // namespace uzume

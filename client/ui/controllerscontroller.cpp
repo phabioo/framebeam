@@ -5,7 +5,7 @@
 #include "controllersglyphs.h"
 #include "padtype.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 const QString kKeyboard = QStringLiteral("keyboard");
@@ -60,7 +60,7 @@ void ControllersController::syncPadHotkeys() {
     const QString b = profiles_.padHotkey(d.id);
     if (!b.isEmpty()) bindings.append({d.id, padHotkeyToken(b), padHotkeySolo(b)});
   }
-  // Fixed FrameBeam combos (3f-4): modifier + Start pauses (the Esc of the gamepad), modifier + L3 hides all HUD widgets. A
+  // Fixed Uzume combos (3f-4): modifier + Start pauses (the Esc of the gamepad), modifier + L3 hides all HUD widgets. A
   // button the user gave to another hotkey stays theirs.
   QSet<QString> used;
   for (const input::PadHotkeyBinding& b : std::as_const(bindings)) used.insert(b.token);
@@ -206,7 +206,7 @@ QVariantList ControllersController::rows() const {
   const QString set = labelSet();
   const QString prof = viewProfile_.isEmpty() ? inputProfile_ : viewProfile_;
   QList<quint32> seenBits;
-  for (const InputDef& in : frameBeamInputs()) {
+  for (const InputDef& in : uzumeInputs()) {
     if (!input::inputProfileMaps(prof, in.id)) continue;  // the Controllers page lists what the system maps
     const QString profileLabel = input::inputProfileLabel(prof, in.id);
     // An input that only repeats another one's libretro button without a text of its own is an alias (DS: ZL = L, the left
@@ -260,7 +260,7 @@ QStringList ControllersController::activeInputs() const {
     }
   }
   QStringList out;
-  const auto& inputs = frameBeamInputs();
+  const auto& inputs = uzumeInputs();
   for (int i = 0; i < inputs.size(); ++i) {
     if ((mask & (1u << i)) != 0) out.append(inputs.at(i).id);
   }
@@ -417,7 +417,7 @@ QVariantList ControllersController::hotkeyRows() const {
     QString conflict;
     if (key > 0 && kb) {
       const QString token = keyToken(key);
-      for (const InputDef& in : frameBeamInputs()) {
+      for (const InputDef& in : uzumeInputs()) {
         if (kb->bindings.value(in.id).contains(token)) {
           conflict = in.label;
           break;
@@ -782,4 +782,4 @@ void ControllersController::clearTestKeys() {
   }
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

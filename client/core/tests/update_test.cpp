@@ -22,7 +22,7 @@
 #include "updaterollback.h"
 #include "updatesig.h"
 
-using namespace framebeam::update;
+using namespace uzume::update;
 
 namespace {
 
@@ -72,7 +72,7 @@ QJsonObject release(const QString& product, const QString& channel, const QStrin
                     int proto = 1, int minProto = 1) {
   return {{"product", product}, {"channel", channel}, {"version", version},
           {"commit", "0123456789abcdef0123456789abcdef01234567"}, {"published_at", "2026-10-07T10:00:00Z"},
-          {"notes_url", "https://github.com/phabioo/framebeam/releases/tag/v" + version},
+          {"notes_url", "https://github.com/phabioo/uzume/releases/tag/v" + version},
           {"protocol_version", proto}, {"min_protocol_version", minProto}, {"artifacts", arts}, {"future_field", 42}};
 }
 
@@ -112,9 +112,9 @@ class UpdateTest : public QObject {
     }
   }
   void coreVersionVerdictMajorOnly() {
-    using V = framebeam::update::CoreVersionVerdict;
+    using V = uzume::update::CoreVersionVerdict;
     const auto v = [](const char* core, const char* expected) {
-      return framebeam::update::coreVersionVerdict(QString::fromLatin1(core), QString::fromLatin1(expected));
+      return uzume::update::coreVersionVerdict(QString::fromLatin1(core), QString::fromLatin1(expected));
     };
     QCOMPARE(v("1.2.3", "1.2.3"), V::Compatible);
     QCOMPARE(v("1.2.3", "1.4.0"), V::Warn);
@@ -345,11 +345,11 @@ class UpdateTest : public QObject {
     const QByteArray ctx = signLine(k, idx, kUpdatesIndexContext);
     QVERIFY(verifyIndexSignature(idx, ctx, {k.pub}).ok);
     // A signature of another document type (plugin index) must not verify as an updates index.
-    SigCheck c = verifyIndexSignature(idx, signLine(k, idx, "framebeam-plugin-index-v2"), {k.pub});
+    SigCheck c = verifyIndexSignature(idx, signLine(k, idx, "uzume-plugin-index-v1"), {k.pub});
     QVERIFY(!c.ok);
     // Relabelling the context breaks the signature, tampering the bytes too.
     QByteArray relabelled = ctx;
-    relabelled.replace("framebeam-updates-index-v2", "framebeam-plugin-index-v2");
+    relabelled.replace("uzume-updates-index-v1", "uzume-plugin-index-v1");
     QVERIFY(!verifyIndexSignature(idx, relabelled, {k.pub}).ok);
     QByteArray bad = idx;
     bad[bad.size() / 2] = static_cast<char>(bad[bad.size() / 2] ^ 1);
@@ -388,7 +388,7 @@ class UpdateTest : public QObject {
     QVERIFY(QDir().mkpath(t.filePath("app/bin")));
     // bin without launcher in the parent: stays flat
     QCOMPARE(installRootFor(t.filePath("app/bin")), QDir(t.filePath("app/bin")).absolutePath());
-    QVERIFY(writeBytes(t.filePath("app/framebeam_player.exe"), "x"));
+    QVERIFY(writeBytes(t.filePath("app/Uzume.exe"), "x"));
     QCOMPARE(installRootFor(t.filePath("app/bin")), QDir(t.filePath("app")).absolutePath());
     QCOMPARE(installRootFor(t.filePath("app")), QDir(t.filePath("app")).absolutePath());
     QVERIFY(QDir().mkpath(t.filePath("app/tools")));
@@ -406,7 +406,7 @@ class UpdateTest : public QObject {
     QTemporaryDir t;
     QVERIFY(QDir().mkpath(t.filePath("settings")));
     QVERIFY(writeBytes(t.filePath("settings/player.json"), R"({"update_channel":"test","other":1})"));
-    framebeam::PlayerSettings s(t.path());
+    uzume::PlayerSettings s(t.path());
     QCOMPARE(s.updateChannel(), QString("beta"));
     QVERIFY(s.setUpdateAutoInstall(true));  // any save rewrites the old value
     QJsonObject o;
@@ -424,18 +424,18 @@ class UpdateTest : public QObject {
   void settingsRoundTrip() {
     QTemporaryDir t;
     {
-      framebeam::PlayerSettings s(t.path());
+      uzume::PlayerSettings s(t.path());
       QCOMPARE(s.updateChannel(), QString());
       QVERIFY(!s.updateAutoInstall());
       QVERIFY(!s.setUpdateChannel("dev"));
       QVERIFY(s.setUpdateChannel("beta"));
       QVERIFY(s.setUpdateAutoInstall(false));
     }
-    framebeam::PlayerSettings s(t.path());
+    uzume::PlayerSettings s(t.path());
     QCOMPARE(s.updateChannel(), QString("beta"));
     QCOMPARE(s.updateAutoInstall(), std::optional<bool>(false));
     QVERIFY(s.setUpdateChannel(""));
-    QCOMPARE(framebeam::PlayerSettings(t.path()).updateChannel(), QString());
+    QCOMPARE(uzume::PlayerSettings(t.path()).updateChannel(), QString());
   }
 
   // ---------------------------------------------------------------- download / stage / apply
@@ -443,7 +443,7 @@ class UpdateTest : public QObject {
     Env env;
     const QByteArray data = "installer-bytes-0.3.1";
     env.publish(data, "0.3.1-test.3", /*sizeOverride*/ -1, /*shaOverride*/ QString());
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateChannel("beta");
     QStringList launched;
     auto mp = env.manager(settings);
@@ -465,15 +465,15 @@ class UpdateTest : public QObject {
     QVERIFY(m2.applyStagedAtStart());
     QCOMPARE(quit2.count(), 1);
     QCOMPARE(launched.size(), 2);
-    QVERIFY(launched[0].endsWith("framebeam_player.exe"));  // temp copy of the launcher runs msiexec
-    QVERIFY(launched[0] != env.dir.filePath("framebeam_player.exe"));
+    QVERIFY(launched[0].endsWith("Uzume.exe"));  // temp copy of the launcher runs msiexec
+    QVERIFY(launched[0] != env.dir.filePath("Uzume.exe"));
     QVERIFY(launched[1].startsWith("--apply-msi-update "));
     QVERIFY(launched[1].contains(QString(staged).replace(QLatin1Char('/'), QLatin1Char('\\'))));  // msiexec wants backslashes
   }
   void managerDoesNotLoopAfterFailedAttempt() {
     Env env;
     env.publish("installer-bytes-0.3.1", "0.3.1-test.3");
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateChannel("beta");
     int launches = 0;
     auto mp = env.manager(settings);
@@ -500,7 +500,7 @@ class UpdateTest : public QObject {
   void managerBusyBlocksApply() {
     Env env;
     env.publish("installer-bytes", "0.3.1-test.3");
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateChannel("beta");
     int launches = 0;
     bool busy = true;
@@ -521,7 +521,7 @@ class UpdateTest : public QObject {
   void managerStableNeedsConfirmation() {
     Env env;
     env.publish("installer-bytes", "0.3.1", -1, QString(), "stable");
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));  // compiled channel stable
+    uzume::PlayerSettings settings(env.dir.filePath("data"));  // compiled channel stable
     int launches = 0;
     auto mp = env.manager(settings, "stable");
     UpdateManager& m = *mp;
@@ -539,7 +539,7 @@ class UpdateTest : public QObject {
   void managerStableIgnoresAutoSettingAtStart() {
     Env env;
     env.publish("installer-bytes", "0.3.1", -1, QString(), "stable");
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateAutoInstall(true);  // stable never installs without confirmation
     auto mp = env.manager(settings, "stable");
     UpdateManager& m = *mp;
@@ -551,7 +551,7 @@ class UpdateTest : public QObject {
     for (int mode = 0; mode < 2; ++mode) {
       Env env;
       env.publish("installer-bytes", "0.3.1-test.3", mode == 0 ? 5 : -1, mode == 1 ? QString(64, 'a') : QString());
-      framebeam::PlayerSettings settings(env.dir.filePath("data"));
+      uzume::PlayerSettings settings(env.dir.filePath("data"));
       settings.setUpdateChannel("beta");
       int launches = 0;
       auto mp = env.manager(settings);
@@ -570,7 +570,7 @@ class UpdateTest : public QObject {
     QByteArray idx = readAll(env.dir.filePath("updates-index.json"));
     idx.replace("0.3.1-test.3", "0.3.9-test.3");  // tampered after signing
     QVERIFY(writeBytes(env.dir.filePath("updates-index.json"), idx));
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateChannel("beta");
     auto mp = env.manager(settings);
     UpdateManager& m = *mp;
@@ -583,7 +583,7 @@ class UpdateTest : public QObject {
     Env env;
     env.publishPromoted("0.3.0-dev", true);
     {
-      framebeam::PlayerSettings settings(env.dir.filePath("data"));
+      uzume::PlayerSettings settings(env.dir.filePath("data"));
       auto mp = env.manager(settings);
       QCOMPARE(mp->effectiveChannel(), Channel::Beta);  // not resolved yet
       QSignalSpy spy(mp.get(), &UpdateManager::changed);
@@ -593,14 +593,14 @@ class UpdateTest : public QObject {
       QVERIFY(!mp->autoInstallSetting());
       QVERIFY(settings.updateChannel().isEmpty());
     }
-    framebeam::PlayerSettings reloaded(env.dir.filePath("data"));  // persisted
+    uzume::PlayerSettings reloaded(env.dir.filePath("data"));  // persisted
     QCOMPARE(reloaded.updateChannelDefault(), QString("stable"));
     QCOMPARE(env.manager(reloaded)->effectiveChannel(), Channel::Stable);
   }
   void defaultChannelResolvesBetaAndStaysAfterPromotion() {
     Env env;
     env.publishPromoted("0.3.0-dev", false);
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     auto mp = env.manager(settings);
     mp->checkNow();
     QTRY_COMPARE_WITH_TIMEOUT(settings.updateChannelDefault(), QString("beta"), 5000);
@@ -615,7 +615,7 @@ class UpdateTest : public QObject {
   void defaultChannelExplicitWins() {
     Env env;
     env.publishPromoted("0.3.0-dev", true);
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateChannel("beta");
     auto mp = env.manager(settings);
     mp->checkNow();
@@ -632,14 +632,14 @@ class UpdateTest : public QObject {
     Env env;
     env.publishPromoted("0.3.0-dev", true);
     for (const QString compiled : {QStringLiteral("stable"), QStringLiteral("dev")}) {
-      framebeam::PlayerSettings settings(env.dir.filePath("data-" + compiled));
+      uzume::PlayerSettings settings(env.dir.filePath("data-" + compiled));
       auto mp = env.manager(settings, compiled);
       mp->checkNow();
       QTRY_VERIFY_WITH_TIMEOUT(mp->state() != UpdateManager::State::Checking && mp->state() != UpdateManager::State::Idle, 5000);
       QVERIFY(settings.updateChannelDefault().isEmpty());
       QCOMPARE(mp->effectiveChannel(), compiled == "stable" ? Channel::Stable : Channel::Off);
     }
-    framebeam::PlayerSettings s2(env.dir.filePath("data-x"));
+    uzume::PlayerSettings s2(env.dir.filePath("data-x"));
     QVERIFY(s2.setUpdateChannelDefault("beta"));
     QCOMPARE(env.manager(s2, "stable")->effectiveChannel(), Channel::Stable);
     QCOMPARE(env.manager(s2, "dev")->effectiveChannel(), Channel::Off);
@@ -648,7 +648,7 @@ class UpdateTest : public QObject {
   void managerDevChannelIsOff() {
     Env env;
     env.publish("installer-bytes", "0.3.1-test.3");
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     auto mp = env.manager(settings, "dev");
     UpdateManager& m = *mp;
     QCOMPARE(m.effectiveChannel(), Channel::Off);
@@ -659,7 +659,7 @@ class UpdateTest : public QObject {
   void stagedReplayAndTamperRejected() {
     Env env;
     env.publish("installer-bytes", "0.3.1-test.3");
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateChannel("beta");
     auto mp = env.manager(settings);
     UpdateManager& m = *mp;
@@ -675,7 +675,7 @@ class UpdateTest : public QObject {
   void stagedReplayAndWrongKeyRejected() {
     Env env;
     env.publish("installer-bytes", "0.3.1-test.3");
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateChannel("beta");
     auto mp = env.manager(settings);
     mp->checkNow();
@@ -777,20 +777,20 @@ class UpdateTest : public QObject {
     // The settings keep the shape and unknown keys.
     QTemporaryDir t;
     {
-      framebeam::PlayerSettings s(t.path());
+      uzume::PlayerSettings s(t.path());
       QVERIFY(s.setUpdateHistory(historyToJson(h)));
       QVERIFY(s.setUpdatePause(pauseToJson(p)));
       QVERIFY(s.setUpdateSkip("0.4.0"));
       QVERIFY(s.setUpdateAutoInstall(false));
     }
-    framebeam::PlayerSettings back(t.path());
+    uzume::PlayerSettings back(t.path());
     QCOMPARE(parseHistory(back.updateHistory()).size(), kMaxHistory);
     QCOMPARE(parsePause(back.updatePause()).from, QString("0.4.0"));
     QCOMPARE(back.updateSkip(), QString("0.4.0"));
     QVERIFY(back.setUpdatePause({}));
     QVERIFY(back.setUpdateSkip(QString()));
     QVERIFY(back.clearUpdateAutoInstall());
-    framebeam::PlayerSettings cleared(t.path());
+    uzume::PlayerSettings cleared(t.path());
     QVERIFY(cleared.updatePause().isEmpty());
     QVERIFY(cleared.updateSkip().isEmpty());
     QVERIFY(!cleared.updateAutoInstall());
@@ -798,7 +798,7 @@ class UpdateTest : public QObject {
   void managerRollbackFlow() {
     Env env;
     env.publishReleases({{"0.1.0", "beta", false}, {"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateChannel("beta");
     settings.setUpdateAutoInstall(true);
     QStringList launched;
@@ -839,7 +839,7 @@ class UpdateTest : public QObject {
     QTRY_COMPARE_WITH_TIMEOUT(m.state(), UpdateManager::State::Applying, 5000);
     QCOMPARE(quit.count(), 1);
     QCOMPARE(launched.size(), 2);
-    const QString msi = QDir(rollbackStagingRoot(env.dir.filePath("data"))).filePath("0.2.0/" + QString("framebeam-player-0.2.0-windows-x64.msi"));
+    const QString msi = QDir(rollbackStagingRoot(env.dir.filePath("data"))).filePath("0.2.0/" + QString("uzume-0.2.0-windows-x64.msi"));
     QVERIFY(QFileInfo::exists(msi));
     QVERIFY(launched[1].startsWith("--apply-msi-update "));
     QVERIFY(launched[1].contains(QString(msi).replace(QLatin1Char('/'), QLatin1Char('\\'))));
@@ -891,7 +891,7 @@ class UpdateTest : public QObject {
   void managerRollbackPauseEndsByItselfWhenReached() {
     Env env;
     env.publishReleases({{"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     Pause p;
     p.from = "0.3.0";
     p.to = "0.2.0";
@@ -910,7 +910,7 @@ class UpdateTest : public QObject {
   void managerRollbackRejectsBadInstaller() {
     Env env;
     env.publishReleases({{"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateChannel("beta");
     settings.setUpdateAutoInstall(true);
     int launches = 0;
@@ -920,7 +920,7 @@ class UpdateTest : public QObject {
     m.checkNow();
     QTRY_COMPARE_WITH_TIMEOUT(m.state(), UpdateManager::State::UpToDate, 5000);
     // The file on the server is not what the signed index says: rejected, nothing paused, nothing started.
-    QVERIFY(writeBytes(env.dir.filePath("framebeam-player-0.2.0-windows-x64.msi"), "installer-bytes-0.2.X"));
+    QVERIFY(writeBytes(env.dir.filePath("uzume-0.2.0-windows-x64.msi"), "installer-bytes-0.2.X"));
     m.rollbackTo("0.2.0");
     QTRY_COMPARE_WITH_TIMEOUT(m.state(), UpdateManager::State::Error, 5000);
     QVERIFY(m.statusText().contains("rejected"));
@@ -944,7 +944,7 @@ class UpdateTest : public QObject {
   void managerRollbackNeedsInstalledCopy() {
     Env env;
     env.publishReleases({{"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
-    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    uzume::PlayerSettings settings(env.dir.filePath("data"));
     settings.setUpdateChannel("beta");
     UpdateManager::Config c;
     c.baseDir = env.dir.filePath("data");
@@ -969,7 +969,7 @@ class UpdateTest : public QObject {
     Env env;
     env.publishReleases({{"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
     const QString base = env.dir.filePath("data");
-    framebeam::PlayerSettings settings(base);
+    uzume::PlayerSettings settings(base);
     settings.setUpdateChannel("beta");
     auto mp = env.manager(settings, "beta", "0.3.0");
     mp->setLauncher([](const QString&, const QStringList&) { return true; });
@@ -1000,7 +1000,7 @@ class UpdateTest : public QObject {
     QVERIFY(!loadVerifiedRollback(base, "0.2.0", "0.3.0", env.keys, file, 1, now));
     QVERIFY(loadVerifiedRollback(base, "0.2.0", "0.3.0", env.keys, file, 1, QDateTime::fromString("2026-10-07T10:00:00Z", Qt::ISODate)));
     // The installer changed on disk after the download.
-    QVERIFY(writeBytes(QDir(rollbackStagingRoot(base)).filePath("0.2.0/framebeam-player-0.2.0-windows-x64.msi"), "changed"));
+    QVERIFY(writeBytes(QDir(rollbackStagingRoot(base)).filePath("0.2.0/uzume-0.2.0-windows-x64.msi"), "changed"));
     QVERIFY(!loadVerifiedRollback(base, "0.2.0", "0.3.0", env.keys, file, 1, QDateTime::fromString("2026-10-07T10:00:00Z", Qt::ISODate)));
   }
 
@@ -1021,8 +1021,8 @@ class UpdateTest : public QObject {
     void publish(const QByteArray& installer, const QString& version, qint64 sizeOverride = -1,
                  const QString& shaOverride = QString(), const QString& chan = QStringLiteral("beta")) {
       channel = chan;
-      installerName = "framebeam-player-" + version + "-windows-x64.msi";
-      QVERIFY(writeBytes(dir.filePath("framebeam_player.exe"), "launcher"));  // copied to temp by apply()
+      installerName = "uzume-" + version + "-windows-x64.msi";
+      QVERIFY(writeBytes(dir.filePath("Uzume.exe"), "launcher"));  // copied to temp by apply()
       const QString path = dir.filePath(installerName);
       QVERIFY(writeBytes(path, installer));
       QJsonObject art = artifact(installerName, installer, QUrl::fromLocalFile(path).toString());
@@ -1046,7 +1046,7 @@ class UpdateTest : public QObject {
       QJsonArray arr;
       for (const Rel& r : rels) {
         const QByteArray data = "installer-bytes-" + r.version.toUtf8();
-        const QString name = "framebeam-player-" + r.version + "-windows-x64.msi";
+        const QString name = "uzume-" + r.version + "-windows-x64.msi";
         QVERIFY(writeBytes(dir.filePath(name), data));
         installers[r.version] = data;
         QJsonObject o = release("player", r.channel, r.version, QJsonArray{artifact(name, data, QUrl::fromLocalFile(dir.filePath(name)).toString())},
@@ -1057,7 +1057,7 @@ class UpdateTest : public QObject {
       QJsonObject top{{"schema", 1}, {"generated_at", "2026-10-07T10:00:00Z"}, {"releases", arr}};
       if (!expires.isEmpty()) top["expires_at"] = expires;
       const QByteArray idx = QJsonDocument(top).toJson(QJsonDocument::Compact);
-      QVERIFY(writeBytes(dir.filePath("framebeam_player.exe"), "launcher"));
+      QVERIFY(writeBytes(dir.filePath("Uzume.exe"), "launcher"));
       QVERIFY(writeBytes(dir.filePath("updates-index.json"), idx));
       QVERIFY(writeBytes(dir.filePath("updates-index.json.sig"), signLine(key, idx)));
     }
@@ -1069,7 +1069,7 @@ class UpdateTest : public QObject {
       QVERIFY(writeBytes(dir.filePath("updates-index.json"), idx));
       QVERIFY(writeBytes(dir.filePath("updates-index.json.sig"), signLine(key, idx)));
     }
-    std::unique_ptr<UpdateManager> manager(framebeam::PlayerSettings& s, const QString& compiled = QStringLiteral("beta"),
+    std::unique_ptr<UpdateManager> manager(uzume::PlayerSettings& s, const QString& compiled = QStringLiteral("beta"),
                                            const QString& current = QStringLiteral("0.3.0-dev")) {
       UpdateManager::Config c;
       c.baseDir = dir.filePath("data");

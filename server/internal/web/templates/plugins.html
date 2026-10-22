@@ -4,7 +4,7 @@
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
       <input type="hidden" name="stage" value="{{$rv.Stage}}">
       <div class="stack-s">
-        <span class="eyebrow">{{if $rv.Official}}Upload · signed by FrameBeam{{else if $rv.Signed}}Upload · signature not valid{{else}}Upload · not signed{{end}}</span>
+        <span class="eyebrow">{{if $rv.Official}}Upload · signed by Uzume{{else if $rv.Signed}}Upload · signature not valid{{else}}Upload · not signed{{end}}</span>
         <h2 id="plugin-review-title">{{$rv.Heading}}</h2>
         <p class="help">{{$rv.OriginLine}}</p>
       </div>
@@ -18,7 +18,7 @@
       {{if $rv.Err}}<p class="help error-line" role="alert">{{$rv.Err}}</p>{{end}}
       <div class="actions">
         <button class="btn" type="submit" formaction="/plugins/discard" formnovalidate>Cancel</button>
-        {{if $rv.CanOffer}}<button class="btn primary" type="submit" data-offer>Offer to Players</button>{{end}}
+        {{if $rv.CanOffer}}<button class="btn primary" type="submit" data-offer>Offer to apps</button>{{end}}
       </div>
     </form>
   </div>
@@ -26,11 +26,11 @@
 {{define "plugin-detail"}}{{$d := .Body.Sel}}<aside class="plugins-side" aria-label="Plugin details">
   <div class="plugin-head"><span class="tile big" aria-hidden="true">{{$d.Mono}}</span><div class="stack-s"><h2>{{$d.Name}}</h2><span class="mono">{{$d.Meta}}</span></div></div>
   <div><span class="pill {{$d.OriginClass}}">{{$d.OriginLabel}}</span></div>
-  {{if $d.Unverified}}<p class="notice-warn"><b>!</b> Not signed by FrameBeam. Players see “Hub upload · unverified” and a warning before they turn it on.</p>{{end}}
+  {{if $d.Unverified}}<p class="notice-warn"><b>!</b> Not signed by Uzume. Apps see “Server upload · unverified” and a warning before they turn it on.</p>{{end}}
   {{if $d.Description}}<p>{{$d.Description}}</p>{{end}}
   {{if $d.Needs}}<div class="stack-s">
     <span class="eyebrow">Needs</span>
-    {{range $d.Needs}}<div class="side-row need"><span class="tile small" aria-hidden="true">{{.Mono}}</span><span>{{.Name}} {{.Range}}</span>{{if .Present}}<span class="pill sm ok push-right">✓ on this Hub</span>{{else}}<span class="pill sm amber push-right">Not on this Hub</span>{{end}}</div>{{end}}
+    {{range $d.Needs}}<div class="side-row need"><span class="tile small" aria-hidden="true">{{.Mono}}</span><span>{{.Name}} {{.Range}}</span>{{if .Present}}<span class="pill sm ok push-right">✓ on this server</span>{{else}}<span class="pill sm amber push-right">Not on this server</span>{{end}}</div>{{end}}
   </div>{{end}}
   {{if $d.UsedBy}}<div class="stack-s"><span class="eyebrow">Used by</span>{{range $d.UsedBy}}<div class="side-row">{{.}}</div>{{end}}</div>{{end}}
   <div class="stack-s">
@@ -46,14 +46,14 @@
   <div class="side-actions">
     <div class="ract left"><a class="btn" href="{{$d.DownloadHref}}">Download file</a>
       <details class="menu"><summary class="more" aria-label="More actions for {{$d.Name}}">⋯</summary>
-        <div class="menu-pop"><a class="mi danger" href="{{$d.RemoveHref}}">Remove from Hub…</a></div></details></div>
-    <span class="help">“Remove from Hub…” is in the ⋯ menu. Players keep their copy until they uninstall it.</span>
+        <div class="menu-pop"><a class="mi danger" href="{{$d.RemoveHref}}">Remove from server…</a></div></details></div>
+    <span class="help">“Remove from server…” is in the ⋯ menu. Apps keep their copy until they uninstall it.</span>
   </div>
 </aside>{{end}}
 {{define "content"}}
 <div class="plugins{{if .Body.Sel}} has-sel{{end}}">
 <div class="plugins-main stack">
-  <div class="page-head"><div><h1>Plugins</h1><p class="sub">Players on this Hub can install what is listed here.</p></div>
+  <div class="page-head"><div><h1>Plugins</h1><p class="sub">Apps on this server can install what is listed here.</p></div>
     <details class="upload"{{if .Body.UploadOpen}} open{{end}}>
       <summary class="btn primary">Upload plugin</summary>
       <form class="upload-form drop-panel" method="post" action="/plugins/upload" enctype="multipart/form-data" data-drop>
@@ -64,7 +64,7 @@
           <label class="btn small">Choose file…<input class="visually-hidden" type="file" name="file" accept=".fbplugin,.zip" required aria-label="Plugin file"></label>
         </div>
         <button class="btn primary" type="submit">Upload</button>
-        <p class="help">You review the name, the origin and the requested permissions before anything is offered to Players.</p>
+        <p class="help">You review the name, the origin and the requested permissions before anything is offered to apps.</p>
       </form>
     </details>
   </div>
@@ -94,7 +94,7 @@
   {{end}}
   {{else}}
   <div class="catalog-head"><span class="eyebrow">Official catalog</span></div>
-  <p class="help">No plugin index is configured on this Hub (it is turned off with <span class="mono">-plugin-index-url none</span>). Set <span class="mono">-plugin-index-url</span> (<span class="mono">FRAMEBEAM_PLUGIN_INDEX_URL</span>) to a URL to list plugins here, or upload files or use <span class="mono">framebeam-hub import-plugins</span> on a Hub without internet.</p>
+  <p class="help">No plugin index is configured on this server (it is turned off with <span class="mono">-plugin-index-url none</span>). Set <span class="mono">-plugin-index-url</span> (<span class="mono">UZUME_PLUGIN_INDEX_URL</span>) to a URL to list plugins here, or upload files or use <span class="mono">uzume-server import-plugins</span> on a server without internet.</p>
   {{end}}
   {{if .Body.Catalog.Configured}}
   {{if .Body.Catalog.Cards}}

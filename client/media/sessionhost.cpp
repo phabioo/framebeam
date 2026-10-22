@@ -24,10 +24,10 @@ extern "C" {
 #include "opuscodec.h"
 #include "rtcutil.h"
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
-Q_LOGGING_CATEGORY(lcHost, "framebeam.sessionhost")
+Q_LOGGING_CATEGORY(lcHost, "uzume.sessionhost")
 
 constexpr int kVideoPayloadType = 96;
 constexpr int kAudioPayloadType = 111;
@@ -1204,4 +1204,4 @@ QList<ViewerLinkStats> SessionHost::viewerLinks() const {
   return links_;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

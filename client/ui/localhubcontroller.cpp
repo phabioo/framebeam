@@ -15,7 +15,7 @@
 #include <QUrl>
 #include <QtConcurrent>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 using S = HubConnection::State;
 
@@ -68,7 +68,7 @@ QString LocalHubController::friendly(const QString& code, const QString& message
   if (code == QLatin1String("admin_exists")) return tr("This Hub already has an admin. Sign in instead.");
   if (code == QLatin1String("not_local")) return tr("This is only possible with the Hub on this PC.");
   if (code == QLatin1String("invalid_input")) return tr("Please enter a user name and a password.");
-  if (code == QLatin1String("unreachable")) return tr("The Hub on this PC does not respond. Check that the Windows service \"FrameBeam Hub\" is running.");
+  if (code == QLatin1String("unreachable")) return tr("The Hub on this PC does not respond. Check that the Windows service \"Uzume server\" is running.");
   return message.isEmpty() ? tr("The Hub refused the request (%1).").arg(code) : message;
 }
 
@@ -181,7 +181,7 @@ void LocalHubController::loadStatus(bool forPairingForm) {
       active_ = false;
       setPhase(QStringLiteral("error"),
                why == QLatin1String("not_local") ? friendly(why, {})
-                                                 : tr("This Hub cannot be set up from the Player. Update FrameBeam Hub or add it as a normal Hub."));
+                                                 : tr("This Hub cannot be set up from the Player. Update Uzume server or add it as a normal Hub."));
       return;
     }
     applyStatus(st);
@@ -316,4 +316,4 @@ void LocalHubController::openHubWebUi() {
   if (info_.present()) QDesktopServices::openUrl(QUrl(hubWebUrl()));
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

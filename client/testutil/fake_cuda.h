@@ -1,6 +1,6 @@
 #pragma once
 // Fake CUDA driver API and a host-memory frame pool for the tests of GPU-direct encoding (ADR 0019). Header-only and
-// self-contained (a test that uses it links framebeam_media and Qt6::Gui): the real CudaGlCapture runs against it on
+// self-contained (a test that uses it links uzume_media and Qt6::Gui): the real CudaGlCapture runs against it on
 // any machine with a GL context, e.g. Mesa llvmpipe under xvfb.
 //
 // FakeCuda fills a cuda::Api with static functions over one global instance (one FakeCuda at a time) and enforces the
@@ -74,10 +74,10 @@ class FakeCuda {
   FakeCuda(const FakeCuda&) = delete;
   FakeCuda& operator=(const FakeCuda&) = delete;
 
-  const framebeam::cuda::Api* api() const { return &api_; }
+  const uzume::cuda::Api* api() const { return &api_; }
 
   // Deps for CudaGlCapture / GpuEncodeBridge: this API and HostFramePool as the frame pool.
-  framebeam::CudaGlCapture::Deps deps();
+  uzume::CudaGlCapture::Deps deps();
 
   // The next `times` calls of `symbol` (a cuda::Api member name, e.g. "cuGraphicsMapResources") return `code`
   // without doing anything.
@@ -375,7 +375,7 @@ class FakeCuda {
     if (int e = f->needGl("cuGraphicsGLRegisterImage")) return e;
     if (int e = f->needCtx("cuGraphicsGLRegisterImage", nullptr)) return e;
     QOpenGLExtraFunctions* gl = QOpenGLContext::currentContext()->extraFunctions();
-    if (target != framebeam::cuda::kGlTexture2D || gl->glIsTexture(image) == GL_FALSE) {
+    if (target != uzume::cuda::kGlTexture2D || gl->glIsTexture(image) == GL_FALSE) {
       f->violate(QStringLiteral("cuGraphicsGLRegisterImage of something that is not a GL_TEXTURE_2D"));
       return 1;
     }
@@ -504,7 +504,7 @@ class FakeCuda {
     ++f->c_.unmaps;
     return 0;
   }
-  static CUresult FB_CUDAAPI fake_cuMemcpy2DAsync_v2(const framebeam::cuda::Memcpy2D* copy, CUstream stream) {
+  static CUresult FB_CUDAAPI fake_cuMemcpy2DAsync_v2(const uzume::cuda::Memcpy2D* copy, CUstream stream) {
     FakeCuda* f = self();
     if (!f) return 0;
     if (int e = f->inject("cuMemcpy2DAsync_v2")) return e;
@@ -520,7 +520,7 @@ class FakeCuda {
       f->violate(QStringLiteral("cuMemcpy2DAsync_v2 from an array that is not mapped (stale or unknown)"));
       return 211;
     }
-    if (copy->srcMemoryType != framebeam::cuda::kMemoryTypeArray || copy->dstMemoryType != framebeam::cuda::kMemoryTypeDevice ||
+    if (copy->srcMemoryType != uzume::cuda::kMemoryTypeArray || copy->dstMemoryType != uzume::cuda::kMemoryTypeDevice ||
         copy->dstDevice == 0 || copy->srcXInBytes != 0 || copy->srcY != 0 || copy->dstXInBytes != 0 || copy->dstY != 0) {
       f->violate(QStringLiteral("cuMemcpy2DAsync_v2 with an unexpected source/destination description"));
       return 1;
@@ -552,7 +552,7 @@ class FakeCuda {
   inline static FakeCuda* s_instance = nullptr;
   inline static std::atomic<int> s_liveFrames{0};
 
-  framebeam::cuda::Api api_;
+  uzume::cuda::Api api_;
   mutable std::mutex m_;
   Counters c_;
   std::map<std::string, std::pair<int, int>> injected_;
@@ -571,9 +571,9 @@ class FakeCuda {
 
 // Frames in host memory with the pitch rounded up to 256 bytes (so pitch bugs show), poisoned with 0xCD. The last
 // release of the pool or of any of its frames destroys the context, like the device of the FFmpeg pool (design I2).
-class HostFramePool final : public framebeam::CudaFramePool {
+class HostFramePool final : public uzume::CudaFramePool {
  public:
-  HostFramePool(const framebeam::cuda::Api* api, CUcontext ctx, FakeCuda* fake = nullptr)
+  HostFramePool(const uzume::cuda::Api* api, CUcontext ctx, FakeCuda* fake = nullptr)
       : state_(std::make_shared<State>(*api, ctx)), fake_(fake) {}
 
   bool configure(int width, int height, int prealloc, QString* why) override {
@@ -622,11 +622,11 @@ class HostFramePool final : public framebeam::CudaFramePool {
 
  private:
   struct State {
-    State(const framebeam::cuda::Api& a, CUcontext c) : api(a), ctx(c) {}
+    State(const uzume::cuda::Api& a, CUcontext c) : api(a), ctx(c) {}
     ~State() {
       if (ctx && api.cuCtxDestroy_v2) api.cuCtxDestroy_v2(ctx);
     }
-    framebeam::cuda::Api api;
+    uzume::cuda::Api api;
     CUcontext ctx;
   };
   static void release(void* opaque, uint8_t* data) {
@@ -641,10 +641,10 @@ class HostFramePool final : public framebeam::CudaFramePool {
   int pitch_ = 0;
 };
 
-inline framebeam::CudaGlCapture::Deps FakeCuda::deps() {
-  framebeam::CudaGlCapture::Deps d;
+inline uzume::CudaGlCapture::Deps FakeCuda::deps() {
+  uzume::CudaGlCapture::Deps d;
   d.api = &api_;
-  d.makePool = [this](void* ctx, QString* why) -> std::unique_ptr<framebeam::CudaFramePool> {
+  d.makePool = [this](void* ctx, QString* why) -> std::unique_ptr<uzume::CudaFramePool> {
     {
       const std::lock_guard<std::mutex> lock(m_);
       if (!poolFailure_.isEmpty()) {

@@ -8,7 +8,7 @@
 
 // Seam between the plugin runtime and the emulation layer (wired in a later package). The emulation thread copies the
 // registered ranges into a snapshot after a frame; plugins only ever read that copy (docs/architecture/12-plugins.md 16.3).
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 struct WatchRange {
   uint64_t addr = 0;
@@ -28,4 +28,4 @@ class MemoryProvider {
   virtual uint64_t generation() const = 0;
 };
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

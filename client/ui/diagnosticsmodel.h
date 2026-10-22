@@ -16,7 +16,7 @@
 #include "playersettings.h"
 #include "sessiontypes.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class DiagnosticsModel : public QObject {
   Q_OBJECT
@@ -116,4 +116,4 @@ class DiagnosticsModel : public QObject {
   int participants_ = 0;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

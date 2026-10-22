@@ -7,7 +7,7 @@
 #include <QString>
 #include <optional>
 
-namespace framebeam {
+namespace uzume {
 
 // One viewer report over the fb-diag DataChannel: {"t":"rx","loss":<0..1>,"kbps":<received video kbit/s>} plus, since
 // 0.6, the optional "fps" (frames/s the viewer decoded) and "dec" (name of its decoder). Old Players send neither and
@@ -65,4 +65,4 @@ class BitrateController {
   std::optional<qint64> lastChangeMs_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

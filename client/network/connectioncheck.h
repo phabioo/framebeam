@@ -28,7 +28,7 @@
 
 #include "sessiontypes.h"
 
-namespace framebeam {
+namespace uzume {
 
 enum class CheckStepId { Hub = 0, Stun, Turn, Nat, Test };
 inline constexpr int kCheckStepCount = 5;
@@ -61,7 +61,7 @@ struct ConnectionTarget {
   QStringList stunUrls;  // stun: URLs
   QList<TurnServer> turnServers;
   bool iceKnown = true;     // the Hub session is open, so stunUrls / turnServers are what the Hub hands out (empty = none)
-  bool forceRelay = false;  // FRAMEBEAM_FORCE_RELAY on this Player (ADR 0012)
+  bool forceRelay = false;  // UZUME_FORCE_RELAY on this Player (ADR 0012)
 };
 
 struct HubProbeResult {
@@ -153,13 +153,13 @@ class ConnectionCheck : public QObject {
   const CheckResult& result() const { return result_; }
 
  public slots:
-  void start(const framebeam::ConnectionTarget& target);  // restarts when running
+  void start(const uzume::ConnectionTarget& target);  // restarts when running
   void cancel();
 
  signals:
   void stepChanged(int index);  // steps()[index] changed
   void progress(int stepNumber, int total);  // "step 3 of 5"
-  void finished(const framebeam::CheckResult& result);
+  void finished(const uzume::CheckResult& result);
 
  private:
   void begin(int index);
@@ -192,7 +192,7 @@ class ConnectionCheck : public QObject {
   QString turnServer_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::ConnectionTarget)
-Q_DECLARE_METATYPE(framebeam::CheckResult)
+Q_DECLARE_METATYPE(uzume::ConnectionTarget)
+Q_DECLARE_METATYPE(uzume::CheckResult)

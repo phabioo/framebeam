@@ -23,7 +23,7 @@
 #include "pluginimageprovider.h"
 #include "pluginruntime.h"
 
-namespace framebeam {
+namespace uzume {
 class HubConnection;
 class PlayerSettings;
 namespace emu {
@@ -31,7 +31,7 @@ class ManifestRegistry;
 }
 }
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class GameSession;
 
@@ -86,7 +86,7 @@ class PluginsController : public QObject {
   // "Hide all HUD widgets" (persisted). The F4 / Ctrl+H keys that toggle it are bound elsewhere.
   Q_PROPERTY(bool hudAllHidden READ hudAllHidden WRITE setHudAllHidden NOTIFY hudAllHiddenChanged)
   // [{toastId, pluginId, pluginName, tone, title, text, actions: [{label, action, value}], origin, host}], oldest first, at
-  // most 10 (the UI shows the newest 3 and a pill for the rest). host = true: a notice of the Player itself ("FrameBeam
+  // most 10 (the UI shows the newest 3 and a pill for the rest). host = true: a notice of the Player itself ("Uzume
   // plugin paused", toastId < 0, actions "restart" / "details").
   Q_PROPERTY(QVariantList toasts READ toasts NOTIFY toastsChanged)
   // [{pluginId, title, icon, badge, origin}]: sidebar entries under Library (ui.screen) of the running plugins.
@@ -140,7 +140,7 @@ class PluginsController : public QObject {
   QString hotkeyNote() const { return hotkeyNote_; }
   // Key combinations (Qt::Key | modifiers) of the plugin hotkeys that fire now (running, not in conflict).
   QSet<int> activeHotkeyCombos() const { return activeCombos_; }
-  // FrameBeam keys that always win: combination (Qt::Key | modifiers) -> label of the owner. Set by the PlayerController.
+  // Uzume keys that always win: combination (Qt::Key | modifiers) -> label of the owner. Set by the PlayerController.
   void setReservedKeys(const QMap<int, QString>& reserved);
   // Registry behind image://fbplugin (see pluginimageprovider.h).
   std::shared_ptr<PluginImageSources> imageSources() const { return imageSources_; }
@@ -185,7 +185,7 @@ class PluginsController : public QObject {
 
   // Settings -> Plugins. Paths may be file:// URLs (file or folder dialog).
   Q_INVOKABLE void installFromFolder(const QString& pathOrUrl);
-  // A .fbplugin file or a plugin folder, whichever the path is. Signed (valid FrameBeam key) = Official, otherwise a local
+  // A .fbplugin file or a plugin folder, whichever the path is. Signed (valid Uzume key) = Official, otherwise a local
   // plugin that needs Developer mode.
   Q_INVOKABLE void installFromPath(const QString& pathOrUrl);
   // Asks the Hub for its plugin list (no-op without plugins_v1).
@@ -375,4 +375,4 @@ class PluginsController : public QObject {
   bool hasPreview_ = false;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

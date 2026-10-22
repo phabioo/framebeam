@@ -6,7 +6,7 @@
 #include <mutex>
 #include <string>
 
-namespace framebeam::formats {
+namespace uzume::formats {
 
 Garc garcParse(std::string_view in) {
     using namespace detail;
@@ -126,4 +126,4 @@ Result garcFile(std::string_view in, size_t index, size_t sub) {
     return r;
 }
 
-}  // namespace framebeam::formats
+}  // namespace uzume::formats

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // 3b: Add hub (hub found, confirm certificate, approve device).
 Rectangle {
@@ -87,7 +87,7 @@ Rectangle {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: Theme.textSecondary
-                    text: qsTr("%1 · FrameBeam Hub %2 · Protocol v%3 · compatible")
+                    text: qsTr("%1 · Uzume server %2 · Protocol v%3 · compatible")
                               .arg(root.info.hubName).arg(root.info.hubVersion).arg(root.info.protocol)
                 }
             }
@@ -182,7 +182,7 @@ Rectangle {
                         id: inviteCodeField
                         objectName: "inviteCodeField"
                         Layout.fillWidth: true
-                        placeholderText: qsTr("FB-XXXX-XXXX")
+                        placeholderText: qsTr("UZ-XXXX-XXXX")
                         font.capitalization: Font.AllUppercase
                         inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhUppercaseOnly
                         enabled: !root.info.inviteBusy

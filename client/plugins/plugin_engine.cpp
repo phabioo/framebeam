@@ -11,7 +11,7 @@
 #include "lauxlib.h"
 #include "lua.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 using Clock = std::chrono::steady_clock;
 
@@ -612,4 +612,4 @@ void PluginEngine::iterate() {
   updateWatched();
 }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

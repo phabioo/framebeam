@@ -8,7 +8,7 @@
 #include "hubconnection.h"
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 // Systems registry of the active hub (GET /systems, handshake feature firmware_v1). Cleared on disconnect.
 // Without firmware_v1 (older hub) nothing is requested and supported() is false.
@@ -37,4 +37,4 @@ class HubSystems : public QObject {
   quint64 generation_ = 0;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

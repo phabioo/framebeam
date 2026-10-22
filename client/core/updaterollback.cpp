@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace framebeam::update {
+namespace uzume::update {
 
 QList<HistoryEntry> parseHistory(const QJsonArray& a) {
   QList<HistoryEntry> out;
@@ -110,4 +110,4 @@ QList<RollbackCandidate> rollbackCandidates(const Index& index, const RollbackQu
   return out;
 }
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

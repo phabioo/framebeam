@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Label (76) + mono value + optional subline and pill (3t-3y "Emulation rows").
 RowLayout {

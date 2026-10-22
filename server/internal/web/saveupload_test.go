@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 type uploadFixture struct {
@@ -102,8 +102,8 @@ func TestSaveUploadResultsWeb(t *testing.T) {
 	// Success with htmx: inline result and undo in the returned detail, no redirect; the URL is pushed.
 	rec := post(f.fields(nil), "other.sav", []byte("from another emulator"), hx)
 	status(t, rec, http.StatusOK)
-	contains(t, rec, `id="save-detail"`, "✓ Uploaded as Rev 2.", "Rev 1 is in the history as “Before upload”. Players get Rev 2 on their next start.",
-		"Undo: restore v", `<span class="mono">Rev 2</span>`, "Uploaded", "Hub web interface · admin", "Before upload", "Upload save…", `hx-swap-oob="true"`)
+	contains(t, rec, `id="save-detail"`, "✓ Uploaded as Rev 2.", "Rev 1 is in the history as “Before upload”. Apps get Rev 2 on their next start.",
+		"Undo: restore v", `<span class="mono">Rev 2</span>`, "Uploaded", "Server web interface · admin", "Before upload", "Upload save…", `hx-swap-oob="true"`)
 	notContains(t, rec, `class="upl-panel"`, "<!doctype")
 	if rec.Header().Get("HX-Push-Url") != f.base+"?up=ok" {
 		t.Fatalf("push url %q", rec.Header().Get("HX-Push-Url"))

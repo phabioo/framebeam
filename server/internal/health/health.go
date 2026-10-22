@@ -1,4 +1,4 @@
-// Package health models the problems the Hub shows on its Status page and in the sidebar badge. Each check
+// Package health models the problems the server shows on its Status page and in the sidebar badge. Each check
 // returns zero or more Problem values; the most urgent one is the banner and the badge. Later features (for
 // example "Backup failed") add a check, nothing else changes.
 package health

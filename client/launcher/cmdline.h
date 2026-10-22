@@ -2,7 +2,7 @@
 // Command line of the launcher's child (no Qt, header only, testable on any platform).
 #include <string>
 
-namespace framebeam::launcher {
+namespace uzume::launcher {
 
 // Returns the part of a full process command line (as GetCommandLineW delivers it) after the program name,
 // verbatim and without leading blanks. The program name follows CommandLineToArgvW: quoted up to the next
@@ -34,4 +34,4 @@ inline std::wstring childCommandLine(const std::wstring& childExe, const std::ws
   return cmd;
 }
 
-}  // namespace framebeam::launcher
+}  // namespace uzume::launcher

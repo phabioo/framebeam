@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // Controller glyph chip (design "PadGlyph and the D-pad icons", source/pad-glyph.dc.html).
 // g: A B X Y LB RB LT RT View Menu | cross circle square triangle L1 R1 L2 R2 Create Options | up down left right;

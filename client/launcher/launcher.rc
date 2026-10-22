@@ -4,5 +4,5 @@ IDI_ICON1 ICON "icons/player.ico"
 
 #ifdef __MINGW32__
 // MSVC gets the manifest from CMake (client/launcher/CMakeLists.txt).
-1 24 "framebeam.manifest"
+1 24 "uzume.manifest"
 #endif

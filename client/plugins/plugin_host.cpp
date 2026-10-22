@@ -7,7 +7,7 @@
 
 #include "plugin_engine.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 // Lives on the plugin thread; owns the engine and drives it from a timer.
 class HostWorker : public QObject {
@@ -94,7 +94,7 @@ class HostWorker : public QObject {
 
 PluginHost::PluginHost(QObject* parent) : QObject(parent), m_store(std::make_unique<ConsoleStore>()) {
   m_thread = new QThread(this);
-  m_thread->setObjectName(QStringLiteral("framebeam-plugins"));
+  m_thread->setObjectName(QStringLiteral("uzume-plugins"));
   m_worker = new HostWorker(*m_store, m_tickHz);
   m_worker->moveToThread(m_thread);
   connect(m_worker, &HostWorker::statusChanged, this, &PluginHost::statusChanged);
@@ -156,6 +156,6 @@ QStringList PluginHost::pluginIds() const { return m_store->ids(); }
 
 ConsoleSnapshot PluginHost::consoleSnapshot(const QString& id) const { return m_store->snapshot(id); }
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins
 
 #include "plugin_host.moc"

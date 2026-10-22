@@ -4,7 +4,7 @@
 #include <QString>
 #include <optional>
 
-namespace framebeam::dsv {
+namespace uzume::dsv {
 
 // DeSmuME backup format (".dsv", libretro DeSmuME writes <content basename>.dsv into the save directory):
 //   <padSize bytes of raw cartridge save> + footer
@@ -25,4 +25,4 @@ std::optional<QByteArray> rawToDsv(const QByteArray& raw, QString* error = nullp
 // never guesses: nullopt + *error for anything that is not a well-formed DeSmuME save.
 std::optional<QByteArray> dsvToRaw(const QByteArray& dsv, QString* error = nullptr);
 
-}  // namespace framebeam::dsv
+}  // namespace uzume::dsv

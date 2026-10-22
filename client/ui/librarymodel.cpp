@@ -4,7 +4,7 @@
 #include <QLocale>
 #include <algorithm>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 LibraryModel::LibraryModel(QObject* parent) : QAbstractListModel(parent) {
   collator_.setCaseSensitivity(Qt::CaseInsensitive);
@@ -661,4 +661,4 @@ bool LibraryGroupModel::filterAcceptsRow(int row, const QModelIndex& parent) con
   return group_ == 0 ? ready : !ready;
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

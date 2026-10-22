@@ -7,7 +7,7 @@
 #include "core_locator.h"
 #include "system_manifest.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 class ManifestTest : public QObject {
   Q_OBJECT
@@ -358,12 +358,12 @@ class ManifestTest : public QObject {
     QVERIFY(reg.loadBuiltin());
     const SystemManifest nds = *reg.resolve(QStringLiteral("nds"), QStringLiteral("melondsds"));
     const QString envName = CoreLocator::environmentVariableFor(nds.coreId);
-    QCOMPARE(envName, QStringLiteral("FRAMEBEAM_MELONDSDS_CORE"));
-    QCOMPARE(CoreLocator::environmentVariableFor(QStringLiteral("a-b")), QStringLiteral("FRAMEBEAM_A_B_CORE"));
+    QCOMPARE(envName, QStringLiteral("UZUME_MELONDSDS_CORE"));
+    QCOMPARE(CoreLocator::environmentVariableFor(QStringLiteral("a-b")), QStringLiteral("UZUME_A_B_CORE"));
     const QByteArray savedEnv = qgetenv(envName.toUtf8().constData());
     qunsetenv(envName.toUtf8().constData());
-    const QByteArray savedLegacy = qgetenv("FRAMEBEAM_MELONDS_DS_CORE");  // alias variable of the same core
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    const QByteArray savedLegacy = qgetenv("UZUME_MELONDS_DS_CORE");  // alias variable of the same core
+    qunsetenv("UZUME_MELONDS_DS_CORE");
 
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
@@ -404,13 +404,13 @@ class ManifestTest : public QObject {
     // The legacy variable of the alias works for the same core.
     loc.setExplicitPath(nds.coreId, QString());
     qunsetenv(envName.toUtf8().constData());
-    qputenv("FRAMEBEAM_MELONDS_DS_CORE", envCore.toUtf8());
+    qputenv("UZUME_MELONDS_DS_CORE", envCore.toUtf8());
     QCOMPARE(loc.locate(nds).source, QStringLiteral("env"));
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
 
     if (savedEnv.isEmpty()) qunsetenv(envName.toUtf8().constData());
     else qputenv(envName.toUtf8().constData(), savedEnv);
-    if (!savedLegacy.isEmpty()) qputenv("FRAMEBEAM_MELONDS_DS_CORE", savedLegacy);
+    if (!savedLegacy.isEmpty()) qputenv("UZUME_MELONDS_DS_CORE", savedLegacy);
   }
 };
 

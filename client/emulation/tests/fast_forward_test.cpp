@@ -10,7 +10,7 @@
 #include "emulation_runner.h"
 #include "libretro_backend.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 namespace {
 struct Probe {

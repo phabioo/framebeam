@@ -19,7 +19,7 @@
 #include "runtypes.h"
 #include "sessiontypes.h"
 
-namespace framebeam {
+namespace uzume {
 
 // Result of one run REST call. `run` is set when the Hub answered with a Run object (already applied to the client).
 struct RunResult {
@@ -105,7 +105,7 @@ class RunClient : public QObject {
   void statusChanged(const QString& runId, const QString& status);
   void participantsChanged(const QString& runId);      // joins, leaves, invites, colours
   void stateChanged(const QString& runId, const QString& userId, const QString& pluginId);  // one plugin's state of a participant changed
-  void eventAdded(const QString& runId, const framebeam::RunEvent& event);
+  void eventAdded(const QString& runId, const uzume::RunEvent& event);
   // A queued write was dropped for good: kind = "state" | "event" | "board".
   void writeFailed(const QString& runId, const QString& kind, const QString& code, const QString& message);
 
@@ -194,6 +194,6 @@ class RunClient : public QObject {
   int catchUpDelayMs_ = 300;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::RunEvent)
+Q_DECLARE_METATYPE(uzume::RunEvent)

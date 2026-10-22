@@ -1,4 +1,4 @@
-// MemoryWatchSet/MemorySnapshot: pure behaviour on a synthetic map, then against the FrameBeam test core (synthetic
+// MemoryWatchSet/MemorySnapshot: pure behaviour on a synthetic map, then against the Uzume test core (synthetic
 // 3DS-like memory map, EmulationRunner and LibretroBackend).
 #include <QCoreApplication>
 #include <QSignalSpy>
@@ -12,8 +12,8 @@
 #include "memory_snapshot.h"
 #include "test_core_layout.h"
 
-using namespace framebeam::emu;
-namespace mem = framebeam::testcore::mem;
+using namespace uzume::emu;
+namespace mem = uzume::testcore::mem;
 
 namespace {
 uint32_t rd32(const MemorySnapshot& s, uint64_t addr, bool* ok = nullptr) {
@@ -30,7 +30,7 @@ class MemorySnapshotTest : public QObject {
 
   EmulationRunner::StartRequest request() const {
     EmulationRunner::StartRequest req;
-    req.corePath = qEnvironmentVariable("FRAMEBEAM_MELONDS_DS_CORE");
+    req.corePath = qEnvironmentVariable("UZUME_MELONDS_DS_CORE");
     req.gamePath = QStringLiteral(FB_TEST_ROM_PATH);
     req.systemDir = m_dir.filePath(QStringLiteral("system"));
     req.saveDir = m_dir.filePath(QStringLiteral("save"));

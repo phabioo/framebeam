@@ -10,7 +10,7 @@
 #include "bitratecontroller.h"
 #include "mediastats.h"
 
-namespace framebeam {
+namespace uzume {
 
 class ViewerReports {
  public:
@@ -45,4 +45,4 @@ class ViewerReports {
   QHash<QString, RxReport> reports_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

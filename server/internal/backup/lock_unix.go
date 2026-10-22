@@ -9,11 +9,11 @@ import (
 	"syscall"
 )
 
-// ErrLocked: another process (the running Hub) holds the data directory.
-var ErrLocked = errors.New("the data directory is in use by a running Hub")
+// ErrLocked: another process (the running server) holds the data directory.
+var ErrLocked = errors.New("the data directory is in use by a running server")
 
-// LockDataDir takes the exclusive lock of the data directory (hub.lock). The serving Hub holds it for its whole
-// run; `framebeam-hub restore` needs it, so a restore never runs next to a live Hub. The lock goes away with the
+// LockDataDir takes the exclusive lock of the data directory (hub.lock). The serving server holds it for its whole
+// run; `uzume-server restore` needs it, so a restore never runs next to a live server. The lock goes away with the
 // process, also after a crash.
 func LockDataDir(dataDir string) (release func(), err error) {
 	f, err := os.OpenFile(filepath.Join(dataDir, "hub.lock"), os.O_CREATE|os.O_RDWR, 0o600)

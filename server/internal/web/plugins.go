@@ -10,8 +10,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/pluginpkg"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/pluginpkg"
 )
 
 // permissionLabels are the plain-language names of the plugin permissions (docs/design/plugins.md).
@@ -20,7 +20,7 @@ var permissionLabels = map[string]string{
 	"memory.write":  "Change game memory",
 	"rom.read":      "Read the game file",
 	"ui":            "Show panels in game",
-	"run.state":     "Share run progress with your Hub",
+	"run.state":     "Share run progress with your server",
 	"tool.exec":     "Run an external tool",
 	"video.capture": "Capture the game picture",
 }
@@ -117,9 +117,9 @@ func originLabel(p hub.Plugin) (label, class string) {
 	case p.Origin == hub.PluginOriginOfficial:
 		return "✓ Official", "ok"
 	case p.Source == hub.PluginSourceImport:
-		return "Hub import · unverified", "amber"
+		return "Server import · unverified", "amber"
 	}
-	return "Hub upload · unverified", "amber"
+	return "Server upload · unverified", "amber"
 }
 
 func pluginHref(id, version string) string {
@@ -336,20 +336,20 @@ func reviewOf(st hub.PluginStaged) *reviewView {
 		Official: st.Official, Signed: st.Signed, SigProblem: st.SignatureProblem, CanOffer: !st.Conflict}
 	switch {
 	case st.Official:
-		v.Heading = "Offer " + st.Name + " " + st.Version + " to Players?"
-		v.OriginLine = "Signed by FrameBeam. Players see it as “Official”."
+		v.Heading = "Offer " + st.Name + " " + st.Version + " to apps?"
+		v.OriginLine = "Signed by Uzume. Apps see it as “Official”."
 	case st.Signed:
-		v.Heading = "Offer " + st.Name + " " + st.Version + " to Players?"
-		v.OriginLine = "The signature of this file is not valid (" + st.SignatureProblem + "). FrameBeam has not checked this file. Players will see it as “Hub upload · unverified”."
+		v.Heading = "Offer " + st.Name + " " + st.Version + " to apps?"
+		v.OriginLine = "The signature of this file is not valid (" + st.SignatureProblem + "). Uzume has not checked this file. Apps will see it as “Server upload · unverified”."
 	default:
-		v.Heading = "Offer " + st.Name + " " + st.Version + " to Players?"
-		v.OriginLine = "FrameBeam has not checked this file. Players will see it as “Hub upload · unverified”."
+		v.Heading = "Offer " + st.Name + " " + st.Version + " to apps?"
+		v.OriginLine = "Uzume has not checked this file. Apps will see it as “Server upload · unverified”."
 	}
 	switch {
 	case st.Conflict:
 		v.Notice = "A different file with this version is already offered. Remove it first or change the version."
 	case st.AlreadyOffered:
-		v.Notice = "This exact file is already offered to Players."
+		v.Notice = "This exact file is already offered to apps."
 	}
 	return v
 }
@@ -498,14 +498,14 @@ func (s *Server) renderPluginRemove(w http.ResponseWriter, r *http.Request, sess
 	d := s.base(r, sess, "plugins", "Remove plugin")
 	d.Error = errText
 	d.Body = confirmBody{
-		Heading: "Remove “" + p.Name + " " + p.Version + "” from the Hub?",
-		Intro:   "Players can no longer download this version from this Hub. The following changes:",
+		Heading: "Remove “" + p.Name + " " + p.Version + "” from the server?",
+		Intro:   "Apps can no longer download this version from this server. The following changes:",
 		Removes: []string{
-			"The file and its entry are deleted from this Hub",
-			"Players keep their copy until they uninstall it",
+			"The file and its entry are deleted from this server",
+			"Apps keep their copy until they uninstall it",
 		},
 		Note:   "A version that a run still uses (not finished or abandoned) cannot be removed.",
-		Action: pluginHref(p.PluginID, p.Version) + "/remove", Button: "Remove from Hub", Cancel: pluginHref(p.PluginID, p.Version),
+		Action: pluginHref(p.PluginID, p.Version) + "/remove", Button: "Remove from server", Cancel: pluginHref(p.PluginID, p.Version),
 	}
 	s.render(w, status, "confirm", "layout", d)
 }
@@ -551,7 +551,7 @@ func (s *Server) pluginIndexInstall(w http.ResponseWriter, r *http.Request, sess
 	case errors.Is(err, hub.ErrConflict):
 		s.renderPlugins(w, r, sess, pluginsOpts{status: http.StatusConflict, err: errMessageOf(err)})
 	default:
-		// Download, checksum or signature problems are shown to the admin; details stay in the Hub log.
+		// Download, checksum or signature problems are shown to the admin; details stay in the server log.
 		s.log.Warn("plugin install from the index failed", "plugin", r.PostFormValue("id"), "version", r.PostFormValue("version"), "err", err)
 		s.renderPlugins(w, r, sess, pluginsOpts{status: http.StatusBadGateway, err: "The plugin could not be installed: " + err.Error()})
 	}

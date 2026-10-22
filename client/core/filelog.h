@@ -4,7 +4,7 @@
 
 #include <QString>
 
-namespace framebeam::filelog {
+namespace uzume::filelog {
 
 // Installs the message handler. Until setDirectory() is called, lines are buffered (bounded) in memory.
 void install();
@@ -17,4 +17,4 @@ QString path();  // current log file; empty when not active
 void rotate(const QString& logPath, int keep = 3);  // player.log -> player.1.log -> ... -> player.<keep>.log
 QString formatLine(QtMsgType type, const QString& category, const QString& message);
 
-}  // namespace framebeam::filelog
+}  // namespace uzume::filelog

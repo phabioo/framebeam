@@ -6,7 +6,7 @@
 #include "emulationsettings.h"
 #include "hubprotocol.h"
 
-namespace framebeam {
+namespace uzume {
 
 // Effective core of a game (ADR 0020 D6): game setting > system setting > the Hub's default core (> legacy preferred core
 // of a Hub without cores_v2), restricted to the cores the Hub serves. A stored choice of a core the Hub does not serve
@@ -23,4 +23,4 @@ struct CoreChoice {
 CoreChoice chooseCore(const SystemInfo& system, const EmulationSettings& settings, const QString& gameId,
                       const std::function<QString(const QString&)>& canonical = {});
 
-}  // namespace framebeam
+}  // namespace uzume

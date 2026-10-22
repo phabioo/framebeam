@@ -1,7 +1,7 @@
-// FrameBeam Hub library: resumable ROM upload. Sends the file in 8 MiB chunks to /library/uploads, shows progress and
-// resumes at the Hub's offset when the same file is chosen again after a reload or a failure. "The same file" means
+// Uzume server library: resumable ROM upload. Sends the file in 8 MiB chunks to /library/uploads, shows progress and
+// resumes at the server's offset when the same file is chosen again after a reload or a failure. "The same file" means
 // the same SHA-256: it is computed in the browser first (streaming, 4 MiB at a time, so the file never has to fit
-// into memory) and sent when the upload starts; the Hub verifies the received file against it.
+// into memory) and sent when the upload starts; the server verifies the received file against it.
 // Without JavaScript (or fetch/Blob.slice) the form posts the whole file as before. No inline handlers (CSP script-src 'self').
 (function () {
   "use strict";
@@ -137,7 +137,7 @@
           next(r.offset, 3);
         }, function (err) {
           if ((err.status && err.status !== 409) || retries <= 0) { fail(err); return; }
-          // Network error: ask the Hub where it stands and continue from there.
+          // Network error: ask the server where it stands and continue from there.
           window.setTimeout(function () {
             api(form, "GET", "/library/uploads/" + id).then(function (st) { next(st.offset, retries - 1); }, fail);
           }, 1000);

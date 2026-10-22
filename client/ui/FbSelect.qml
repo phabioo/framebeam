@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import FrameBeam.Player
+import Uzume.App
 
 // Select field (34 high): options [{ value, label }], current = selected value; picked(value) on user choice.
 ComboBox {

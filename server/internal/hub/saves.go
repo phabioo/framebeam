@@ -52,7 +52,7 @@ func WebDeviceID(userID string) string { return webDevicePrefix + userID }
 
 const (
 	webDevicePrefix = "web:"
-	webDeviceName   = "Hub web interface"
+	webDeviceName   = "Server web interface"
 )
 
 // deviceNameSQL is the display name of a device column: the device name, the web label or "Deleted device" (the history keeps the ID after a device was deleted).
@@ -111,7 +111,7 @@ type SaveVersion struct {
 	Label        *string
 }
 
-// SaveConflict is a recorded save conflict. For open conflicts Hub shows the live checkpoint,
+// SaveConflict is a recorded save conflict. For open conflicts server shows the live checkpoint,
 // for resolved ones the state at resolution time.
 type SaveConflict struct {
 	ID         string
@@ -126,7 +126,7 @@ type SaveConflict struct {
 	ResolvedBy string // "device:<id>" / "user:<id>"; empty while open
 }
 
-// SaveConflictHub is the Hub side of a conflict.
+// SaveConflictHub is the server side of a conflict.
 type SaveConflictHub struct {
 	Revision   int
 	SHA256     string
@@ -253,7 +253,7 @@ func scanConflict(r scanner) (SaveConflict, error) {
 	return c, nil
 }
 
-// withLiveHub replaces the Hub side of an open conflict with the current checkpoint.
+// withLiveHub replaces the server side of an open conflict with the current checkpoint.
 func withLiveHub(c SaveConflict, cur SaveCheckpoint) SaveConflict {
 	if c.Status == ConflictOpen {
 		c.Hub = SaveConflictHub{Revision: cur.Revision, SHA256: cur.SHA256, DeviceID: cur.DeviceID,
@@ -789,7 +789,7 @@ const FeatureSavesV5 = "saves_v5"
 // FeatureSavesV6 is the handshake feature flag for deleting any history version and the main slot.
 const FeatureSavesV6 = "saves_v6"
 
-// DefaultSlot is the slot every Player uses unless the user picks another one. It cannot be renamed (it can be deleted since saves_v6).
+// DefaultSlot is the slot every app uses unless the user picks another one. It cannot be renamed (it can be deleted since saves_v6).
 const DefaultSlot = "default"
 
 // FeatureSavesV2 is the handshake feature flag for restore, snapshots, history labels and the save_updated push.

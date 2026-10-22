@@ -10,7 +10,7 @@
 
 #include "core_options.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 class CoreProbeTest : public QObject {
   Q_OBJECT

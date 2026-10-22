@@ -4,7 +4,7 @@ name: Promote to release
 # the stable release is exactly the beta prerelease vX.Y.Z (same commit, same files, same sha256). The workflow takes the
 # index descriptions that release.yml stored on the prerelease (index-hub.json, index-player.json), sets channel "stable"
 # and published_at to now, adds them to the signed updates index and only then turns the prerelease into the latest
-# release. The signing seed is the secret FRAMEBEAM_SIGNING_KEY of the environment `release` (deployment branch: main only, so this workflow must be dispatched from main); it is only in the environment of the signing step.
+# release. The signing seed is the signing-key secret of the environment `release` (deployment branch: main only, so this workflow must be dispatched from main); it is only in the environment of the signing step.
 # Re-running for a version that is already released fails with a clear error; re-running after a failure in the middle is
 # harmless (the index entry is replaced, the release is still a prerelease until the last step).
 
@@ -103,7 +103,7 @@ jobs:
           highlights=""
           if [ -n "${IN_HIGHLIGHTS//[[:space:]]/}" ]; then highlights="$IN_HIGHLIGHTS"; fi
           {
-            echo "## FrameBeam $VERSION"
+            echo "## Uzume $VERSION"
             echo
             [ -z "$highlights" ] || { printf '%s\n' "$highlights"; echo; }
             echo "### Changes since $since"
@@ -140,37 +140,37 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
-      - name: Build framebeam-sign
+      - name: Build uzume-sign
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
-          (cd server && CGO_ENABLED=0 go build -o "$RUNNER_TEMP/bin/framebeam-sign" ./cmd/framebeam-sign)
+          (cd server && CGO_ENABLED=0 go build -o "$RUNNER_TEMP/bin/uzume-sign" ./cmd/uzume-sign)
       - name: Signing key is trusted by the Hub (before anything is published)
         env:
-          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
-        run: scripts/check-signing-key.sh "$RUNNER_TEMP/bin/framebeam-sign"
+          UZUME_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: scripts/check-signing-key.sh "$RUNNER_TEMP/bin/uzume-sign"
       - name: Update the signed index
         env:
           # The seed exists only in the environment of this step; it is never echoed or written to disk.
-          FRAMEBEAM_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
-        run: scripts/update-index.sh "$RUNNER_TEMP/bin/framebeam-sign" "$RUNNER_TEMP/promote/hub.json" "$RUNNER_TEMP/promote/player.json"
+          UZUME_SIGNING_KEY: ${{ secrets.FRAMEBEAM_SIGNING_KEY }}
+        run: scripts/update-index.sh "$RUNNER_TEMP/bin/uzume-sign" "$RUNNER_TEMP/promote/hub.json" "$RUNNER_TEMP/promote/player.json"
       - name: Publish the stable release
-        run: gh release edit "$TAG" --prerelease=false --latest --title "FrameBeam $VERSION" --notes-file "$RUNNER_TEMP/promote/notes.md"
+        run: gh release edit "$TAG" --prerelease=false --latest --title "Uzume $VERSION" --notes-file "$RUNNER_TEMP/promote/notes.md"
       - name: Log in to ghcr.io
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
-      - name: Tag the Hub image as stable and latest (no rebuild)
+      - name: Tag the server image as stable and latest (no rebuild)
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/framebeam-hub"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/uzume-server"
           if docker buildx imagetools inspect "$image:$VERSION" >/dev/null 2>&1; then
             docker buildx imagetools create -t "$image:stable" -t "$image:latest" "$image:$VERSION"
             docker buildx imagetools inspect "$image:stable"
           else
             # Betas built before the image existed have none; the release itself is already published.
-            echo "::warning title=No Hub image::$image:$VERSION does not exist, :stable and :latest are not moved"
+            echo "::warning title=No server image::$image:$VERSION does not exist, :stable and :latest are not moved"
           fi
       - name: Archive the notes in CHANGELOG.md (pull request, not fatal)
         id: changelog

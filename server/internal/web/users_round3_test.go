@@ -23,7 +23,7 @@ func TestUsersCreateRenameRoleAndCode(t *testing.T) {
 	// Create: the pairing code appears once, in this response only; a taken name is refused in the form.
 	rec = postTok(c, tok, "/users/create", url.Values{"name": {"Sam"}})
 	status(t, rec, 200)
-	code := regexp.MustCompile(`FB-[A-Z0-9]{4}-[A-Z0-9]{4}`).FindString(rec.Body.String())
+	code := regexp.MustCompile(`UZ-[A-Z0-9]{4}-[A-Z0-9]{4}`).FindString(rec.Body.String())
 	if code == "" {
 		t.Fatalf("no code in: %.400s", rec.Body.String())
 	}

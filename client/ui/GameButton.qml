@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Button of the in-game header and panel (docs/design/player.md GameHeader "Button style"): 30 high, radius 7, padding
 // 0 10, 13/500, transparent inside a group box; hover #1f2024; on state (Speed-up, Diagnostics, open popover) accent on

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/phabioo/framebeam/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/store"
 )
 
 func TestSystemDefsLoad(t *testing.T) {
@@ -70,7 +70,7 @@ func TestValidateSystemDefs(t *testing.T) {
 
 func openTestDB(t *testing.T) (*Service, func(q string, a ...any)) {
 	t.Helper()
-	db, err := store.Open(filepath.Join(t.TempDir(), "framebeam.db"))
+	db, err := store.Open(filepath.Join(t.TempDir(), "uzume.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +240,7 @@ func TestSystemForFilenameGameBoy(t *testing.T) {
 	}
 }
 
-// Every Hub system has a Player system manifest and every profiled core a Player core manifest.
+// Every server system has an app system manifest and every profiled core an app core manifest.
 func TestHubSystemsMatchPlayerManifests(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "client", "emulation", "manifests")
 	if _, err := os.Stat(root); err != nil {
@@ -253,7 +253,7 @@ func TestHubSystemsMatchPlayerManifests(t *testing.T) {
 	read := func(path string, v any) bool {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			t.Errorf("missing Player manifest %s", path)
+			t.Errorf("missing app manifest %s", path)
 			return false
 		}
 		if err := json.Unmarshal(data, v); err != nil {

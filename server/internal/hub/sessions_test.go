@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/store"
 )
 
 func principal(t *testing.T, svc *hub.Service, userID, name string) hub.Principal {
@@ -82,7 +82,7 @@ func TestSessionACLService(t *testing.T) {
 
 func TestRecoveredSessionEndsAfterGraceWithoutOwner(t *testing.T) {
 	dir := t.TempDir()
-	db, err := store.Open(filepath.Join(dir, "framebeam.db"))
+	db, err := store.Open(filepath.Join(dir, "uzume.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

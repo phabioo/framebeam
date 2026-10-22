@@ -11,7 +11,7 @@ struct AVFrame;
 struct AVPacket;
 struct SwsContext;
 
-namespace framebeam {
+namespace uzume {
 
 // H.264 decoder (libavcodec "h264", low delay) producing QImage frames (Format_RGB32).
 class VideoDecoder {
@@ -38,4 +38,4 @@ class VideoDecoder {
   int swsW_ = 0, swsH_ = 0, swsFmt_ = -1;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

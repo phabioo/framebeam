@@ -31,7 +31,7 @@
 #include "system_manifest.h"
 #include "corecatalog.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class GameStarter : public QObject {
   Q_OBJECT
@@ -125,4 +125,4 @@ class GameStarter : public QObject {
   std::function<RomSourceChoice(const GameEntry&)> romSource_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import FrameBeam.Player
+import Uzume.App
 
 // Plugin detail (round 3, 4a-4, P21/P22/D16): a 460 px second-column sheet over the plugin list. One primary control (the
 // on/off switch), the origin note, permissions, relations (Needs / Adds) and "Uninstall…" inside the "⋯" menu. The
@@ -213,8 +213,8 @@ Popup {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: root.info && root.info.origin === "unverified"
-                              ? qsTr("Not checked by FrameBeam. Turn it on only if you trust the admin of your Hub.")
-                              : qsTr("Loaded from a file on this device. It is not checked by FrameBeam.")
+                              ? qsTr("Not checked by Uzume. Turn it on only if you trust the admin of your Hub.")
+                              : qsTr("Loaded from a file on this device. It is not checked by Uzume.")
                         wrapMode: Text.WordWrap
                         color: Theme.pluginWarnText
                         font.pixelSize: Theme.fontMeta

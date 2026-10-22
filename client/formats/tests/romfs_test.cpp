@@ -7,8 +7,8 @@
 
 #include <algorithm>
 
-using namespace framebeam::formats;
-namespace syn = framebeam::synth;
+using namespace uzume::formats;
+namespace syn = uzume::synth;
 
 class RomfsTest : public QObject {
     Q_OBJECT
@@ -109,12 +109,12 @@ private slots:
         const QString p = write(syn::makeNcchWithRomfs(files(), 1, false), "enc.cxi");
         const Result r = romfsRead(p, "/root.bin");
         QVERIFY(!r.ok);
-        QCOMPARE(r.error, std::string("encrypted game: FrameBeam needs a decrypted game file"));
+        QCOMPARE(r.error, std::string("encrypted game: Uzume needs a decrypted game file"));
         std::string err;
         QVERIFY(romfsList(p, "/", &err).empty());
-        QCOMPARE(err, std::string("encrypted game: FrameBeam needs a decrypted game file"));
+        QCOMPARE(err, std::string("encrypted game: Uzume needs a decrypted game file"));
         const QString q = write(syn::wrapNcsd(syn::makeNcchWithRomfs(files(), 1, false)), "enc.3ds");
-        QCOMPARE(romfsRead(q, "/root.bin").error, std::string("encrypted game: FrameBeam needs a decrypted game file"));
+        QCOMPARE(romfsRead(q, "/root.bin").error, std::string("encrypted game: Uzume needs a decrypted game file"));
     }
     void truncatedFiles() {
         const std::string full = syn::wrapNcsd(syn::makeNcchWithRomfs(files()));

@@ -10,7 +10,7 @@
 #include "emulator_backend.h"
 #include "system_manifest.h"
 
-namespace framebeam::emu {
+namespace uzume::emu {
 
 struct CoreProbe {
   bool ok = false;
@@ -34,13 +34,13 @@ CoreProbe probeCoreGuarded(const QString& corePath, const QString& systemDir, co
 QByteArray coreProbeToJson(const CoreProbe& probe);
 CoreProbe coreProbeFromJson(const QByteArray& json);
 
-// Options FrameBeam controls and that are not editable by the user: manifest-locked keys (render mode, screen
+// Options Uzume controls and that are not editable by the user: manifest-locked keys (render mode, screen
 // layout, OSD ...) and the firmware options (sysfile mode, firmware path).
 bool isLockedCoreOption(const SystemManifest& manifest, const QString& key);
 
 // Core options at launch: manifest defaults < user overrides (already merged game > system > global, only explicit
-// values; "framebeam.*" keys are ignored) < firmware options < locked manifest values.
+// values; "uzume.*" keys are ignored) < firmware options < locked manifest values.
 QMap<QString, QString> launchCoreOptions(const SystemManifest& manifest, const QMap<QString, QString>& userOverrides,
                                          const QMap<QString, QString>& firmwareOptions);
 
-}  // namespace framebeam::emu
+}  // namespace uzume::emu

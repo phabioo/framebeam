@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/store"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/store"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 // setSchema sets schema_version of a published release and re-signs the index.
@@ -40,8 +40,8 @@ type rbEnv struct {
 	open func(version string) *hub.Service
 }
 
-// newRBEnv is a packaged Hub running `current` with a backup folder; open reopens the same data directory as
-// another version (the Hub after going back).
+// newRBEnv is a packaged server running `current` with a backup folder; open reopens the same data directory as
+// another version (the server after going back).
 func newRBEnv(t *testing.T, current string) *rbEnv {
 	t.Helper()
 	e := &rbEnv{updEnv: &updEnv{feed: newUpdFeed(t), reqDir: t.TempDir()}, data: t.TempDir()}
@@ -162,7 +162,7 @@ func TestRollbackKeepsDataAndPausesUpdates(t *testing.T) {
 		t.Fatalf("%+v", st)
 	}
 
-	// The Hub after going back (older version, same database).
+	// The server after going back (older version, same database).
 	old := e.open("0.3.0")
 	set, _ := old.UpdateSettings(ctx)
 	if set.Auto {
@@ -309,7 +309,7 @@ func TestRollbackRefusals(t *testing.T) {
 	}
 	t.Setenv(updates.ContainerEnv, "")
 
-	// A Hub that is not the package install cannot go back by itself but still lists the versions.
+	// A server that is not the package install cannot go back by itself but still lists the versions.
 	u := newUpdEnv(t, "0.4.0", "beta", false)
 	u.feed.add(t, "stable", "0.3.0", 1)
 	if _, err := u.svc.Rollback(ctx, hub.RollbackRequest{Version: "0.3.0"}); !errors.Is(err, hub.ErrNotPackaged) {

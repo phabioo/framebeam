@@ -1,6 +1,6 @@
 #pragma once
-// Mapping chain, pure and without SDL: physical binding token -> FrameBeam input (bit mask over
-// frameBeamInputs()) -> input profile of the system manifest -> libretro mask (RETRO_DEVICE_ID_JOYPAD_*, bit = 1 << id).
+// Mapping chain, pure and without SDL: physical binding token -> Uzume input (bit mask over
+// uzumeInputs()) -> input profile of the system manifest -> libretro mask (RETRO_DEVICE_ID_JOYPAD_*, bit = 1 << id).
 
 #include <QHash>
 #include <QMap>
@@ -8,12 +8,12 @@
 #include <QStringList>
 #include <QtGlobal>
 
-namespace framebeam::input {
+namespace uzume::input {
 
-using Bindings = QMap<QString, QStringList>;  // FrameBeam input id -> tokens (see core/controllerprofiles.h)
+using Bindings = QMap<QString, QStringList>;  // Uzume input id -> tokens (see core/controllerprofiles.h)
 
 quint32 inputBit(const QString& inputId);  // 1 << inputIndex, 0 = unknown input
-// Libretro targets of the system manifest "input"."map" ({"<FrameBeam input id>": "<target>"}): the RETRO_DEVICE_ID_JOYPAD_*
+// Libretro targets of the system manifest "input"."map" ({"<Uzume input id>": "<target>"}): the RETRO_DEVICE_ID_JOYPAD_*
 // names b, y, select, start, up, down, left, right, a, x, l, r, l2, r2, l3, r3 (bit = 1 << id) plus the analog targets
 // the backend serves as RETRO_DEVICE_ANALOG from the bits above the 16 joypad ids: c_stick_* (right analog, bits 16..19)
 // and circle_pad_* (left analog, bits 20..23), each with the suffixes _up, _down, _left, _right.
@@ -34,17 +34,17 @@ quint32 libretroTargetBit(const QString& target);  // 0 = unknown target
 bool registerInputProfile(const QString& profile, const QMap<QString, QString>& map, const QMap<QString, QString>& labels = {},
                           QString* error = nullptr);
 void clearInputProfiles();
-// Whether the profile maps the FrameBeam input (unknown profiles are looked up as "nds"); label is empty when the manifest sets none.
+// Whether the profile maps the Uzume input (unknown profiles are looked up as "nds"); label is empty when the manifest sets none.
 bool inputProfileMaps(const QString& profile, const QString& inputId);
 QString inputProfileLabel(const QString& profile, const QString& inputId);
-// Libretro bit(s) the profile gives the FrameBeam input (0 = not mapped). Inputs with the same bits are aliases (DS: ZL = L).
+// Libretro bit(s) the profile gives the Uzume input (0 = not mapped). Inputs with the same bits are aliases (DS: ZL = L).
 quint32 inputProfileBits(const QString& profile, const QString& inputId);
 // Libretro mask for a manifest input_profile; an unknown or empty profile uses the table registered as "nds" (no table = 0).
 quint32 libretroMaskFor(const QString& inputProfile, quint32 inputMask);
 
-// token -> FrameBeam input mask (several inputs may share a token).
+// token -> Uzume input mask (several inputs may share a token).
 QHash<QString, quint32> compileBindings(const Bindings& bindings);
 // Qt::Key -> libretro mask of the input profile (keyboard profile).
 QHash<int, quint32> keyMapFor(const QString& inputProfile, const Bindings& bindings);
 
-}  // namespace framebeam::input
+}  // namespace uzume::input

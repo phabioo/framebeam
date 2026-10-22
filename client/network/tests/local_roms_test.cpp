@@ -20,7 +20,7 @@
 #include "romregistrar.h"
 #include "romsource.h"
 
-using namespace framebeam;
+using namespace uzume;
 using State = HubConnection::State;
 
 namespace {

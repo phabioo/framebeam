@@ -5,7 +5,7 @@
 #include <QString>
 #include <QtGlobal>
 
-namespace framebeam {
+namespace uzume {
 
 // Producer side. Emulation thread only, with the game's GL context current.
 class DisplayProducer {
@@ -26,4 +26,4 @@ class DisplayProducer {
   virtual QString adapterName() const = 0;  // any thread; e.g. "AMD Radeon RX 7800 XT" once open, else empty
 };
 
-}  // namespace framebeam
+}  // namespace uzume

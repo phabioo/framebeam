@@ -8,7 +8,7 @@
 
 #include "version.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 using update::UpdateManager;
 
@@ -131,10 +131,10 @@ QString UpdatesController::bannerText() const {
   const QString v = manager_.availableVersion();
   if (v.isEmpty() || v == dismissedVersion_ || manager_.selectionSkipped()) return {};
   switch (s) {
-    case UpdateManager::State::Available: return tr("FrameBeam Player %1 is available").arg(v);
-    case UpdateManager::State::Ready: return tr("FrameBeam Player %1 is ready to install").arg(v);
-    case UpdateManager::State::Downloading: return tr("Downloading FrameBeam Player %1…").arg(v);
-    case UpdateManager::State::Incompatible: return tr("FrameBeam Player %1 needs a newer Hub").arg(v);
+    case UpdateManager::State::Available: return tr("Uzume %1 is available").arg(v);
+    case UpdateManager::State::Ready: return tr("Uzume %1 is ready to install").arg(v);
+    case UpdateManager::State::Downloading: return tr("Downloading Uzume %1…").arg(v);
+    case UpdateManager::State::Incompatible: return tr("Uzume %1 needs a newer Hub").arg(v);
     default: break;
   }
   return {};
@@ -236,4 +236,4 @@ void UpdatesController::dismissBanner() {
   emit changed();
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

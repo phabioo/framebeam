@@ -1,4 +1,4 @@
-// Package config reads the hub configuration from flags and FRAMEBEAM_* environment variables.
+// Package config reads the hub configuration from flags and UZUME_* environment variables.
 package config
 
 import (
@@ -14,12 +14,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/phabioo/framebeam/server/internal/clientip"
-	"github.com/phabioo/framebeam/server/internal/corepkg"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/clientip"
+	"github.com/phabioo/uzume/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
-// Config is the runtime configuration of the FrameBeam Hub.
+// Config is the runtime configuration of the Uzume server.
 type Config struct {
 	goos          string // platform the defaults were chosen for
 	requestDirSet bool   // -update-request-dir was given
@@ -31,7 +31,7 @@ type Config struct {
 	TLSKey  string
 	// Dev allows HTTP instead of HTTPS (development and tests only).
 	Dev bool
-	// ICEServers are stun: URLs delivered to Players for Sessions. nil = not configured: DefaultSTUNServer applies;
+	// ICEServers are stun: URLs delivered to apps for Sessions. nil = not configured: DefaultSTUNServer applies;
 	// an empty non-nil list ("none") = explicitly no external STUN. Copy with CloneICE to keep that difference.
 	ICEServers []string
 	// CloudflareTURNKeyID selects the optional Cloudflare Realtime TURN key (relay provider next to the embedded
@@ -57,21 +57,21 @@ type Config struct {
 	// UpdateIndexURL is the signed updates index (default updates.DefaultIndexURL; https or file://).
 	UpdateIndexURL string
 	// PluginIndexURL is the signed plugin index (default updates.DefaultPluginIndexURL; https or file://); "none" or
-	// empty = no index (offline Hubs). Use PluginIndex for the effective value.
+	// empty = no index (offline servers). Use PluginIndex for the effective value.
 	PluginIndexURL string
-	// UpdateRequestDir is where the update request file is created (default /run/framebeam; Windows <data-dir>\update-request).
+	// UpdateRequestDir is where the update request file is created (default /run/uzume; Windows <data-dir>\update-request).
 	UpdateRequestDir string
 	// SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly are the save history retention rules (ADR 0012 D7):
 	// newest versions kept, days and weeks of which the newest version is kept. 0 = unlimited for that rule.
 	SaveKeepRecent, SaveKeepDaily, SaveKeepWeekly int
 	// LibraryImportDir is the folder "Rescan folder" imports ROMs from (default <data-dir>/library-import; files are only read).
 	LibraryImportDir string
-	// NetworkSharing lets other devices reach the Hub. Off: the Hub listens on loopback only (127.0.0.1 and ::1) and
+	// NetworkSharing lets other devices reach the server. Off: the server listens on loopback only (127.0.0.1 and ::1) and
 	// the embedded TURN server stays off. Initial value only: once stored (Settings), the stored value wins.
 	NetworkSharing bool
 	// TURN switches on the embedded STUN/TURN server (ADR 0012 D2); it needs PublicHost.
 	TURN bool
-	// PublicHost is the DNS name (or IPv4) of the Hub's public address, optionally with an external port
+	// PublicHost is the DNS name (or IPv4) of the server's public address, optionally with an external port
 	// ("hub.example.org:8443", IPv6 "[::1]:8443"); see SplitPublicHost, PublicHostName, PublicHostPort.
 	PublicHost string
 	// TURNPort is the UDP and TCP port of the TURN server (default 3478).
@@ -80,7 +80,7 @@ type Config struct {
 	TURNRelayPorts string
 	// TURNRelayIP is an optional fixed public IPv4 for relayed addresses.
 	TURNRelayIP string
-	// TrustedProxy is a comma or space separated list of CIDRs or IPs of reverse proxies in front of the Hub. Only
+	// TrustedProxy is a comma or space separated list of CIDRs or IPs of reverse proxies in front of the server. Only
 	// requests whose TCP peer is inside it are believed about client IP and scheme (X-Forwarded-For/-Proto, Forwarded).
 	TrustedProxy string
 }
@@ -119,13 +119,13 @@ func parseICE(s string) []string {
 }
 
 // CloudflareTURNToken returns the Cloudflare TURN API token: the environment variable
-// FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN wins over the token file. Errors never contain the token.
+// UZUME_CLOUDFLARE_TURN_API_TOKEN wins over the token file. Errors never contain the token.
 func (c *Config) CloudflareTURNToken(getenv func(string) string) (string, error) {
-	if v := strings.TrimSpace(getenv("FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN")); v != "" {
+	if v := strings.TrimSpace(getenv("UZUME_CLOUDFLARE_TURN_API_TOKEN")); v != "" {
 		return v, nil
 	}
 	if c.CloudflareTURNTokenFile == "" {
-		return "", errors.New("cloudflare TURN needs the API token in FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN or -cloudflare-turn-token-file")
+		return "", errors.New("cloudflare TURN needs the API token in UZUME_CLOUDFLARE_TURN_API_TOKEN or -cloudflare-turn-token-file")
 	}
 	b, err := os.ReadFile(c.CloudflareTURNTokenFile)
 	if err != nil {
@@ -203,20 +203,25 @@ func splitCSV(s string) []string {
 	return out
 }
 
-// DefaultDataDir is the built-in data directory: /var/lib/framebeam, on Windows %ProgramData%\FrameBeam\Hub.
+// DefaultDataDir is the built-in data directory: /data in the container image (UZUME_SERVER_CONTAINER=1, the image sets
+// no data-dir variable, so an explicit UZUME_DATA_DIR still wins), else /var/lib/uzume, on
+// Windows %ProgramData%\Uzume\Server.
 func DefaultDataDir(goos string, getenv func(string) string) string {
+	if getenv("UZUME_SERVER_CONTAINER") == "1" {
+		return "/data"
+	}
 	if goos != "windows" {
-		return "/var/lib/framebeam"
+		return "/var/lib/uzume"
 	}
 	pd := getenv("ProgramData")
 	if pd == "" {
 		pd = `C:\ProgramData`
 	}
-	return filepath.Join(pd, "FrameBeam", "Hub")
+	return filepath.Join(pd, "Uzume", "Server")
 }
 
-// DefaultUpdateRequestDir is the built-in update request directory: /run/framebeam (systemd RuntimeDirectory), on
-// Windows the directory <data>\update-request that the installer creates (writable for the Hub service account,
+// DefaultUpdateRequestDir is the built-in update request directory: /run/uzume (systemd RuntimeDirectory), on
+// Windows the directory <data>\update-request that the installer creates (writable for the server service account,
 // readable for the updater service).
 func DefaultUpdateRequestDir(goos, dataDir string) string {
 	if goos == "windows" {
@@ -240,7 +245,7 @@ func (t trackedString) String() string {
 
 func (t trackedString) Set(s string) error { *t.p, *t.set = s, true; return nil }
 
-// Register registers the configuration flags on fs. Defaults come from the environment (FRAMEBEAM_*), otherwise built-in defaults.
+// Register registers the configuration flags on fs. Defaults come from the environment (UZUME_*), otherwise built-in defaults.
 // An explicitly set flag overrides the environment.
 func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 	return register(fs, getenv, runtime.GOOS)
@@ -249,68 +254,68 @@ func Register(fs *flag.FlagSet, getenv func(string) string) *Config {
 func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config {
 	c := &Config{goos: goos}
 	env := func(key, def string) string {
-		if v := getenv("FRAMEBEAM_" + key); v != "" {
+		if v := getenv("UZUME_" + key); v != "" {
 			return v
 		}
 		return def
 	}
-	dev, _ := strconv.ParseBool(getenv("FRAMEBEAM_DEV"))
-	fs.StringVar(&c.DataDir, "data-dir", env("DATA_DIR", DefaultDataDir(goos, getenv)), "data directory (FRAMEBEAM_DATA_DIR)")
-	fs.StringVar(&c.LibraryImportDir, "library-import-dir", env("LIBRARY_IMPORT_DIR", ""), "folder the Library's \"Rescan folder\" imports ROMs from, default <data-dir>/library-import (FRAMEBEAM_LIBRARY_IMPORT_DIR)")
-	fs.StringVar(&c.Listen, "listen", env("LISTEN", ":8443"), "listen address (FRAMEBEAM_LISTEN)")
-	fs.StringVar(&c.Name, "name", env("NAME", ""), "hub name on first start (FRAMEBEAM_NAME)")
-	fs.StringVar(&c.TLSCert, "tls-cert", env("TLS_CERT", ""), "TLS certificate (PEM) (FRAMEBEAM_TLS_CERT)")
-	fs.StringVar(&c.TLSKey, "tls-key", env("TLS_KEY", ""), "TLS key (PEM) (FRAMEBEAM_TLS_KEY)")
-	fs.BoolVar(&c.Dev, "dev", dev, "development mode: HTTP instead of HTTPS (FRAMEBEAM_DEV)")
-	c.ICEServers = parseICE(getenv("FRAMEBEAM_ICE_SERVERS"))
-	fs.Var(csvList{&c.ICEServers}, "ice-servers", "comma-separated stun: URLs for Sessions, default "+DefaultSTUNServer+", \"none\" = no external STUN (FRAMEBEAM_ICE_SERVERS)")
-	fs.StringVar(&c.CloudflareTURNKeyID, "cloudflare-turn-key-id", env("CLOUDFLARE_TURN_KEY_ID", ""), "Cloudflare Realtime TURN key ID, optional relay next to -turn; the API token comes from FRAMEBEAM_CLOUDFLARE_TURN_API_TOKEN or -cloudflare-turn-token-file (FRAMEBEAM_CLOUDFLARE_TURN_KEY_ID)")
-	fs.StringVar(&c.CloudflareTURNTokenFile, "cloudflare-turn-token-file", env("CLOUDFLARE_TURN_TOKEN_FILE", ""), "file holding the Cloudflare TURN API token (FRAMEBEAM_CLOUDFLARE_TURN_TOKEN_FILE)")
-	c.TURNExternal = splitLines(getenv("FRAMEBEAM_TURN_EXTERNAL"))
-	fs.Var(&externalList{v: &c.TURNExternal}, "turn-external", "external TURN server, repeatable: mode=secret|static;urls=turn:turn.example.org:3478?transport=udp,...;secret-file=<path> (static: username=<user>;password-file=<path>); secrets also via FRAMEBEAM_TURN_EXTERNAL_<n>_SECRET/_PASSWORD (FRAMEBEAM_TURN_EXTERNAL, one server per line)")
+	dev, _ := strconv.ParseBool(getenv("UZUME_DEV"))
+	fs.StringVar(&c.DataDir, "data-dir", env("DATA_DIR", DefaultDataDir(goos, getenv)), "data directory (UZUME_DATA_DIR)")
+	fs.StringVar(&c.LibraryImportDir, "library-import-dir", env("LIBRARY_IMPORT_DIR", ""), "folder the Library's \"Rescan folder\" imports ROMs from, default <data-dir>/library-import (UZUME_LIBRARY_IMPORT_DIR)")
+	fs.StringVar(&c.Listen, "listen", env("LISTEN", ":8443"), "listen address (UZUME_LISTEN)")
+	fs.StringVar(&c.Name, "name", env("NAME", ""), "hub name on first start (UZUME_NAME)")
+	fs.StringVar(&c.TLSCert, "tls-cert", env("TLS_CERT", ""), "TLS certificate (PEM) (UZUME_TLS_CERT)")
+	fs.StringVar(&c.TLSKey, "tls-key", env("TLS_KEY", ""), "TLS key (PEM) (UZUME_TLS_KEY)")
+	fs.BoolVar(&c.Dev, "dev", dev, "development mode: HTTP instead of HTTPS (UZUME_DEV)")
+	c.ICEServers = parseICE(getenv("UZUME_ICE_SERVERS"))
+	fs.Var(csvList{&c.ICEServers}, "ice-servers", "comma-separated stun: URLs for Sessions, default "+DefaultSTUNServer+", \"none\" = no external STUN (UZUME_ICE_SERVERS)")
+	fs.StringVar(&c.CloudflareTURNKeyID, "cloudflare-turn-key-id", env("CLOUDFLARE_TURN_KEY_ID", ""), "Cloudflare Realtime TURN key ID, optional relay next to -turn; the API token comes from UZUME_CLOUDFLARE_TURN_API_TOKEN or -cloudflare-turn-token-file (UZUME_CLOUDFLARE_TURN_KEY_ID)")
+	fs.StringVar(&c.CloudflareTURNTokenFile, "cloudflare-turn-token-file", env("CLOUDFLARE_TURN_TOKEN_FILE", ""), "file holding the Cloudflare TURN API token (UZUME_CLOUDFLARE_TURN_TOKEN_FILE)")
+	c.TURNExternal = splitLines(getenv("UZUME_TURN_EXTERNAL"))
+	fs.Var(&externalList{v: &c.TURNExternal}, "turn-external", "external TURN server, repeatable: mode=secret|static;urls=turn:turn.example.org:3478?transport=udp,...;secret-file=<path> (static: username=<user>;password-file=<path>); secrets also via UZUME_TURN_EXTERNAL_<n>_SECRET/_PASSWORD (UZUME_TURN_EXTERNAL, one server per line)")
 	fs.StringVar(&c.CoreBuildbotURL, "core-buildbot-url", func() string {
-		if v := getenv("FRAMEBEAM_HUB_CORE_BUILDBOT_URL"); v != "" {
+		if v := getenv("UZUME_SERVER_CORE_BUILDBOT_URL"); v != "" {
 			return v
 		}
 		return DefaultCoreBuildbotURL
-	}(), "base URL of the libretro buildbot nightly builds, https only (FRAMEBEAM_HUB_CORE_BUILDBOT_URL)")
+	}(), "base URL of the libretro buildbot nightly builds, https only (UZUME_SERVER_CORE_BUILDBOT_URL)")
 	fs.StringVar(&c.CoreInfoURL, "core-info-url", func() string {
-		if v := getenv("FRAMEBEAM_HUB_CORE_INFO_URL"); v != "" {
+		if v := getenv("UZUME_SERVER_CORE_INFO_URL"); v != "" {
 			return v
 		}
 		return DefaultCoreInfoURL
-	}(), "URL of the libretro core info archive info.zip, https only (FRAMEBEAM_HUB_CORE_INFO_URL)")
-	fs.StringVar(&c.CoreIndexURL, "core-index-url", getenv("FRAMEBEAM_HUB_CORE_INDEX_URL"),
-		"deprecated and ignored: the signed core index was retired (ADR 0020), see -core-buildbot-url (FRAMEBEAM_HUB_CORE_INDEX_URL)")
-	c.CoreTrustKeys = splitCSV(getenv("FRAMEBEAM_HUB_CORE_TRUST_KEYS"))
+	}(), "URL of the libretro core info archive info.zip, https only (UZUME_SERVER_CORE_INFO_URL)")
+	fs.StringVar(&c.CoreIndexURL, "core-index-url", getenv("UZUME_SERVER_CORE_INDEX_URL"),
+		"deprecated and ignored: the signed core index was retired (ADR 0020), see -core-buildbot-url (UZUME_SERVER_CORE_INDEX_URL)")
+	c.CoreTrustKeys = splitCSV(getenv("UZUME_SERVER_CORE_TRUST_KEYS"))
 	fs.Var(repeatList{&c.CoreTrustKeys, new(bool)}, "core-trust-key",
-		"additional trusted signing key for the updates index (cores are not signed), base64 Ed25519 public key; repeatable (FRAMEBEAM_HUB_CORE_TRUST_KEYS, comma-separated)")
+		"additional trusted signing key for the updates index (cores are not signed), base64 Ed25519 public key; repeatable (UZUME_SERVER_CORE_TRUST_KEYS, comma-separated)")
 	fs.StringVar(&c.UpdateIndexURL, "update-index-url", func() string {
-		if v := getenv("FRAMEBEAM_HUB_UPDATE_INDEX_URL"); v != "" {
+		if v := getenv("UZUME_SERVER_UPDATE_INDEX_URL"); v != "" {
 			return v
 		}
 		return updates.DefaultIndexURL
-	}(), "URL of the signed updates index, https or file:// (FRAMEBEAM_HUB_UPDATE_INDEX_URL)")
+	}(), "URL of the signed updates index, https or file:// (UZUME_SERVER_UPDATE_INDEX_URL)")
 	fs.StringVar(&c.PluginIndexURL, "plugin-index-url", func() string {
-		if v := getenv("FRAMEBEAM_PLUGIN_INDEX_URL"); v != "" {
+		if v := getenv("UZUME_PLUGIN_INDEX_URL"); v != "" {
 			return v
 		}
-		if v := getenv("FRAMEBEAM_HUB_PLUGIN_INDEX_URL"); v != "" {
+		if v := getenv("UZUME_SERVER_PLUGIN_INDEX_URL"); v != "" {
 			return v
 		}
 		return updates.DefaultPluginIndexURL
-	}(), "URL of the signed plugin index, https or file://; none = no index, for offline Hubs (FRAMEBEAM_PLUGIN_INDEX_URL)")
+	}(), "URL of the signed plugin index, https or file://; none = no index, for offline servers (UZUME_PLUGIN_INDEX_URL)")
 	intEnv := func(key string, def int) int {
-		if n, err := strconv.Atoi(strings.TrimSpace(getenv("FRAMEBEAM_" + key))); err == nil {
+		if n, err := strconv.Atoi(strings.TrimSpace(getenv("UZUME_" + key))); err == nil {
 			return n
 		}
 		return def
 	}
-	fs.IntVar(&c.SaveKeepRecent, "save-keep-recent", intEnv("SAVE_KEEP_RECENT", 20), "save history: newest versions per slot to keep, 0 = unlimited (FRAMEBEAM_SAVE_KEEP_RECENT)")
-	fs.IntVar(&c.SaveKeepDaily, "save-keep-daily", intEnv("SAVE_KEEP_DAILY", 30), "save history: days of which the newest version is kept, 0 = unlimited (FRAMEBEAM_SAVE_KEEP_DAILY)")
-	fs.IntVar(&c.SaveKeepWeekly, "save-keep-weekly", intEnv("SAVE_KEEP_WEEKLY", 26), "save history: weeks of which the newest version is kept, 0 = unlimited (FRAMEBEAM_SAVE_KEEP_WEEKLY)")
+	fs.IntVar(&c.SaveKeepRecent, "save-keep-recent", intEnv("SAVE_KEEP_RECENT", 20), "save history: newest versions per slot to keep, 0 = unlimited (UZUME_SAVE_KEEP_RECENT)")
+	fs.IntVar(&c.SaveKeepDaily, "save-keep-daily", intEnv("SAVE_KEEP_DAILY", 30), "save history: days of which the newest version is kept, 0 = unlimited (UZUME_SAVE_KEEP_DAILY)")
+	fs.IntVar(&c.SaveKeepWeekly, "save-keep-weekly", intEnv("SAVE_KEEP_WEEKLY", 26), "save history: weeks of which the newest version is kept, 0 = unlimited (UZUME_SAVE_KEEP_WEEKLY)")
 	c.UpdateRequestDir = func() string {
-		if v := getenv("FRAMEBEAM_HUB_UPDATE_REQUEST_DIR"); v != "" {
+		if v := getenv("UZUME_SERVER_UPDATE_REQUEST_DIR"); v != "" {
 			return v
 		}
 		if goos == "windows" {
@@ -318,23 +323,23 @@ func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config
 		}
 		return updates.DefaultRequestDir
 	}()
-	fs.Var(trackedString{&c.UpdateRequestDir, &c.requestDirSet}, "update-request-dir", "directory for the update request file read by the root helper (FRAMEBEAM_HUB_UPDATE_REQUEST_DIR)")
+	fs.Var(trackedString{&c.UpdateRequestDir, &c.requestDirSet}, "update-request-dir", "directory for the update request file read by the root helper (UZUME_SERVER_UPDATE_REQUEST_DIR)")
 	sharing := true
-	if b, err := strconv.ParseBool(getenv("FRAMEBEAM_NETWORK_SHARING")); err == nil {
+	if b, err := strconv.ParseBool(getenv("UZUME_NETWORK_SHARING")); err == nil {
 		sharing = b
 	}
-	fs.BoolVar(&c.NetworkSharing, "network-sharing", sharing, "other devices may reach the Hub; false = loopback only, no TURN; initial value, the saved setting wins (FRAMEBEAM_NETWORK_SHARING)")
-	turn, _ := strconv.ParseBool(getenv("FRAMEBEAM_TURN"))
-	fs.BoolVar(&c.TURN, "turn", turn, "embedded STUN/TURN server for Sessions over the internet, needs -public-host (FRAMEBEAM_TURN)")
-	fs.StringVar(&c.PublicHost, "public-host", env("PUBLIC_HOST", ""), "DNS name or IPv4 of the Hub's public address, optionally host:port when the router forwards a different external port (IPv6 in brackets); required with -turn (FRAMEBEAM_PUBLIC_HOST)")
+	fs.BoolVar(&c.NetworkSharing, "network-sharing", sharing, "other devices may reach the server; false = loopback only, no TURN; initial value, the saved setting wins (UZUME_NETWORK_SHARING)")
+	turn, _ := strconv.ParseBool(getenv("UZUME_TURN"))
+	fs.BoolVar(&c.TURN, "turn", turn, "embedded STUN/TURN server for Sessions over the internet, needs -public-host (UZUME_TURN)")
+	fs.StringVar(&c.PublicHost, "public-host", env("PUBLIC_HOST", ""), "DNS name or IPv4 of the server's public address, optionally host:port when the router forwards a different external port (IPv6 in brackets); required with -turn (UZUME_PUBLIC_HOST)")
 	turnPort := DefaultTURNPort
-	if v, err := strconv.Atoi(getenv("FRAMEBEAM_TURN_PORT")); err == nil {
+	if v, err := strconv.Atoi(getenv("UZUME_TURN_PORT")); err == nil {
 		turnPort = v
 	}
-	fs.IntVar(&c.TURNPort, "turn-port", turnPort, "TURN UDP and TCP port (FRAMEBEAM_TURN_PORT)")
-	fs.StringVar(&c.TURNRelayPorts, "turn-relay-ports", env("TURN_RELAY_PORTS", DefaultTURNRelayPorts), "TURN UDP relay port range min-max (FRAMEBEAM_TURN_RELAY_PORTS)")
-	fs.StringVar(&c.TURNRelayIP, "turn-relay-ip", env("TURN_RELAY_IP", ""), "fixed public IPv4 for relayed addresses instead of resolving -public-host (FRAMEBEAM_TURN_RELAY_IP)")
-	fs.StringVar(&c.TrustedProxy, "trusted-proxy", env("TRUSTED_PROXY", ""), "CIDRs/IPs of reverse proxies in front of the Hub whose X-Forwarded-For/-Proto or Forwarded headers are believed; such requests are never local (FRAMEBEAM_TRUSTED_PROXY)")
+	fs.IntVar(&c.TURNPort, "turn-port", turnPort, "TURN UDP and TCP port (UZUME_TURN_PORT)")
+	fs.StringVar(&c.TURNRelayPorts, "turn-relay-ports", env("TURN_RELAY_PORTS", DefaultTURNRelayPorts), "TURN UDP relay port range min-max (UZUME_TURN_RELAY_PORTS)")
+	fs.StringVar(&c.TURNRelayIP, "turn-relay-ip", env("TURN_RELAY_IP", ""), "fixed public IPv4 for relayed addresses instead of resolving -public-host (UZUME_TURN_RELAY_IP)")
+	fs.StringVar(&c.TrustedProxy, "trusted-proxy", env("TRUSTED_PROXY", ""), "CIDRs/IPs of reverse proxies in front of the server whose X-Forwarded-For/-Proto or Forwarded headers are believed; such requests are never local (UZUME_TRUSTED_PROXY)")
 	return c
 }
 

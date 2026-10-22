@@ -8,13 +8,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/turnsrv"
+	"github.com/phabioo/uzume/server/internal/turnsrv"
 )
 
 // FeatureTURNV1 is announced in the handshake while the embedded TURN server is on (ADR 0012 D4).
 const FeatureTURNV1 = "turn_v1"
 
-// FeatureICEUpdateV1 is announced in the handshake: the Hub pushes ice_update when the ICE configuration changes.
+// FeatureICEUpdateV1 is announced in the handshake: the server pushes ice_update when the ICE configuration changes.
 const FeatureICEUpdateV1 = "ice_update_v1"
 
 const settingTURNSecret = "turn_secret"
@@ -29,7 +29,7 @@ type turnState struct{ p atomic.Pointer[TURN] }
 
 type reqHostKey struct{}
 
-// WithRequestHost returns a context carrying the Host the Player used to reach the Hub (for TURN URLs).
+// WithRequestHost returns a context carrying the Host the app used to reach the server (for TURN URLs).
 func WithRequestHost(ctx context.Context, host string) context.Context {
 	return context.WithValue(ctx, reqHostKey{}, host)
 }
@@ -109,7 +109,7 @@ func turnPayload(creds []turnsrv.Credentials) []map[string]any {
 	return out
 }
 
-// PushICEUpdate sends every connected Player its current ICE configuration (ice_update, feature ice_update_v1),
+// PushICEUpdate sends every connected app its current ICE configuration (ice_update, feature ice_update_v1),
 // computed per connection because embedded TURN credentials are per device. Called whenever the effective
 // configuration changes.
 func (s *Service) PushICEUpdate() {

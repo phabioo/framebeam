@@ -8,7 +8,7 @@
 #include <QSGNode>
 #include <QSGTexture>
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 GameView::GameView(QQuickItem* parent) : QQuickItem(parent) {
   setFlag(ItemHasContents, true);
@@ -398,4 +398,4 @@ void GameView::mouseUngrabEvent() {
   touching_ = false;
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

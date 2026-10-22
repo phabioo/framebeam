@@ -11,7 +11,7 @@
 #include <unistd.h>
 #endif
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 namespace {
 QByteArray readFile(const QString& p) {

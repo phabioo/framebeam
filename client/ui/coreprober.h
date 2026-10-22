@@ -12,7 +12,7 @@
 
 #include "core_options.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 // Only one libretro core can be loaded per process, so all probes run one after another on a single worker thread.
 // A library that is already queued or running is not probed a second time: its requesters are served by that probe.
@@ -35,7 +35,7 @@ class CoreProber : public QObject {
   static void setProbeFunctionForTest(ProbeFn fn);
 
  signals:
-  void probed(const QString& coreId, const QString& corePath, const framebeam::emu::CoreProbe& probe);
+  void probed(const QString& coreId, const QString& corePath, const uzume::emu::CoreProbe& probe);
   void idle();
 
  private:
@@ -45,4 +45,4 @@ class CoreProber : public QObject {
   QHash<QString, QStringList> pending_;  // core path -> core ids waiting for its result
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

@@ -8,7 +8,7 @@
 #include "plugin_video.h"
 #include "run_bridge.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 enum class PluginStatus { Loading, Running, Paused, Stopped };
 
@@ -59,4 +59,4 @@ struct ConsoleSnapshot {
 inline constexpr int kLogRing = 500;
 inline constexpr int kEventRing = 200;
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins

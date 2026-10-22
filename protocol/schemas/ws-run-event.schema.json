@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://framebeam.invalid/schemas/ws-run-event.schema.json",
-  "title": "ws-run-event (Hub to every joined participant's connections, the author's included, and during catch-up after hello; the Player dedups by client_id or seq; feature runs_v1)",
+  "$id": "https://uzume.invalid/schemas/ws-run-event.schema.json",
+  "title": "ws-run-event (server to every joined participant's connections, the author's included, and during catch-up after hello; the app dedups by client_id or seq; feature runs_v1)",
   "type": "object",
   "required": [
     "type",

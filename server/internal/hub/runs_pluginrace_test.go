@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 // PI-12: CreateRun re-checks the catalog under the plugin lock, and prune/remove check "in use" under the same lock,

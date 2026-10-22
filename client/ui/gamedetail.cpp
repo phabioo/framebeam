@@ -14,7 +14,7 @@
 #include "semver.h"
 #include "version.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 
@@ -341,4 +341,4 @@ QVariantMap GameDetail::selectedGame() const {
   return m;
 }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

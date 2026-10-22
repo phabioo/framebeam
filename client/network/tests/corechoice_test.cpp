@@ -4,7 +4,7 @@
 
 #include "corechoice.h"
 
-using namespace framebeam;
+using namespace uzume;
 using L = EmulationSettings::Level;
 
 namespace {

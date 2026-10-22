@@ -2,7 +2,7 @@
 // panel tabs (fitting, overflow, news / paused dots, actions, rail), HUD widgets (corners, max 4, menu, hide, persistence),
 // notices (stack of 3 + pill, auto-dismiss, mute, host notice) and the tile strips on remote Multiview tiles. The game is a
 // preview (no core); in-game plugin UI comes from PluginsController::setPreviewUi, the sidebar screen from a real homebrew
-// Lua plugin in the shell context. With FRAMEBEAM_SCREENSHOT_DIR=<dir> the views are also saved as PNGs (never checked in).
+// Lua plugin in the shell context. With UZUME_SCREENSHOT_DIR=<dir> the views are also saved as PNGs (never checked in).
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -15,8 +15,8 @@
 #include "playersettings.h"
 #include "testsupport.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 using uitest::Harness;
 
 namespace {
@@ -222,8 +222,8 @@ class PluginSlotsUiTest : public QObject {
 
  private slots:
   void initTestCase() {
-    shotDir_ = qEnvironmentVariable("FRAMEBEAM_SCREENSHOT_DIR");
-    qunsetenv("FRAMEBEAM_MELONDS_DS_CORE");
+    shotDir_ = qEnvironmentVariable("UZUME_SCREENSHOT_DIR");
+    qunsetenv("UZUME_MELONDS_DS_CORE");
     uitest::installWarningCounter();
     hub_.hubId = QStringLiteral("hub-slots");
     hub_.name = QStringLiteral("Home");
@@ -362,7 +362,7 @@ class PluginSlotsUiTest : public QObject {
     const QVariantMap t = pc()->toasts().last().toMap();
     QVERIFY(t.value("host").toBool());
     QVERIFY(t.value("toastId").toInt() < 0);
-    QCOMPARE(t.value("pluginName").toString(), QStringLiteral("FrameBeam"));
+    QCOMPARE(t.value("pluginName").toString(), QStringLiteral("Uzume"));
     QVERIFY(t.value("text").toString().contains(QStringLiteral("Boom Plugin was paused")));
     const QVariantList acts = t.value("actions").toList();
     QCOMPARE(acts.at(0).toMap().value("action").toString(), QStringLiteral("restart"));
@@ -378,10 +378,10 @@ class PluginSlotsUiTest : public QObject {
 
   void startGame() {
     GameSession* gs = h_.controller->gameSession();
-    gs->setPreview(QStringLiteral("Framebeam Test"), fakeFrame(1, QColor(60, 140, 200)), ndsProfile(), EmulationDiagnostics());
+    gs->setPreview(QStringLiteral("Uzume Test"), fakeFrame(1, QColor(60, 140, 200)), ndsProfile(), EmulationDiagnostics());
     emit gs->started();
     QTRY_COMPARE_WITH_TIMEOUT(h_.controller->screen(), QStringLiteral("game"), 8000);
-    h_.controller->sessions()->gameStarted(QStringLiteral("t1"), QStringLiteral("Framebeam Test"));
+    h_.controller->sessions()->gameStarted(QStringLiteral("t1"), QStringLiteral("Uzume Test"));
     h_.controller->sessions()->setTab(QStringLiteral("session"));
     QQuickItem* screen = gameScreen();
     QVERIFY(screen != nullptr);
@@ -645,18 +645,18 @@ class PluginSlotsUiTest : public QObject {
     QCOMPARE(pc()->toasts().at(0).toMap().value("toastId").toInt(), 12);
     layer()->setProperty("infoTimeoutMs", 8000);
 
-    // Host notice "FrameBeam · plugin paused": Restart plugin reloads, Details opens the console tab.
+    // Host notice "Uzume · plugin paused": Restart plugin reloads, Details opens the console tab.
     pc()->setPreviewConsole(json(R"({"plugins":[{"id":"net.test.a","name":"A","status":"error","statusText":"Paused after an error"}],"selected":"net.test.a",
                                      "status":"error","statusText":"Paused after an error","error":"boom","watched":[],"events":[],"log":[],"regions":[],"regionsText":""})"));
     const QVariantList hostActs{action("Restart plugin", "restart", "net.test.a"), action("Details", "details", "net.test.a")};
-    pc()->setPreviewUi({{"toasts", QVariantList{toastEntry(-1, "net.test.a", "FrameBeam", "warning", "SoulLink was paused after an error. Your game keeps running.", hostActs, true)}}});
+    pc()->setPreviewUi({{"toasts", QVariantList{toastEntry(-1, "net.test.a", "Uzume", "warning", "SoulLink was paused after an error. Your game keeps running.", hostActs, true)}}});
     QTRY_VERIFY(h_.item("toast_-1") != nullptr && h_.item("toast_-1")->isVisible());
     QVERIFY(!h_.item("toastMore")->isVisible());  // host notices are not mutable
     QSignalSpy reload(pc(), &PluginsController::reloadRequested);
     QVERIFY(h_.click("toastAction_details"));
     QTRY_VERIFY(h_.item("gamePanelConsole")->isVisible());
     QCOMPARE(pc()->toasts().size(), 0);
-    pc()->setPreviewUi({{"toasts", QVariantList{toastEntry(-2, "net.test.a", "FrameBeam", "warning", "SoulLink was paused after an error.", hostActs, true)}}});
+    pc()->setPreviewUi({{"toasts", QVariantList{toastEntry(-2, "net.test.a", "Uzume", "warning", "SoulLink was paused after an error.", hostActs, true)}}});
     QTRY_VERIFY(h_.item("toast_-2") != nullptr && h_.item("toast_-2")->isVisible());
     QVERIFY(h_.click("toastAction_restart"));
     QCOMPARE(reload.size(), 1);

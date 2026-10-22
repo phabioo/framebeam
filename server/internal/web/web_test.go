@@ -21,9 +21,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/httpapi"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/httpapi"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
 )
 
 var bg = context.Background()
@@ -173,7 +173,7 @@ func TestRedirectToSetupWithoutAdmin(t *testing.T) {
 		}
 	}
 	// API stays untouched
-	status(t, c.get("/.well-known/framebeam", nil), 200)
+	status(t, c.get("/.well-known/uzume", nil), 200)
 	status(t, c.get("/api/v1/games", nil), 401)
 	status(t, c.get("/api/v1/does-not-exist", nil), 404)
 }
@@ -184,7 +184,7 @@ func TestSetupLoopbackOnly(t *testing.T) {
 	remote.remote = "192.0.2.50:1234"
 	rec := remote.get("/setup", nil)
 	status(t, rec, 200)
-	contains(t, rec, "framebeam-hub setup-admin")
+	contains(t, rec, "uzume-server setup-admin")
 	notContains(t, rec, `name="password"`)
 	status(t, remote.postForm("/setup", url.Values{"username": {"x"}, "password": {"secret-12345"}, "password2": {"secret-12345"}, "_csrf": {"a"}}, nil), 403)
 	if has, _ := e.svc.HasAdmin(bg); has {
@@ -482,7 +482,7 @@ func TestClientsAllowDenyRevoke(t *testing.T) {
 	pr := pending(t, e, dev)
 	rec := c.get("/clients", nil)
 	status(t, rec, 200)
-	contains(t, rec, "Lena Gaming PC", "Pending requests · 1", "windows x86_64", "Player 0.1.0", "just now", "1 request")
+	contains(t, rec, "Lena Gaming PC", "Pending requests · 1", "windows x86_64", "App 0.1.0", "just now", "1 request")
 	admin, _ := e.svc.VerifyPassword(bg, "admin", "secret-12345")
 
 	// Allow with an invalid user: message, nothing happens
@@ -545,7 +545,7 @@ func TestSettingsNameAndPassword(t *testing.T) {
 	rec := c.get("/settings/security", nil)
 	status(t, rec, 200)
 	contains(t, rec, "Test-Hub", "HTTPS", "AA:BB:CC", "Self-generated", "Admins only", "Sign out", "Change password", "5 Oct 2036", "Self-signed certificate")
-	contains(t, c.get("/settings/general", nil), "Test-Hub", "Address for Players")
+	contains(t, c.get("/settings/general", nil), "Test-Hub", "Address for apps")
 
 	rec = c.postForm("/settings/name", url.Values{"name": {"Living-Room-Hub"}, "_csrf": {tok}}, nil)
 	if rec.Code != 303 {
@@ -554,7 +554,7 @@ func TestSettingsNameAndPassword(t *testing.T) {
 	if e.svc.Info().Name != "Living-Room-Hub" {
 		t.Fatal("name not changed")
 	}
-	contains(t, c.get("/settings/general?ok=name", nil), "Hub name saved.", "Living-Room-Hub")
+	contains(t, c.get("/settings/general?ok=name", nil), "Server name saved.", "Living-Room-Hub")
 	status(t, c.postForm("/settings/name", url.Values{"name": {"  "}, "_csrf": {tok}}, nil), 400)
 
 	pw := func(cur, n, n2 string) *httptest.ResponseRecorder {
@@ -601,7 +601,7 @@ func TestAllPagesRenderWithHeaders(t *testing.T) {
 	for _, p := range []string{"/library", "/saves", "/clients", "/settings"} {
 		rec := c.get(p, nil)
 		status(t, rec, 200)
-		contains(t, rec, "FrameBeam Hub", "Library", "Saves", "Clients", "Settings", "admin · Admin", "Test-Hub", "/static/htmx.min.js")
+		contains(t, rec, "Uzume server", "Library", "Saves", "Clients", "Settings", "admin · Admin", "Test-Hub", "/static/htmx.min.js")
 		notContains(t, rec, "Stream", "&lt;no value&gt;", "<no value>")
 		if inlineRe.MatchString(rec.Body.String()) {
 			t.Fatalf("%s: inline script/style: %s", p, inlineRe.FindString(rec.Body.String()))
@@ -697,9 +697,9 @@ func TestSavesPage(t *testing.T) {
 	rec = c.get("/saves", nil)
 	status(t, rec, http.StatusOK)
 	contains(t, rec, "Harbor Rally", "▲ 1 conflict", "Current checkpoint", "Laptop Office",
-		"▲ Conflict: v2 is based on Rev 1, the current version is v1", "Current checkpoint on the Hub", "Secured upload · sync pending",
+		"▲ Conflict: v2 is based on Rev 1, the current version is v1", "Current checkpoint on the server", "Secured upload · sync pending",
 		"Desktop Living Room", shortHash(sha(hubSave)), shortHash(sha(localSave)),
-		"Use Hub version", "Adopt local save as new current version", "Keep both, decide later", "Download",
+		"Use server version", "Adopt local save as new current version", "Keep both, decide later", "Download",
 		`name="expected_revision" value="2"`, `hx-confirm=`, base+"/conflicts/"+r.Conflict.ID+"/resolve", "✓ Current", "Session end", "Conflict upload",
 		"Restore", base+"?confirm="+strconv.Itoa(r.Conflict.Secured.Version), "Create snapshot", base+"?snap=1")
 	notContains(t, rec, `name="label"`) // the label field opens on demand
@@ -757,7 +757,7 @@ func TestSavesPage(t *testing.T) {
 	rec = c.get(base+"?ok=resolved", nil)
 	status(t, rec, http.StatusOK)
 	contains(t, rec, "Conflict resolved.", "Rev 3", "Desktop Living Room", "Synced · just now", "Session end", "Conflict upload")
-	notContains(t, rec, "Use Hub version", "conflict</span>")
+	notContains(t, rec, "Use server version", "conflict</span>")
 	// Resolving again: stale.
 	rec = c.postForm(resolve, url.Values{"resolution": {"use_hub"}, "expected_revision": {"3"}, "_csrf": {tok}}, nil)
 	status(t, rec, http.StatusSeeOther)
@@ -814,9 +814,9 @@ func TestSavesRestoreAndSnapshotWeb(t *testing.T) {
 	}
 	s, err := e.svc.GetSaveSlot(bg, adminID, g.ID, "default")
 	if err != nil || s.Current.Revision != 3 || s.Current.Reason != hub.SyncRestore || s.Current.DeviceID != hub.WebDeviceID(adminID) ||
-		s.Current.DeviceName != "Hub web interface" {
+		s.Current.DeviceName != "Server web interface" {
 		t.Fatalf("%+v %v", s.Current, err)
 	}
 	rec = c.get(base+"?ok=restored", nil)
-	contains(t, rec, "Version restored", "Rev 3", "Hub web interface", "Restored")
+	contains(t, rec, "Version restored", "Rev 3", "Server web interface", "Restored")
 }

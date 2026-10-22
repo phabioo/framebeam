@@ -9,15 +9,15 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/auth"
+	"github.com/phabioo/uzume/server/internal/auth"
 )
 
 // Admin operations the web interface needs (0.14 UI round 3, designs 3m-2, 3n-2, 4jh-3). None of them is part of
-// the Player API.
+// the app API.
 
 // ---- Users ----
 
-// RenameUser changes the display name of a user (1 to MaxDisplayNameLen characters, unique per Hub, case-insensitive).
+// RenameUser changes the display name of a user (1 to MaxDisplayNameLen characters, unique per server, case-insensitive).
 // The username (sign-in name) and the user id stay as they are.
 func (s *Service) RenameUser(ctx context.Context, userID, displayName string) (err error) {
 	defer s.publishOK(&err, TopicUsers, TopicClients, TopicSaves, TopicLibrary)
@@ -95,7 +95,7 @@ func (s *Service) SetUserRole(ctx context.Context, actorID, userID string, role 
 }
 
 // CreateUserWithCode creates a regular user together with a one-time pairing code (Users > Create user). The code
-// pairs a device with exactly this user when a Player redeems it; it is returned only here.
+// pairs a device with exactly this user when an app redeems it; it is returned only here.
 func (s *Service) CreateUserWithCode(ctx context.Context, createdBy, displayName string, ttl time.Duration) (_ User, _ Invite, _ string, err error) {
 	name, err := cleanDisplayName(displayName)
 	if err != nil {
@@ -203,7 +203,7 @@ func (s *Service) RunInviteTimes(ctx context.Context, runID string) (map[string]
 }
 
 // RemoveRunInvite removes the open invitation of a user from a run that is not over (web interface). Only a
-// participant who is still "invited" can be removed. The run gets a Hub event.
+// participant who is still "invited" can be removed. The run gets a server event.
 func (s *Service) RemoveRunInvite(ctx context.Context, actorID, runID, userID string) (err error) {
 	defer s.publishOK(&err, TopicRuns)
 	return s.adminInviteChange(ctx, actorID, runID, userID, "run.invite_removed", false, func(ctx context.Context, tx dbq, now time.Time) error {
@@ -212,8 +212,8 @@ func (s *Service) RemoveRunInvite(ctx context.Context, actorID, runID, userID st
 	})
 }
 
-// ResendRunInvite marks the invitation of a user as sent again (new invited_at, Hub event, push to the run's
-// participants and the invited user's Player). Only a participant who is still "invited" qualifies.
+// ResendRunInvite marks the invitation of a user as sent again (new invited_at, server event, push to the run's
+// participants and the invited user's app). Only a participant who is still "invited" qualifies.
 func (s *Service) ResendRunInvite(ctx context.Context, actorID, runID, userID string) (err error) {
 	defer s.publishOK(&err, TopicRuns)
 	return s.adminInviteChange(ctx, actorID, runID, userID, "run.invite_resent", true, func(ctx context.Context, tx dbq, now time.Time) error {
@@ -266,7 +266,7 @@ func (s *Service) adminInviteChange(ctx context.Context, actorID, runID, userID,
 		return err
 	}
 	s.pushRunUpdated(run)
-	if notify { // the invited user's Player gets the resent invitation and its event
+	if notify { // the invited user's app gets the resent invitation and its event
 		s.pushRunEvents(ctx, runID, []RunEvent{ev}, userID)
 	} else {
 		s.pushRunEvents(ctx, runID, []RunEvent{ev})

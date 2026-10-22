@@ -13,7 +13,7 @@
 
 #include "connectioncheck.h"
 
-namespace framebeam {
+namespace uzume {
 
 namespace stun {
 
@@ -71,4 +71,4 @@ struct ProbeTimings {
 // Real network probes. Create and use on the thread that runs the ConnectionCheck (it needs an event loop there).
 std::unique_ptr<ConnectionProbes> makeQtConnectionProbes(ConnectionTestFn test, ConnectionTestCancelFn cancelTest, const ProbeTimings& timings = {});
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -5,8 +5,8 @@
 #include "gpudisplaybridge.h"
 #include "gpuencodebridge.h"
 
-using namespace framebeam;
-using namespace framebeam::ui;
+using namespace uzume;
+using namespace uzume::ui;
 
 namespace {
 EmulationDiagnostics sw() {

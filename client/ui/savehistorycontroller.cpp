@@ -17,7 +17,7 @@
 
 #include "savestore.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 namespace {
 constexpr int kMaxLabelChars = 64;  // Hub limit of SaveSnapshotRequest.label
@@ -1047,4 +1047,4 @@ QString SaveHistoryController::formatWhen(const QString& iso) {
 // Shared helper (timeformat.h): "just now", "5 min ago", "today 18:42", "yesterday 22:30", "16 Oct", "3 Mar 2025".
 QString SaveHistoryController::formatWhen(const QDateTime& when) { return TimeFormat::when(when); }
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

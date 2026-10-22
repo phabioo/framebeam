@@ -6,7 +6,7 @@
 #include "connectionprobes.h"
 #include "fakehub.h"
 
-using namespace framebeam;
+using namespace uzume;
 
 namespace {
 

@@ -4,7 +4,7 @@
 #include <QString>
 #include <optional>
 
-namespace framebeam::sdtree {
+namespace uzume::sdtree {
 
 // Save data of a 3DS game inside the core's virtual SD tree (Azahar, ADR 0020 D7 "core_tree" / "azahar_sdmc"),
 // packed into ONE deterministic ustar archive. The Hub stores that archive as the slot's raw save.
@@ -40,4 +40,4 @@ bool validate(const QByteArray& tar, QString* error = nullptr);
 // Cheap hash of (path, size, mtime) of the managed files, for polling. Empty when there are none.
 QString fingerprint(const QString& root);
 
-}  // namespace framebeam::sdtree
+}  // namespace uzume::sdtree

@@ -75,7 +75,7 @@ var (
 	ErrInviteInvalid    = &Error{Code: CodeInviteInvalid, Message: "Invite code is invalid, expired, used or revoked"}
 	ErrDisplayNameTaken = &Error{Code: CodeDisplayNameTaken, Message: "Display name is already taken"}
 	ErrUserDisabled     = &Error{Code: CodeUserDisabled, Message: "User has been disabled"}
-	ErrUploadsDisabled  = &Error{Code: CodeUploadsDisabled, Message: "Uploads by users are disabled on this Hub"}
+	ErrUploadsDisabled  = &Error{Code: CodeUploadsDisabled, Message: "Uploads by users are disabled on this server"}
 	// ErrSaveSlotExists: a slot with that name already exists (409, web interface).
 	ErrSaveSlotExists = &Error{Code: CodeSaveSlotExists, Message: "A slot with this name already exists"}
 	// ErrSessionRunning: a Session of the same user runs the game, so its slots cannot be uploaded to, renamed or deleted (409).

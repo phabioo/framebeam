@@ -6,7 +6,7 @@
 #include <QSet>
 #include <QString>
 
-namespace framebeam {
+namespace uzume {
 
 // Content-addressed, cross-hub ROM cache: <dir>/<sha256>.<ext>.
 // Downloads land in <sha256>.<ext>.part; only after the SHA-256 check is it renamed atomically.
@@ -96,4 +96,4 @@ class RomCache {
   QString dir_;
 };
 
-}  // namespace framebeam
+}  // namespace uzume

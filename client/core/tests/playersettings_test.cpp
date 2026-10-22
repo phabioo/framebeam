@@ -6,7 +6,7 @@
 
 #include "playersettings.h"
 
-using namespace framebeam;
+using namespace uzume;
 using A = PlayerSettings::Appearance;
 
 class PlayerSettingsTest : public QObject {

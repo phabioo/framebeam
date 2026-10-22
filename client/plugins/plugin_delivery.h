@@ -9,7 +9,7 @@
 #include "plugin_manager.h"
 #include "pluginhub.h"
 
-namespace framebeam::plugins {
+namespace uzume::plugins {
 
 struct DeliveryResult {
   bool ok = false;
@@ -45,7 +45,7 @@ class PluginDelivery : public QObject {
   void install(const QString& pluginId, const QString& version);
 
  signals:
-  void finished(const framebeam::plugins::DeliveryResult& result);  // result of install()
+  void finished(const uzume::plugins::DeliveryResult& result);  // result of install()
 
  private:
   void fetch(const QString& pluginId, const QString& version, const QString& sha256, qint64 size, Callback done);
@@ -57,6 +57,6 @@ class PluginDelivery : public QObject {
   QHash<QString, QList<Callback>> pending_;
 };
 
-}  // namespace framebeam::plugins
+}  // namespace uzume::plugins
 
-Q_DECLARE_METATYPE(framebeam::plugins::DeliveryResult)
+Q_DECLARE_METATYPE(uzume::plugins::DeliveryResult)

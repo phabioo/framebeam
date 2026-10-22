@@ -22,9 +22,9 @@
 #include <wrl/client.h>
 #endif
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcRing, "framebeam.gpudisplay")
+Q_LOGGING_CATEGORY(lcRing, "uzume.gpudisplay")
 
 namespace {
 constexpr int kMaxTextureSize = 16384;  // D3D11 feature level 11_0 limit
@@ -640,4 +640,4 @@ D3d11Display makeD3d11DisplayForTest(void* producerD3dDevice) {
   return out;
 }
 
-}  // namespace framebeam
+}  // namespace uzume

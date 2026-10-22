@@ -1,5 +1,5 @@
 {
-  "_source": "Option keys and values from libretro/gambatte-libretro libgambatte/libretro/libretro_core_options.h. The link cable network mode is not supported by FrameBeam (no network access for cores), so the link mode is fixed and all network keys are locked.",
+  "_source": "Option keys and values from libretro/gambatte-libretro libgambatte/libretro/libretro_core_options.h. The link cable network mode is not supported by Uzume (no network access for cores), so the link mode is fixed and all network keys are locked.",
   "core_id": "gambatte",
   "display_name": "Gambatte",
   "library_basename": "gambatte_libretro",

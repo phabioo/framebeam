@@ -16,10 +16,10 @@
 #include <QTimer>
 #include <QUrlQuery>
 
-namespace framebeam {
+namespace uzume {
 
 GameUploader::GameUploader(HubConnection* connection, QObject* parent) : QObject(parent), conn_(connection) {
-  qRegisterMetaType<framebeam::UploadResult>("framebeam::UploadResult");
+  qRegisterMetaType<uzume::UploadResult>("uzume::UploadResult");
 }
 
 void GameUploader::failLater(const QString& fileName, const QString& code, const QString& message) {
@@ -461,4 +461,4 @@ void GameUploader::cancel() {
   }
 }
 
-}  // namespace framebeam
+}  // namespace uzume

@@ -20,15 +20,15 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/corepkg"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/hub/hubtest"
-	"github.com/phabioo/framebeam/server/internal/updates"
+	"github.com/phabioo/uzume/server/internal/corepkg"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub/hubtest"
+	"github.com/phabioo/uzume/server/internal/updates"
 )
 
 // Admin web pages: Users, Systems & Cores, Settings and Clients.
 
-var codeRe = regexp.MustCompile(`FB-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}`)
+var codeRe = regexp.MustCompile(`UZ-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}`)
 
 func postTok(c *client, tok, path string, v url.Values) *httptest.ResponseRecorder {
 	if v == nil {
@@ -73,16 +73,16 @@ func TestAdminPagesAreAdminOnlyAndRender(t *testing.T) {
 			t.Fatalf("%s: inline script/style", p)
 		}
 	}
-	contains(t, c.get("/users", nil), `href="/users" class="active"`, "Onboarding invites", "Accounts on this Hub")
+	contains(t, c.get("/users", nil), `href="/users" class="active"`, "Onboarding invites", "Accounts on this server")
 	// Systems & Cores: list | detail with tabs; the cores tab is the default.
 	rec := c.get("/systems?sys=nds", nil)
 	contains(t, rec, `href="/systems" class="active"`, "Nintendo DS", "No core installed", "Automatic core updates",
-		"Players cannot start Nintendo DS games until one is installed", "Needs attention", `aria-selected="true"`, `id="systems-list"`, `id="systems-detail"`,
+		"Apps cannot start Nintendo DS games until one is installed", "Needs attention", `aria-selected="true"`, `id="systems-list"`, `id="systems-detail"`,
 		"System details", "windows-x86_64", "Libretro system", "File extensions", "Check now", "No further cores known for this system")
-	notContains(t, rec, "LATER", "Reported by Players", "Search systems", "core(s)")
+	notContains(t, rec, "LATER", "Reported by apps", "Search systems", "core(s)")
 	rec = c.get("/systems?sys=nds&tab=firmware", nil)
 	contains(t, rec, "ARM7 BIOS", "ARM9 BIOS", "DS Firmware", "Choose file…")
-	contains(t, c.get("/systems?sys=nds&tab=clients", nil), "Reported by Players", "No client has reported yet")
+	contains(t, c.get("/systems?sys=nds&tab=clients", nil), "Reported by apps", "No client has reported yet")
 }
 
 func TestAdminPagesCSRF(t *testing.T) {
@@ -254,7 +254,7 @@ func TestSettingsAppearanceAndUploadToggle(t *testing.T) {
 	rec := c.get("/settings/general", nil)
 	contains(t, rec, `data-theme="system"`, "Appearance", "Applies to this web interface", "Allow users to upload games", "Inactive",
 		"Currently only admins can upload ROMs.")
-	// Dark: stored as Hub setting and applied to every page, including login/setup for visitors.
+	// Dark: stored as server setting and applied to every page, including login/setup for visitors.
 	status(t, postTok(c, tok, "/settings/appearance", url.Values{"mode": {"dark"}}), 303)
 	for _, p := range []string{"/settings", "/library", "/saves", "/clients", "/users", "/systems"} {
 		contains(t, c.get(p, nil), `data-theme="dark"`)
@@ -360,7 +360,7 @@ func TestSystemsPageFirmwareFlow(t *testing.T) {
 	rec = c.get("/systems?sys=nds", nil)
 	contains(t, rec, "Needs attention · 3 firmware files missing or invalid", `<span class="count">3</span>`, `<span class="count">1</span>`)
 	rec = c.get("/systems?sys=nds&tab=clients", nil)
-	contains(t, rec, "Lena&#39;s gaming PC", "Player 0.1.0 · Nintendo - DS (DeSmuME) 2026.10.01", "Core version mismatch · 2026.10.09 expected", "launching stays allowed")
+	contains(t, rec, "Lena&#39;s gaming PC", "App 0.1.0 · Nintendo - DS (DeSmuME) 2026.10.01", "Core version mismatch · 2026.10.09 expected", "launching stays allowed")
 	notContains(t, rec, `pill error`) // a core mismatch only warns (ADR 0007 D3)
 	hs("2026.10.09")
 	contains(t, c.get("/systems?sys=nds&tab=clients", nil), "Compatible")
@@ -435,7 +435,7 @@ func TestSystemsPageCores(t *testing.T) {
 	contains(t, rec, strings.TrimPrefix(bb.Server.URL, "https://")+"/nightly", "Available, not installed", "No core installed",
 		"Nintendo - DS (DeSmuME)", "GPLv2", "OpenGL Core &gt;= 3.2", "nightly 2026-10-08", "/systems/nds/cores/desmume/install", "/systems/nds/cores/noods/install",
 		"Check now", "2 cores known for this system")
-	notContains(t, rec, "Azahar", "/cores/azahar/", "Update available", "No FrameBeam profile")
+	notContains(t, rec, "Azahar", "/cores/azahar/", "Update available", "No Uzume profile")
 
 	// Install: redirect, the core is listed as installed default with its origin.
 	rec = postTok(c, tok, "/systems/nds/cores/desmume/install", nil)
@@ -449,7 +449,7 @@ func TestSystemsPageCores(t *testing.T) {
 	// The experimental core carries the badge once installed; Make default switches.
 	status(t, postTok(c, tok, "/systems/nds/cores/noods/install", nil), 303)
 	rec = c.get("/systems?sys=nds&tab=core", nil)
-	notContains(t, rec, "No FrameBeam profile")
+	notContains(t, rec, "No Uzume profile")
 	contains(t, rec, "/systems/nds/cores/noods/default", "OpenGL Core &gt;= 3.2")
 	status(t, postTok(c, tok, "/systems/nds/cores/noods/default", nil), 303)
 	if entry, _ := e.svc.GetRegistryEntry(bg, "nds"); entry.CoreID != "noods" {
@@ -477,7 +477,7 @@ func TestSystemsPageCores(t *testing.T) {
 	if rec.Code != 303 || location(rec) != "/systems?sys=nds&tab=core&ok=coreautoupdate" {
 		t.Fatalf("%d %q", rec.Code, location(rec))
 	}
-	contains(t, c.get("/systems?sys=nds&tab=core", nil), `aria-checked="false"`, "Use Hub default (Off)")
+	contains(t, c.get("/systems?sys=nds&tab=core", nil), `aria-checked="false"`, "Use server default (Off)")
 	// A newer upstream build: "Check source now" refreshes in the background, then Update is offered.
 	for _, p := range []string{"linux-x64", "windows-x64"} {
 		suffix := map[string]string{"linux-x64": ".so", "windows-x64": ".dll"}[p]
@@ -519,7 +519,7 @@ func updatesFeed(t *testing.T, version string) (url string, pub ed25519.PublicKe
 	pub, _ = corepkg.PublicFromSeed(seed)
 	data := []byte("dummy deb")
 	sum := sha256.Sum256(data)
-	name := "framebeam-hub_" + version + "_amd64.deb"
+	name := "uzume-server_" + version + "_amd64.deb"
 	if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -550,7 +550,7 @@ func TestSettingsUpdatesSection(t *testing.T) {
 	tok := c.login()
 	rec := c.get("/settings", nil)
 	status(t, rec, 200)
-	contains(t, rec, "Versions, channel and automatic installs for this hub", `name="channel" value="beta" class="on"`, `role="switch" aria-checked="true"`,
+	contains(t, rec, "Versions, channel and automatic installs for this server", `name="channel" value="beta" class="on"`, `role="switch" aria-checked="true"`,
 		"0.3.0-beta.5", "Check now", "checks every hour")
 	notContains(t, rec, "Install update")
 
@@ -597,7 +597,7 @@ func TestSettingsUpdatesNotPackagedAndDev(t *testing.T) {
 	e := newEnvOpts(t, true, nil, func(o *hub.Options) {
 		o.HubVersion, o.UpdateChannel, o.UpdateIndexURL, o.UpdateRequestDir, o.UpdatePlatform = "0.3.0-alpha.1", "dev", feed, t.TempDir(), "linux-amd64"
 		o.CoreTrustKeys = []ed25519.PublicKey{pub}
-		o.Executable = "/usr/local/bin/framebeam-hub"
+		o.Executable = "/usr/local/bin/uzume-server"
 	})
 	c := e.client()
 	tok := c.login()
@@ -608,7 +608,7 @@ func TestSettingsUpdatesNotPackagedAndDev(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec = c.get("/settings", nil)
-	contains(t, rec, "Update available", "0.3.0-beta.6", "sudo apt install ./framebeam-hub_0.3.0-beta.6_amd64.deb")
+	contains(t, rec, "Update available", "0.3.0-beta.6", "sudo apt install ./uzume-server_0.3.0-beta.6_amd64.deb")
 	notContains(t, rec, "Install update")
 	rec = postTok(c, tok, "/settings/updates/install", nil)
 	if location(rec) != "/settings/updates?err=updatepackage" {

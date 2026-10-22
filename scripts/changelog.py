@@ -2,12 +2,13 @@
 """Changelog tooling: PR check and release-note collection (stdlib only, run with `python3 -I`).
 
   changelog.py check   [--body-file F | env PR_BODY] [--author LOGIN]
-  changelog.py collect --repo OWNER/NAME --base REF --head SHA [--product hub|player]
+  changelog.py collect --repo OWNER/NAME --base REF --head SHA [--product server|app]
                        --format markdown|index|json [--title TEXT] [--compare-url] [--level N]
 
 Every PR body carries a `## Changelog` section: either `none` or bullets under `### Added|Changed|Fixed|Removed|Security`.
-A bullet may start with `Hub:` or `Player:` when only one product is affected (optional; repositories with a single
-product just omit it). `collect` walks `git log --first-parent base..head` in a full clone, maps commits to PRs and builds
+A bullet may start with `Server:` or `App:` when only one product is affected (optional; repositories with a single
+product just omit it). The older prefixes `Hub:` and `Player:` still work (same products; the index keeps the product
+keys `hub` and `player`). `collect` walks `git log --first-parent base..head` in a full clone, maps commits to PRs and builds
 the notes from those sections. The file is generic: copy it unchanged into other repositories.
 """
 import argparse, json, os, re, subprocess, sys
@@ -15,8 +16,9 @@ import argparse, json, os, re, subprocess, sys
 GROUPS = ["Added", "Changed", "Fixed", "Removed", "Security"]
 EXTRA_GROUPS = ["Dependencies", "Other"]   # only produced by the fallbacks, never valid in a PR section
 INDEX_MAX_BYTES = 4000
-PRODUCTS = {"hub": "Hub", "player": "Player"}
-PREFIX_RE = re.compile(r"^(hub|player)\s*:\s*", re.I)
+PRODUCTS = {"hub": "Server", "player": "App"}   # keys are the product keys of the updates index
+PRODUCT_ALIASES = {"server": "hub", "app": "player", "hub": "hub", "player": "player"}
+PREFIX_RE = re.compile(r"^(server|app|hub|player)\s*:\s*", re.I)
 
 
 def strip_comments(text):
@@ -79,7 +81,7 @@ def parse_section(body):
 
 
 def clean_line(text):
-    """One line without control characters (the Hub and signer reject them in notes): they become spaces, runs collapse."""
+    """One line without control characters (the server and signer reject them in notes): they become spaces, runs collapse."""
     return re.sub(r"\s+", " ", re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", text)).strip()
 
 
@@ -99,7 +101,7 @@ def cmd_check(args):
         return 0
     how = ("Add a `## Changelog` section to the PR description: `none` for CI, docs, test or refactoring-only changes, "
            "otherwise one `- ` line per user-visible change under `### Added`, `### Changed`, `### Fixed`, `### Removed` "
-           "or `### Security` (optional prefix `Hub:` or `Player:`).")
+           "or `### Security` (optional prefix `Server:` or `App:`).")
     for e in errors:
         print("::error title=Changelog section::%s" % e)
     print("::error title=Changelog section::%s" % how)
@@ -130,7 +132,7 @@ def apply_product(text, product):
         return text
     if product is None:
         return text
-    if m.group(1).lower() != product:
+    if PRODUCT_ALIASES[m.group(1).lower()] != PRODUCT_ALIASES.get(product, product):
         return None
     return text[m.end():].strip() or None
 
@@ -245,7 +247,7 @@ def main(argv=None):
     k.add_argument("--repo", required=True)
     k.add_argument("--base", required=True)
     k.add_argument("--head", required=True)
-    k.add_argument("--product", choices=sorted(PRODUCTS))
+    k.add_argument("--product", choices=sorted(PRODUCT_ALIASES))
     k.add_argument("--format", choices=["markdown", "index", "json"], default="markdown")
     k.add_argument("--title")
     k.add_argument("--compare-url", action="store_true")

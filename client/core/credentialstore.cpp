@@ -14,12 +14,12 @@
 #include <string>
 #endif
 
-namespace framebeam {
+namespace uzume {
 
-Q_LOGGING_CATEGORY(lcCred, "framebeam.credentials")
+Q_LOGGING_CATEGORY(lcCred, "uzume.credentials")
 
 QString credentialTarget(const QString& hubId, const QString& deviceId) {
-  return QStringLiteral("FrameBeam/%1/%2").arg(hubId, deviceId);
+  return QStringLiteral("Uzume/%1/%2").arg(hubId, deviceId);
 }
 
 MemoryCredentialStore::MemoryCredentialStore() {
@@ -53,7 +53,7 @@ bool MemoryCredentialStore::remove(const QString& target) {
 #ifdef Q_OS_WIN
 bool WindowsCredentialStore::write(const QString& target, const QString& secret) {
   const std::wstring wtarget = target.toStdWString();
-  const std::wstring wuser = L"FrameBeam Player";
+  const std::wstring wuser = L"Uzume";
   const QByteArray blob = secret.toUtf8();
   CREDENTIALW cred = {};
   cred.Type = CRED_TYPE_GENERIC;
@@ -86,6 +86,13 @@ bool WindowsCredentialStore::remove(const QString& target) {
 }
 #endif
 
+std::optional<QString> readCredential(CredentialStore& store, const QString& ref) {
+  if (ref.isEmpty()) return std::nullopt;
+  return store.read(ref);
+}
+
+bool removeCredential(CredentialStore& store, const QString& ref) { return store.remove(ref); }
+
 std::unique_ptr<CredentialStore> createDefaultCredentialStore() {
 #ifdef Q_OS_WIN
   return std::make_unique<WindowsCredentialStore>();
@@ -94,4 +101,4 @@ std::unique_ptr<CredentialStore> createDefaultCredentialStore() {
 #endif
 }
 
-}  // namespace framebeam
+}  // namespace uzume

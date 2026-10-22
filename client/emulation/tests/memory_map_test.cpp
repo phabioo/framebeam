@@ -5,7 +5,7 @@
 
 #include "memory_map.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 namespace {
 MemoryMap::Descriptor desc(void* p, uint64_t start, uint64_t len, uint64_t select = 0, uint64_t disconnect = 0,

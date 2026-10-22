@@ -10,7 +10,7 @@
 #include "hubprotocol.h"
 #include "localromindex.h"
 
-namespace framebeam {
+namespace uzume {
 
 struct RegisterOutcome {
   QString sha256;
@@ -41,7 +41,7 @@ class RomRegistrar : public QObject {
                                              const QSet<QString>& ignoredShas);
 
  signals:
-  void registered(const framebeam::RegisterOutcome& outcome);
+  void registered(const uzume::RegisterOutcome& outcome);
   void batchFinished(int registered, int failed);  // the queue ran empty
   void unregistered(const QString& gameId, bool ok, const QString& errorMessage);
 
@@ -55,6 +55,6 @@ class RomRegistrar : public QObject {
   int failCount_ = 0;
 };
 
-}  // namespace framebeam
+}  // namespace uzume
 
-Q_DECLARE_METATYPE(framebeam::RegisterOutcome)
+Q_DECLARE_METATYPE(uzume::RegisterOutcome)

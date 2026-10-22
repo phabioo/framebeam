@@ -5,7 +5,7 @@
 #include <QString>
 #include <QtGlobal>
 
-namespace framebeam::input {
+namespace uzume::input {
 
 enum class PadType { Generic, Xbox, PlayStation };
 
@@ -18,4 +18,4 @@ QString padTypeId(PadType t);    // "xbox" | "playstation" | "generic"
 QString padTypeName(PadType t);  // "Xbox" | "PlayStation" | "Generic" (UI)
 PadType padTypeFromId(const QString& id, PadType fallback = PadType::Generic);
 
-}  // namespace framebeam::input
+}  // namespace uzume::input

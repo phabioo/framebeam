@@ -14,7 +14,7 @@
 #include "hubsetup.h"
 #include "localhub.h"
 
-namespace framebeam::ui {
+namespace uzume::ui {
 
 class LocalHubController : public QObject {
   Q_OBJECT
@@ -108,4 +108,4 @@ class LocalHubController : public QObject {
   std::function<int(const QString&, const QStringList&, QString*)> grant_;
 };
 
-}  // namespace framebeam::ui
+}  // namespace uzume::ui

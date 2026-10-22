@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/phabioo/framebeam/server/internal/api"
-	"github.com/phabioo/framebeam/server/internal/health"
-	"github.com/phabioo/framebeam/server/internal/hub"
-	"github.com/phabioo/framebeam/server/internal/statusinfo"
+	"github.com/phabioo/uzume/server/internal/api"
+	"github.com/phabioo/uzume/server/internal/health"
+	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/statusinfo"
 )
 
-// Admin endpoints (0.17): the Hub health view and the metrics setting for the admin in the Player. They use the
+// Admin endpoints (0.17): the server health view and the metrics setting for the admin in the app. They use the
 // same data builder (statusinfo) as the web Status page. Admin tokens only: 401 without a token, 403 for users.
 
 // WithStatus gives the admin endpoints their data source; without it they answer 404.
@@ -111,7 +111,7 @@ func (s *Server) GetAdminStatusLog(ctx context.Context, _ api.GetAdminStatusLogR
 	if err != nil {
 		return nil, err
 	}
-	name := `attachment; filename="framebeam-hub-log-` + time.Now().UTC().Format("20060102-150405") + `.txt"`
+	name := `attachment; filename="uzume-server-log-` + time.Now().UTC().Format("20060102-150405") + `.txt"`
 	return api.GetAdminStatusLog200TextResponse{Body: string(src.LogSnapshot()),
 		Headers: api.GetAdminStatusLog200ResponseHeaders{ContentDisposition: &name}}, nil
 }

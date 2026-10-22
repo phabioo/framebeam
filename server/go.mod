@@ -1,4 +1,4 @@
-module github.com/phabioo/framebeam/server
+module github.com/phabioo/uzume/server
 
 go 1.26.0
 

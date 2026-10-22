@@ -11,7 +11,7 @@
 - No ROMs, BIOS, firmware or keys in the repository or in tests. Use homebrew ROMs or dummy files only.
 - No circumvention tooling, and no dumping guides that rely on circumvention tools.
 - No piracy wording in code, docs, issues or PRs.
-- Never overwrite saves silently, never send them to another Hub, never put secrets in files, profiles or logs.
+- Never overwrite saves silently, never send them to another server, never put secrets in files, profiles or logs.
 
 ## Contributor License Agreement
 

@@ -7,7 +7,7 @@
 #include <QSet>
 #include <QUrl>
 
-namespace framebeam::update {
+namespace uzume::update {
 
 namespace {
 
@@ -293,4 +293,4 @@ QJsonObject selectionToJson(const Selection& sel, const SelectionInput& in, cons
   return o;
 }
 
-}  // namespace framebeam::update
+}  // namespace uzume::update

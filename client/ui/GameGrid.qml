@@ -1,5 +1,5 @@
 import QtQuick
-import FrameBeam.Player
+import Uzume.App
 
 // Virtualized game grid for the Library. It lives inside the Library's Flickable (`scroller`) and only keeps the GridView
 // window around the visible part alive: the GridView is as tall as the viewport (plus a buffer) and is moved down with

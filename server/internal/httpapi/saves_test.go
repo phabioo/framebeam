@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/hub"
 )
 
 func hexSHA(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
@@ -48,7 +48,7 @@ func (a *savesAPI) put(tok string, base int, data []byte, reason string) *httpte
 func (a *savesAPI) putSHA(tok string, base int, data []byte, sha, reason string) *httptest.ResponseRecorder {
 	a.t.Helper()
 	return a.do("PUT", a.path(""), nil, opt{token: tok, data: data, ctype: "application/octet-stream", header: map[string]string{
-		"X-FrameBeam-Base-Revision": fmt.Sprint(base), "X-FrameBeam-Content-SHA256": sha, "X-FrameBeam-Sync-Reason": reason}})
+		"X-Uzume-Base-Revision": fmt.Sprint(base), "X-Uzume-Content-SHA256": sha, "X-Uzume-Sync-Reason": reason}})
 }
 
 type slotResp struct {
@@ -116,7 +116,7 @@ func TestSavesAPIFlow(t *testing.T) {
 	// Content with headers.
 	rec = a.do("GET", a.path("/content"), nil, opt{token: a.tokA})
 	wantStatus(t, rec, 200, "")
-	if !bytes.Equal(rec.Body.Bytes(), v2) || rec.Header().Get("ETag") != `"`+hexSHA(v2)+`"` || rec.Header().Get("X-FrameBeam-Save-Revision") != "2" {
+	if !bytes.Equal(rec.Body.Bytes(), v2) || rec.Header().Get("ETag") != `"`+hexSHA(v2)+`"` || rec.Header().Get("X-Uzume-Save-Revision") != "2" {
 		t.Fatalf("%q %v", rec.Body.String(), rec.Header())
 	}
 
@@ -211,12 +211,12 @@ func TestSavesAPIUploadErrors(t *testing.T) {
 	// Over 64 MiB -> 413.
 	big := bytes.Repeat([]byte{1}, hub.MaxSaveBytes+1)
 	rec := a.do("PUT", a.path(""), nil, opt{token: a.tokA, data: big, ctype: "application/octet-stream", raw: true, header: map[string]string{
-		"X-FrameBeam-Base-Revision": "0", "X-FrameBeam-Content-SHA256": hexSHA(big), "X-FrameBeam-Sync-Reason": "checkpoint"}})
+		"X-Uzume-Base-Revision": "0", "X-Uzume-Content-SHA256": hexSHA(big), "X-Uzume-Sync-Reason": "checkpoint"}})
 	wantStatus(t, rec, 413, "payload_too_large")
 	wantStatus(t, a.do("GET", a.path(""), nil, opt{token: a.tokA}), 404, "not_found")
 	// Unknown game -> 404; no token -> 401.
 	rec = a.do("PUT", "/api/v1/games/"+uuid.NewString()+"/saves/default", nil, opt{token: a.tokA, data: []byte("x"), ctype: "application/octet-stream",
-		header: map[string]string{"X-FrameBeam-Base-Revision": "0", "X-FrameBeam-Content-SHA256": hexSHA([]byte("x")), "X-FrameBeam-Sync-Reason": "checkpoint"}})
+		header: map[string]string{"X-Uzume-Base-Revision": "0", "X-Uzume-Content-SHA256": hexSHA([]byte("x")), "X-Uzume-Sync-Reason": "checkpoint"}})
 	wantStatus(t, rec, 404, "not_found")
 	wantStatus(t, a.put("", 0, []byte("x"), "checkpoint"), 401, "")
 }
@@ -254,7 +254,7 @@ func TestSavesAPICrossUserAndRevoked(t *testing.T) {
 	}
 	// The other user's own upload with base 0 starts an independent slot.
 	wantStatus(t, a.do("PUT", a.path(""), nil, opt{token: tokC, data: []byte("mine"), ctype: "application/octet-stream", header: map[string]string{
-		"X-FrameBeam-Base-Revision": "0", "X-FrameBeam-Content-SHA256": hexSHA([]byte("mine")), "X-FrameBeam-Sync-Reason": "checkpoint"}}), 200, "")
+		"X-Uzume-Base-Revision": "0", "X-Uzume-Content-SHA256": hexSHA([]byte("mine")), "X-Uzume-Sync-Reason": "checkpoint"}}), 200, "")
 	// A revoked device (tokens deleted): 401 on all save endpoints.
 	if err := a.svc.RevokeDevice(context.Background(), a.devA); err != nil {
 		t.Fatal(err)
@@ -281,7 +281,7 @@ func TestHandshakeAdvertisesFeatures(t *testing.T) {
 func (a *savesAPI) upload(tok, slot string, expected any, data []byte, sha string) *httptest.ResponseRecorder {
 	a.t.Helper()
 	return a.do("POST", "/api/v1/games/"+a.game.ID+"/saves/"+slot+"/upload", nil, opt{token: tok, data: data, ctype: "application/octet-stream", raw: true,
-		header: map[string]string{"X-FrameBeam-Expected-Revision": fmt.Sprint(expected), "X-FrameBeam-Content-SHA256": sha}})
+		header: map[string]string{"X-Uzume-Expected-Revision": fmt.Sprint(expected), "X-Uzume-Content-SHA256": sha}})
 }
 
 // The body limit middleware must allow save uploads above the 1 MiB default of other endpoints.
@@ -322,6 +322,6 @@ func TestUploadSaveFileAPI(t *testing.T) {
 	wantStatus(t, a.do("GET", "/api/v1/games/"+a.game.ID+"/saves/other", nil, opt{token: a.tokA}), 404, "not_found")
 	// Unknown game -> 404.
 	rec = a.do("POST", "/api/v1/games/"+uuid.NewString()+"/saves/default/upload", nil, opt{token: a.tokA, data: data, ctype: "application/octet-stream", raw: true,
-		header: map[string]string{"X-FrameBeam-Expected-Revision": "0", "X-FrameBeam-Content-SHA256": hexSHA(data)}})
+		header: map[string]string{"X-Uzume-Expected-Revision": "0", "X-Uzume-Content-SHA256": hexSHA(data)}})
 	wantStatus(t, rec, 404, "not_found")
 }

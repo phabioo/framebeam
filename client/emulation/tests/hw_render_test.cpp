@@ -22,7 +22,7 @@
 #include "hw_render.h"
 #include "libretro_backend.h"
 
-using namespace framebeam::emu;
+using namespace uzume::emu;
 
 namespace {
 bool canCreateGl33Core() {
@@ -241,7 +241,7 @@ class HwRenderTest : public QObject {
   void initTestCase() {
     QVERIFY(m_log.open());
     qputenv("FB_FAKE_HW_LOG", m_log.fileName().toUtf8());
-    qunsetenv("FRAMEBEAM_DISABLE_HW_RENDER");
+    qunsetenv("UZUME_DISABLE_HW_RENDER");
     qunsetenv("FB_FAKE_HW_BOTTOM_LEFT");
     qunsetenv("FB_FAKE_HW_CTX");
   }
@@ -307,7 +307,7 @@ class HwRenderTest : public QObject {
   }
 
   void disabledByEnvironment() {
-    qputenv("FRAMEBEAM_DISABLE_HW_RENDER", "1");
+    qputenv("UZUME_DISABLE_HW_RENDER", "1");
     QTemporaryFile rom;
     QVERIFY(rom.open());
     rom.write("x");
@@ -325,11 +325,11 @@ class HwRenderTest : public QObject {
       QCOMPARE(ri.fallbackReason, QString::fromLatin1(kFallbackDisabled));
       QVERIFY(ri.api.isEmpty() && ri.gpu.isEmpty());
     }
-    qunsetenv("FRAMEBEAM_DISABLE_HW_RENDER");
+    qunsetenv("UZUME_DISABLE_HW_RENDER");
   }
 
   void glDescriptionHelpers() {
-    using framebeam::emu::HwRenderContext;
+    using uzume::emu::HwRenderContext;
     QCOMPARE(HwRenderContext::describeApi(QStringLiteral("4.6.0 NVIDIA 555.42"), true), QStringLiteral("OpenGL 4.6 Core"));
     QCOMPARE(HwRenderContext::describeApi(QStringLiteral("3.3 (Compatibility Profile) Mesa 23.2.1"), false), QStringLiteral("OpenGL 3.3"));
     QCOMPARE(HwRenderContext::describeApi(QString(), true), QStringLiteral("OpenGL Core"));
@@ -437,7 +437,7 @@ class HwRenderTest : public QObject {
 
   void syncFallbackIsCurrentFrame() {
     qputenv("FB_FAKE_HW_COUNTER", "1");
-    qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+    qputenv("UZUME_SYNC_READBACK", "1");
     QTemporaryFile rom;
     LibretroBackend be;
     loadFake(be, rom);
@@ -446,7 +446,7 @@ class HwRenderTest : public QObject {
       QCOMPARE(counterOf(be.videoFrame()), k);
       QCOMPARE(px(be.videoFrame(), 2, 45), qRgb(255, 0, 0));
     }
-    qunsetenv("FRAMEBEAM_SYNC_READBACK");
+    qunsetenv("UZUME_SYNC_READBACK");
     qunsetenv("FB_FAKE_HW_COUNTER");
   }
 
@@ -454,7 +454,7 @@ class HwRenderTest : public QObject {
     QTemporaryFile rom;
     double ms[2] = {0, 0};
     for (int mode = 0; mode < 2; ++mode) {
-      if (mode == 1) qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+      if (mode == 1) qputenv("UZUME_SYNC_READBACK", "1");
       LibretroBackend be;
       QTemporaryFile r;
       loadFake(be, r);
@@ -465,7 +465,7 @@ class HwRenderTest : public QObject {
         sum += be.lastReadbackMs();
       }
       ms[mode] = sum / 100;
-      qunsetenv("FRAMEBEAM_SYNC_READBACK");
+      qunsetenv("UZUME_SYNC_READBACK");
     }
     qInfo("readback avg: PBO %.3f ms, sync %.3f ms (64x48)", ms[0], ms[1]);
   }
@@ -618,7 +618,7 @@ class HwRenderTest : public QObject {
     QFETCH(bool, syncReadback);
     qputenv("FB_FAKE_HW_SCALE", "4");  // 256x192 frame, the core leaves GL_SCISSOR_TEST enabled
     qputenv("FB_FAKE_HW_BOTTOM_LEFT", bottomLeft ? "1" : "0");
-    if (syncReadback) qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+    if (syncReadback) qputenv("UZUME_SYNC_READBACK", "1");
     QTemporaryFile rom;
     LibretroBackend be;
     loadFake(be, rom);
@@ -636,7 +636,7 @@ class HwRenderTest : public QObject {
     QCOMPARE(be.sourceFrameSize(), QSize(256, 192));  // diagnostics still know the real frame size
     qunsetenv("FB_FAKE_HW_SCALE");
     qunsetenv("FB_FAKE_HW_BOTTOM_LEFT");
-    qunsetenv("FRAMEBEAM_SYNC_READBACK");
+    qunsetenv("UZUME_SYNC_READBACK");
   }
 
   void limitClearedAndNeverUpscaled() {
@@ -1246,14 +1246,14 @@ class HwRenderTest : public QObject {
   void encodeSurvivesAStaleGlErrorFromTheCore() {
     QFETCH(bool, syncReadback);
     qputenv("FB_FAKE_HW_GLERROR", "1");  // the core leaves GL_INVALID_ENUM pending after every frame
-    if (syncReadback) qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+    if (syncReadback) qputenv("UZUME_SYNC_READBACK", "1");
     QTemporaryFile rom;
     LibretroBackend be;
     loadFake(be, rom);
     auto t = std::make_shared<FakeTarget>();
     be.setGpuEncodeTarget(t);
     runFrames(be, 6);
-    qunsetenv("FRAMEBEAM_SYNC_READBACK");
+    qunsetenv("UZUME_SYNC_READBACK");
     qunsetenv("FB_FAKE_HW_GLERROR");
     QCOMPARE(t->count(QStringLiteral("capture")), 5);  // neither the texture creation nor the blit saw the stale error
     QCOMPARE(t->count(QStringLiteral("fail")), 0);
@@ -1345,7 +1345,7 @@ class HwRenderTest : public QObject {
   // ---------------------------------------------------------------- zero-copy display (ADR 0027)
 
   // The display texture holds the same image as a 1:1 readback: orientation, colours and the top-left placement inside the
-  // larger texture. FRAMEBEAM_SYNC_READBACK makes the readback the current frame, so the whole image can be compared.
+  // larger texture. UZUME_SYNC_READBACK makes the readback the current frame, so the whole image can be compared.
   void displayTextureIsTopDownAndMatchesReadback_data() {
     QTest::addColumn<bool>("bottomLeft");
     QTest::newRow("bottom-left core") << true;
@@ -1355,12 +1355,12 @@ class HwRenderTest : public QObject {
   void displayTextureIsTopDownAndMatchesReadback() {
     QFETCH(bool, bottomLeft);
     qputenv("FB_FAKE_HW_BOTTOM_LEFT", bottomLeft ? "1" : "0");
-    qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+    qputenv("UZUME_SYNC_READBACK", "1");
     QTemporaryFile rom;
     LibretroBackend be;
     loadFake(be, rom);
     qunsetenv("FB_FAKE_HW_BOTTOM_LEFT");
-    qunsetenv("FRAMEBEAM_SYNC_READBACK");
+    qunsetenv("UZUME_SYNC_READBACK");
     QCOMPARE(be.lastDisplayMs(), 0.0);
     QVERIFY(!be.lastDisplayed());
     auto t = std::make_shared<FakeDisplay>();
@@ -1390,12 +1390,12 @@ class HwRenderTest : public QObject {
 
   void displayScalesIntoTheLimitAndGrowsTheTexture() {
     qputenv("FB_FAKE_HW_SCALE", "4");  // 256x192, the core leaves GL_SCISSOR_TEST enabled
-    qputenv("FRAMEBEAM_SYNC_READBACK", "1");
+    qputenv("UZUME_SYNC_READBACK", "1");
     QTemporaryFile rom;
     LibretroBackend be;
     loadFake(be, rom);
     qunsetenv("FB_FAKE_HW_SCALE");
-    qunsetenv("FRAMEBEAM_SYNC_READBACK");
+    qunsetenv("UZUME_SYNC_READBACK");
     auto t = std::make_shared<FakeDisplay>();
     be.setGpuDisplayTarget(t);
     be.setDisplayLimit(QSize(64, 48));

@@ -3,7 +3,7 @@
 - Project: Lua, https://www.lua.org/ (git: https://github.com/lua/lua, tag `v5.4.7`)
 - Version: 5.4.7 (`LUA_VERSION_RELEASE "7"`)
 - Licence: MIT (full text in the copyright notice at the end of `lua.h`; Copyright (C) 1994-2024 Lua.org, PUC-Rio)
-- Used for: the FrameBeam Player plugin runtime (`client/plugins/`), compiled as C++ so that `lua_error` unwinds with C++ exceptions and destructors run.
+- Used for: the Uzume plugin runtime (`client/plugins/`), compiled as C++ so that `lua_error` unwinds with C++ exceptions and destructors run.
 
 ## Provenance
 
@@ -21,6 +21,6 @@ directory `lua-5.4.7/`), which bundles the official 5.4.7 sources.
 
 Only the library sources and headers. Left out: `lua.c`, `luac.c`, `onelua.c`, `ltests.*`, `testes/`, `manual/`, and the
 libraries the sandbox never opens (`linit.c`, `liolib.c`, `loslib.c`, `loadlib.c`, `ldblib.c`).
-The files are unmodified except for one commented patch in `lstrlib.c` (search "FrameBeam patch"): `match()` calls
+The files are unmodified except for one commented patch in `lstrlib.c` (search "Uzume patch"): `match()` calls
 `fbMatchBudget(L)` every 1024 steps, so the sandbox can abort pattern matching that runs for seconds inside one C call
 (`client/plugins/lua_sandbox.cpp`). Keep the patch when updating Lua.

@@ -42,10 +42,10 @@ extern "C" {
 }
 #endif
 
-namespace framebeam {
+namespace uzume {
 
 namespace {
-Q_LOGGING_CATEGORY(lcD3dCap, "framebeam.gpuencode")
+Q_LOGGING_CATEGORY(lcD3dCap, "uzume.gpuencode")
 
 constexpr unsigned kVendorAmd = 0x1002;
 constexpr unsigned kVendorIntel = 0x8086;
@@ -778,4 +778,4 @@ D3d11EncodeCapture::Kind D3d11EncodeCapture::kind() const {
 #endif
 }
 
-}  // namespace framebeam
+}  // namespace uzume
