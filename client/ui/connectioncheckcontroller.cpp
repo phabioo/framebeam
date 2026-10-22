@@ -159,6 +159,7 @@ void ConnectionCheckController::run() {
   running_ = true;
   stepNumber_ = 1;
   attachedCurrent_ = false;
+  reportMark_ = false;
   copied_ = false;
   emit changed();
   QMetaObject::invokeMethod(worker_, [w = worker_, t]() { w->run(t); }, Qt::QueuedConnection);
@@ -182,6 +183,7 @@ void ConnectionCheckController::addToReport() {
   if (!canAttach()) return;
   attachment_ = QJsonDocument(result_.toJson()).toJson(QJsonDocument::Indented);
   attachedCurrent_ = true;
+  reportMark_ = true;
   emit changed();
 }
 

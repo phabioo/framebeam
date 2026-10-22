@@ -128,6 +128,7 @@ type Service struct {
 	bus    eventBus
 	runs   runState
 	bk     backupState
+	rep    reportState
 
 	localMu     sync.Mutex // local setup defaults
 	localDef    LocalDefaults
@@ -172,6 +173,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	s.SetPluginInUseCheck(s.RunsUsingPluginVersion)
 	s.PruneOldPlugins(ctx) // clean up Hubs that already hold superseded versions
 	if o.CleanStaging {
+		s.cleanReportStaging()
 		s.cleanStaging()
 	}
 	for _, d := range []string{"roms", "tmp"} {

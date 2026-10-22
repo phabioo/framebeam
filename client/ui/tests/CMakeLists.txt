@@ -55,6 +55,12 @@ framebeam_add_test(ui_connection_check connection_check_ui_test.cpp ${FB_NETTEST
 target_include_directories(test_ui_connection_check PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_connection_check PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# "Report a problem" (0.17): dialog state machine, attachments, upload against the FakeHub, Save as file (no core needed).
+framebeam_add_test(ui_report report_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_report PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_report PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
 # SettingsRow in isolation (grid, dot slot, More / Less, segment -> select, disabled reason, narrow); no hub, no core.
 framebeam_add_test(ui_settings_row settings_row_ui_test.cpp LIBS ${FB_UI_TEST_LIBS})
 
@@ -238,7 +244,7 @@ target_compile_definitions(test_ui_runs PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_D
 # that only fit with Linux font metrics (Windows CI renders wider; 16 px letter spacing is about the Windows fallback font).
 # Not on Windows: its fonts are already the wide case, extra spacing there tests something no user sees.
 if(NOT WIN32)
-  foreach(t ui_shell_layout ui_library_saves ui_ingame ui_plugin_slots ui_settings_row ui_screens ui_plugins ui_connection_check)
+  foreach(t ui_shell_layout ui_library_saves ui_ingame ui_plugin_slots ui_settings_row ui_screens ui_plugins ui_connection_check ui_report)
     add_test(NAME ${t}_widefont COMMAND test_${t})
     set_tests_properties(${t}_widefont PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;FRAMEBEAM_TEST_WIDE_FONT=16")
   endforeach()

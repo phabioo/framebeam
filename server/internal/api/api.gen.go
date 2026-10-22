@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"time"
 
@@ -96,6 +97,42 @@ func (e AdminProblemSeverity) Valid() bool {
 	case AdminProblemSeverityError:
 		return true
 	case AdminProblemSeverityWarn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminReportStatus.
+const (
+	AdminReportStatusNew  AdminReportStatus = "new"
+	AdminReportStatusSeen AdminReportStatus = "seen"
+)
+
+// Valid indicates whether the value is a known member of the AdminReportStatus enum.
+func (e AdminReportStatus) Valid() bool {
+	switch e {
+	case AdminReportStatusNew:
+		return true
+	case AdminReportStatusSeen:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminReportSummaryStatus.
+const (
+	AdminReportSummaryStatusNew  AdminReportSummaryStatus = "new"
+	AdminReportSummaryStatusSeen AdminReportSummaryStatus = "seen"
+)
+
+// Valid indicates whether the value is a known member of the AdminReportSummaryStatus enum.
+func (e AdminReportSummaryStatus) Valid() bool {
+	switch e {
+	case AdminReportSummaryStatusNew:
+		return true
+	case AdminReportSummaryStatusSeen:
 		return true
 	default:
 		return false
@@ -804,6 +841,24 @@ func (e TokenResponseTokenType) Valid() bool {
 	}
 }
 
+// Defines values for ListAdminReportsParamsStatus.
+const (
+	New  ListAdminReportsParamsStatus = "new"
+	Seen ListAdminReportsParamsStatus = "seen"
+)
+
+// Valid indicates whether the value is a known member of the ListAdminReportsParamsStatus enum.
+func (e ListAdminReportsParamsStatus) Valid() bool {
+	switch e {
+	case New:
+		return true
+	case Seen:
+		return true
+	default:
+		return false
+	}
+}
+
 // AdminBackup defines model for AdminBackup.
 type AdminBackup struct {
 	// Contents For example "Database · saves · plugins · ROMs"
@@ -958,6 +1013,70 @@ type AdminProblem struct {
 
 // AdminProblemSeverity defines model for AdminProblem.Severity.
 type AdminProblemSeverity string
+
+// AdminReport defines model for AdminReport.
+type AdminReport struct {
+	CreatedAt          time.Time         `json:"created_at"`
+	Description        string            `json:"description"`
+	Device             string            `json:"device"`
+	FileCount          int               `json:"file_count"`
+	Files              []AdminReportFile `json:"files"`
+	HasConnectionCheck *bool             `json:"has_connection_check,omitempty"`
+	Id                 int64             `json:"id"`
+	LinkedEventTime    *time.Time        `json:"linked_event_time,omitempty"`
+	LinkedEventTitle   *string           `json:"linked_event_title,omitempty"`
+	Os                 *string           `json:"os,omitempty"`
+	PlayerVersion      *string           `json:"player_version,omitempty"`
+	SeenAt             *time.Time        `json:"seen_at,omitempty"`
+
+	// Size Bytes of all attachments
+	Size   int64             `json:"size"`
+	Status AdminReportStatus `json:"status"`
+
+	// Title First line of the description
+	Title string `json:"title"`
+	User  string `json:"user"`
+}
+
+// AdminReportStatus defines model for AdminReport.Status.
+type AdminReportStatus string
+
+// AdminReportFile defines model for AdminReportFile.
+type AdminReportFile struct {
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+}
+
+// AdminReportList defines model for AdminReportList.
+type AdminReportList struct {
+	CountAll  int                  `json:"count_all"`
+	CountNew  int                  `json:"count_new"`
+	CountSeen int                  `json:"count_seen"`
+	Reports   []AdminReportSummary `json:"reports"`
+}
+
+// AdminReportSummary defines model for AdminReportSummary.
+type AdminReportSummary struct {
+	CreatedAt          time.Time `json:"created_at"`
+	Device             string    `json:"device"`
+	FileCount          int       `json:"file_count"`
+	HasConnectionCheck *bool     `json:"has_connection_check,omitempty"`
+	Id                 int64     `json:"id"`
+	LinkedEventTitle   *string   `json:"linked_event_title,omitempty"`
+	Os                 *string   `json:"os,omitempty"`
+	PlayerVersion      *string   `json:"player_version,omitempty"`
+
+	// Size Bytes of all attachments
+	Size   int64                    `json:"size"`
+	Status AdminReportSummaryStatus `json:"status"`
+
+	// Title First line of the description
+	Title string `json:"title"`
+	User  string `json:"user"`
+}
+
+// AdminReportSummaryStatus defines model for AdminReportSummary.Status.
+type AdminReportSummaryStatus string
 
 // AdminRestoreResult defines model for AdminRestoreResult.
 type AdminRestoreResult struct {
@@ -1250,7 +1369,7 @@ type HandshakeRequest_Video struct {
 type HandshakeResponse struct {
 	Compatible bool `json:"compatible"`
 
-	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
+	// Features Optional Hub feature flags (additive, protocol_version unchanged). `saves_v1` = save sync API, `sessions_v1` = Sessions API and WSS endpoint, `users_v1` = invite redemption (`POST /invites/redeem`) and user management, `uploads_v1` = the calling user may upload ROMs (`POST /games`; advertised per caller), `firmware_v1` = systems registry and firmware download, `cores_v1` = signed core packages served by the Hub (`/api/v1/cores/...`, `core_package_version` in `SystemInfo`), `turn_v1` = at least one relay provider is on (the embedded TURN server and/or Cloudflare TURN; `turn_servers` in `hello_ack`, `ice_update` and the join response), `saves_v2` = save restore, manual snapshots, history labels and the `save_updated` WSS message, `saves_v3` = deleting manual snapshots (`DELETE /games/{game_id}/saves/{slot}/history/{version}`), `saves_v4` = uploading a save file into a slot (`POST /games/{game_id}/saves/{slot}/upload`), `saves_v5` = renaming a slot (`POST /games/{game_id}/saves/{slot}/rename`), deleting a slot (`DELETE /games/{game_id}/saves/{slot}`), `save_updated` reasons `renamed` and `deleted`, and 409 `session_running` on `saves_v4` uploads while a Session of the game runs, `saves_v6` = deleting any history version (before it only manual snapshots) and the main slot `default` (before it only other slots; renaming `default` stays refused), `cores_v2` = several cores per system (`default_core_id` and `cores` in `SystemInfo`; core ids follow `^[a-z0-9][a-z0-9_-]{0,63}$`), `ice_update_v1` = the Hub pushes the WSS message `ice_update` whenever its effective ICE configuration changes, `plugins_v1` = plugin list and download (`GET /plugins`, `GET /plugins/{plugin_id}/{version}/file`), `runs_v1` = runs, `local_roms_v1` = local-only games and resumable uploads (`POST /games/register`, `DELETE /games/{game_id}/registration`, `/uploads`; `stored`, `on_hub`, `roms`, `game_version`; `GET /roms/{sha256}` serves stored files only), `reports_v1` = problem reports (`POST /reports`; the admin endpoints under `/admin/reports`). `cores_index_v1` (signed core index) existed in 0.4 to 0.7 and was removed in 0.8.
 	Features           *[]string          `json:"features,omitempty"`
 	HubVersion         string             `json:"hub_version"`
 	MinProtocolVersion int                `json:"min_protocol_version"`
@@ -1486,6 +1605,28 @@ type RegisterGameRequest struct {
 
 	// Title Default is the file name without extension
 	Title *string `json:"title,omitempty"`
+}
+
+// ReportCreated defines model for ReportCreated.
+type ReportCreated struct {
+	// Id Report number shown as `#12`
+	Id int64 `json:"id"`
+}
+
+// ReportMeta defines model for ReportMeta.
+type ReportMeta struct {
+	// Description What happened, in the user's words
+	Description string `json:"description"`
+
+	// LinkedEvent The event the report is about (for example the error banner the user came from)
+	LinkedEvent *struct {
+		Time  *time.Time `json:"time,omitempty"`
+		Title string     `json:"title"`
+	} `json:"linked_event,omitempty"`
+
+	// Os For example `Windows 11`
+	Os            *string `json:"os,omitempty"`
+	PlayerVersion *string `json:"player_version,omitempty"`
 }
 
 // RomInfo defines model for RomInfo.
@@ -2116,6 +2257,15 @@ type bearerAuthContextKey string
 // pollTokenAuthContextKey is the context key for pollTokenAuth security scheme
 type pollTokenAuthContextKey string
 
+// ListAdminReportsParams defines parameters for ListAdminReports.
+type ListAdminReportsParams struct {
+	// Status Only reports with this status; the counts always cover all reports
+	Status *ListAdminReportsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListAdminReportsParamsStatus defines parameters for ListAdminReports.
+type ListAdminReportsParamsStatus string
+
 // GetCorePackageFileParams defines parameters for GetCorePackageFile.
 type GetCorePackageFileParams struct {
 	IfNoneMatch *string `json:"If-None-Match,omitempty"`
@@ -2158,6 +2308,12 @@ type UploadSaveFileParams struct {
 // GetPluginFileParams defines parameters for GetPluginFile.
 type GetPluginFileParams struct {
 	IfNoneMatch *string `json:"If-None-Match,omitempty"`
+}
+
+// CreateReportMultipartBody defines parameters for CreateReport.
+type CreateReportMultipartBody struct {
+	Files *[]openapi_types.File `json:"files,omitempty"`
+	Meta  ReportMeta            `json:"meta"`
 }
 
 // DownloadRomParams defines parameters for DownloadRom.
@@ -2217,6 +2373,9 @@ type LocalSetupJSONRequestBody = LocalPairRequest
 
 // CreatePairingRequestJSONRequestBody defines body for CreatePairingRequest for application/json ContentType.
 type CreatePairingRequestJSONRequestBody = PairingRequestCreate
+
+// CreateReportMultipartRequestBody defines body for CreateReport for multipart/form-data ContentType.
+type CreateReportMultipartRequestBody CreateReportMultipartBody
 
 // CreateRunJSONRequestBody defines body for CreateRun for application/json ContentType.
 type CreateRunJSONRequestBody = RunCreateRequest
@@ -2765,6 +2924,24 @@ type ServerInterface interface {
 	// Create a new metrics token (admin only)
 	// (POST /api/v1/admin/metrics/token)
 	CreateAdminMetricsToken(w http.ResponseWriter, r *http.Request)
+	// List problem reports, newest first (admin only, `reports_v1`)
+	// (GET /api/v1/admin/reports)
+	ListAdminReports(w http.ResponseWriter, r *http.Request, params ListAdminReportsParams)
+	// Delete a problem report and its files (admin only)
+	// (DELETE /api/v1/admin/reports/{id})
+	DeleteAdminReport(w http.ResponseWriter, r *http.Request, id int64)
+	// One problem report with its description and file list (admin only)
+	// (GET /api/v1/admin/reports/{id})
+	GetAdminReport(w http.ResponseWriter, r *http.Request, id int64)
+	// Download all attachments and the description as one zip (admin only)
+	// (GET /api/v1/admin/reports/{id}/archive)
+	GetAdminReportArchive(w http.ResponseWriter, r *http.Request, id int64)
+	// Download one attachment (admin only)
+	// (GET /api/v1/admin/reports/{id}/files/{name})
+	GetAdminReportFile(w http.ResponseWriter, r *http.Request, id int64, name string)
+	// Mark a problem report as seen (admin only)
+	// (POST /api/v1/admin/reports/{id}/seen)
+	MarkAdminReportSeen(w http.ResponseWriter, r *http.Request, id int64)
 	// Hub health (admin only)
 	// (GET /api/v1/admin/status)
 	GetAdminStatus(w http.ResponseWriter, r *http.Request)
@@ -2864,6 +3041,9 @@ type ServerInterface interface {
 	// Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
 	// (GET /api/v1/plugins/{plugin_id}/{version}/file)
 	GetPluginFile(w http.ResponseWriter, r *http.Request, pluginId PluginId, version PluginVersion, params GetPluginFileParams)
+	// Send a problem report to the Hub (`reports_v1`)
+	// (POST /api/v1/reports)
+	CreateReport(w http.ResponseWriter, r *http.Request)
 	// ROM download (range support). Only files stored on the Hub (`stored`); a file that is only registered as local is 404.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(w http.ResponseWriter, r *http.Request, sha256 string, params DownloadRomParams)
@@ -3272,6 +3452,214 @@ func (siw *ServerInterfaceWrapper) CreateAdminMetricsToken(w http.ResponseWriter
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateAdminMetricsToken(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAdminReports operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminReports(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAdminReportsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminReports(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAdminReport operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdminReport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdminReport(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminReport operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminReport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminReport(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminReportArchive operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminReportArchive(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminReportArchive(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminReportFile operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminReportFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "name" -------------
+	var name string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", r.PathValue("name"), &name, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminReportFile(w, r, id, name)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MarkAdminReportSeen operation middleware
+func (siw *ServerInterfaceWrapper) MarkAdminReportSeen(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MarkAdminReportSeen(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4540,6 +4928,26 @@ func (siw *ServerInterfaceWrapper) GetPluginFile(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// CreateReport operation middleware
+func (siw *ServerInterfaceWrapper) CreateReport(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateReport(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DownloadRom operation middleware
 func (siw *ServerInterfaceWrapper) DownloadRom(w http.ResponseWriter, r *http.Request) {
 
@@ -5725,6 +6133,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/metrics", wrapper.GetAdminMetrics)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/admin/metrics", wrapper.SetAdminMetrics)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/metrics/token", wrapper.CreateAdminMetricsToken)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/reports", wrapper.ListAdminReports)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/reports/{id}", wrapper.DeleteAdminReport)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/reports/{id}", wrapper.GetAdminReport)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/reports/{id}/archive", wrapper.GetAdminReportArchive)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/reports/{id}/files/{name}", wrapper.GetAdminReportFile)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/reports/{id}/seen", wrapper.MarkAdminReportSeen)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/status", wrapper.GetAdminStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/status/log", wrapper.GetAdminStatusLog)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
@@ -5758,6 +6172,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/pairing/requests/{request_id}", wrapper.GetPairingRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/plugins", wrapper.ListPlugins)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/plugins/{plugin_id}/{version}/file", wrapper.GetPluginFile)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/reports", wrapper.CreateReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/roms/{sha256}", wrapper.DownloadRom)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs", wrapper.ListRuns)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs", wrapper.CreateRun)
@@ -6672,6 +7087,501 @@ func (response CreateAdminMetricsToken403JSONResponse) VisitCreateAdminMetricsTo
 type CreateAdminMetricsToken429JSONResponse struct{ RateLimitedJSONResponse }
 
 func (response CreateAdminMetricsToken429JSONResponse) VisitCreateAdminMetricsTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminReportsRequestObject struct {
+	Params ListAdminReportsParams
+}
+
+type ListAdminReportsResponseObject interface {
+	VisitListAdminReportsResponse(w http.ResponseWriter) error
+}
+
+type ListAdminReports200JSONResponse AdminReportList
+
+func (response ListAdminReports200JSONResponse) VisitListAdminReportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminReports400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListAdminReports400JSONResponse) VisitListAdminReportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminReports401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminReports401JSONResponse) VisitListAdminReportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminReports403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminReports403JSONResponse) VisitListAdminReportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminReports429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response ListAdminReports429JSONResponse) VisitListAdminReportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminReportRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type DeleteAdminReportResponseObject interface {
+	VisitDeleteAdminReportResponse(w http.ResponseWriter) error
+}
+
+type DeleteAdminReport204Response struct {
+}
+
+func (response DeleteAdminReport204Response) VisitDeleteAdminReportResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAdminReport401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteAdminReport401JSONResponse) VisitDeleteAdminReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminReport403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeleteAdminReport403JSONResponse) VisitDeleteAdminReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminReport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteAdminReport404JSONResponse) VisitDeleteAdminReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminReport429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response DeleteAdminReport429JSONResponse) VisitDeleteAdminReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReportRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type GetAdminReportResponseObject interface {
+	VisitGetAdminReportResponse(w http.ResponseWriter) error
+}
+
+type GetAdminReport200JSONResponse AdminReport
+
+func (response GetAdminReport200JSONResponse) VisitGetAdminReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReport401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminReport401JSONResponse) VisitGetAdminReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReport403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminReport403JSONResponse) VisitGetAdminReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetAdminReport404JSONResponse) VisitGetAdminReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReport429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response GetAdminReport429JSONResponse) VisitGetAdminReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReportArchiveRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type GetAdminReportArchiveResponseObject interface {
+	VisitGetAdminReportArchiveResponse(w http.ResponseWriter) error
+}
+
+type GetAdminReportArchive200ResponseHeaders struct {
+	ContentDisposition *string
+}
+
+type GetAdminReportArchive200ApplicationzipResponse struct {
+	Body          io.Reader
+	Headers       GetAdminReportArchive200ResponseHeaders
+	ContentLength int64
+}
+
+func (response GetAdminReportArchive200ApplicationzipResponse) VisitGetAdminReportArchiveResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/zip")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetAdminReportArchive401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminReportArchive401JSONResponse) VisitGetAdminReportArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReportArchive403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminReportArchive403JSONResponse) VisitGetAdminReportArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReportArchive404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetAdminReportArchive404JSONResponse) VisitGetAdminReportArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReportArchive429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response GetAdminReportArchive429JSONResponse) VisitGetAdminReportArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReportFileRequestObject struct {
+	Id   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+type GetAdminReportFileResponseObject interface {
+	VisitGetAdminReportFileResponse(w http.ResponseWriter) error
+}
+
+type GetAdminReportFile200ResponseHeaders struct {
+	ContentDisposition *string
+	ContentLength      *int64
+}
+
+type GetAdminReportFile200ApplicationoctetStreamResponse struct {
+	Body          io.Reader
+	Headers       GetAdminReportFile200ResponseHeaders
+	ContentLength int64
+}
+
+func (response GetAdminReportFile200ApplicationoctetStreamResponse) VisitGetAdminReportFileResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	if response.Headers.ContentLength != nil {
+		w.Header().Set("Content-Length", fmt.Sprint(*response.Headers.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetAdminReportFile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminReportFile401JSONResponse) VisitGetAdminReportFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReportFile403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminReportFile403JSONResponse) VisitGetAdminReportFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReportFile404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetAdminReportFile404JSONResponse) VisitGetAdminReportFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminReportFile429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response GetAdminReportFile429JSONResponse) VisitGetAdminReportFileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkAdminReportSeenRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type MarkAdminReportSeenResponseObject interface {
+	VisitMarkAdminReportSeenResponse(w http.ResponseWriter) error
+}
+
+type MarkAdminReportSeen200JSONResponse AdminReport
+
+func (response MarkAdminReportSeen200JSONResponse) VisitMarkAdminReportSeenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkAdminReportSeen401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response MarkAdminReportSeen401JSONResponse) VisitMarkAdminReportSeenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkAdminReportSeen403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response MarkAdminReportSeen403JSONResponse) VisitMarkAdminReportSeenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkAdminReportSeen404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response MarkAdminReportSeen404JSONResponse) VisitMarkAdminReportSeenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkAdminReportSeen429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response MarkAdminReportSeen429JSONResponse) VisitMarkAdminReportSeenResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -9188,6 +10098,84 @@ func (response GetPluginFile404JSONResponse) VisitGetPluginFileResponse(w http.R
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateReportRequestObject struct {
+	Body *multipart.Reader
+}
+
+type CreateReportResponseObject interface {
+	VisitCreateReportResponse(w http.ResponseWriter) error
+}
+
+type CreateReport201JSONResponse ReportCreated
+
+func (response CreateReport201JSONResponse) VisitCreateReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateReport400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateReport400JSONResponse) VisitCreateReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateReport401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateReport401JSONResponse) VisitCreateReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateReport413JSONResponse struct{ TooLargeJSONResponse }
+
+func (response CreateReport413JSONResponse) VisitCreateReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateReport429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response CreateReport429JSONResponse) VisitCreateReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -11735,6 +12723,24 @@ type StrictServerInterface interface {
 	// Create a new metrics token (admin only)
 	// (POST /api/v1/admin/metrics/token)
 	CreateAdminMetricsToken(ctx context.Context, request CreateAdminMetricsTokenRequestObject) (CreateAdminMetricsTokenResponseObject, error)
+	// List problem reports, newest first (admin only, `reports_v1`)
+	// (GET /api/v1/admin/reports)
+	ListAdminReports(ctx context.Context, request ListAdminReportsRequestObject) (ListAdminReportsResponseObject, error)
+	// Delete a problem report and its files (admin only)
+	// (DELETE /api/v1/admin/reports/{id})
+	DeleteAdminReport(ctx context.Context, request DeleteAdminReportRequestObject) (DeleteAdminReportResponseObject, error)
+	// One problem report with its description and file list (admin only)
+	// (GET /api/v1/admin/reports/{id})
+	GetAdminReport(ctx context.Context, request GetAdminReportRequestObject) (GetAdminReportResponseObject, error)
+	// Download all attachments and the description as one zip (admin only)
+	// (GET /api/v1/admin/reports/{id}/archive)
+	GetAdminReportArchive(ctx context.Context, request GetAdminReportArchiveRequestObject) (GetAdminReportArchiveResponseObject, error)
+	// Download one attachment (admin only)
+	// (GET /api/v1/admin/reports/{id}/files/{name})
+	GetAdminReportFile(ctx context.Context, request GetAdminReportFileRequestObject) (GetAdminReportFileResponseObject, error)
+	// Mark a problem report as seen (admin only)
+	// (POST /api/v1/admin/reports/{id}/seen)
+	MarkAdminReportSeen(ctx context.Context, request MarkAdminReportSeenRequestObject) (MarkAdminReportSeenResponseObject, error)
 	// Hub health (admin only)
 	// (GET /api/v1/admin/status)
 	GetAdminStatus(ctx context.Context, request GetAdminStatusRequestObject) (GetAdminStatusResponseObject, error)
@@ -11834,6 +12840,9 @@ type StrictServerInterface interface {
 	// Download the `.fbplugin` file of an offered plugin version (`plugins_v1`, any trusted device)
 	// (GET /api/v1/plugins/{plugin_id}/{version}/file)
 	GetPluginFile(ctx context.Context, request GetPluginFileRequestObject) (GetPluginFileResponseObject, error)
+	// Send a problem report to the Hub (`reports_v1`)
+	// (POST /api/v1/reports)
+	CreateReport(ctx context.Context, request CreateReportRequestObject) (CreateReportResponseObject, error)
 	// ROM download (range support). Only files stored on the Hub (`stored`); a file that is only registered as local is 404.
 	// (GET /api/v1/roms/{sha256})
 	DownloadRom(ctx context.Context, request DownloadRomRequestObject) (DownloadRomResponseObject, error)
@@ -12310,6 +13319,163 @@ func (sh *strictHandler) CreateAdminMetricsToken(w http.ResponseWriter, r *http.
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateAdminMetricsTokenResponseObject); ok {
 		if err := validResponse.VisitCreateAdminMetricsTokenResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAdminReports operation middleware
+func (sh *strictHandler) ListAdminReports(w http.ResponseWriter, r *http.Request, params ListAdminReportsParams) {
+	var request ListAdminReportsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminReports(ctx, request.(ListAdminReportsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminReports")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdminReportsResponseObject); ok {
+		if err := validResponse.VisitListAdminReportsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAdminReport operation middleware
+func (sh *strictHandler) DeleteAdminReport(w http.ResponseWriter, r *http.Request, id int64) {
+	var request DeleteAdminReportRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAdminReport(ctx, request.(DeleteAdminReportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAdminReport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteAdminReportResponseObject); ok {
+		if err := validResponse.VisitDeleteAdminReportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminReport operation middleware
+func (sh *strictHandler) GetAdminReport(w http.ResponseWriter, r *http.Request, id int64) {
+	var request GetAdminReportRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminReport(ctx, request.(GetAdminReportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminReport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminReportResponseObject); ok {
+		if err := validResponse.VisitGetAdminReportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminReportArchive operation middleware
+func (sh *strictHandler) GetAdminReportArchive(w http.ResponseWriter, r *http.Request, id int64) {
+	var request GetAdminReportArchiveRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminReportArchive(ctx, request.(GetAdminReportArchiveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminReportArchive")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminReportArchiveResponseObject); ok {
+		if err := validResponse.VisitGetAdminReportArchiveResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminReportFile operation middleware
+func (sh *strictHandler) GetAdminReportFile(w http.ResponseWriter, r *http.Request, id int64, name string) {
+	var request GetAdminReportFileRequestObject
+
+	request.Id = id
+	request.Name = name
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminReportFile(ctx, request.(GetAdminReportFileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminReportFile")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminReportFileResponseObject); ok {
+		if err := validResponse.VisitGetAdminReportFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// MarkAdminReportSeen operation middleware
+func (sh *strictHandler) MarkAdminReportSeen(w http.ResponseWriter, r *http.Request, id int64) {
+	var request MarkAdminReportSeenRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.MarkAdminReportSeen(ctx, request.(MarkAdminReportSeenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MarkAdminReportSeen")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(MarkAdminReportSeenResponseObject); ok {
+		if err := validResponse.VisitMarkAdminReportSeenResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -13260,6 +14426,37 @@ func (sh *strictHandler) GetPluginFile(w http.ResponseWriter, r *http.Request, p
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetPluginFileResponseObject); ok {
 		if err := validResponse.VisitGetPluginFileResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateReport operation middleware
+func (sh *strictHandler) CreateReport(w http.ResponseWriter, r *http.Request) {
+	var request CreateReportRequestObject
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateReport(ctx, request.(CreateReportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateReport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateReportResponseObject); ok {
+		if err := validResponse.VisitCreateReportResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

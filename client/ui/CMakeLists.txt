@@ -33,6 +33,7 @@ qt_add_qml_module(framebeam_ui
     sessioncontroller.h sessioncontroller.cpp
     remoteview.h remoteview.cpp
     updatescontroller.h updatescontroller.cpp
+    reportcontroller.h reportcontroller.cpp
     savehistorycontroller.h savehistorycontroller.cpp
     localhubcontroller.h localhubcontroller.cpp
     pluginruntime.h pluginruntime.cpp
@@ -105,6 +106,8 @@ qt_add_qml_module(framebeam_ui
     SortControl.qml
     SaveFileDialog.qml
     CollectLogsDialog.qml
+    ReportProblemDialog.qml
+    ReportSaveDialog.qml
     LocalHubForm.qml
     LocalHubCard.qml
     LocalFolderDialog.qml

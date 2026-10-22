@@ -137,6 +137,21 @@ class FakeHub : public QTcpServer {
   int failPutNumber = -1;                      // the Nth (1-based) chunk PUT answers 503 and is not stored
   int uploadSessionsCreated = 0;
 
+  // Problem reports (reports_v1): POST /reports with a multipart body (meta part first, then the files).
+  struct ReceivedReport {
+    QJsonObject meta;
+    QMap<QString, QByteArray> files;  // file name -> content
+    QByteArray authorization;
+  };
+  QList<ReceivedReport> reports;
+  int reportFailNext = 0;            // next N report POSTs answer reportFailStatus and are not stored
+  int reportFailStatus = 503;
+  int reportDropNext = 0;            // next N report POSTs are read completely, then the connection is closed unanswered
+  bool holdReports = false;          // report POSTs stay unanswered (cancel tests)
+  int reportsHeld = 0;
+  int reportUnauthorizedNext = 0;    // next N report POSTs answer 401
+  int reportRequests() const { return count(QStringLiteral("/api/v1/reports"), "POST"); }
+
   // Saves (saves_v1)
   QStringList features{QStringLiteral("saves_v1")};  // handshake features
   // game_id -> slot "default"; other slots under the key "<game_id>/<slot>" (slotKey()).

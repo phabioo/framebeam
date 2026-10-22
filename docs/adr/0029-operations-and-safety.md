@@ -1,6 +1,6 @@
 # ADR 0029: Operations and safety
 
-- Status: Accepted for D1 and D2; further decisions (update rollback, problem reports, connection assistant, Hub health) follow in later 0.17 PRs
+- Status: Accepted for D1, D2, D3 and D5; further decisions (update rollback, Hub health) follow in later 0.17 PRs
 - Date: 2026-10-22
 - Deciders: Fabio
 
@@ -30,11 +30,21 @@ Roadmap 0.17 ([roadmap.md](../roadmap.md)) collects the operations items that ma
 - **Restart.** The Hub restarts itself with the existing mechanism (graceful shutdown, then `exec` of the same binary on Unix, an in-process restart on Windows), so no `Restart=` or Docker restart policy is needed; `Restart=on-failure` stays as the safety net.
 - **Interfaces.** The CLI (`backup`, `backup list|config|verify`, `restore`) and the admin REST API `/api/v1/admin/backups` (OpenAPI 1.24.0) are the primary interfaces; Settings → Backups is a plain page on the same service functions. The Status page gets a "Disk · backup" card and the problems "Backup failed" and "Cannot write" (both amber, shown in the banner and the sidebar badge).
 
+### D3 Problem reports
+
+- **Destination.** A Player sends a report only to the Hub it is connected to (its own Hub), never to a third party; the Hub never forwards it. Reports are kept until an admin deletes them.
+- **API first.** `POST /api/v1/reports` (any paired device, handshake feature `reports_v1`, `multipart/form-data`: JSON part `meta`, then files) and admin endpoints for list, get, file, zip archive, seen and delete. The Hub web page is a plain view of it, because admin moves into the Player app.
+- **Content.** A short description plus attachments chosen in the Player: logs of the last 3 days, redacted settings, an optional connection check, optional system info. Never passwords, the Hub pairing token, ROMs or saves. The Player redacts before sending; the Hub redacts text attachments again (shared package `internal/redact`, also used by the diagnostics bundle).
+- **Limits.** 25 MB and 12 files per report, 8000 characters of text, 5 reports per device and hour. File names are reduced to their base name; the Hub logs only id and device.
+- **Storage.** Tables `reports` and `report_files` (migration 0019), files under `<data>/reports/<id>/`, written in a staging directory and renamed, so a crash leaves no half report.
+- **Status.** New reports raise only the ADMIN → Reports nav badge ("n new"), not a Status problem. Opening does not mark seen; "Mark as seen" does.
+- **Offline.** If the Hub is unreachable the Player keeps the dialog, retries once the connection is back, and offers "Save as file…" with the same zip.
+
 ### D5 Connection check in the Player
 
 - The Player's connection check is its own set of probes (Hub info endpoint with the pinned certificate, STUN binding from one socket to at least two destinations, TURN allocate with the Hub's short-lived credentials and an immediate refresh to free it) plus a WebRTC loopback inside the Player. NAT type comes from comparing the mapped addresses of two destinations for the same socket: equal means endpoint-independent, different means symmetric, and one answer means undetermined.
 - The check claims "direct possible" only as an estimate and says so. It proves the relay path end to end only when the relay is needed. The result is exported as plain text and as JSON (`connection-check.json`). Neither contains relay credentials; both contain addresses and server names.
-- "Add to problem report" attaches the result to the next "Collect logs" bundle once. A Player without an open Hub session stops after step 1, because the Hub's ICE servers are unknown.
+- "Add to problem report" attaches the result to the next "Collect logs" bundle once and marks it for the "Report a problem" dialog (D3), which lists the last result as an attachment and starts it checked when marked. A Player without an open Hub session stops after step 1, because the Hub's ICE servers are unknown.
 - Deviations from 6e: two extra outcomes ("Connections to other networks are not possible from here", "Connect to <Hub> to run the full check"), no "about 30 ms more", NAT labels "Open · endpoint-independent" / "Symmetric NAT" / "Not determined"; entry points Settings → Hubs and Diagnostics.
 
 ## Rejected

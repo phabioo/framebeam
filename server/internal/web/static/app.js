@@ -40,7 +40,7 @@
   "use strict";
   if (!document.getElementById("nav")) return; // login/setup pages have no shell
   if (typeof EventSource === "undefined") return;
-  var topics = ["clients", "saves", "library", "systems", "users", "updates", "runs", "badges"];
+  var topics = ["clients", "saves", "library", "systems", "users", "updates", "runs", "reports", "badges"];
   var src = null, delay = 5000, timer = null;
   function connect() {
     src = new EventSource("/events");

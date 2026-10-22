@@ -28,12 +28,12 @@ func navLabels(gs []navGroup) (eyebrows, labels []string) {
 
 func TestNavGroupsAdmin(t *testing.T) {
 	gs := navGroups(navInput{Admin: true, Active: "status", Conflicts: 1, Firmware: 2, Pending: 1, ActiveRuns: 3, ShowRuns: true,
-		UpdateAvailable: true, StatusProblem: "Disk 92 %"})
+		UpdateAvailable: true, StatusProblem: "Disk 92 %", NewReports: 2})
 	eb, labels := navLabels(gs)
 	if strings.Join(eb, "|") != "|SETUP|ADMIN" {
 		t.Fatalf("eyebrows %q", eb)
 	}
-	if got := strings.Join(labels, ","); got != "Library,Saves,Runs,Plugins,Systems & Cores,Clients,Users,Status,Settings" {
+	if got := strings.Join(labels, ","); got != "Library,Saves,Runs,Plugins,Systems & Cores,Clients,Users,Status,Reports,Settings" {
 		t.Fatalf("order %s", got)
 	}
 	badge := map[string]string{}
@@ -42,7 +42,7 @@ func TestNavGroupsAdmin(t *testing.T) {
 			badge[it.ID] = it.Badge
 		}
 	}
-	want := map[string]string{"saves": "1 conflict", "runs": "3 active", "systems": "2 issues", "clients": "1 request", "status": "Disk 92 %", "settings": "update"}
+	want := map[string]string{"saves": "1 conflict", "runs": "3 active", "systems": "2 issues", "clients": "1 request", "status": "Disk 92 %", "reports": "2 new", "settings": "update"}
 	for id, w := range want {
 		if badge[id] != w {
 			t.Fatalf("badge of %s = %q, want %q", id, badge[id], w)

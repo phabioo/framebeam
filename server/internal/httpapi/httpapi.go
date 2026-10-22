@@ -74,6 +74,9 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 					(r.Method == http.MethodPost && strings.Contains(r.URL.Path, "/saves/") && strings.HasSuffix(r.URL.Path, "/upload")) {
 					limit = hub.MaxSaveBytes + 1 // the service answers 413 payload_too_large
 				}
+				if r.Method == http.MethodPost && r.URL.Path == "/api/v1/reports" {
+					limit = hub.ReportMaxBytes + 1<<20 // attachments plus the multipart framing and meta
+				}
 				if r.Method == http.MethodPost && r.URL.Path == "/api/v1/games" {
 					limit = hub.MaxROMBytes // streamed to disk, never buffered
 				}
@@ -159,6 +162,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"GetAdminStatus", "GetAdminStatusLog", "GetAdminMetrics", "SetAdminMetrics", "CreateAdminMetricsToken",
 			"ListAdminBackups", "StartAdminBackup", "GetAdminBackupStatus", "CancelAdminBackup", "GetAdminBackupSettings", "UpdateAdminBackupSettings",
 			"DismissAdminRestoreResult", "DeleteAdminBackup", "RestoreAdminBackup",
+			"CreateReport", "ListAdminReports", "GetAdminReport", "MarkAdminReportSeen", "DeleteAdminReport", "GetAdminReportFile", "GetAdminReportArchive",
 			"ListRuns", "CreateRun", "GetRun", "JoinRun", "DeclineRun", "LeaveRun", "InviteRun", "SetRunStatus", "PutRunState", "AppendRunEvent", "ListRunEvents", "PutRunBoard":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {
