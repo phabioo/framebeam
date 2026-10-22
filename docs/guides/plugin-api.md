@@ -99,7 +99,7 @@ Everything lives in the global table `fb`.
 
 - `fb.api` is `1`.
 - `fb.plugin` is `{ id, version }`.
-- `fb.game` is `{ system, code, sha256, title, language }`. Any field may be `nil`.
+- `fb.game` is `{ system, code, sha256, title, language }`. Any field may be `nil`. `language` is the plugin UI language as a tag (`en`, `de`, `de-DE`, ...): the Player setting Settings > Plugins > Plugin language, or with Auto the Azahar "3DS System Language" of a 3DS game, else the language of the computer. It is fixed when the game starts.
 - `fb.clock()` returns monotonic milliseconds (integer).
 
 ### Logging
@@ -235,7 +235,7 @@ A per-plugin folder for data you derive from the game, such as extracted assets.
 
 ### Translations
 
-`fb.i18n.t(key, vars)` looks `key` up in `i18n/<lang>.json` of the plugin, where `<lang>` is the game language (`de`, `de-DE`, ...); it falls back to `i18n/en.json`, then to the key itself. `{name}` placeholders are replaced from `vars`. Files are flat JSON objects; nested objects are addressed as `a.b`. English is the source language, German the first translation.
+`fb.i18n.t(key, vars)` looks `key` up in `i18n/<lang>.json` of the plugin, where `<lang>` is `fb.game.language` (`de`, `de-DE`, ...); it falls back from the full tag to its base language (`de-DE` -> `de`), then to `i18n/en.json`, then to the key itself. `{name}` placeholders are replaced from `vars`. Files are flat JSON objects; nested objects are addressed as `a.b`. English is the source language, German the first translation.
 
 ```lua
 -- i18n/en.json: { "team.title": "Team of {player}" }
@@ -483,7 +483,7 @@ Manifest field `run_settings` (optional, 1 to 32 entries) declares the rules a p
 | `options` | `enum` only, 2 to 8 of `{ value, label }`; `value`s are unique and follow the `key` segment pattern; `label` is an i18n key. |
 
 - The Hub plugin list carries `run_settings` and `run_settings_strings` (`{ lang: { key: text } }`, only the referenced keys; OpenAPI 1.19.0).
-- The Player's "Start a run" dialog shows a Rules section per plugin: boolean as toggle, enum with up to 3 options as segments, more as select. Label language: Player language (always `en` today), then `en`, then the key.
+- The Player's "Start a run" dialog shows a Rules section per plugin: boolean as toggle, enum with up to 3 options as segments, more as select. Label language: the plugin language setting (base language), then `en`, then the key.
 - Every entry is sent as run settings `settings[<plugin_id>]`, nested by key segments. The keys `mode` and `rules.dupes_clause` give `{ "<plugin_id>": { "mode": "soullink", "rules": { "dupes_clause": true } } }`. Plugins without `run_settings` get no member.
 - Plugins read them with `fb.run.current().settings[<own plugin id>]`. The raw manifest `settings` field is unchanged (schema still undefined).
 

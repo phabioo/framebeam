@@ -48,6 +48,10 @@ class PluginsController : public QObject {
 
   // Developer mode (persisted in PlayerSettings, applied to the manager).
   Q_PROPERTY(bool developerMode READ developerMode WRITE setDeveloperMode NOTIFY developerModeChanged)
+  // Plugin UI language (Settings > Plugins): "auto" | a tag of pluginLanguageOptions. Applies when the next game starts.
+  Q_PROPERTY(QString pluginLanguage READ pluginLanguage WRITE setPluginLanguage NOTIFY pluginLanguageChanged)
+  // [{value, label}]: Auto first, then English, Deutsch (plugins/plugin_language.h).
+  Q_PROPERTY(QVariantList pluginLanguageOptions READ pluginLanguageOptions CONSTANT)
   // Installed plugins: [{id, name, version, origin ("official"|"unverified"|"local"), originText ("✓ Official" | "Hub upload ·
   //  unverified" | "Local file"), problemsText, hasProblems, enabled, devLinked, hubCopy, canToggle, needsConfirm (unverified: the
   //  warning comes before turning it on), permissionsText, updateVersion ("" when none)}]
@@ -110,6 +114,12 @@ class PluginsController : public QObject {
 
   bool developerMode() const;
   void setDeveloperMode(bool on);
+  QString pluginLanguage() const;
+  void setPluginLanguage(const QString& tag);
+  QVariantList pluginLanguageOptions() const;
+  // The tag plugins get (GameContext.language) for a game of `systemId` started with these explicit core option
+  // overrides; both empty = outside a game (Auto then is the OS language).
+  QString resolveLanguage(const QString& systemId = QString(), const QMap<QString, QString>& coreOptions = {}) const;
   QVariantList plugins() const { return plugins_; }
   QString summary() const { return summary_; }
   QString message() const { return message_; }
@@ -165,9 +175,10 @@ class PluginsController : public QObject {
   QString hubStatus() const;
   QString hubError() const { return hubClient_ != nullptr ? hubClient_->errorMessage() : QString(); }
 
-  // A game runs (GameSession::started): resolves the plugins for it and starts them. `language` = Player UI language.
+  // A game runs (GameSession::started): resolves the plugins for it and starts them. `language` = the resolved plugin
+  // language (resolveLanguage); empty = resolved here from the setting without core options.
   void gameStarted(const QString& system, const QString& romPath, const QString& sha256, const QString& title,
-                   const QString& language = QStringLiteral("en"), const RunLaunch& run = {});
+                   const QString& language = QString(), const RunLaunch& run = {});
   // The game ended or failed: stops all plugins.
   void gameStopped();
   bool pluginsRunning() const { return running_; }
@@ -238,6 +249,7 @@ class PluginsController : public QObject {
 
  signals:
   void developerModeChanged();
+  void pluginLanguageChanged();
   void pluginsChanged();
   void hubPluginsChanged();
   void messageChanged();

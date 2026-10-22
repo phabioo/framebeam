@@ -76,6 +76,11 @@ class PlayerSettings {
   bool developerMode() const { return developerMode_; }
   bool setDeveloperMode(bool on);
 
+  // Plugin UI language (0.17): "auto" (default; 3DS game language or OS language) or an explicit tag such as "en" / "de".
+  // Applies when the next game starts. An invalid tag is rejected (false).
+  QString pluginLanguage() const { return pluginLanguage_; }
+  bool setPluginLanguage(const QString& tag);
+
   // Plugin UI (0.11): HUD widgets and notices, per plugin id. Corners: "top-left" | "bottom-left" | "bottom-right".
   // Notice mute modes: "always" | "important" (only important notices pass); an empty mode removes the entry.
   QHash<QString, QString> pluginHudCorners() const;
@@ -112,6 +117,7 @@ class PlayerSettings {
   QString sessionVisibility_;
   QStringList libraryFolders_;
   bool developerMode_ = false;
+  QString pluginLanguage_ = QStringLiteral("auto");
   bool pluginHudAllHidden_ = false;
   qint64 romCacheLimit_ = kDefaultRomCacheLimitBytes;
 };

@@ -53,6 +53,7 @@ Plugin runtime of 0.11 ([API reference](plugin-api.md), [design](../architecture
 
 - Settings → Plugins: turn on "Developer mode". Plugins (all unsigned, local) run only while it is on and are resolved once when a game starts.
 - "Install from folder…" copies a plugin folder (with `manifest.json`) into `<data>/plugins/installed/`; "Link folder for development…" runs the plugin straight from your folder and reloads it when you save a file. The list has an on/off switch and Uninstall per plugin.
+- Settings → Plugins → "Plugin language": Auto (default), English or Deutsch. Auto uses the 3DS system language (Azahar core option) for 3DS games, otherwise the language of your computer. Applies when the next game starts.
 - Plugin console: a tab in the running game (developer mode only) with watched values, events, log and the core's memory map regions; Ctrl+Shift+R reloads the plugins. A plugin that fails or exceeds its budget is paused alone; the game keeps running.
 
 ## Collect logs

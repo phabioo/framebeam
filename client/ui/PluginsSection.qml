@@ -490,6 +490,22 @@ ColumnLayout {
         }
     }
 
+    // ---- plugin language
+    SettingsRow {
+        objectName: "pluginLanguageRow"
+        Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        resetMode: "none"
+        label: qsTr("Plugin language")
+        description: qsTr("Language of plugin texts. Auto uses the 3DS system language for 3DS games, otherwise the language of this computer. Applies when the next game starts.")
+        descriptionName: "pluginLanguageHint"
+        ctrl: "select"
+        controlName: "pluginLanguageSelect"
+        values: root.ctl.pluginLanguageOptions
+        current: root.ctl.pluginLanguage
+        onValuePicked: value => root.ctl.pluginLanguage = value
+    }
+
     // ---- developer settings
     RowLayout {
         Layout.fillWidth: true

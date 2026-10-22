@@ -153,6 +153,16 @@ class PluginsUiTest : public QObject {
     QVERIFY(PlayerSettings(h.controller->profileStore()->baseDir()).developerMode());
     QTRY_VERIFY(h.item("pluginLinkButton")->isVisible());
 
+    // Plugin language: Auto by default, explicit choice persists and wins over the 3DS option.
+    QVERIFY(h.item("pluginLanguageSelect") != nullptr);
+    QCOMPARE(pc->pluginLanguage(), QStringLiteral("auto"));
+    QCOMPARE(pc->pluginLanguageOptions().size(), 3);
+    QCOMPARE(pc->resolveLanguage(QStringLiteral("3ds"), {{QStringLiteral("citra_language_value"), QStringLiteral("German")}}), QStringLiteral("de"));
+    pc->setPluginLanguage(QStringLiteral("en"));
+    QCOMPARE(PlayerSettings(h.controller->profileStore()->baseDir()).pluginLanguage(), QStringLiteral("en"));
+    QCOMPARE(pc->resolveLanguage(QStringLiteral("3ds"), {{QStringLiteral("citra_language_value"), QStringLiteral("German")}}), QStringLiteral("en"));
+    pc->setPluginLanguage(QStringLiteral("auto"));
+
     // Install two plugins from folders (copy); one has an unmet dependency.
     QVERIFY(!writePlugin(src_.path(), "net.example.creature-core", "Creature Core").isEmpty());
     QVERIFY(!writePlugin(src_.path(), "net.example.item-helper", "Item Helper", QJsonObject{{"net.example.missing-core", "^2.0"}}).isEmpty());
