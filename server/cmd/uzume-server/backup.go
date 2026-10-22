@@ -300,7 +300,7 @@ func runRestore(args []string, out io.Writer) error {
 	}
 	release, err := backup.LockDataDir(cfg.DataDir)
 	if errors.Is(err, backup.ErrLocked) {
-		return errors.New("the server is running: stop it first (for example 'systemctl stop uzume-server'), then restore")
+		return fmt.Errorf("the server is running: stop it first (%s), then restore", stopHint())
 	}
 	if err != nil {
 		return err

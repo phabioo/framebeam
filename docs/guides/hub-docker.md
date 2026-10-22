@@ -25,11 +25,43 @@ docker run -d --name uzume-server --restart unless-stopped \
   ghcr.io/phabioo/uzume-server:stable
 ```
 
-Open `https://<docker-host>:8443`. The server creates a self-signed certificate (accept it once; the app pins it). A container is not "local" for the setup page, so create the admin account with the CLI instead (password as a single line from stdin):
+Open `https://<docker-host>:8443` in Uzume, not in a browser. The server creates a self-signed certificate (the app pins it after you compare the security code). A server in a container is set up from the app on another PC with a **setup code**: the container prints it when it starts with no admin, and you can get a new one any time:
+
+```sh
+docker logs uzume-server                                  # the setup banner: address, security code, setup code
+docker exec -it uzume-server uzume-server setup-code      # a new setup code (valid 60 minutes, works once)
+docker exec -it uzume-server uzume-server code            # the security code of the certificate
+```
+
+In Uzume choose Set up a server › On another device, enter the address and the setup code, compare the security code and create the admin account. Without the app, `setup-admin` creates the admin (password as a single line from stdin):
 
 ```sh
 printf '%s\n' 'a long password' | docker exec -i uzume-server uzume-server setup-admin -username alice
 ```
+
+The address in the banner inside a container is the address of the Docker host (set `UZUME_PUBLIC_HOST` to show your DNS name).
+
+### Server commands in Docker
+
+These work next to the running server (the container is the server; `-it` only for commands that ask or print secrets):
+
+| Command | Docker form |
+|---|---|
+| `setup-code`, `code`, `status` | `docker exec -it uzume-server uzume-server <command>` |
+| `reset-admin` | `docker exec -it uzume-server uzume-server reset-admin` (prints a one-time password; nothing else changes) |
+| `backup` | `docker exec -it uzume-server uzume-server backup` (see [hub-backup.md](hub-backup.md#docker)) |
+| `update -check` | `docker exec uzume-server uzume-server update -check` prints the newer version; in a container `update` never installs, it names the tag to pull: see [Upgrade](#upgrade) |
+
+`restore` and `reset` need the server **stopped** (they refuse while it holds the data folder lock). Stop the service and run them in a one-off container that mounts the same volumes; the image's entrypoint is the server binary, so the command follows the service name:
+
+```sh
+docker compose stop hub                                       # "hub" is the service name in the example below
+docker compose run --rm --no-deps hub reset                   # asks for the server name; safety backup first
+docker compose run --rm --no-deps hub restore /backup/<file>  # see hub-backup.md
+docker compose start hub
+```
+
+`reset` deletes everything in `/data` except `backups/` and `logs/` (the volume itself and anything mounted elsewhere stay); the next start prints a new setup code and creates a new certificate. With `docker run`: `docker stop uzume-server`, then `docker run --rm -v uzume-data:/data ghcr.io/phabioo/uzume-server:stable reset`.
 
 Other commands work the same way, for example `docker exec -i uzume-server uzume-server import-cores /data/import` (put the zips in the volume first) and `docker exec uzume-server uzume-server diagnostics /data/diagnostics.zip`.
 
@@ -72,7 +104,7 @@ Bridge networking is fine for the web port. For the TURN relay the server announ
 
 ## Upgrade
 
-The server never updates itself inside a container (`UZUME_SERVER_CONTAINER=1`): Settings → Updates shows that a newer version exists and tells you to pull the image. Sessions end while the container restarts.
+The server never updates itself inside a container (`UZUME_SERVER_CONTAINER=1`): Settings → Updates shows that a newer version exists and tells you to pull the image. Sessions end while the container restarts. `docker exec uzume-server uzume-server update` (or `update -check`) says whether a newer version exists and prints the image tag to pull; it installs nothing.
 
 ```sh
 docker compose pull && docker compose up -d

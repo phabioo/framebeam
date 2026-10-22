@@ -12,7 +12,7 @@ sudo apt install ./uzume-server_<version>_arm64.deb
 
 The package is `uzume-server`. It installs `/usr/bin/uzume-server`, the units `uzume-server.service`, `uzume-server-update.path` and
 `uzume-server-update.service` (in `/lib/systemd/system`) and is the only install type the server can update itself
-(Settings > Updates). Configure flags (port, admin) in `/etc/uzume/server.env`, which an existing install keeps. Create the admin account as described under [Admin account](#admin-account).
+(Settings > Updates). Configure flags (port, admin) in `/etc/uzume/server.env`, which an existing install keeps. Set up the server from the app with the setup code ([First setup](#first-setup)), or create the admin account as described under [Admin account](#admin-account).
 
 Package details:
 
@@ -64,15 +64,28 @@ Options: `--binary PATH`, `--port N` or `--listen ADDR`, `--data-dir DIR`, `--na
 
 At the end the script prints the service status, the URL (`https://<ip>:<port>/`) and the TLS fingerprint.
 
+## First setup
+
+A server without an admin prints a **setup banner** at every start (address, security code, setup code) to its output; on systemd read it with `journalctl -u uzume-server -n 30`. In Uzume on another PC choose Set up a server › On another device, enter the address and the setup code, compare the security code and create the admin account. Ask for the banner values or a new code any time:
+
+```sh
+sudo uzume-server status        # version, address, security code, current setup code (or: set up)
+sudo uzume-server setup-code    # a new setup code, valid 60 minutes, works once
+sudo uzume-server code          # the security code of the certificate
+```
+
+The commands read `/etc/uzume/server.env` like the service does, so a custom data folder or port is found without extra options. A forgotten admin password: `sudo uzume-server reset-admin` prints a one-time password (nothing else changes). `sudo uzume-server reset` deletes all data and starts fresh (stop the service first: `sudo systemctl stop uzume-server`; it asks for the server name and writes a safety backup without ROMs first). `sudo uzume-server update` installs the newest version of the update channel. Details: [Server commands](hub-configuration.md#server-commands). On Windows the same commands run in a terminal as administrator.
+
 ## Admin account
 
-`--admin USER` asks for the password twice (or reads one line from stdin when not a terminal, e.g. `echo ... | sudo ./install-server.sh ...`). It runs `uzume-server setup-admin` as the `uzume` user and is skipped if an admin already exists. On a headless Pi this is needed because the web setup form only accepts connections from localhost. Without the script (for example after the `.deb` install) run `setup-admin` as the `uzume` user with the data directory from `server.env`, for example `sudo runuser -u uzume -- env UZUME_DATA_DIR=/var/lib/uzume uzume-server setup-admin -username <name>` (use the `UZUME_DATA_DIR` value from `/etc/uzume/server.env` if you changed it), or open `/setup` in a browser on the server host itself.
+`--admin USER` asks for the password twice (or reads one line from stdin when not a terminal, e.g. `echo ... | sudo ./install-server.sh ...`). It runs `uzume-server setup-admin` as the `uzume` user and is skipped if an admin already exists. The setup code is the way without the script; `setup-admin` is the way without the app. Without the script (for example after the `.deb` install) run `setup-admin` as the `uzume` user with the data directory from `server.env`, for example `sudo runuser -u uzume -- env UZUME_DATA_DIR=/var/lib/uzume uzume-server setup-admin -username <name>` (use the `UZUME_DATA_DIR` value from `/etc/uzume/server.env` if you changed it; a plain `sudo uzume-server setup-admin -username <name>` finds it by itself).
 
 ## TLS fingerprint
 
-The server creates a self-signed certificate under `<data dir>/tls/` and logs its SHA-256 fingerprint at startup. The app asks you to confirm it on first contact:
+The server creates a self-signed certificate under `<data dir>/tls/` and logs its SHA-256 fingerprint at startup. The app shows a short **security code** derived from it (for example `K7Q4-9WMP-2HXD`) and asks you to compare it with the one the server shows (`uzume-server code`, or the setup banner) on first contact:
 
 ```sh
+sudo uzume-server code
 journalctl -u uzume-server | grep -i fingerprint
 ```
 

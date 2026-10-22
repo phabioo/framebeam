@@ -18,6 +18,13 @@ On the first Uzume server start, an admin account with **username + password** i
 - **Own devices**: each user lists their devices, signs one out or all out (`/api/v1/account/devices`); admins see all devices under Clients.
 - **Forgot password**: an admin resets it (`password-reset`: temporary password, the user must change it); `reset-admin` on the server for admins. There is no email recovery.
 
+**Setup code and server commands** (built in 0.18 package 6, handshake feature `setup_code_v1`, ADR 0030 D4). A server without a screen is set up from the app on another PC:
+
+- **Setup code**: 6 Crockford base32 characters shown as `7H4K-2Q`, from the system random generator. While the server has no admin it holds one code, valid 60 minutes and usable once. The serving process creates a fresh one at every start (a restart replaces the old code) and prints it in a banner (terminal, journal, `docker logs`, installer last page) with the address and the security code; `uzume-server setup-code` writes a new one. It is stored in the settings table (the database already gives full control of the server) and appears in the log only in that banner.
+- **Redemption**: `POST /api/v1/setup` (no auth, any address) trades the code, a user name and a password of at least 12 characters and the device fields for the first admin and a paired device in one step. The code is consumed in the same transaction as the admin, so two parallel requests have exactly one winner. Wrong tries: 10 requests a minute per IP, and 10 wrong tries in total delete the code. Errors: 401 `invalid_setup_code`, 410 `setup_code_expired`, 409 `already_set_up`. `getHubInfo` tells with `setup_required` whether the server still needs setup.
+- **Security code**: the first 60 bits of the SHA-256 of the leaf certificate the server serves, as 12 Crockford characters (`K7Q4-9WMP-2HXD`). It is shown next to the setup code and by `uzume-server code`; the app computes it from the certificate it pins and asks the person to compare before it sends the setup code or trusts the server. Exact derivation and test vectors: [protocol reference](../reference/protocol.md#security-code-and-setup-code). It complements the SHA-256 fingerprint (still shown under Details) with something a person can compare.
+- **Emergencies**: `reset-admin` sets a one-time password for an admin (the user must change it at the next sign-in, the sign-in lock ends, devices stay signed in, nothing else is touched); `reset` deletes all data after a safety backup; `status`, `update`, `backup` and `restore` complete the set. They run on the server (Linux with `sudo`, Windows as administrator, Docker with `docker exec`): [hub-configuration.md](../guides/hub-configuration.md#server-commands).
+
 ### Hub profiles and device credentials
 
 Multiple Hub profiles can be stored locally. A profile contains Hub ID, display name, address, Hub user ID, local device ID, credential reference, pinned certificate fingerprint and time of the last connection.
@@ -43,7 +50,7 @@ Optionally the Player connects to the last used Hub at startup. If it is unreach
 
 In production operation, **HTTPS/WSS is mandatory** for API, signaling, authentication and file transfer. HTTP/WS is allowed exclusively explicitly in dev mode or on localhost.
 
-For simple self-hosted/LAN use, the Hub can generate its own TLS certificate on first start. Your own cert/key and operation behind a reverse proxy are also possible. On first pairing, the Player uses **trust-on-first-use / certificate pinning**: show/confirm the certificate fingerprint and store it in the Hub profile. Later mismatches produce a warning/error and are not silently accepted as new trust. Concrete certificate management including renewal and confirmed pin change remains to be specified. A custom ACME client is outside the PoC. WebRTC is separately encrypted independently of this.
+For simple self-hosted/LAN use, the Hub can generate its own TLS certificate on first start. Your own cert/key and operation behind a reverse proxy are also possible. On first pairing, the Player uses **trust-on-first-use / certificate pinning**: show/confirm the certificate fingerprint (as the short security code, see above) and store it in the Hub profile. Later mismatches produce a warning/error and are not silently accepted as new trust. Concrete certificate management including renewal and confirmed pin change remains to be specified. A custom ACME client is outside the PoC. WebRTC is separately encrypted independently of this.
 
 ### Switching and removing
 

@@ -4,7 +4,8 @@ What the server, the protocol and the app do today, by area. Status by version: 
 
 **Uzume server** (`server/`)
 
-- Admin setup via `setup-admin` and via `/setup` in the web interface (loopback only).
+- Admin setup from the app with a setup code (`POST /api/v1/setup`, printed at start and by `uzume-server setup-code`), via `setup-admin`, and via `/setup` in the web interface (loopback only).
+- Server commands for setup and emergencies: `setup-code`, `code` (security code of the certificate), `reset-admin`, `status`, `update`, `backup`, `restore`, `reset` on Windows, Linux and in Docker ([hub-configuration.md](guides/hub-configuration.md#server-commands)).
 - HTTPS with a self-signed certificate (or your own certificate); the fingerprint is logged at startup. The server renews its own certificate at startup when it is expired or expires within 30 days (`uzume-server renew-cert` does it on demand, or "Renew now" in Settings › Security without a restart; key and certificate are written atomically); the Settings page shows "Expires within 30 days". Own certificates are never modified.
 - Web interface with login (admins only): Library (upload and "Rescan folder" import), Saves, Systems & Cores, Clients, Users, Settings.
 - Pairing of new devices with Allow/Deny; issue and revoke tokens (Revoke); Delete removes a device entry for good (confirmation page, saves are kept).

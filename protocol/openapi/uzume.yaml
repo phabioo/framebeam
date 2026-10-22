@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: Uzume server API
-  version: 1.29.0
+  version: 1.30.0
   description: |
-    HTTPS/JSON API of the Uzume server (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the server under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for app-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for an app on the same PC as the server (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected apps receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on app devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games); 0.17 adds problem reports (`reports_v1`: `POST /reports` from any paired device, the admin list, files, zip archive, seen mark and delete under `/admin/reports`); 0.18 adds the admin API under `/admin/...` (`admin_v1`: users and invites, pairing requests and devices, systems, cores and firmware, plugins and the plugin index; only advertised to admins); 0.18 also adds server accounts (`accounts_v1`: sign in with user name and password under `auth`, the own account, password, "Confirm it's you" and devices under `account`, an admin password reset and the password policy under `admin`; dangerous admin steps answer 403 `confirmation_required` until the caller confirmed). `protocol_version` is an integer (starting at 1),
+    HTTPS/JSON API of the Uzume server (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the server under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for app-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for an app on the same PC as the server (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected apps receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on app devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games); 0.17 adds problem reports (`reports_v1`: `POST /reports` from any paired device, the admin list, files, zip archive, seen mark and delete under `/admin/reports`); 0.18 adds the admin API under `/admin/...` (`admin_v1`: users and invites, pairing requests and devices, systems, cores and firmware, plugins and the plugin index; only advertised to admins); 0.18 also adds server accounts (`accounts_v1`: sign in with user name and password under `auth`, the own account, password, "Confirm it's you" and devices under `account`, an admin password reset and the password policy under `admin`; dangerous admin steps answer 403 `confirmation_required` until the caller confirmed); 0.18 also adds the setup code (`setup_code_v1`: `POST /setup` trades the setup code that a server without an admin prints at start and on `uzume-server setup-code` for the first admin and a paired device, `setup_required` in the server info). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
     only the info endpoint lives under `/.well-known/uzume`.
     Compatibility: the app's protocol_version < the server's min_protocol_version -> player_too_old;
@@ -52,6 +52,7 @@ paths:
                     protocol_version: 1
                     min_protocol_version: 1
                     api_base: /api/v1
+                    setup_required: false
   /api/v1/pairing/requests:
     post:
       operationId: createPairingRequest
@@ -252,6 +253,83 @@ paths:
                 default: { value: { error: { code: import_dir_unreadable, message: 'import_dir_unreadable: The import folder does not exist or is not a directory' } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/setup:
+    post:
+      operationId: setupWithCode
+      tags: [auth]
+      summary: Set up a server with its setup code (`setup_code_v1`, no auth, any address)
+      description: |
+        For a server without a screen that is set up from the app on another PC. While no admin exists the server holds
+        one setup code of 6 Crockford base32 characters, shown as `7H4K-2Q` (the field accepts spaces, hyphens or none, any
+        case). It is printed when the server starts and by `uzume-server setup-code`, is valid for 60 minutes and works
+        once; a restart or a new `uzume-server setup-code` replaces it. The server tells whether it needs setup in
+        `setup_required` of `getHubInfo`.
+
+        The request creates the first admin (user name rules and the minimum password length of the other admin paths)
+        and registers the calling device for that admin in one step; the device gets the sign-in kind `password`. The
+        response is the payload of an approved pairing poll (the credential is delivered once). The code is consumed
+        together with the admin: of two parallel requests exactly one wins and the other gets 409 `already_set_up`.
+
+        Errors: 400 `bad_request` (fields; the code is not used up), 401 `invalid_setup_code` (wrong, already used,
+        replaced, or invalidated: 10 wrong tries in total delete the code), 410 `setup_code_expired` (the right code,
+        older than 60 minutes; the code is deleted), 409 `already_set_up` (an admin exists; checked before the code),
+        429 `rate_limited` (10 attempts a minute per IP, like sign-in). Check the security code of the certificate
+        before sending the code over a connection (see the protocol reference).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetupRequest' }
+            examples:
+              default:
+                value:
+                  setup_code: 7H4K-2Q
+                  username: admin
+                  password: PLACEHOLDER-PASSWORD
+                  device_name: Wohnzimmer-PC
+                  device_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  platform: windows
+                  arch: x86_64
+                  player_version: 0.18.0
+                  protocol_version: 1
+      responses:
+        '200':
+          description: Admin created, device paired
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PairingStatus' }
+              examples:
+                default:
+                  value:
+                    status: approved
+                    hub_id: 3f2b8c1e-5d4a-4b7e-9a10-0c1d2e3f4a5b
+                    user_id: u_placeholder_1
+                    device_credential: fbd_PLACEHOLDER_DEVICE_CREDENTIAL
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: invalid_setup_code
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: invalid_setup_code, message: That setup code does not match } } }
+        '409':
+          description: already_set_up
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: already_set_up, message: This server is already set up } } }
+        '410':
+          description: setup_code_expired
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: setup_code_expired, message: "This setup code has expired; run 'uzume-server setup-code' on the server for a new one" } } }
         '413': { $ref: '#/components/responses/TooLarge' }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/invites/redeem:
@@ -5123,7 +5201,7 @@ components:
     ErrorCode:
       type: string
       description: "`save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted)."
-      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, save_slot_exists, save_slot_protected, session_running, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available, import_dir_unreadable, run_not_active, state_conflict, too_large, confirmation_required, password_required, password_not_set]
+      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, save_slot_exists, save_slot_protected, session_running, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available, import_dir_unreadable, run_not_active, state_conflict, too_large, confirmation_required, password_required, password_not_set, invalid_setup_code, setup_code_expired, already_set_up]
     Error:
       type: object
       required: [error]
@@ -5137,7 +5215,7 @@ components:
             retry_after: { type: integer, minimum: 1, description: 'Only on `rate_limited` when the next try is possible at a known time: seconds to wait (also sent as the `Retry-After` header)' }
     HubInfo:
       type: object
-      required: [hub_id, name, hub_version, protocol_version, min_protocol_version, api_base]
+      required: [hub_id, name, hub_version, protocol_version, min_protocol_version, api_base, setup_required]
       properties:
         hub_id: { type: string, format: uuid }
         name: { type: string }
@@ -5145,6 +5223,7 @@ components:
         protocol_version: { type: integer, minimum: 1 }
         min_protocol_version: { type: integer, minimum: 1 }
         api_base: { type: string, example: /api/v1 }
+        setup_required: { type: boolean, description: 'true while the server has no admin yet: it waits for `setupWithCode` (feature `setup_code_v1`). Servers before 0.18 do not send it (read as false)' }
     PairingRequestCreate:
       type: object
       required: [device_id, device_name, platform, arch, player_version, protocol_version]
@@ -5365,6 +5444,20 @@ components:
         arch: { type: string }
         player_version: { type: string }
         protocol_version: { type: integer, minimum: 1 }
+    SetupRequest:
+      type: object
+      required: [setup_code, username, password, device_name, device_id, platform, arch, player_version, protocol_version]
+      properties:
+        setup_code: { type: string, description: 'The setup code as typed, for example `7H4K-2Q`; spaces, hyphens and case do not matter' }
+        username: { type: string }
+        password: { type: string }
+        device_name: { type: string }
+        device_id: { type: string, format: uuid }
+        platform: { type: string }
+        arch: { type: string }
+        player_version: { type: string }
+        protocol_version: { type: integer, minimum: 1 }
+        install_id: { type: string, maxLength: 64, description: Optional. Groups the device rows of one app install }
     LocalSettingsUpdate:
       type: object
       properties:
