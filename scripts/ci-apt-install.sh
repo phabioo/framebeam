@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Installs apt packages on a CI runner with bounded time: each attempt
-# is limited (update 120 s, install 240 s, max 6 min), apt retries/timeouts are set, and
+# is limited (update 120 s, install 480 s), apt retries/timeouts are set, and
 # up to 3 attempts are made so a hanging mirror cannot block a job for long.
 # A timed-out apt/dpkg is killed hard (timeout -k) and dpkg is repaired (dpkg --configure -a) before the next attempt.
-# After a failed attempt the runner's Azure mirror is swapped for archive.ubuntu.com, because a mirror outage
-# outlasts all retries against the same host.
+# After a failed attempt the runner's Azure mirror is swapped for archive.ubuntu.com, because a slow or hanging mirror
+# outlasts all retries against the same host. Downloaded packages stay in apt's cache, so a retry continues.
 # Usage: scripts/ci-apt-install.sh <packages...>
 set -euo pipefail
 
@@ -34,12 +34,13 @@ run_step() {
 
 attempt_once() {
   run_step 120 update sudo apt-get update "${opts[@]}" &&
-    run_step 240 install sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q "${opts[@]}" "$@"
+    run_step 480 install sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q "${opts[@]}" "$@"
 }
 
 switch_mirror() {
   local f
-  for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+  # GitHub runners list the mirror in apt-mirrors.txt (sources use mirror+file:), older images in the sources.
+  for f in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
     [ -f "$f" ] || continue
     if grep -q 'azure\.archive\.ubuntu\.com' "$f"; then
       sudo sed -i 's#azure\.archive\.ubuntu\.com#archive.ubuntu.com#g' "$f"
