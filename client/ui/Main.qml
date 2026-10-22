@@ -71,11 +71,21 @@ ApplicationWindow {
         PairingScreen { player: window.player }
         LibraryScreen { player: window.player }
         GameScreen { player: window.player }
-        SettingsScreen { player: window.player }
+        SettingsScreen { id: settingsScreen; player: window.player }
         EmulationScreen { player: window.player }
         ControllersScreen { player: window.player }
         PluginScreen { player: window.player }
         RunsScreen { player: window.player }
+    }
+
+    // Connection check (6e): modal over every screen; "Edit Hub address…" opens the inline edit of the Hub in Settings.
+    ConnectionCheckDialog { player: window.player }
+    Connections {
+        target: window.player.connectionCheck
+        function onEditHubRequested() {
+            window.player.showSettings()
+            settingsScreen.editActiveHubAddress()
+        }
     }
 
     // fb.ui.open("screen") outside the game view: the plugin's sidebar screen (in the game view GameScreen shows the sheet).

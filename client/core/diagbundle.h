@@ -4,6 +4,7 @@
 //
 //   README.txt          what the bundle contains and what was removed
 //   player-info.json    versions, system, Hubs (no tokens), cores, media, controllers, settings summary
+//   connection-check.json  the last connection check result, only when the user added it ("Add to problem report")
 //   logs/<name>         player.log, player.1.log ... newest first, redacted, total cap 50 MiB
 //   logs/plugins/<name> plugin console logs, when they exist on disk (<data>/logs/plugins)
 //
@@ -19,6 +20,7 @@ namespace framebeam::diag {
 
 inline constexpr const char* kEntryReadme = "README.txt";
 inline constexpr const char* kEntryInfo = "player-info.json";
+inline constexpr const char* kEntryConnectionCheck = "connection-check.json";
 inline constexpr const char* kLogsPrefix = "logs/";
 inline constexpr const char* kPluginLogsPrefix = "logs/plugins/";
 inline constexpr int kInfoVersion = 1;
@@ -36,6 +38,7 @@ struct Options {
   QString logDir;                      // default <dataDir>/logs
   qint64 maxLogBytes = kDefaultMaxLogBytes;  // cap of all log content, before compression
   QDateTime now;                       // tests; default current time
+  QByteArray connectionCheckJson;      // non-empty: written as connection-check.json (redacted like the other files)
 };
 
 // player-info.json content that needs no running Player: info_version, generated_at, player, system, hubs (from

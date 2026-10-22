@@ -57,6 +57,7 @@ add_library(framebeam_media STATIC
   mediacaps.cpp
   sessionhost.cpp
   sessionviewer.cpp
+  connectiontest.cpp
 )
 target_include_directories(framebeam_media PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(framebeam_media PUBLIC framebeam_core framebeam_audioutil framebeam_media_deps Qt6::Gui)
@@ -77,6 +78,7 @@ endif()
 framebeam_add_test(media_bitrate tests/bitratecontroller_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_host_state tests/hoststate_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_rtcutil tests/rtcutil_test.cpp LIBS framebeam_media)
+framebeam_add_test(media_connectiontest tests/connectiontest_test.cpp LIBS framebeam_media)
 framebeam_add_test(media_stream_timestamp tests/stream_timestamp_test.cpp LIBS framebeam_media)
 
 # Zero-copy display (ADR 0027). media_display_slots: the pure slot state machine, every platform. media_d3d11_ring

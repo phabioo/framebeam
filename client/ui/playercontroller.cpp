@@ -36,6 +36,8 @@
 #include "libretro_backend.h"
 #include "game_identity.h"
 #include "mediacaps.h"
+#include "connectiontest.h"
+#include "rtcutil.h"
 #include "uploadcontroller.h"
 #include "semver.h"
 #include "version.h"
@@ -388,6 +390,29 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     connect(sessions_->socket(), &HubSocket::saveUpdated, this, [this](const SaveUpdate& u) { saves_->handleSaveUpdate(u); });
     connect(saves_.get(), &SaveSync::saveChangedElsewhere, history_.get(), &SaveHistoryController::onSaveUpdated);
   }
+  connectionCheck_ = std::make_unique<ConnectionCheckController>(
+      [this, patch = options.connectionTargetPatch]() {
+        ConnectionTarget t;
+        const auto profile = conn_->profile();
+        if (!profile) return t;
+        t.hubName = profile->name;
+        t.hubAddress = profile->address;
+        t.pinnedFingerprint = profile->pinnedFingerprint;
+        t.allowHttp = profile->allowHttp;
+        t.deviceName = profiles_->deviceName();
+        t.forceRelay = forceRelayFromEnv();
+        // The Hub hands out STUN/TURN with hello_ack and ice_update; they are known while the Hub socket is open.
+        t.iceKnown = sessions_ && sessions_->socket()->isOpen();
+        if (t.iceKnown) {
+          t.stunUrls = sessions_->socket()->helloAck().iceServers;
+          t.turnServers = sessions_->socket()->helloAck().turnServers;
+        }
+        if (patch) patch(t);
+        return t;
+      },
+      options.connectionProbes ? options.connectionProbes : std::function<std::unique_ptr<ConnectionProbes>()>([]() { return makeConnectionProbes(); }));
+  // The entry points in Settings appear when a Hub profile becomes active or goes away.
+  connect(this, &PlayerController::hubsChanged, connectionCheck_.get(), &ConnectionCheckController::changed);
   {
     UpdatesController::Options uo;
     uo.baseDir = profiles_->baseDir();
@@ -786,17 +811,21 @@ void PlayerController::collectDiagnostics(const QString& pathOrUrl) {
   emit collectingDiagnosticsChanged();
   const QJsonObject info = diagnosticsInfo();
   const QString dataDir = profiles_->baseDir();
+  // "Add to problem report" of the connection check: the result goes into this bundle, once.
+  diag::Options options;
+  options.connectionCheckJson = connectionCheck_ ? connectionCheck_->attachmentJson() : QByteArray();
   auto* watcher = new QFutureWatcher<QString>(this);
-  connect(watcher, &QFutureWatcher<QString>::finished, this, [this, watcher, out]() {
+  connect(watcher, &QFutureWatcher<QString>::finished, this, [this, watcher, out, attached = !options.connectionCheckJson.isEmpty()]() {
     const QString err = watcher->result();
     watcher->deleteLater();
     collectingDiagnostics_ = false;
+    if (err.isEmpty() && attached && connectionCheck_) connectionCheck_->clearAttachment();
     emit collectingDiagnosticsChanged();
     emit diagnosticsCollected(err.isEmpty(), out, err);
   });
-  watcher->setFuture(QtConcurrent::run([info, dataDir, out]() {
+  watcher->setFuture(QtConcurrent::run([info, dataDir, out, options]() {
     QString err;
-    return diag::writeBundle(out, info, dataDir, {}, &err) ? QString() : (err.isEmpty() ? QStringLiteral("unknown error") : err);
+    return diag::writeBundle(out, info, dataDir, options, &err) ? QString() : (err.isEmpty() ? QStringLiteral("unknown error") : err);
   }));
 }
 

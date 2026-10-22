@@ -47,6 +47,16 @@ Rectangle {
         default: return secUpdates
         }
     }
+    // "Edit Hub address…" of the connection check: scroll to Hubs and open the inline edit of the active Hub.
+    function editActiveHubAddress() {
+        root.jumpTo("hubs")
+        for (let i = 0; i < root.savedHubs.length; ++i) {
+            if (root.savedHubs[i].current) {
+                root.editingHubId = root.savedHubs[i].hubId
+                return
+            }
+        }
+    }
     function jumpTo(name: string) {
         root.currentSection = name
         const target = Math.max(0, Math.min(sectionItem(name).y + content.y - 20, flick.contentHeight - flick.height))
@@ -398,6 +408,18 @@ Rectangle {
                         kind: "link"
                         text: qsTr("Set up a Hub on this PC")
                         onClicked: { root.player.switchHub(); root.player.localHub.start() }
+                    }
+
+                    // Settings > Network does not exist yet: the connection check lives next to the Hubs it checks.
+                    FbButton {
+                        objectName: "settingsConnectionCheckButton"
+                        visible: root.player.connectionCheck.available
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.leftMargin: Theme.settingsDotSlot
+                        Layout.minimumWidth: 0
+                        kind: "link"
+                        text: qsTr("Connection check…")
+                        onClicked: root.player.connectionCheck.show()
                     }
 
                     LocalHubCard {
@@ -859,6 +881,8 @@ Rectangle {
                         descriptionName: "collectLogsStatus"
                         description: root.collectMessage !== "" ? root.collectMessage
                             : root.player.collectingDiagnostics ? qsTr("Collecting…")
+                            : root.player.connectionCheck.hasAttachment
+                              ? qsTr("Packs the logs and system information into one zip file to send along with a bug report. Includes the last connection check. Contains IP addresses and host names, no passwords or tokens.")
                             : qsTr("Packs the logs and system information into one zip file to send along with a bug report. Contains IP addresses and host names, no passwords or tokens.")
                         ctrl: "buttons"
                         buttons: [
@@ -872,6 +896,21 @@ Rectangle {
                                 root.player.showInFolder(root.collectedPath)
                             }
                         }
+                    }
+                    SettingsRow {
+                        objectName: "connectionCheckRow"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Connection check")
+                        description: root.player.connectionCheck.available
+                            ? qsTr("Tests whether Sessions can run directly between Players or only through the relay of %1.").arg(root.activeHubName !== "" ? root.activeHubName : qsTr("the Hub"))
+                            : qsTr("Connect to a Hub first.")
+                        ctrl: "buttons"
+                        buttons: [
+                            { name: "connectionCheck", text: qsTr("Run check…"), visible: root.player.connectionCheck.available }
+                        ]
+                        onButtonClicked: name => { if (name === "connectionCheck") root.player.connectionCheck.show() }
                     }
                     Loader {
                         id: collectDialog

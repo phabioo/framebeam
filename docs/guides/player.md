@@ -66,8 +66,27 @@ When something does not work, hand over one file instead of describing it: Setti
 | `player-info.json` | `info_version` 1, time; Player version, channel, commit, protocol; OS, architecture, CPU threads, Qt version, data directory, portable or not, free space; saved Hubs with name, address, Hub version, connected and features (no tokens); cores per system with versions, hardware rendering on/off; available H.264 encoders and the one last used for sharing; connected gamepads; non-secret settings (update channel, automatic install, developer mode, ROM cache limit, force relay, GPU encode switch) |
 | `logs/player.log`, `logs/player.1.log` ... | the Player's log files in `<data>/logs/`, newest first, capped at 50 MiB in total (the oldest file that does not fit is cut to its newest lines at a line boundary, marked with `[older content cut: size cap of the bundle]`) |
 | `logs/plugins/...` | plugin console logs, when they exist on disk in `<data>/logs/plugins/` |
+| `connection-check.json` | only when you pressed "Add to problem report" in the [connection check](#connection-check) since the last bundle: steps, states, texts, NAT type |
 
 Redacted before packing: credentials, device tokens, TURN `username`/`credential`, invite codes, `Authorization`/`Bearer` values and cookies become `[redacted]`. IP addresses and host names stay (needed for connection problems). Redaction is pattern based: look through the files before you share them.
+
+## Connection check
+
+When Sessions only work on your home network, or lag more than they should, run Settings → Hubs → "Connection check…" (or Settings → Diagnostics → "Run check…"). The dialog checks five steps in order against the active Hub and ends with a plain-language result:
+
+| Step | What it does | Result rows |
+|---|---|---|
+| Hub reachable | HTTPS request to the Hub's info endpoint with the pinned certificate; latency | failed: no answer, name not found, port refused, certificate does not match, not a Hub |
+| STUN | binding requests from one UDP socket to the STUN servers the Hub hands out (and to the relay's own STUN port); finds your public address | none handed out: skipped; none answered: failed |
+| TURN relay | allocates on the Hub's relay with the short-lived credentials the Hub handed out, then frees it again | Hub has TURN off: skipped; refused credentials / no answer: failed |
+| NAT type | compares the public address and port that two different STUN servers saw for the same socket: same = open (endpoint-independent), different = symmetric NAT (amber) | needs two answers, otherwise "Not determined" |
+| Test connection | two WebRTC peers inside the Player connect through the Hub's ICE servers and echo a few messages; with a symmetric NAT or no STUN answer they may use the relay only | see below |
+
+What the test connection proves: the Player's WebRTC stack works with these servers and found a public address (candidate counts are in the exported result); when the relay is needed, data really flows through the Hub's relay (allocation, permission and forwarding), with the measured round-trip time. It does not prove that a direct path to another Player works: that also depends on the other Player's network (the Hub has no WebRTC peer to test against), so "direct connections possible" is an estimate from STUN, NAT type and the test.
+
+Results: "Your network allows direct connections" (green), "Only relayed connections are possible here" (amber: works, adds delay), "Connections to other networks are not possible from here" (amber: no usable relay or STUN, so Sessions work on the same network only), "<Hub> cannot be reached" (the other steps are skipped; "Edit Hub address…" opens the Hub's address field in Settings). If the Player has no open session with the Hub, the check ends after step 1 with "Connect to <Hub> to run the full check", because the Hub's STUN and relay servers are not known then. A check can be cancelled (Esc or Cancel) and stops after 60 s at the latest.
+
+Actions: "Copy result" (Ctrl+C) copies the result as text, "Add to problem report" keeps it for the next "Collect logs" bundle (`connection-check.json`, taken by that one bundle), "Run again" (R). The text and the JSON contain addresses and server names, never the relay credentials. `FRAMEBEAM_FORCE_RELAY=1` is noted in the result and makes the check report "only relayed".
 
 ## Data directory
 
