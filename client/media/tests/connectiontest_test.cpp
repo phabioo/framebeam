@@ -17,7 +17,9 @@ class ConnectionTestTest : public QObject {
     QVERIFY2(r->ok, qPrintable(r->error));
     QVERIFY(r->hostCandidates > 0);
     QCOMPARE(r->srflxCandidates, 0);  // no STUN server configured
-    QCOMPARE(r->pathType, QString("host"));
+    // A local peer-reflexive candidate is selected when a check arrives before the signalled host candidate;
+    // both mean a direct path without a relay.
+    QVERIFY2(r->pathType == QLatin1String("host") || r->pathType == QLatin1String("prflx"), qPrintable(r->pathType));
     QVERIFY(r->rttMs >= 1);
   }
 

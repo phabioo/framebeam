@@ -64,7 +64,7 @@ jobs:
           key: ccache-linux-${{ steps.week.outputs.image }}-${{ github.sha }}
           restore-keys: ccache-linux-${{ steps.week.outputs.image }}-
       - name: Provision tools and Qt 6.4
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
           mapfile -t pkgs < <(grep -vE '^[[:space:]]*(#|$)' scripts/qt-packages.txt)
           scripts/ci-apt-install.sh "${pkgs[@]}" ccache

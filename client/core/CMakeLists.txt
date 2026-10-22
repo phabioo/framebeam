@@ -1,6 +1,6 @@
 # framebeam_core: Player core without GUI (core/ + network/). Add sources here and in ../network.
 add_library(framebeam_core STATIC version.cpp credentialstore.cpp profilestore.cpp romcache.cpp savestore.cpp playersettings.cpp firmwarecache.cpp corecache.cpp dsvsave.cpp sdtree.cpp emulationsettings.cpp controllerprofiles.cpp
-  filelog.cpp diagbundle.cpp problemreport.cpp semver.cpp updateindex.cpp updatesig.cpp installroot.cpp updater.cpp localhub.cpp hubsetup.cpp fsutil.cpp localromindex.cpp)
+  filelog.cpp diagbundle.cpp problemreport.cpp semver.cpp updateindex.cpp updaterollback.cpp updatesig.cpp installroot.cpp updater.cpp localhub.cpp hubsetup.cpp fsutil.cpp localromindex.cpp)
 target_include_directories(framebeam_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(framebeam_core PUBLIC cxx_std_20)
 target_link_libraries(framebeam_core PUBLIC Qt6::Core Qt6::Concurrent Qt6::Network OpenSSL::Crypto)

@@ -459,6 +459,13 @@ void PluginsController::refreshPlugins() {
     if (!hasProblems && isLocal && !manager_->developerMode()) problems << tr("Runs only while Developer mode is on");
     // "needs net.framebeam.pokemon-core, not installed" -> "needs SoulLink Core, not installed" (the Hub's name when it offers it).
     for (QString& pr : problems) {
+      // "Needs Player 0.16.4" (manifest field min_player, e.g. after going back to an older Player).
+      static const QRegularExpression needsPlayer(QStringLiteral("^Needs Player (\\S+)$"));
+      if (const auto np = needsPlayer.match(pr); np.hasMatch()) {
+        pr = p.enabled ? tr("Off · Needs Player %1. Turns on again after you update.").arg(np.captured(1))
+                       : tr("Needs Player %1. Cannot be turned on until you update.").arg(np.captured(1));
+        continue;
+      }
       static const QRegularExpression notInstalled(QStringLiteral("^needs (\\S+), not installed$"));
       const auto m = notInstalled.match(pr);
       if (!m.hasMatch()) continue;

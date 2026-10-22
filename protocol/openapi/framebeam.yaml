@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.25.0
+  version: 1.26.0
   description: |
     HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected Players receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on Player devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games); 0.17 adds problem reports (`reports_v1`: `POST /reports` from any paired device, the admin list, files, zip archive, seen mark and delete under `/admin/reports`). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
@@ -2539,6 +2539,74 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/AdminBackupConflict' }
+  /api/v1/admin/updates/versions:
+    get:
+      operationId: getAdminUpdateVersions
+      tags: [admin]
+      summary: Earlier versions the Hub can go back to (admin)
+      description: |
+        The last five earlier releases of the signed update index (the channel of the install plus versions this Hub
+        ran before) that speak the running protocol version, newest first, and what going back does to the data
+        (`data`: `keep` the data as it is, `restore` the automatic backup made before the update replaces the
+        database and changes since `lost_since` are only in the safety backup, `refuse` with a `reason`). Also the
+        pause after going back. Fetches the signed index, so it can take a moment and fails when the index cannot be
+        reached.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The versions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUpdateVersions' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/updates/rollback:
+    post:
+      operationId: rollbackAdminUpdate
+      tags: [admin]
+      summary: Go back to an earlier version (admin)
+      description: |
+        Writes a safety backup without ROMs (into the backup folder, else `backups/` of the data folder), stages the
+        older package, pauses automatic updates and asks the root helper to install it; the Hub restarts a moment
+        later. When the older version needs an older database schema, the database is replaced by the automatic
+        backup made before the update; that needs `confirm_data_loss` (409 `conflict` without it, with the time
+        after which changes are lost). 409 `conflict` also when going back is refused (see `versions`). 400 when the
+        version is not in the list, the Hub runs in a container (pull the older image tag instead) or was not
+        installed from the package. Returns 202 at once.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminRollbackRequest' }
+            examples:
+              default: { value: { version: 0.16.3 } }
+      responses:
+        '202':
+          description: Started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRollbackResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/AdminUpdateConflict' }
+  /api/v1/admin/updates/resume:
+    post:
+      operationId: resumeAdminUpdates
+      tags: [admin]
+      summary: Resume automatic updates after going back (admin)
+      description: Puts the automatic-install setting back as it was before going back. The skipped version is still not installed automatically. 409 `conflict` when updates are not paused.
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Resumed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/AdminUpdateConflict' }
 components:
   securitySchemes:
     bearerAuth:
@@ -2724,6 +2792,13 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
           examples:
             default: { value: { error: { code: conflict, message: A backup or restore is already running } } }
+    AdminUpdateConflict:
+      description: Going back needs a confirmation or is refused, or updates are not paused (`conflict`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: conflict, message: Going back replaces the database with the backup made before the update; confirm to go on } } }
     BadRequest:
       description: Invalid request
       content:
@@ -3875,6 +3950,67 @@ components:
         schema_version: { type: integer }
         error: { type: string, description: Set when the file is damaged or unreadable }
         restored: { type: boolean, description: The last restore used this file }
+    AdminUpdateVersions:
+      type: object
+      required: [current, current_schema, can_rollback, in_container, backup_folder, connected_players, versions]
+      properties:
+        current: { type: string, description: The running Hub version, example: '0.16.4' }
+        current_schema: { type: integer, description: Database schema version in use }
+        can_rollback: { type: boolean, description: 'This Hub can go back by itself: package install, not a container, updates on' }
+        unavailable: { type: string, description: Why `can_rollback` is false }
+        in_container: { type: boolean, description: The Hub runs in the official image; go back by pulling the older image tag }
+        paused: { $ref: '#/components/schemas/AdminUpdatePause' }
+        skipped: { type: string, description: The version going back skipped; it is not installed automatically }
+        skipped_available: { type: boolean, description: The skipped version is still the newest available one }
+        backup_folder: { type: string, description: Where the safety backup is written }
+        connected_players: { type: integer }
+        versions:
+          type: array
+          items: { $ref: '#/components/schemas/AdminUpdateVersion' }
+    AdminUpdateVersion:
+      type: object
+      required: [version, channel, published_at, schema_version, data]
+      properties:
+        version: { type: string, example: 0.16.3 }
+        channel: { type: string, enum: [stable, beta] }
+        published_at: { type: string, format: date-time }
+        notes_url: { type: string }
+        first_used: { type: string, format: date-time, description: First time this version ran on this Hub (local history) }
+        last_used: { type: string, format: date-time }
+        schema_version: { type: integer, description: 'Database schema of the version, 0 when the index does not say' }
+        data:
+          type: string
+          enum: [keep, restore, refuse]
+          description: '`keep` the data stays as it is; `restore` the automatic pre-update database backup replaces it; `refuse` going back is not safe'
+        reason: { type: string, description: Why going back is refused }
+        db_backup: { type: string, description: 'The automatic database backup used by `restore`' }
+        lost_since: { type: string, format: date-time, description: 'With `restore`: changes after this time are only in the safety backup' }
+        manual_command: { type: string, description: What to do by hand when the Hub cannot go back itself }
+    AdminUpdatePause:
+      type: object
+      required: [from, to, at]
+      properties:
+        from: { type: string, description: The version that was left }
+        to: { type: string, description: The version rolled back to }
+        at: { type: string, format: date-time }
+        by: { type: string }
+        backup: { type: string, description: Safety backup file made before going back }
+        restored_db: { type: string, description: Pre-update database backup that replaced the database }
+        lost_since: { type: string, format: date-time }
+    AdminRollbackRequest:
+      type: object
+      required: [version]
+      properties:
+        version: { type: string, example: 0.16.3 }
+        confirm_data_loss: { type: boolean, description: 'Required when `data` is `restore`: accept that changes since `lost_since` leave the running Hub' }
+    AdminRollbackResult:
+      type: object
+      required: [version, data, safety_backup, safety_folder]
+      properties:
+        version: { type: string }
+        data: { type: string, enum: [keep, restore] }
+        safety_backup: { type: string }
+        safety_folder: { type: string }
     AdminBackupList:
       type: object
       required: [backups]

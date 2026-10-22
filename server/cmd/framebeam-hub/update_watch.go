@@ -11,6 +11,8 @@ import (
 	"runtime"
 
 	"github.com/phabioo/framebeam/server/internal/config"
+	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/store"
 	"github.com/phabioo/framebeam/server/internal/updates"
 	"github.com/phabioo/framebeam/server/internal/version"
 )
@@ -54,7 +56,8 @@ func watchUpdates(ctx context.Context, cfg *config.Config, keys []ed25519.Public
 			actx, cancel := context.WithTimeout(ctx, applyTimeout)
 			defer cancel()
 			res, err := updates.ApplyStaged(actx, updates.ApplyOptions{DataDir: cfg.DataDir, RequestFile: reqFile,
-				Keys: keys, CurrentVersion: version.Version, Run: run, TempDir: privateDir})
+				Keys: keys, CurrentVersion: version.Version, Run: run, TempDir: privateDir,
+				Protocol: hub.ProtocolVersion, PrepareDB: store.PutSettings})
 			if err == nil {
 				log.Info("update installed", "version", res.Version)
 			}

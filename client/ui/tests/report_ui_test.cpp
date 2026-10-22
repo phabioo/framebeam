@@ -207,5 +207,5 @@ class ReportUiTest : public QObject {
   }
 };
 
-QTEST_MAIN(ReportUiTest)
+UITEST_MAIN(ReportUiTest)
 #include "report_ui_test.moc"

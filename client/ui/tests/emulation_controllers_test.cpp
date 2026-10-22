@@ -634,6 +634,48 @@ class EmulationControllersTest : public QObject {
     }
   }
 
+  // 6c-3: after going back the Settings page shows the amber card; "Resume updates" ends the pause.
+  void settingsAfterGoingBack() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(QDir().mkpath(h.dir.filePath(QStringLiteral("settings"))));
+    QFile f(h.dir.filePath(QStringLiteral("settings/player.json")));
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write(QJsonDocument(QJsonObject{{"update_auto_install", false},
+                                      {"update_skip", "9.9.9"},
+                                      {"update_paused", QJsonObject{{"from", "9.9.9"}, {"to", "0.0.1"}, {"at", "2026-10-22T10:00:00Z"}, {"prev_auto", true}}}})
+                .toJson());
+    f.close();
+    QVERIFY(h.start());
+    pair(h, hub);
+    h.controller->showSettings();
+    QTest::qWait(150);
+    QQuickTest::qWaitForPolish(h.window);
+    UpdatesController* up = h.controller->updates();
+    QVERIFY(up->paused());
+    QCOMPARE(up->skippedVersion(), QStringLiteral("9.9.9"));
+    QVERIFY(visible(h, "updatesPausedCard"));
+    QVERIFY(text(h, "updatesPausedTitle").contains(QStringLiteral("automatic updates paused until you resume them")));
+    QVERIFY(text(h, "updatesPausedDetail").contains(QStringLiteral("You went back from 9.9.9")));
+    QVERIFY(visible(h, "earlierEmpty"));  // no index yet: nothing to go back to
+    QCOMPARE(up->earlierCount(), 0);
+
+    // The dialog data: plugins that need a newer Player are listed as turned off.
+    QVERIFY(up->rollbackInfo(QStringLiteral("0.0.1")).value(QStringLiteral("pluginLines")).toStringList().isEmpty());
+    up->setPluginNeedsProvider([](const QString&) { return QList<QPair<QString, QString>>{{QStringLiteral("SoulLink"), QStringLiteral("0.16.4")}}; });
+    const QVariantMap info = up->rollbackInfo(QStringLiteral("0.0.1"));
+    QCOMPARE(info.value(QStringLiteral("pluginLines")).toStringList(),
+             QStringList{QStringLiteral("SoulLink needs 0.16.4 and is turned off until you update.")});
+    QVERIFY(!info.value(QStringLiteral("canGoBack")).toBool());  // a development build cannot install by itself
+
+    QVERIFY(h.click("updatesResume"));
+    QTest::qWait(60);
+    QVERIFY(!up->paused());
+    QVERIFY(!visible(h, "updatesPausedCard"));
+    QCOMPARE(up->skippedVersion(), QStringLiteral("9.9.9"));  // the skip stays until the user updates
+  }
+
   void settingsHierarchyOnThePage() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());

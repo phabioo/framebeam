@@ -92,6 +92,7 @@ QString parseRelease(const QJsonObject& o, bool allowFile, Release* r) {
       r->protocolVersion < 1 || r->minProtocolVersion < 1 || r->minProtocolVersion > r->protocolVersion) {
     return QStringLiteral("protocol versions invalid");
   }
+  r->msiDowngrade = o.value(QLatin1String("msi_downgrade")).toBool(false);
   const QJsonValue arts = o.value(QLatin1String("artifacts"));
   if (!arts.isArray() || arts.toArray().isEmpty()) return QStringLiteral("no artifacts");
   QSet<QString> seen;
@@ -126,6 +127,7 @@ QJsonObject Release::toJson() const {
                 {"published_at", publishedAt}, {"notes_url", notesUrl}, {"protocol_version", protocolVersion},
                 {"min_protocol_version", minProtocolVersion}, {"artifacts", arts}};
   if (!notes.isEmpty()) o.insert(QStringLiteral("notes"), notes);
+  if (msiDowngrade) o.insert(QStringLiteral("msi_downgrade"), true);
   return o;
 }
 

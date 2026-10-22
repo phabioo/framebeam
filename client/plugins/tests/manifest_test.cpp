@@ -110,6 +110,14 @@ class ManifestTest : public QObject {
     QVERIFY(errOf(R"({"requires":{"net.x.y":"huh"}})").contains("invalid version range"));
     QVERIFY(errOf(R"({"requires":{"net.example.tracker":"*"}})").contains("cannot require itself"));
   }
+  void minPlayer() {
+    // Optional: the oldest FrameBeam Player that runs the plugin (a plugin that needs a newer one is turned off).
+    QVERIFY(errOf(R"({"min_player":"0.16.4"})").isEmpty());
+    QVERIFY(errOf(R"({"min_player":"0.16.4-beta.2"})").isEmpty());
+    QVERIFY(errOf(R"({"min_player":"banana"})").contains("invalid min_player"));
+    QVERIFY(errOf(R"({"min_player":7})").contains("'min_player' must be a string"));
+    QVERIFY(errOf(R"({"min_player":null})").isEmpty());
+  }
   void globs() {
     QVERIFY(globMatch("AB?D", "ABCD")); QVERIFY(!globMatch("AB?D", "ABD")); QVERIFY(globMatch("*", "")); QVERIFY(globMatch("A*D*", "ABCDE"));
     QVERIFY(!globMatch("A*D", "ABCDE")); QVERIFY(globMatch("a*", "ABC"));

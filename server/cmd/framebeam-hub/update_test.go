@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/phabioo/framebeam/server/internal/corepkg"
+	"github.com/phabioo/framebeam/server/internal/store"
 	"github.com/phabioo/framebeam/server/internal/updates"
 	"github.com/phabioo/framebeam/server/internal/version"
 )
@@ -40,7 +41,8 @@ func TestVersionJSON(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &m); err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]any{"product": "hub", "version": "0.3.0-beta.57", "channel": "beta", "commit": "abc123", "protocol_version": 1.0, "min_protocol_version": 1.0}
+	want := map[string]any{"product": "hub", "version": "0.3.0-beta.57", "channel": "beta", "commit": "abc123", "protocol_version": 1.0, "min_protocol_version": 1.0,
+		"schema_version": float64(store.KnownSchemaVersion()), "msi_downgrade": true}
 	if len(m) != len(want) {
 		t.Fatalf("%v", m)
 	}

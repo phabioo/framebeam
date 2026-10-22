@@ -204,10 +204,34 @@ void PluginManager::scanHub() {
   }
 }
 
+void PluginManager::setPlayerVersion(const QString& version) {
+  if (m_playerVersion == version) return;
+  m_playerVersion = version;
+  emit pluginsChanged();
+}
+
+QList<QPair<QString, QString>> PluginManager::pluginsNeedingNewerPlayer(const QString& version) const {
+  QList<QPair<QString, QString>> out;
+  const auto target = SemVer::parse(version);
+  if (!target) return out;
+  for (auto it = m_entries.begin(); it != m_entries.end(); ++it) {
+    if (!it->valid || !it->info.enabled || !it->info.manifest.minPlayer) continue;
+    if (SemVer::compare(*target, *it->info.manifest.minPlayer) < 0) {
+      out.append({it->info.manifest.name, it->info.manifest.minPlayer->toString()});
+    }
+  }
+  std::sort(out.begin(), out.end());
+  return out;
+}
+
 void PluginManager::computeDependencyProblems(QMap<QString, QStringList>& out) const {
   for (auto it = m_entries.begin(); it != m_entries.end(); ++it) {
     if (!it->valid) continue;
     const Manifest& m = it->info.manifest;
+    if (m.minPlayer) {
+      const auto player = SemVer::parse(m_playerVersion);
+      if (player && SemVer::compare(*player, *m.minPlayer) < 0) out[m.id] << QStringLiteral("Needs Player %1").arg(m.minPlayer->toString());
+    }
     for (const Dependency& d : m.dependencies) {
       auto dep = m_entries.constFind(d.id);
       if (dep == m_entries.constEnd() || !dep->valid) {

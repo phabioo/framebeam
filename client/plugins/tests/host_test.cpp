@@ -2,6 +2,7 @@
 #include <QtTest>
 
 #include "plugin_host.h"
+#include "processguard.h"
 #include "plugin_test_util.h"
 
 using namespace framebeam::plugins;
@@ -599,5 +600,5 @@ class HostTest : public QObject {
   }
 };
 
-QTEST_MAIN(HostTest)
+FB_TEST_MAIN(HostTest)
 #include "host_test.moc"

@@ -67,10 +67,24 @@
 {{with .Body.Updates}}
 {{if .Err}}<div class="set-card"><div class="help">The update status could not be read.</div></div>{{else}}
 <div hx-get="/settings/updates" hx-trigger="fb:updates from:body{{if $.Body.PollUpdates}}, load delay:3s{{end}}" hx-target="#settings-area" hx-swap="innerHTML" hidden></div>
+{{if .Paused}}
+<section class="set-card set-update set-paused">
+  <div class="set-update-main">
+    <span class="pill amber">Updates paused</span>
+    <div class="set-update-ver"><span class="mono-lg">Running {{.CurrentVersion}}</span> · automatic updates paused until you resume them</div>
+    <div class="help">Went back from {{.Paused.From}} <span title="{{.PausedAt.Title}}">{{.PausedAt.Text}}</span>{{if .Paused.By}} by {{.Paused.By}}{{end}}.{{if .Paused.RestoredDB}} The database was replaced by the backup made before the update; changes made since then are only in the safety backup {{.Paused.Backup}}.{{else if .Paused.Backup}} The data was kept; the safety backup is {{.Paused.Backup}}.{{end}} {{.Paused.From}} stays available.</div>
+  </div>
+  <div class="set-actions">
+    <form method="post" action="/settings/updates/resume" hx-post="/settings/updates/resume">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="btn small primary" type="submit">Resume updates</button>
+    </form>
+  </div>
+</section>
+{{end}}
 {{if .Available}}
 <section class="set-card set-update">
   <div class="set-update-main">
-    <span class="chip info">▲ Update available</span>
+    {{if .Available.Skipped}}<span class="chip info">skipped · available</span>{{else}}<span class="chip info">▲ Update available</span>{{end}}
     <div class="set-update-ver"><span class="mono-lg">{{.Available.Version}}</span> <span class="pill">{{.Available.Channel}}</span></div>
     <div class="help">Installed: {{.CurrentVersion}}{{if .ActiveSessions}} · a Session is running, automatic install waits until it ends{{else}} · no Session running{{end}}{{if .Available.Breaking}}{{else}} · all recent Players compatible{{end}}</div>
     {{if .Available.Breaking}}<div class="help warn">{{.Available.Warning}}</div>{{end}}
@@ -87,7 +101,7 @@
       {{else}}
       <form method="post" action="/settings/updates/install" hx-post="/settings/updates/install" hx-confirm="Install {{.Available.Version}} now? The Hub restarts and Sessions end.">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-        <button class="btn small primary" type="submit">Install update</button>
+        <button class="btn small primary" type="submit">{{if .Available.Skipped}}Update to {{.Available.Version}}{{else}}Install update{{end}}</button>
       </form>
       {{end}}
     {{end}}
@@ -115,6 +129,41 @@
 {{end}}{{end}}
 
 <section class="set-card">
+  <div class="eyebrow">Earlier versions</div>
+  <div class="help">Go back if something stopped working after an update. A safety backup without ROMs is made first. Saves, states and ROMs are not changed. The Hub restarts (about 1 minute). Automatic updates are paused afterwards until you resume them.</div>
+  {{if .InContainer}}
+  <div class="set-row"><div class="help">This Hub runs in a container. Pull the older image tag (<span class="mono">ghcr.io/phabioo/framebeam-hub:&lt;version&gt;</span>) and recreate the container; see docs/guides/hub-docker.md.</div></div>
+  {{else if .Earlier}}
+    {{if .Earlier.Err}}<div class="set-row"><div class="help status-err">{{.Earlier.Err}}</div></div>
+    {{else}}
+      {{if .Earlier.Unavailable}}<div class="set-row"><div class="help">{{.Earlier.Unavailable}}</div></div>{{end}}
+      {{if not .Earlier.Rows}}<div class="set-row"><div class="help">No earlier version can be installed.</div></div>{{end}}
+      {{range .Earlier.Rows}}
+      <div class="set-row">
+        <div>
+          <div class="label"><span class="mono">{{.Version}}</span> <span class="pill">{{.Channel}}</span>{{if .Used}} <span class="help">{{.Used}}</span>{{end}}</div>
+          {{if .Refused}}<div class="help status-err">Not possible: {{.Reason}}</div>
+          {{else if .NeedsConf}}<div class="help warn">Needs an older database: the backup made before the update ({{.DBBackup}}) replaces it. Changes since <span title="{{.LostSince.Title}}">{{.LostSince.Text}}</span> are lost from the running Hub and kept in the safety backup.</div>
+          {{else}}<div class="help">Data is kept as it is.</div>{{end}}
+          {{if and (not $.Body.Updates.Earlier.CanRollback) .ManualCommand}}<div class="value mono">{{.ManualCommand}}</div>{{end}}
+        </div>
+        {{if and $.Body.Updates.Earlier.CanRollback (not .Refused)}}
+        <form method="post" action="/settings/updates/rollback" hx-post="/settings/updates/rollback" hx-confirm="Go back to {{.Version}}? A safety backup is made first, then the Hub restarts and Sessions end ({{$.Body.Updates.Earlier.ConnectedPlayers}} connected Player(s) disconnect for about a minute). Automatic updates are paused until you resume them.">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="version" value="{{.Version}}">
+          {{if .NeedsConf}}<label class="help"><input type="checkbox" name="confirm_loss" value="1" required> I understand that changes since {{.LostSince.Text}} are lost</label>{{end}}
+          <button class="btn small" type="submit">Back up and go back</button>
+        </form>
+        {{end}}
+      </div>
+      {{end}}
+    {{end}}
+  {{else}}
+  <div class="set-row"><div class="help">Lists the last releases from the signed update index.</div>
+    <a class="btn small" href="/settings/updates?earlier=1" hx-get="/settings/updates?earlier=1" hx-target="#settings-area" hx-swap="innerHTML">Show earlier versions</a></div>
+  {{end}}
+</section>
+
+<section class="set-card">
   <div class="eyebrow">Settings</div>
   {{if .Disabled}}<div class="set-row"><div class="help">{{.Disabled}}</div></div>{{end}}
   <div class="set-row">
@@ -129,6 +178,7 @@
   </div>
   <div class="set-row">
     <div><div class="label">Install automatically</div>
+      {{if .Paused}}<div class="help warn">Paused after going back. “Resume updates” turns it on again.</div>{{end}}
       <div class="help">After each check. Only installs when all of these are true:</div>
       <ul class="set-checks"><li>No Session is running</li><li>Players seen recently stay compatible</li><li>Installed from the .deb package</li></ul></div>
     <form method="post" action="/settings/updates" hx-post="/settings/updates" hx-target="#settings-area" hx-swap="innerHTML">

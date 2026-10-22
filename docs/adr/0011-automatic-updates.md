@@ -73,11 +73,10 @@ Milestone 0.3 ([Roadmap](../roadmap.md)) lets a change on `main` reach the test 
   - zip, dev build, Linux: availability and release link only.
 - The Player-side signature check of core packages (ADR 0010 D5) is not part of 0.3 and moves to 0.4 (Sessions over the internet and save comfort, [Roadmap](../roadmap.md); numbered 0.6 until 2026-10-07). The Player's own update check does verify the signature (above).
 
-### D8 Rollback (proposal, open for Fabio)
+### D8 Rollback (decided: [ADR 0029](0029-operations-and-safety.md) D4)
 
-- Proposal: no automatic or one-click rollback in 0.3. The index keeps the last 5 releases per product and channel, GitHub keeps the assets, the Hub keeps the last 5 DB backups.
-- Manual procedure: Hub `sudo apt install --allow-downgrades ./framebeam-hub_<old>.deb`, plus restoring the matching backup if the schema changed (migrations are forward-only); Player: run an older installer.
-- One-click rollback is a later item. Decided with the merge of this ADR.
+- 0.3 shipped without rollback: the index keeps the last 5 releases per product and channel, GitHub keeps the assets, the Hub keeps the last 5 DB backups. Manual procedure: Hub `sudo apt install --allow-downgrades ./framebeam-hub_<old>.deb`, plus restoring the matching backup if the schema changed (migrations are forward-only); Player: run an older installer.
+- Decided in 0.17: "Go back" for Player and Hub from the signed index, the Hub with its pre-update database backup; details in ADR 0029 D4 and [the guide](../guides/updates.md#rollback). The manual procedure stays as the fallback.
 
 ## Rejected
 

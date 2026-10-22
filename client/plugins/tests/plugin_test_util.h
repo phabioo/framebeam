@@ -23,6 +23,7 @@ struct PluginSpec {
   QStringList provides;
   QJsonArray games;
   QJsonObject ui;   // manifest field "ui" (needs the permission "ui")
+  QString minPlayer;  // manifest field "min_player"
   QString lua;
   QMap<QString, QByteArray> files;  // extra files below the plugin folder
 };
@@ -44,6 +45,7 @@ inline QString writePlugin(const QString& parent, const PluginSpec& s) {
   if (!s.provides.isEmpty()) m["provides"] = QJsonArray::fromStringList(s.provides);
   if (!s.games.isEmpty()) m["games"] = s.games;
   if (!s.ui.isEmpty()) m["ui"] = s.ui;
+  if (!s.minPlayer.isEmpty()) m["min_player"] = s.minPlayer;
   QFile mf(dir + "/manifest.json");
   mf.open(QIODevice::WriteOnly);
   mf.write(QJsonDocument(m).toJson());

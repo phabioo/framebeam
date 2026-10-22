@@ -22,6 +22,7 @@ UpdateManager::Config makeConfig(const UpdatesController::Options& o) {
   c.compiledChannel = QString::fromUtf8(playerChannel().data(), static_cast<qsizetype>(playerChannel().size()));
   c.installRoot = o.installRoot;
   c.forceApplySupport = o.forceApplySupport;
+  c.protocolVersion = o.protocolVersion;
   return c;
 }
 
@@ -80,7 +81,7 @@ QString UpdatesController::lastCheckText() const {
 }
 
 bool UpdatesController::updateAvailable() const {
-  if (manager_.availableVersion().isEmpty()) return false;
+  if (manager_.availableVersion().isEmpty() || manager_.selectionSkipped()) return false;  // skipped: listed, not nagged
   switch (manager_.state()) {
     case UpdateManager::State::Available:
     case UpdateManager::State::Downloading:
@@ -128,7 +129,7 @@ QString UpdatesController::bannerActionLabel() const {
 QString UpdatesController::bannerText() const {
   const auto s = manager_.state();
   const QString v = manager_.availableVersion();
-  if (v.isEmpty() || v == dismissedVersion_) return {};
+  if (v.isEmpty() || v == dismissedVersion_ || manager_.selectionSkipped()) return {};
   switch (s) {
     case UpdateManager::State::Available: return tr("FrameBeam Player %1 is available").arg(v);
     case UpdateManager::State::Ready: return tr("FrameBeam Player %1 is ready to install").arg(v);
@@ -137,6 +138,81 @@ QString UpdatesController::bannerText() const {
     default: break;
   }
   return {};
+}
+
+namespace {
+
+// "today" or "2 Oct": the day part of an ISO timestamp as the list shows it.
+QString dayText(const QString& iso) {
+  const QDateTime t = QDateTime::fromString(iso, Qt::ISODate).toLocalTime();
+  if (!t.isValid()) return {};
+  if (t.date() == QDate::currentDate()) return QObject::tr("today");
+  return QLocale().toString(t.date(), QStringLiteral("d MMM"));
+}
+
+}  // namespace
+
+QVariantList UpdatesController::earlierVersions() const {
+  QVariantList out;
+  const QList<update::RollbackCandidate> options = manager_.rollbackOptions();
+  if (!manager_.rollbackListLoaded()) return out;
+  if (manager_.selectionSkipped()) {
+    out.append(QVariantMap{{"version", manager_.availableVersion()}, {"kind", "skipped"},
+                           {"text", tr("skipped · available")}, {"notesUrl", manager_.notesUrl()}});
+  }
+  const QList<update::HistoryEntry> history = update::parseHistory(settings_->updateHistory());
+  QString runText;
+  for (const update::HistoryEntry& h : history) {
+    if (h.version == manager_.currentVersion() && !h.first.isEmpty()) runText = tr("installed %1").arg(dayText(h.first));
+  }
+  out.append(QVariantMap{{"version", manager_.currentVersion()}, {"kind", "running"}, {"text", runText}, {"notesUrl", QString()}});
+  for (const update::RollbackCandidate& c : options) {
+    QString text = tr("not used on this device");
+    if (c.ran) {
+      const QString from = dayText(c.first);
+      const QString to = dayText(c.last);
+      text = from == to || to.isEmpty() ? tr("used %1").arg(from) : tr("used %1 – %2").arg(from, to);
+    }
+    out.append(QVariantMap{{"version", c.release.version}, {"kind", "earlier"}, {"text", text}, {"notesUrl", c.release.notesUrl}});
+  }
+  return out;
+}
+
+QString UpdatesController::goBackUnavailableText() const {
+  if (manager_.applySupported()) return {};
+  return tr("This copy cannot install an older version itself. Open the release and install it from there.");
+}
+
+QString UpdatesController::pausedTitle() const {
+  return tr("Running %1 · automatic updates paused until you resume them").arg(manager_.currentVersion());
+}
+
+QString UpdatesController::pausedDetail() const {
+  const update::Pause p = manager_.pause();
+  const QDateTime at = QDateTime::fromString(p.at, Qt::ISODate).toLocalTime();
+  const QString when = at.isValid() ? TimeFormat::when(at) : QString();
+  return when.isEmpty() ? tr("You went back from %1. %1 stays available.").arg(p.from)
+                        : tr("You went back from %1 %2. %1 stays available.").arg(p.from, when);
+}
+
+QVariantMap UpdatesController::rollbackInfo(const QString& version) const {
+  QVariantMap m;
+  m.insert(QStringLiteral("version"), version);
+  m.insert(QStringLiteral("canGoBack"), manager_.applySupported());
+  const bool busy = manager_.busy();
+  m.insert(QStringLiteral("busy"), busy);
+  m.insert(QStringLiteral("busyText"), busy ? tr("A game or Session is running. Quit it first; it saves and syncs.") : QString());
+  QStringList lines;
+  if (pluginNeeds_) {
+    for (const auto& n : pluginNeeds_(version)) lines << tr("%1 needs %2 and is turned off until you update.").arg(n.first, n.second);
+  }
+  m.insert(QStringLiteral("pluginLines"), lines);
+  return m;
+}
+
+void UpdatesController::openRelease(const QString& url) {
+  const QUrl u(url);
+  if (u.isValid() && u.scheme() == QLatin1String("https")) QDesktopServices::openUrl(u);
 }
 
 void UpdatesController::setChannel(const QString& channel) {

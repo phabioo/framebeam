@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QHash>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
 #include <QStringList>
@@ -34,6 +35,16 @@ class PlayerSettings {
   bool setUpdateChannelDefault(const QString& channel);  // "stable" | "beta"; anything else is rejected (false)
   std::optional<bool> updateAutoInstall() const { return updateAutoInstall_; }
   bool setUpdateAutoInstall(bool on);
+  bool clearUpdateAutoInstall();  // back to the default of the channel
+  // Update rollback (ADR 0029 D4). History: versions this device ran ([{version, first, last}]). Pause: {from, to, at,
+  // prev_auto} while automatic updates are paused after going back (empty object = none). Skip: the version the user
+  // went back from, never installed automatically. The shapes are interpreted by core/updaterollback.h.
+  QJsonArray updateHistory() const;
+  bool setUpdateHistory(const QJsonArray& history);
+  QJsonObject updatePause() const;
+  bool setUpdatePause(const QJsonObject& pause);  // empty object removes it
+  QString updateSkip() const { return updateSkip_; }
+  bool setUpdateSkip(const QString& version);  // empty removes it
 
   // Diagnostics overlay (0.6 D5): open/closed state of the overlay and of its two sections, shared by the window,
   // multiview and fullscreen. Defaults: overlay closed, Emulation section open, Streaming section open.
@@ -109,6 +120,7 @@ class PlayerSettings {
   QString updateChannel_;
   QString updateChannelDefault_;
   std::optional<bool> updateAutoInstall_;
+  QString updateSkip_;
   bool diagOpen_ = false;
   bool diagEmulationOpen_ = true;
   bool diagStreamingOpen_ = true;

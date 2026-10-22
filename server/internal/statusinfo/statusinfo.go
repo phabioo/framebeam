@@ -84,6 +84,10 @@ func (s *Source) Problems(ctx context.Context) []health.Problem {
 		ps = append(ps, health.Problem{ID: "update", Title: "Update failed", Detail: detail, Severity: health.Warn,
 			ActionLabel: "Open Updates", ActionHref: "/settings/updates"})
 	}
+	if up := s.Svc.UpdatePausedProblem(ctx); up != nil {
+		ps = append(ps, health.Problem{ID: "update-paused", Title: up.Title, Detail: up.Detail, Severity: health.Warn,
+			ActionLabel: "Open Updates", ActionHref: "/settings/updates"})
+	}
 	if bp := s.Svc.BackupProblem(ctx); bp != nil {
 		ps = append(ps, health.Problem{ID: "backup", Title: bp.Title, Detail: bp.Detail, Severity: health.Warn,
 			ActionLabel: "Open Backups", ActionHref: "/settings/backups"})

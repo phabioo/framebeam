@@ -139,6 +139,24 @@ func (e AdminReportSummaryStatus) Valid() bool {
 	}
 }
 
+// Defines values for AdminRollbackResultData.
+const (
+	AdminRollbackResultDataKeep    AdminRollbackResultData = "keep"
+	AdminRollbackResultDataRestore AdminRollbackResultData = "restore"
+)
+
+// Valid indicates whether the value is a known member of the AdminRollbackResultData enum.
+func (e AdminRollbackResultData) Valid() bool {
+	switch e {
+	case AdminRollbackResultDataKeep:
+		return true
+	case AdminRollbackResultDataRestore:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminStatusErrorLevel.
 const (
 	AdminStatusErrorLevelError AdminStatusErrorLevel = "error"
@@ -196,6 +214,45 @@ func (e AdminStatusSessionVisibility) Valid() bool {
 	case AdminStatusSessionVisibilityInviteOnly:
 		return true
 	case AdminStatusSessionVisibilityPrivate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminUpdateVersionChannel.
+const (
+	Beta   AdminUpdateVersionChannel = "beta"
+	Stable AdminUpdateVersionChannel = "stable"
+)
+
+// Valid indicates whether the value is a known member of the AdminUpdateVersionChannel enum.
+func (e AdminUpdateVersionChannel) Valid() bool {
+	switch e {
+	case Beta:
+		return true
+	case Stable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminUpdateVersionData.
+const (
+	AdminUpdateVersionDataKeep    AdminUpdateVersionData = "keep"
+	AdminUpdateVersionDataRefuse  AdminUpdateVersionData = "refuse"
+	AdminUpdateVersionDataRestore AdminUpdateVersionData = "restore"
+)
+
+// Valid indicates whether the value is a known member of the AdminUpdateVersionData enum.
+func (e AdminUpdateVersionData) Valid() bool {
+	switch e {
+	case AdminUpdateVersionDataKeep:
+		return true
+	case AdminUpdateVersionDataRefuse:
+		return true
+	case AdminUpdateVersionDataRestore:
 		return true
 	default:
 		return false
@@ -1091,6 +1148,24 @@ type AdminRestoreResult struct {
 	Safety *string `json:"safety,omitempty"`
 }
 
+// AdminRollbackRequest defines model for AdminRollbackRequest.
+type AdminRollbackRequest struct {
+	// ConfirmDataLoss Required when `data` is `restore`: accept that changes since `lost_since` leave the running Hub
+	ConfirmDataLoss *bool  `json:"confirm_data_loss,omitempty"`
+	Version         string `json:"version"`
+}
+
+// AdminRollbackResult defines model for AdminRollbackResult.
+type AdminRollbackResult struct {
+	Data         AdminRollbackResultData `json:"data"`
+	SafetyBackup string                  `json:"safety_backup"`
+	SafetyFolder string                  `json:"safety_folder"`
+	Version      string                  `json:"version"`
+}
+
+// AdminRollbackResultData defines model for AdminRollbackResult.Data.
+type AdminRollbackResultData string
+
 // AdminStatus defines model for AdminStatus.
 type AdminStatus struct {
 	// BackupDisk The volume holding the backup folder; absent when no backup folder is set. Sizes are absent where the platform has no reader.
@@ -1192,6 +1267,91 @@ type AdminStatusSession struct {
 
 // AdminStatusSessionVisibility defines model for AdminStatusSession.Visibility.
 type AdminStatusSessionVisibility string
+
+// AdminUpdatePause defines model for AdminUpdatePause.
+type AdminUpdatePause struct {
+	At time.Time `json:"at"`
+
+	// Backup Safety backup file made before going back
+	Backup *string `json:"backup,omitempty"`
+	By     *string `json:"by,omitempty"`
+
+	// From The version that was left
+	From      string     `json:"from"`
+	LostSince *time.Time `json:"lost_since,omitempty"`
+
+	// RestoredDb Pre-update database backup that replaced the database
+	RestoredDb *string `json:"restored_db,omitempty"`
+
+	// To The version rolled back to
+	To string `json:"to"`
+}
+
+// AdminUpdateVersion defines model for AdminUpdateVersion.
+type AdminUpdateVersion struct {
+	Channel AdminUpdateVersionChannel `json:"channel"`
+
+	// Data `keep` the data stays as it is; `restore` the automatic pre-update database backup replaces it; `refuse` going back is not safe
+	Data AdminUpdateVersionData `json:"data"`
+
+	// DbBackup The automatic database backup used by `restore`
+	DbBackup *string `json:"db_backup,omitempty"`
+
+	// FirstUsed First time this version ran on this Hub (local history)
+	FirstUsed *time.Time `json:"first_used,omitempty"`
+	LastUsed  *time.Time `json:"last_used,omitempty"`
+
+	// LostSince With `restore`: changes after this time are only in the safety backup
+	LostSince *time.Time `json:"lost_since,omitempty"`
+
+	// ManualCommand What to do by hand when the Hub cannot go back itself
+	ManualCommand *string   `json:"manual_command,omitempty"`
+	NotesUrl      *string   `json:"notes_url,omitempty"`
+	PublishedAt   time.Time `json:"published_at"`
+
+	// Reason Why going back is refused
+	Reason *string `json:"reason,omitempty"`
+
+	// SchemaVersion Database schema of the version, 0 when the index does not say
+	SchemaVersion int    `json:"schema_version"`
+	Version       string `json:"version"`
+}
+
+// AdminUpdateVersionChannel defines model for AdminUpdateVersion.Channel.
+type AdminUpdateVersionChannel string
+
+// AdminUpdateVersionData `keep` the data stays as it is; `restore` the automatic pre-update database backup replaces it; `refuse` going back is not safe
+type AdminUpdateVersionData string
+
+// AdminUpdateVersions defines model for AdminUpdateVersions.
+type AdminUpdateVersions struct {
+	// BackupFolder Where the safety backup is written
+	BackupFolder string `json:"backup_folder"`
+
+	// CanRollback This Hub can go back by itself: package install, not a container, updates on
+	CanRollback      bool `json:"can_rollback"`
+	ConnectedPlayers int  `json:"connected_players"`
+
+	// Current The running Hub version
+	Current string `json:"current"`
+
+	// CurrentSchema Database schema version in use
+	CurrentSchema int `json:"current_schema"`
+
+	// InContainer The Hub runs in the official image; go back by pulling the older image tag
+	InContainer bool              `json:"in_container"`
+	Paused      *AdminUpdatePause `json:"paused,omitempty"`
+
+	// Skipped The version going back skipped; it is not installed automatically
+	Skipped *string `json:"skipped,omitempty"`
+
+	// SkippedAvailable The skipped version is still the newest available one
+	SkippedAvailable *bool `json:"skipped_available,omitempty"`
+
+	// Unavailable Why `can_rollback` is false
+	Unavailable *string              `json:"unavailable,omitempty"`
+	Versions    []AdminUpdateVersion `json:"versions"`
+}
 
 // CoreInfo defines model for CoreInfo.
 type CoreInfo struct {
@@ -2206,6 +2366,9 @@ type UserId = string
 // AdminBackupConflict defines model for AdminBackupConflict.
 type AdminBackupConflict = Error
 
+// AdminUpdateConflict defines model for AdminUpdateConflict.
+type AdminUpdateConflict = Error
+
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
 
@@ -2337,6 +2500,9 @@ type UpdateAdminBackupSettingsJSONRequestBody = AdminBackupSettingsUpdate
 
 // SetAdminMetricsJSONRequestBody defines body for SetAdminMetrics for application/json ContentType.
 type SetAdminMetricsJSONRequestBody = AdminMetricsUpdate
+
+// RollbackAdminUpdateJSONRequestBody defines body for RollbackAdminUpdate for application/json ContentType.
+type RollbackAdminUpdateJSONRequestBody = AdminRollbackRequest
 
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = TokenRequest
@@ -2948,6 +3114,15 @@ type ServerInterface interface {
 	// Download the recent Hub log (admin only)
 	// (GET /api/v1/admin/status/log)
 	GetAdminStatusLog(w http.ResponseWriter, r *http.Request)
+	// Resume automatic updates after going back (admin)
+	// (POST /api/v1/admin/updates/resume)
+	ResumeAdminUpdates(w http.ResponseWriter, r *http.Request)
+	// Go back to an earlier version (admin)
+	// (POST /api/v1/admin/updates/rollback)
+	RollbackAdminUpdate(w http.ResponseWriter, r *http.Request)
+	// Earlier versions the Hub can go back to (admin)
+	// (GET /api/v1/admin/updates/versions)
+	GetAdminUpdateVersions(w http.ResponseWriter, r *http.Request)
 	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(w http.ResponseWriter, r *http.Request)
@@ -3700,6 +3875,66 @@ func (siw *ServerInterfaceWrapper) GetAdminStatusLog(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAdminStatusLog(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResumeAdminUpdates operation middleware
+func (siw *ServerInterfaceWrapper) ResumeAdminUpdates(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResumeAdminUpdates(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RollbackAdminUpdate operation middleware
+func (siw *ServerInterfaceWrapper) RollbackAdminUpdate(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RollbackAdminUpdate(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminUpdateVersions operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminUpdateVersions(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminUpdateVersions(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6141,6 +6376,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/reports/{id}/seen", wrapper.MarkAdminReportSeen)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/status", wrapper.GetAdminStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/status/log", wrapper.GetAdminStatusLog)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/updates/resume", wrapper.ResumeAdminUpdates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/updates/rollback", wrapper.RollbackAdminUpdate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/updates/versions", wrapper.GetAdminUpdateVersions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}", wrapper.GetCorePackage)
@@ -6210,6 +6448,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 }
 
 type AdminBackupConflictJSONResponse Error
+
+type AdminUpdateConflictJSONResponse Error
 
 type BadRequestJSONResponse Error
 
@@ -7722,6 +7962,208 @@ func (response GetAdminStatusLog429JSONResponse) VisitGetAdminStatusLogResponse(
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeAdminUpdatesRequestObject struct {
+}
+
+type ResumeAdminUpdatesResponseObject interface {
+	VisitResumeAdminUpdatesResponse(w http.ResponseWriter) error
+}
+
+type ResumeAdminUpdates204Response struct {
+}
+
+func (response ResumeAdminUpdates204Response) VisitResumeAdminUpdatesResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ResumeAdminUpdates401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ResumeAdminUpdates401JSONResponse) VisitResumeAdminUpdatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeAdminUpdates403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ResumeAdminUpdates403JSONResponse) VisitResumeAdminUpdatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeAdminUpdates409JSONResponse struct {
+	AdminUpdateConflictJSONResponse
+}
+
+func (response ResumeAdminUpdates409JSONResponse) VisitResumeAdminUpdatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RollbackAdminUpdateRequestObject struct {
+	Body *RollbackAdminUpdateJSONRequestBody
+}
+
+type RollbackAdminUpdateResponseObject interface {
+	VisitRollbackAdminUpdateResponse(w http.ResponseWriter) error
+}
+
+type RollbackAdminUpdate202JSONResponse AdminRollbackResult
+
+func (response RollbackAdminUpdate202JSONResponse) VisitRollbackAdminUpdateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RollbackAdminUpdate400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RollbackAdminUpdate400JSONResponse) VisitRollbackAdminUpdateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RollbackAdminUpdate401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RollbackAdminUpdate401JSONResponse) VisitRollbackAdminUpdateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RollbackAdminUpdate403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response RollbackAdminUpdate403JSONResponse) VisitRollbackAdminUpdateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RollbackAdminUpdate409JSONResponse struct {
+	AdminUpdateConflictJSONResponse
+}
+
+func (response RollbackAdminUpdate409JSONResponse) VisitRollbackAdminUpdateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUpdateVersionsRequestObject struct {
+}
+
+type GetAdminUpdateVersionsResponseObject interface {
+	VisitGetAdminUpdateVersionsResponse(w http.ResponseWriter) error
+}
+
+type GetAdminUpdateVersions200JSONResponse AdminUpdateVersions
+
+func (response GetAdminUpdateVersions200JSONResponse) VisitGetAdminUpdateVersionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUpdateVersions400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetAdminUpdateVersions400JSONResponse) VisitGetAdminUpdateVersionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUpdateVersions401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminUpdateVersions401JSONResponse) VisitGetAdminUpdateVersionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUpdateVersions403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminUpdateVersions403JSONResponse) VisitGetAdminUpdateVersionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -12747,6 +13189,15 @@ type StrictServerInterface interface {
 	// Download the recent Hub log (admin only)
 	// (GET /api/v1/admin/status/log)
 	GetAdminStatusLog(ctx context.Context, request GetAdminStatusLogRequestObject) (GetAdminStatusLogResponseObject, error)
+	// Resume automatic updates after going back (admin)
+	// (POST /api/v1/admin/updates/resume)
+	ResumeAdminUpdates(ctx context.Context, request ResumeAdminUpdatesRequestObject) (ResumeAdminUpdatesResponseObject, error)
+	// Go back to an earlier version (admin)
+	// (POST /api/v1/admin/updates/rollback)
+	RollbackAdminUpdate(ctx context.Context, request RollbackAdminUpdateRequestObject) (RollbackAdminUpdateResponseObject, error)
+	// Earlier versions the Hub can go back to (admin)
+	// (GET /api/v1/admin/updates/versions)
+	GetAdminUpdateVersions(ctx context.Context, request GetAdminUpdateVersionsRequestObject) (GetAdminUpdateVersionsResponseObject, error)
 	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(ctx context.Context, request RevokeSelfRequestObject) (RevokeSelfResponseObject, error)
@@ -13524,6 +13975,85 @@ func (sh *strictHandler) GetAdminStatusLog(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetAdminStatusLogResponseObject); ok {
 		if err := validResponse.VisitGetAdminStatusLogResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ResumeAdminUpdates operation middleware
+func (sh *strictHandler) ResumeAdminUpdates(w http.ResponseWriter, r *http.Request) {
+	var request ResumeAdminUpdatesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResumeAdminUpdates(ctx, request.(ResumeAdminUpdatesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResumeAdminUpdates")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResumeAdminUpdatesResponseObject); ok {
+		if err := validResponse.VisitResumeAdminUpdatesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RollbackAdminUpdate operation middleware
+func (sh *strictHandler) RollbackAdminUpdate(w http.ResponseWriter, r *http.Request) {
+	var request RollbackAdminUpdateRequestObject
+
+	var body RollbackAdminUpdateJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RollbackAdminUpdate(ctx, request.(RollbackAdminUpdateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RollbackAdminUpdate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RollbackAdminUpdateResponseObject); ok {
+		if err := validResponse.VisitRollbackAdminUpdateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminUpdateVersions operation middleware
+func (sh *strictHandler) GetAdminUpdateVersions(w http.ResponseWriter, r *http.Request) {
+	var request GetAdminUpdateVersionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminUpdateVersions(ctx, request.(GetAdminUpdateVersionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminUpdateVersions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminUpdateVersionsResponseObject); ok {
+		if err := validResponse.VisitGetAdminUpdateVersionsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

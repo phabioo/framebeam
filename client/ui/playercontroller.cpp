@@ -432,7 +432,11 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     uo.baseDir = profiles_->baseDir();
     uo.indexUrl = options.updateIndexUrl;
     uo.installRoot = update::installRootFor(QCoreApplication::applicationDirPath());
+    uo.protocolVersion = kProtocolVersion;
     updates_ = std::make_unique<UpdatesController>(uo, settings_.get());
+    // Plugins that need a newer Player than this one are off (manifest field min_player); the rollback dialog warns about them.
+    if (updates_->compiledChannel() != QLatin1String("dev")) plugins_->manager()->setPlayerVersion(updates_->currentVersion());
+    updates_->setPluginNeedsProvider([this](const QString& v) { return plugins_->manager()->pluginsNeedingNewerPlayer(v); });
     updates_->setProviders(
         [this]() -> std::optional<update::HubProtocol> {
           if (conn_->state() != HubConnection::State::Connected || conn_->hubInfo().protocolVersion <= 0) {

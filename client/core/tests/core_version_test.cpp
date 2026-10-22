@@ -24,6 +24,7 @@ class CoreVersionTest : public QObject {
     QVERIFY(o.contains("commit"));
     QCOMPARE(o.value("protocol_version").toInt(), 1);
     QCOMPARE(o.value("min_protocol_version").toInt(), 1);
+    QVERIFY(o.value("msi_downgrade").toBool());  // this build installs over a newer version (rollback target)
   }
 };
 

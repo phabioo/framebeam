@@ -214,6 +214,62 @@ Rectangle {
                         }
                     }
 
+                    // After going back (6c-3): automatic updates are paused until the user resumes them.
+                    Rectangle {
+                        objectName: "updatesPausedCard"
+                        visible: root.updates.paused
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.settingsDotSlot
+                        Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0
+                        implicitHeight: pausedCol.implicitHeight + 36
+                        radius: Theme.radius10
+                        color: Theme.pluginWarnBg
+                        border.width: 1
+                        border.color: Theme.pluginWarnLine
+
+                        ColumnLayout {
+                            id: pausedCol
+                            anchors.fill: parent
+                            anchors.margins: 18
+                            spacing: Theme.space10
+                            FbLabel {
+                                objectName: "updatesPausedTitle"
+                                Layout.fillWidth: true
+                                text: root.updates.pausedTitle
+                                font.pixelSize: Theme.fontSection
+                                font.weight: Font.DemiBold
+                                color: Theme.pluginWarnText
+                                wrapMode: Text.WordWrap
+                            }
+                            FbLabel {
+                                objectName: "updatesPausedDetail"
+                                Layout.fillWidth: true
+                                text: root.updates.pausedDetail
+                                font.pixelSize: Theme.fontSmall
+                                color: Theme.pluginWarnText
+                                wrapMode: Text.WordWrap
+                            }
+                            RowLayout {
+                                spacing: Theme.space10
+                                FbButton {
+                                    objectName: "updatesUpdateToSkipped"
+                                    visible: root.updates.skippedVersion !== "" && root.updates.canInstall
+                                    implicitHeight: 36
+                                    kind: "primary"
+                                    busyOnClick: true
+                                    text: qsTr("Update to %1").arg(root.updates.skippedVersion)
+                                    onClicked: root.updates.updateToSkipped()
+                                }
+                                FbButton {
+                                    objectName: "updatesResume"
+                                    implicitHeight: 36
+                                    text: qsTr("Resume updates")
+                                    onClicked: root.updates.resumeUpdates()
+                                }
+                            }
+                        }
+                    }
+
                     // Update card
                     Rectangle {
                         objectName: "updateCard"
@@ -338,13 +394,15 @@ Rectangle {
                             Layout.minimumWidth: 0
                             resetMode: "none"
                             label: qsTr("Install updates automatically")
-                            description: root.updates.autoInstallAvailable
-                                         ? qsTr("Downloaded in the background, applied on the next start.")
-                                         : qsTr("Stable updates are only installed after you confirm.")
+                            description: root.updates.paused
+                                         ? qsTr("Paused after going back. “Resume updates” turns it on again.")
+                                         : root.updates.autoInstallAvailable
+                                           ? qsTr("Downloaded in the background, applied on the next start.")
+                                           : qsTr("Stable updates are only installed after you confirm.")
                             ctrl: "toggle"
                             toggleName: "updateAutoInstallToggle"
-                            controlEnabled: root.updates.autoInstallAvailable
-                            checked: root.updates.autoInstall
+                            controlEnabled: root.updates.autoInstallAvailable && !root.updates.paused
+                            checked: root.updates.autoInstall && !root.updates.paused
                             onToggled: on => root.updates.setAutoInstall(on)
                         }
 
@@ -374,6 +432,98 @@ Rectangle {
                             ctrl: "value"
                             controlName: "updatesVersion"
                             valueText: root.updates.currentVersion
+                        }
+                    }
+
+                    // EARLIER VERSIONS (6c): go back to one of the last releases. A copy that cannot install by itself
+                    // (portable, Linux, development) lists the releases with links only.
+                    ColumnLayout {
+                        objectName: "earlierVersions"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.topMargin: Theme.space10
+                        spacing: Theme.space10
+
+                        Eyebrow { text: qsTr("Earlier versions · %1").arg(root.updates.earlierCount) }
+                        FbLabel {
+                            Layout.fillWidth: true
+                            text: qsTr("Go back if something stopped working after an update. Settings stay; saves and states are on your Hub and are not touched. The list shows the last %1 releases.").arg(5)
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: Theme.fontSmall
+                            color: Theme.textSecondary
+                        }
+                        FbLabel {
+                            objectName: "earlierUnavailable"
+                            visible: !root.updates.canGoBack && root.updates.earlierCount > 0
+                            Layout.fillWidth: true
+                            text: root.updates.goBackUnavailableText
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: Theme.fontSmall
+                            color: Theme.pluginWarn
+                        }
+                        FbLabel {
+                            objectName: "earlierEmpty"
+                            visible: root.updates.earlierCount === 0
+                            Layout.fillWidth: true
+                            text: root.updates.effectiveChannel === "off"
+                                  ? qsTr("Choose Stable or Beta to see earlier versions.")
+                                  : qsTr("No earlier version to go back to. The list fills after the next update check.")
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: Theme.fontSmall
+                            color: Theme.textMuted
+                        }
+                        Repeater {
+                            model: root.updates.earlierVersions
+                            delegate: Rectangle {
+                                id: earlierRow
+                                required property var modelData
+                                objectName: "earlierRow-" + modelData.version
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                implicitHeight: 52
+                                radius: Theme.radius10
+                                color: Theme.surface
+                                border.width: 1
+                                border.color: Theme.borderCard
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 16
+                                    anchors.rightMargin: 12
+                                    spacing: Theme.space12
+                                    FbMono {
+                                        text: earlierRow.modelData.version
+                                        color: Theme.text
+                                        font.pixelSize: Theme.fontBody
+                                    }
+                                    FbLabel {
+                                        objectName: "earlierState-" + earlierRow.modelData.version
+                                        Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
+                                        text: earlierRow.modelData.kind === "running" ? (earlierRow.modelData.text !== "" ? qsTr("Running · %1").arg(earlierRow.modelData.text) : qsTr("Running"))
+                                                                                      : earlierRow.modelData.text
+                                        elide: Text.ElideRight
+                                        font.pixelSize: Theme.fontSmall
+                                        color: earlierRow.modelData.kind === "skipped" ? Theme.pluginWarn : Theme.textMuted
+                                    }
+                                    FbButton {
+                                        objectName: "earlierGoBack-" + earlierRow.modelData.version
+                                        visible: earlierRow.modelData.kind === "earlier" && root.updates.canGoBack
+                                        implicitHeight: 34
+                                        text: qsTr("Go back…")
+                                        onClicked: rollbackDialog.openFor(earlierRow.modelData.version)
+                                    }
+                                    FbButton {
+                                        objectName: "earlierRelease-" + earlierRow.modelData.version
+                                        visible: earlierRow.modelData.kind !== "running" && !(earlierRow.modelData.kind === "earlier" && root.updates.canGoBack)
+                                                 && earlierRow.modelData.notesUrl !== ""
+                                        implicitHeight: 34
+                                        kind: "link"
+                                        text: qsTr("View release")
+                                        onClicked: root.updates.openRelease(earlierRow.modelData.notesUrl)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -954,5 +1104,11 @@ Rectangle {
                 }
             }
         }
+    }
+
+    RollbackDialog {
+        id: rollbackDialog
+        objectName: "rollbackDialogHost"
+        updates: root.updates
     }
 }

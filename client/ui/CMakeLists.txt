@@ -72,6 +72,7 @@ qt_add_qml_module(framebeam_ui
     SettingsScreen.qml
     ConflictDialog.qml
     StartConfirmDialog.qml
+    RollbackDialog.qml
     FbSegment.qml
     SessionsSection.qml
     GamePanel.qml

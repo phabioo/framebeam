@@ -5,6 +5,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMap>
 #include <QRandomGenerator>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -18,6 +19,7 @@
 #include "semver.h"
 #include "updater.h"
 #include "updateindex.h"
+#include "updaterollback.h"
 #include "updatesig.h"
 
 using namespace framebeam::update;
@@ -689,6 +691,319 @@ class UpdateTest : public QObject {
     QVERIFY(!loadVerifiedStaged(base, "0.9.0", env.keys, true));
   }
 
+  // ---------------------------------------------------------------- update rollback (ADR 0029 D4)
+  void rollbackCandidateSelection() {
+    auto rel = [](const QString& v, const QString& ch, bool downgrade, int proto = 2, int minProto = 1) {
+      QJsonObject o = release("player", ch, v, oneArt(v), proto, minProto);
+      if (downgrade) o["msi_downgrade"] = true;
+      return o;
+    };
+    const Index idx = parseOk(indexJson({rel("0.1.0", "stable", true), rel("0.2.0", "beta", true), rel("0.3.0", "stable", true),
+                                         rel("0.3.0", "beta", true), rel("0.4.0", "beta", false),      // MSI refuses a downgrade
+                                         rel("0.5.0", "beta", true, 1, 1), rel("0.6.0", "beta", true, 3, 3),  // speaks protocol 1 / 3 only
+                                         rel("0.7.0", "beta", true), rel("0.8.0", "stable", true), rel("0.9.0", "beta", true),
+                                         rel("1.0.0", "beta", true),                                   // the running version: not older
+                                         release("hub", "stable", "0.0.5", oneArt("h"))}));
+    RollbackQuery q;
+    q.currentVersion = "1.0.0";
+    q.channel = Channel::Beta;
+    q.protocolVersion = 2;
+    QList<RollbackCandidate> c = rollbackCandidates(idx, q);
+    QStringList versions;
+    for (const auto& x : c) versions << x.release.version;
+    // newest first, at most 5, no MSI without the downgrade flag, no release that does not speak protocol 2, no Hub release
+    QCOMPARE(versions, (QStringList{"0.9.0", "0.8.0", "0.7.0", "0.3.0", "0.2.0"}));
+    QCOMPARE(c[3].release.channel, QString("stable"));  // a version listed in two channels counts once, stable wins
+    QVERIFY(!c[0].ran);
+
+    // Stable only sees stable releases, plus the versions this device ran.
+    q.channel = Channel::Stable;
+    q.history = {{"0.9.0", "2026-09-01T10:00:00Z", "2026-09-30T10:00:00Z"}, {"0.1.0", "2026-08-01T10:00:00Z", "2026-08-20T10:00:00Z"}};
+    versions.clear();
+    c = rollbackCandidates(idx, q);
+    for (const auto& x : c) versions << x.release.version;
+    QCOMPARE(versions, (QStringList{"0.9.0", "0.8.0", "0.3.0", "0.1.0"}));
+    QVERIFY(c[0].ran);
+    QCOMPARE(c[0].first, QString("2026-09-01T10:00:00Z"));
+    QVERIFY(!c[1].ran);
+
+    // Channel off offers only what was run; the protocol check is skipped at 0; no version is invented.
+    q.channel = Channel::Off;
+    q.protocolVersion = 0;
+    c = rollbackCandidates(idx, q);
+    QCOMPARE(c.size(), 2);
+    q.currentVersion = "not-semver";
+    QVERIFY(rollbackCandidates(idx, q).isEmpty());
+    // A platform without an MSI has nothing to install.
+    q.currentVersion = "1.0.0";
+    q.platform = "linux-amd64";
+    QVERIFY(rollbackCandidates(idx, q).isEmpty());
+  }
+  void rollbackHistoryAndPause() {
+    QList<HistoryEntry> h;
+    const QDateTime t0 = QDateTime::fromString("2026-10-01T10:00:00Z", Qt::ISODate);
+    QVERIFY(recordVersion(h, "0.3.0", t0));
+    QVERIFY(!recordVersion(h, "0.3.0", t0.addSecs(600)));  // touched at most hourly
+    QVERIFY(recordVersion(h, "0.3.0", t0.addSecs(7200)));
+    QCOMPARE(h.size(), 1);
+    QCOMPARE(h[0].first, QString("2026-10-01T10:00:00Z"));
+    QCOMPARE(h[0].last, QString("2026-10-01T12:00:00Z"));
+    QVERIFY(!recordVersion(h, "garbage", t0));
+    for (int i = 0; i < kMaxHistory + 5; ++i) recordVersion(h, QString("1.%1.0").arg(i), t0);
+    QCOMPARE(h.size(), kMaxHistory);
+    QCOMPARE(h.last().version, QString("1.24.0"));
+    QCOMPARE(parseHistory(historyToJson(h)).size(), h.size());
+    QCOMPARE(parseHistory(QJsonArray{QJsonObject{{"version", "x"}}, QJsonObject{{"version", "1.0.0"}}, QJsonObject{{"version", "1.0.0"}}}).size(), 1);
+
+    Pause p;
+    p.from = "0.4.0";
+    p.to = "0.3.0";
+    p.at = "2026-10-01T10:00:00Z";
+    p.prevAuto = 1;
+    QVERIFY(parsePause(pauseToJson(p)).active());
+    QCOMPARE(parsePause(pauseToJson(p)).prevAuto, 1);
+    QVERIFY(!parsePause(QJsonObject{{"from", "nope"}}).active());
+    QVERIFY(!parsePause({}).active());
+    QCOMPARE(parsePause(QJsonObject{{"from", "0.4.0"}}).prevAuto, -1);
+    QVERIFY(pauseEffective(p, "0.3.0"));
+    QVERIFY(pauseEffective(p, "0.3.9-beta.1"));
+    QVERIFY(!pauseEffective(p, "0.4.0"));
+    QVERIFY(!pauseEffective(p, "0.5.0"));
+    QVERIFY(!pauseEffective(Pause(), "0.1.0"));
+    QVERIFY(skipEffective("0.4.0", "0.3.0"));
+    QVERIFY(!skipEffective("0.4.0", "0.4.0"));
+    QVERIFY(!skipEffective("", "0.1.0"));
+
+    // The settings keep the shape and unknown keys.
+    QTemporaryDir t;
+    {
+      framebeam::PlayerSettings s(t.path());
+      QVERIFY(s.setUpdateHistory(historyToJson(h)));
+      QVERIFY(s.setUpdatePause(pauseToJson(p)));
+      QVERIFY(s.setUpdateSkip("0.4.0"));
+      QVERIFY(s.setUpdateAutoInstall(false));
+    }
+    framebeam::PlayerSettings back(t.path());
+    QCOMPARE(parseHistory(back.updateHistory()).size(), kMaxHistory);
+    QCOMPARE(parsePause(back.updatePause()).from, QString("0.4.0"));
+    QCOMPARE(back.updateSkip(), QString("0.4.0"));
+    QVERIFY(back.setUpdatePause({}));
+    QVERIFY(back.setUpdateSkip(QString()));
+    QVERIFY(back.clearUpdateAutoInstall());
+    framebeam::PlayerSettings cleared(t.path());
+    QVERIFY(cleared.updatePause().isEmpty());
+    QVERIFY(cleared.updateSkip().isEmpty());
+    QVERIFY(!cleared.updateAutoInstall());
+  }
+  void managerRollbackFlow() {
+    Env env;
+    env.publishReleases({{"0.1.0", "beta", false}, {"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
+    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    settings.setUpdateChannel("beta");
+    settings.setUpdateAutoInstall(true);
+    QStringList launched;
+    bool busy = true;
+    auto mp = env.manager(settings, "beta", "0.3.0");
+    UpdateManager& m = *mp;
+    m.setLauncher([&](const QString& prog, const QStringList& args) { launched << prog << args.join(' '); return true; });
+    m.setBusyProvider([&]() { return busy; });
+    QSignalSpy quit(&m, &UpdateManager::quitRequested);
+    QVERIFY(m.rollbackOptions().isEmpty());  // nothing is known before the first check
+    m.checkNow();
+    QTRY_COMPARE_WITH_TIMEOUT(m.state(), UpdateManager::State::UpToDate, 5000);
+    // The running version is in the history; 0.1.0 has no downgrade-capable MSI.
+    QCOMPARE(parseHistory(settings.updateHistory()).size(), 1);
+    const QList<RollbackCandidate> options = m.rollbackOptions();
+    QCOMPARE(options.size(), 1);
+    QCOMPARE(options[0].release.version, QString("0.2.0"));
+
+    // Never while a game runs: nothing changes.
+    m.rollbackTo("0.2.0");
+    QVERIFY(m.statusText().contains("game"));
+    QVERIFY(launched.isEmpty());
+    QVERIFY(!m.updatesPaused());
+    QVERIFY(settings.updateSkip().isEmpty());
+    QCOMPARE(*settings.updateAutoInstall(), true);
+    // Not one of the offered versions (no downgrade-capable MSI, unknown, newer): nothing is downloaded or started.
+    busy = false;
+    for (const QString& v : {QString("0.1.0"), QString("9.9.9"), QString("0.3.0"), QString("junk")}) {
+      m.rollbackTo(v);
+      QCOMPARE(m.state(), UpdateManager::State::Error);
+      QVERIFY(launched.isEmpty());
+      QVERIFY(!m.updatesPaused());
+    }
+    QVERIFY(!QFileInfo::exists(rollbackStagingRoot(env.dir.filePath("data")) + "/0.1.0"));
+
+    // Going back: downloaded, verified, paused, installer started, Player quits.
+    m.rollbackTo("0.2.0");
+    QTRY_COMPARE_WITH_TIMEOUT(m.state(), UpdateManager::State::Applying, 5000);
+    QCOMPARE(quit.count(), 1);
+    QCOMPARE(launched.size(), 2);
+    const QString msi = QDir(rollbackStagingRoot(env.dir.filePath("data"))).filePath("0.2.0/" + QString("framebeam-player-0.2.0-windows-x64.msi"));
+    QVERIFY(QFileInfo::exists(msi));
+    QVERIFY(launched[1].startsWith("--apply-msi-update "));
+    QVERIFY(launched[1].contains(QString(msi).replace(QLatin1Char('/'), QLatin1Char('\\'))));
+    QVERIFY(launched[1].contains("--sha256 "));
+    const Pause p = parsePause(settings.updatePause());
+    QCOMPARE(p.from, QString("0.3.0"));
+    QCOMPARE(p.to, QString("0.2.0"));
+    QCOMPARE(p.prevAuto, 1);
+    QCOMPARE(settings.updateSkip(), QString("0.3.0"));
+    QCOMPARE(*settings.updateAutoInstall(), false);  // the older Player reads this and stays quiet too
+
+    // The older Player starts: paused, 0.3.0 is listed but skipped and not installed automatically.
+    env.publishReleases({{"0.1.0", "beta", false}, {"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
+    auto m2p = env.manager(settings, "beta", "0.2.0");
+    UpdateManager& m2 = *m2p;
+    m2.setLauncher([&](const QString& prog, const QStringList& args) { launched << prog << args.join(' '); return true; });
+    QVERIFY(m2.updatesPaused());
+    QCOMPARE(m2.skippedVersion(), QString("0.3.0"));
+    QVERIFY(!QFileInfo::exists(msi));  // the installer of the version now running is not kept
+    const int launchesBefore = launched.size();
+    QVERIFY(!m2.applyStagedAtStart());
+    m2.checkNow();
+    QTRY_COMPARE_WITH_TIMEOUT(m2.state(), UpdateManager::State::Available, 5000);  // not downloaded
+    QCOMPARE(m2.availableVersion(), QString("0.3.0"));
+    QVERIFY(m2.selectionSkipped());
+    QVERIFY(!m2.autoInstallEffective());
+    QCOMPARE(launched.size(), launchesBefore);
+
+    // Resume: the setting from before is back, the skipped version stays skipped.
+    m2.resumeUpdates();
+    QVERIFY(!m2.updatesPaused());
+    QCOMPARE(*settings.updateAutoInstall(), true);
+    QVERIFY(settings.updatePause().isEmpty());
+    QTRY_COMPARE_WITH_TIMEOUT(m2.state(), UpdateManager::State::Available, 5000);
+    QVERIFY(m2.selectionSkipped());
+    QVERIFY(!m2.autoInstallEffective());
+    m2.resumeUpdates();  // nothing to resume: no effect
+
+    // "Update to 0.3.0" asks for it explicitly: the skip ends, the installer runs.
+    m2.installNow();
+    QTRY_COMPARE_WITH_TIMEOUT(m2.state(), UpdateManager::State::Applying, 5000);
+    QVERIFY(settings.updateSkip().isEmpty());
+    QVERIFY(launched.size() > launchesBefore);
+    // Back on 0.3.0 nothing is left to settle.
+    auto m3p = env.manager(settings, "beta", "0.3.0");
+    QVERIFY(!m3p->updatesPaused());
+    QVERIFY(m3p->skippedVersion().isEmpty());
+  }
+  void managerRollbackPauseEndsByItselfWhenReached() {
+    Env env;
+    env.publishReleases({{"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
+    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    Pause p;
+    p.from = "0.3.0";
+    p.to = "0.2.0";
+    p.at = "2026-10-01T10:00:00Z";
+    p.prevAuto = -1;
+    settings.setUpdatePause(pauseToJson(p));
+    settings.setUpdateSkip("0.3.0");
+    settings.setUpdateAutoInstall(false);
+    // The user installed 0.3.0 by hand (or a newer one): the pause and the skip are over, the old default is back.
+    auto mp = env.manager(settings, "beta", "0.3.1");
+    QVERIFY(!mp->updatesPaused());
+    QVERIFY(settings.updatePause().isEmpty());
+    QVERIFY(settings.updateSkip().isEmpty());
+    QVERIFY(!settings.updateAutoInstall());
+  }
+  void managerRollbackRejectsBadInstaller() {
+    Env env;
+    env.publishReleases({{"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
+    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    settings.setUpdateChannel("beta");
+    settings.setUpdateAutoInstall(true);
+    int launches = 0;
+    auto mp = env.manager(settings, "beta", "0.3.0");
+    UpdateManager& m = *mp;
+    m.setLauncher([&](const QString&, const QStringList&) { ++launches; return true; });
+    m.checkNow();
+    QTRY_COMPARE_WITH_TIMEOUT(m.state(), UpdateManager::State::UpToDate, 5000);
+    // The file on the server is not what the signed index says: rejected, nothing paused, nothing started.
+    QVERIFY(writeBytes(env.dir.filePath("framebeam-player-0.2.0-windows-x64.msi"), "installer-bytes-0.2.X"));
+    m.rollbackTo("0.2.0");
+    QTRY_COMPARE_WITH_TIMEOUT(m.state(), UpdateManager::State::Error, 5000);
+    QVERIFY(m.statusText().contains("rejected"));
+    QCOMPARE(launches, 0);
+    QVERIFY(!m.updatesPaused());
+    QVERIFY(settings.updateSkip().isEmpty());
+    QCOMPARE(*settings.updateAutoInstall(), true);
+
+    // A launcher that cannot start leaves the settings as they were.
+    env.publishReleases({{"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
+    m.setLauncher([&](const QString&, const QStringList&) { return false; });
+    m.checkNow();
+    QTRY_COMPARE_WITH_TIMEOUT(m.state(), UpdateManager::State::UpToDate, 5000);
+    m.rollbackTo("0.2.0");
+    QTRY_COMPARE_WITH_TIMEOUT(m.state(), UpdateManager::State::Error, 5000);
+    QVERIFY(!m.updatesPaused());
+    QVERIFY(settings.updatePause().isEmpty());
+    QVERIFY(settings.updateSkip().isEmpty());
+    QCOMPARE(*settings.updateAutoInstall(), true);
+  }
+  void managerRollbackNeedsInstalledCopy() {
+    Env env;
+    env.publishReleases({{"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
+    framebeam::PlayerSettings settings(env.dir.filePath("data"));
+    settings.setUpdateChannel("beta");
+    UpdateManager::Config c;
+    c.baseDir = env.dir.filePath("data");
+    c.indexUrl = QUrl::fromLocalFile(env.dir.filePath("updates-index.json")).toString();
+    c.currentVersion = "0.3.0";
+    c.compiledChannel = "beta";
+    c.trustedKeys = env.keys;
+    c.installRoot = env.dir.path();
+    c.forceApplySupport = false;  // portable / Linux / development: the list is shown, going back is manual
+    UpdateManager m(c, &settings);
+    int launches = 0;
+    m.setLauncher([&](const QString&, const QStringList&) { ++launches; return true; });
+    m.checkNow();
+    QTRY_VERIFY_WITH_TIMEOUT(m.rollbackListLoaded(), 5000);
+    QCOMPARE(m.rollbackOptions().size(), 1);
+    m.rollbackTo("0.2.0");
+    QCOMPARE(launches, 0);
+    QVERIFY(!m.updatesPaused());
+    QVERIFY(settings.updateSkip().isEmpty());
+  }
+  void rollbackStagedChecks() {
+    Env env;
+    env.publishReleases({{"0.2.0", "beta", true}, {"0.3.0", "beta", true}});
+    const QString base = env.dir.filePath("data");
+    framebeam::PlayerSettings settings(base);
+    settings.setUpdateChannel("beta");
+    auto mp = env.manager(settings, "beta", "0.3.0");
+    mp->setLauncher([](const QString&, const QStringList&) { return true; });
+    mp->checkNow();
+    QTRY_COMPARE_WITH_TIMEOUT(mp->state(), UpdateManager::State::UpToDate, 5000);
+    mp->rollbackTo("0.2.0");
+    QTRY_COMPARE_WITH_TIMEOUT(mp->state(), UpdateManager::State::Applying, 5000);
+
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    const bool file = true;
+    QVERIFY(loadVerifiedRollback(base, "0.2.0", "0.3.0", env.keys, file, 1, now));
+    QVERIFY(!loadVerifiedRollback(base, "0.2.0", "0.2.0", env.keys, file, 1, now));  // not older than the running version
+    QVERIFY(!loadVerifiedRollback(base, "0.2.0", "0.1.0", env.keys, file, 1, now));
+    QVERIFY(!loadVerifiedRollback(base, "0.3.0", "0.4.0", env.keys, file, 1, now));  // nothing staged for it
+    QVERIFY(!loadVerifiedRollback(base, "0.2.0", "0.3.0", {makeKey().pub}, file, 1, now));  // wrong key
+    QVERIFY(!loadVerifiedRollback(base, "0.2.0", "0.3.0", env.keys, file, 2, now));  // does not speak the protocol of this Player
+    QVERIFY(!loadVerifiedRollback(base, "0.2.0", "0.3.0", env.keys, false, 1, now));  // file:// artifact URLs only in tests
+    // An index that ran out (a stale signed index must not bring an old installer back).
+    env.publishReleases({{"0.2.0", "beta", true}}, "2026-10-08T10:00:00Z");
+    auto stale = [&] {
+      QDir d(QDir(rollbackStagingRoot(base)).filePath("0.2.0"));
+      QFile::remove(d.filePath("index.json"));
+      QFile::remove(d.filePath("index.json.sig"));
+      QVERIFY(QFile::copy(env.dir.filePath("updates-index.json"), d.filePath("index.json")));
+      QVERIFY(QFile::copy(env.dir.filePath("updates-index.json.sig"), d.filePath("index.json.sig")));
+    };
+    stale();
+    QVERIFY(!loadVerifiedRollback(base, "0.2.0", "0.3.0", env.keys, file, 1, now));
+    QVERIFY(loadVerifiedRollback(base, "0.2.0", "0.3.0", env.keys, file, 1, QDateTime::fromString("2026-10-07T10:00:00Z", Qt::ISODate)));
+    // The installer changed on disk after the download.
+    QVERIFY(writeBytes(QDir(rollbackStagingRoot(base)).filePath("0.2.0/framebeam-player-0.2.0-windows-x64.msi"), "changed"));
+    QVERIFY(!loadVerifiedRollback(base, "0.2.0", "0.3.0", env.keys, file, 1, QDateTime::fromString("2026-10-07T10:00:00Z", Qt::ISODate)));
+  }
+
  private:
   static QByteArray readAll(const QString& p) {
     QFile f(p);
@@ -718,6 +1033,34 @@ class UpdateTest : public QObject {
       QVERIFY(writeBytes(dir.filePath("updates-index.json"), idx));
       QVERIFY(writeBytes(dir.filePath("updates-index.json.sig"), signLine(key, idx)));
     }
+    // Player releases (version -> {channel, msi_downgrade}); every one has a small installer file. `expires` empty = none.
+    struct Rel {
+      QString version;
+      QString channel;
+      bool downgrade;
+      int proto = 1;
+      int minProto = 1;
+    };
+    QMap<QString, QByteArray> installers;
+    void publishReleases(const QList<Rel>& rels, const QString& expires = QString()) {
+      QJsonArray arr;
+      for (const Rel& r : rels) {
+        const QByteArray data = "installer-bytes-" + r.version.toUtf8();
+        const QString name = "framebeam-player-" + r.version + "-windows-x64.msi";
+        QVERIFY(writeBytes(dir.filePath(name), data));
+        installers[r.version] = data;
+        QJsonObject o = release("player", r.channel, r.version, QJsonArray{artifact(name, data, QUrl::fromLocalFile(dir.filePath(name)).toString())},
+                                r.proto, r.minProto);
+        if (r.downgrade) o["msi_downgrade"] = true;
+        arr.append(o);
+      }
+      QJsonObject top{{"schema", 1}, {"generated_at", "2026-10-07T10:00:00Z"}, {"releases", arr}};
+      if (!expires.isEmpty()) top["expires_at"] = expires;
+      const QByteArray idx = QJsonDocument(top).toJson(QJsonDocument::Compact);
+      QVERIFY(writeBytes(dir.filePath("framebeam_player.exe"), "launcher"));
+      QVERIFY(writeBytes(dir.filePath("updates-index.json"), idx));
+      QVERIFY(writeBytes(dir.filePath("updates-index.json.sig"), signLine(key, idx)));
+    }
     void publishPromoted(const QString& version, bool stableListed) {
       publish("installer-bytes", version);
       QJsonArray rel{release("player", "beta", version, QJsonArray{}), release("hub", "beta", "9.9.9", oneArt("hub"))};
@@ -726,11 +1069,12 @@ class UpdateTest : public QObject {
       QVERIFY(writeBytes(dir.filePath("updates-index.json"), idx));
       QVERIFY(writeBytes(dir.filePath("updates-index.json.sig"), signLine(key, idx)));
     }
-    std::unique_ptr<UpdateManager> manager(framebeam::PlayerSettings& s, const QString& compiled = QStringLiteral("beta")) {
+    std::unique_ptr<UpdateManager> manager(framebeam::PlayerSettings& s, const QString& compiled = QStringLiteral("beta"),
+                                           const QString& current = QStringLiteral("0.3.0-dev")) {
       UpdateManager::Config c;
       c.baseDir = dir.filePath("data");
       c.indexUrl = QUrl::fromLocalFile(dir.filePath("updates-index.json")).toString();
-      c.currentVersion = "0.3.0-dev";
+      c.currentVersion = current;
       c.compiledChannel = compiled;
       c.trustedKeys = keys;
       c.installRoot = dir.path();
