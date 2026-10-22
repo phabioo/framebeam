@@ -493,7 +493,7 @@ func (g *relayGen) AllocatePacketConn(network string, requested int) (net.Packet
 		listen = "127.0.0.1"
 	}
 	try := func(port int) (net.PacketConn, net.Addr, error) {
-		c, err := net.ListenPacket("udp4", net.JoinHostPort(listen, strconv.Itoa(cfg.Port)))
+		c, err := net.ListenPacket("udp4", net.JoinHostPort(listen, strconv.Itoa(port)))
 		if err != nil {
 			return nil, nil, err
 		}
