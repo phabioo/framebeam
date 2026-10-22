@@ -1173,3 +1173,38 @@ table.users-list th, table.users-list td { padding-left: 14px; padding-right: 14
   .timeline .tl-slot { justify-content: flex-start; }
   .timeline .tl-slot:empty { display: none; }
 }
+
+/* Sidebar groups (design 0-3 E): Play, SETUP, ADMIN */
+.nav { gap: 16px; }
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.nav-eyebrow { font: 500 10px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 0 10px 4px; }
+.set-group { margin: 12px 0 0; padding: 0 2px; }
+.set-group:first-of-type { margin-top: 0; }
+
+/* Status page (design 6f) */
+.status { display: flex; flex-direction: column; gap: 20px; }
+.status-updated { font-family: var(--font-mono); }
+.status-banner { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--warn-border); background: var(--amber-surface); font-size: 14px; }
+.status-banner.error { border-color: var(--error-card-border); background: var(--error-card); }
+.status-banner-text { flex: 1; min-width: 200px; color: var(--text-2); }
+.status-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.status-meter { gap: 8px; }
+.status-value { font: 500 24px var(--font-mono); overflow-wrap: anywhere; }
+.status-bar { height: 6px; border-radius: 3px; background: var(--neutral-bg); overflow: hidden; }
+.status-bar span { display: block; height: 100%; background: var(--accent); }
+.status-bar.warn span { background: #c08a1e; }
+.status-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; align-items: start; }
+.status-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.status-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--row-sep); }
+.status-row-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.status-player { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+.status .warn { color: var(--warn-text); }
+.status-err { padding: 8px 0; border-top: 1px solid var(--row-sep); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.status-err-text { flex: 1; min-width: 200px; overflow-wrap: anywhere; color: var(--text-2); }
+@media (max-width: 1024px) {
+  .status-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .status-meters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .status .set-card { padding: 12px; }
+}

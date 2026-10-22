@@ -1,0 +1,70 @@
+{{define "content"}}{{template "status-body" .}}{{end}}
+
+{{/* The whole page body is one region that polls itself every 10 s (hx-trigger "every") and swaps in place. */}}
+{{define "status-body"}}{{with .Body}}
+<div id="status-body" class="status" hx-get="/status" hx-trigger="every {{.Refresh}}s" hx-target="#status-body" hx-swap="outerHTML">
+  <div class="page-head">
+    <div><h1>Status</h1><p class="sub">{{.HubName}} · {{.Version}} · {{.Uptime}}{{if .Address}} · <span class="mono">{{.Address}}</span>{{end}}</p></div>
+    <div class="help status-updated">Updated {{.Updated}}</div>
+  </div>
+
+  {{if .Problem}}
+  <div class="status-banner{{if eq .Problem.Severity 2}} error{{end}}" role="status">
+    <span class="pill lg {{if eq .Problem.Severity 2}}error{{else}}amber{{end}}">{{.Problem.Title}}</span>
+    <span class="status-banner-text">{{.Problem.Detail}}</span>
+    {{if .Problem.ActionHref}}<a class="btn small" href="{{.Problem.ActionHref}}" hx-get="{{.Problem.ActionHref}}" hx-target="#main" hx-push-url="true">{{.Problem.ActionLabel}}</a>{{end}}
+  </div>
+  {{end}}
+
+  <div class="status-meters">
+    {{range .Meters}}
+    <section class="set-card status-meter">
+      <div class="eyebrow">{{.Label}}</div>
+      <div class="status-value">{{.Value}}</div>
+      {{if .Show}}<div class="status-bar{{if .Warn}} warn{{end}}" role="img" aria-label="{{.Label}} {{.Percent}} %"><span style="width:{{.Percent}}%"></span></div>{{end}}
+      <div class="help">{{.Sub}}{{if .Link}} · <a href="{{.Link}}" hx-get="{{.Link}}" hx-target="#main" hx-push-url="true">{{.LinkText}}</a>{{end}}</div>
+    </section>
+    {{end}}
+  </div>
+
+  <div class="status-grid">
+    <div class="status-col">
+      <section class="set-card">
+        <div class="eyebrow">{{.SessionsHead}}</div>
+        {{if .TURNOn}}<div class="help">{{.TURNLine}}</div>{{end}}
+        {{range .Sessions}}
+        <div class="status-row"><div><div class="label">{{.Title}}</div><div class="help">{{.Sub}}</div></div><span class="pill sm">{{.Viewers}}</span></div>
+        {{else}}
+        <div class="help">No Session is running.</div>
+        {{end}}
+      </section>
+      <section class="set-card">
+        <div class="eyebrow">LAST ERRORS · 24 H{{if .ErrorCount}} · {{.ErrorCount}}{{end}}</div>
+        <div class="status-row-head"><span class="help">Warnings and errors from the Hub log. Secrets are removed.</span><a class="btn small" href="/status/log">Download log</a></div>
+        {{range .Errors}}
+        <div class="status-err"><span class="mono" title="{{.Time.Title}}">{{.Time.Text}}</span> <span class="pill sm{{if eq .Level "ERROR"}} error{{else}} amber{{end}}">{{.Level}}</span> <span class="status-err-text">{{.Text}}</span></div>
+        {{else}}
+        <div class="help">No warnings or errors in the last 24 hours.</div>
+        {{end}}
+        {{if gt .ErrorCount 20}}<div class="help">Showing the newest 20 of {{.ErrorCount}}. The log download has all of them.</div>{{end}}
+      </section>
+    </div>
+    <div class="status-col">
+      <section class="set-card">
+        <div class="eyebrow">CONNECTED PLAYERS · {{len .Players}}</div>
+        {{range .Players}}
+        <div class="status-row"><div><div class="label">{{.Device}}</div><div class="help">{{.Sub}}</div></div>
+          <div class="status-player"><span class="mono{{if .Outdated}} warn{{end}}">{{.Version}}</span><span class="help{{if .Outdated}} warn{{end}}">{{.State}}</span></div></div>
+        {{else}}
+        <div class="help">No Player is connected.</div>
+        {{end}}
+      </section>
+      <section class="set-card">
+        <div class="eyebrow">METRICS ENDPOINT</div>
+        <div class="status-row"><div class="label">{{if .MetricsOn}}On{{else}}Off{{end}}</div><a class="btn small" href="/settings/metrics" hx-get="/settings/metrics" hx-target="#main" hx-push-url="true">Settings → Metrics</a></div>
+        <div class="help">For your own monitoring tools, read-only. {{if .MetricsOn}}Address: <span class="mono">{{.MetricsURL}}</span> with a separate token.{{else}}When on: <span class="mono">{{.MetricsURL}}</span> with a separate token.{{end}}</div>
+      </section>
+    </div>
+  </div>
+</div>
+{{end}}{{end}}

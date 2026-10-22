@@ -117,5 +117,5 @@ func newLogger(path string) (*slog.Logger, func()) {
 		}
 	}
 	// The diagnostics bundle includes the most recent lines from memory (redacted on export).
-	return slog.New(slog.NewTextHandler(io.MultiWriter(out, diag.Recent), nil)), closeFn
+	return slog.New(diag.NewCaptureHandler(slog.NewTextHandler(io.MultiWriter(out, diag.Recent), nil), diag.RecentErrors)), closeFn
 }
