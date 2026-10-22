@@ -9,7 +9,6 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -565,23 +564,18 @@ func (s *Server) libraryDelete(w http.ResponseWriter, r *http.Request, sess *ses
 // libraryRescan starts the import of the import folder in the background (admin only, like uploads) and shows the
 // progress card. Source files are only read. Only one scan runs at a time.
 func (s *Server) libraryRescan(w http.ResponseWriter, r *http.Request, sess *session) {
-	if s.cfg.ImportDir == "" {
-		s.renderLibrary(w, r, sess, http.StatusBadRequest, libFilter{}, "No import folder is configured.")
+	started, err := s.svc.StartRescan(r.Context(), s.cfg.ImportDir, sess.User.ID, s.cfg.MaxUploadBytes)
+	var he *hub.Error
+	switch {
+	case errors.As(err, &he) && he.Code == hub.CodeBadRequest:
+		s.renderLibrary(w, r, sess, http.StatusBadRequest, libFilter{}, he.Message+".")
 		return
-	}
-	if st, err := os.Stat(s.cfg.ImportDir); err != nil || !st.IsDir() {
-		s.renderLibrary(w, r, sess, http.StatusBadRequest, libFilter{}, "The import folder "+s.cfg.ImportDir+" does not exist.")
+	case err != nil:
+		s.fail(w, r, err)
 		return
-	}
-	if !s.svc.BeginScan() {
+	case !started:
 		http.Redirect(w, r, "/library", http.StatusSeeOther)
 		return
 	}
-	dir, user, maxBytes := s.cfg.ImportDir, sess.User.ID, s.cfg.MaxUploadBytes
-	ctx := context.WithoutCancel(r.Context())
-	go func() {
-		sum, err := s.svc.ImportFolder(ctx, dir, user, maxBytes)
-		s.svc.EndScan(sum, err)
-	}()
 	http.Redirect(w, r, "/library?ok=rescan", http.StatusSeeOther)
 }

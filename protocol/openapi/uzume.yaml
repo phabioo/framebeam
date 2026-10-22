@@ -3368,6 +3368,921 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/library/rescan:
+    get:
+      operationId: getAdminLibraryRescan
+      tags: [admin]
+      summary: State of the import folder scan (admin)
+      description: The running or last scan of the import folder, the same numbers as the Library page shows.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The scan state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminScan' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: startAdminLibraryRescan
+      tags: [admin]
+      summary: Scan the import folder now (admin)
+      description: 'Starts the import of the import folder in the background and returns at once; follow it with `getAdminLibraryRescan`. Source files are only read. Only one scan runs at a time: 409 `conflict` while one runs. 400 when no import folder is configured or it does not exist.'
+      security:
+        - bearerAuth: []
+      responses:
+        '202':
+          description: Started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminScan' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/games/{game_id}:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    patch:
+      operationId: renameAdminGame
+      tags: [admin]
+      summary: Rename a game in the library (admin)
+      description: Changes the title (1 to 100 characters).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminGameRename' }
+            examples:
+              default: { value: { title: Demo Homebrew } }
+      responses:
+        '200':
+          description: The game
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Game' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteAdminGame
+      tags: [admin]
+      summary: Delete a game from the library (admin)
+      description: Removes the entry and every ROM file stored on the server for it; registrations of local files go with the entry. Saves of the game are never touched; they stay reachable under `/admin/saves`.
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/saves:
+    get:
+      operationId: listAdminSaves
+      tags: [admin]
+      summary: Save slots of all users (admin)
+      description: Conflicts first, then the newest checkpoint, as the Saves page lists them. `user_id` and `game_id` narrow the list.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: game_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The slots
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSaveList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    get:
+      operationId: getAdminSaveSlot
+      tags: [admin]
+      summary: Checkpoint metadata and open conflicts of a user's slot (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Slot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteAdminSaveSlot
+      tags: [admin]
+      summary: Delete a slot of a user with its whole history (admin)
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. `confirm_revision` must be the checkpoint revision the caller saw (409 `save_conflict_stale` otherwise); 409 `session_running` while a Session of the user runs the game, 409 `conflict` while the slot has an open conflict. No undo.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: confirm_revision
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '204': { description: Slot deleted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/history:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    get:
+      operationId: listAdminSaveHistory
+      tags: [admin]
+      summary: History versions of a user's slot, newest first (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: History versions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versions]
+                properties:
+                  versions:
+                    type: array
+                    items: { $ref: '#/components/schemas/SaveHistoryVersion' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/content:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    get:
+      operationId: downloadAdminSaveContent
+      tags: [admin]
+      summary: Bytes of the current checkpoint of a user's slot (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current checkpoint content
+          headers:
+            ETag: { schema: { type: string }, description: Strong ETag = content SHA-256 }
+            X-Uzume-Save-Revision: { schema: { type: integer, minimum: 1 }, description: Checkpoint revision of the content }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/history/{version}/content:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: version
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+        example: 1
+    get:
+      operationId: downloadAdminSaveHistoryContent
+      tags: [admin]
+      summary: Bytes of a history version of a user's slot (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: History version content
+          headers:
+            ETag: { schema: { type: string }, description: Strong ETag = content SHA-256 }
+            X-Uzume-Save-Revision: { schema: { type: integer, minimum: 1 }, description: Checkpoint revision captured by this version }
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/history/{version}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: version
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+        example: 1
+    delete:
+      operationId: deleteAdminSaveVersion
+      tags: [admin]
+      summary: Delete a history version of a user's slot (admin)
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. 409 `conflict` for the secured version of an open conflict.
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Version deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/history/{version}/restore:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: version
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+        example: 1
+    post:
+      operationId: restoreAdminSaveVersion
+      tags: [admin]
+      summary: Restore a history version as the checkpoint of a user's slot (admin)
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. 
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveRestoreRequest' }
+            examples:
+              default: { value: { expected_revision: 3 } }
+      responses:
+        '200':
+          description: The slot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/snapshots:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    post:
+      operationId: createAdminSaveSnapshot
+      tags: [admin]
+      summary: Keep the current checkpoint of a user's slot as a snapshot (admin)
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. 
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveSnapshotRequest' }
+            examples:
+              default: { value: { label: Before the last gym } }
+      responses:
+        '201':
+          description: The new history version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveHistoryVersion' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/conflicts/{conflict_id}/resolve:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+      - name: conflict_id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      operationId: resolveAdminSaveConflict
+      tags: [admin]
+      summary: Resolve a save conflict of a user's slot (admin)
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. Both contents stay in the history; the resolution is recorded as made by the web interface.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveResolveRequest' }
+            examples:
+              default: { value: { resolution: use_hub, expected_revision: 3 } }
+      responses:
+        '200':
+          description: The slot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/slots:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    post:
+      operationId: createAdminSaveSlot
+      tags: [admin]
+      summary: Create a new slot of a user from the current checkpoint of this slot (admin)
+      description: Copies the current checkpoint into a new slot of the same user and game. 409 `save_slot_exists` when the name is taken, 400 for an invalid name.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminSaveSlotNew' }
+            examples:
+              default: { value: { name: speedrun } }
+      responses:
+        '201':
+          description: The new slot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/rename:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    post:
+      operationId: renameAdminSaveSlot
+      tags: [admin]
+      summary: Rename a slot of a user (admin)
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. 409 `save_slot_protected` for `default`, `save_slot_exists`, `session_running`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveSlotRenameRequest' }
+            examples:
+              default: { value: { name: speedrun } }
+      responses:
+        '200':
+          description: Renamed; the slot under its new name
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/upload:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/SaveSlotName'
+    post:
+      operationId: uploadAdminSaveFile
+      tags: [admin]
+      summary: Upload a save file into a user's slot (admin; raw body)
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. Raw `application/octet-stream` body (max 64 MiB). `X-Uzume-Expected-Revision` must equal the current checkpoint revision (0 for a new slot), otherwise 409 `save_conflict_stale` and nothing changes.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Uzume-Expected-Revision
+          in: header
+          required: true
+          schema: { type: integer, minimum: 0 }
+        - name: X-Uzume-Content-SHA256
+          in: header
+          required: true
+          schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: The slot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveSlot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+  /api/v1/admin/runs:
+    get:
+      operationId: listAdminRuns
+      tags: [admin]
+      summary: All runs of all users, archived ones included (admin)
+      description: Most recently changed first. The state bodies of the participants are left out.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The runs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRunList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/runs/{run_id}:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    get:
+      operationId: getAdminRun
+      tags: [admin]
+      summary: One run with its boards (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRunDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteAdminRun
+      tags: [admin]
+      summary: Delete a run for good (admin)
+      description: Deletes the run with participants, events and boards for all participants. Saves are not touched.
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/runs/{run_id}/pause:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: pauseAdminRun
+      tags: [admin]
+      summary: Pause a run (admin)
+      description: 409 when the run is not active.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRunDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/runs/{run_id}/resume:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: resumeAdminRun
+      tags: [admin]
+      summary: Resume a paused run (admin)
+      description: 409 when the run is not paused.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRunDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/runs/{run_id}/archive:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: archiveAdminRun
+      tags: [admin]
+      summary: Hide a finished or abandoned run from the lists (admin)
+      description: Apps do not see archived runs. 409 while the run is not over.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRunDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/runs/{run_id}/unarchive:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: unarchiveAdminRun
+      tags: [admin]
+      summary: Show an archived run again (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRunDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/runs/{run_id}/finish:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: finishAdminRun
+      tags: [admin]
+      summary: Finish a run for all participants (admin)
+      description: 409 when the run is already over.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRunDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/runs/{run_id}/resend:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: resendAdminRunInvites
+      tags: [admin]
+      summary: Send the invitation again to everyone who has not joined (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRunDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/runs/{run_id}/start:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      operationId: startAdminRun
+      tags: [admin]
+      summary: Start a run that is still starting (admin)
+      description: With `without_missing` the participants who are only invited and have not joined are removed first, in the same step. 409 when the run is not starting.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminRunStart' }
+            examples:
+              default: { value: { without_missing: false } }
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRunDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/runs/{run_id}/invites/{user_id}:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+      - $ref: '#/components/parameters/UserId'
+    delete:
+      operationId: removeAdminRunInvite
+      tags: [admin]
+      summary: Remove the open invitation of a user from a run (admin)
+      description: Only a participant who is still invited, in a run that is not over. 409 otherwise.
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Removed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/runs/{run_id}/invites/{user_id}/resend:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+      - $ref: '#/components/parameters/UserId'
+    post:
+      operationId: resendAdminRunInvite
+      tags: [admin]
+      summary: Send the invitation to one invited user again (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Sent }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/runs/{run_id}/export:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    get:
+      operationId: exportAdminRun
+      tags: [admin]
+      summary: Export the whole event log of a run as one JSON document (admin)
+      description: Streamed. Once the document has started the status is already 200, so an error later ends it with an `error` member after the events; a complete export has no `error` member.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The document
+          headers:
+            Content-Disposition: { schema: { type: string }, description: 'attachment; filename="run-<id>-events.json"' }
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/settings:
+    get:
+      operationId: getAdminSettings
+      tags: [admin]
+      summary: Server settings as the Settings pages show them (admin)
+      description: General (name, user uploads), Network (every network value with its running, default and saved state, the built-in and external TURN servers, a pending restart), Security (transport and certificate) and Updates. Backups, metrics, passwords and the web theme have their own endpoints or none. Secrets are never returned.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSettings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    patch:
+      operationId: updateAdminSettings
+      tags: [admin]
+      summary: Change general and update settings (admin)
+      description: Only the given fields change. `update_channel` is `stable`, `beta` or an empty string (use the default); the automatic install flag is stored together with the channel, so the current value is kept when only one of them is given.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminSettingsUpdate' }
+            examples:
+              default: { value: { name: Home server, allow_user_uploads: true, update_channel: stable, update_auto: true } }
+      responses:
+        '200':
+          description: The settings now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSettings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/settings/network/restart:
+    post:
+      operationId: restartAdminServer
+      tags: [admin]
+      summary: Restart the server to apply saved network settings (admin)
+      description: Answers at once and then restarts the process (graceful shutdown, then re-exec); apps reconnect. `url` is where the hub will be (absent when unknown), `port_changed` says the listen port changes and apps cannot reconnect by themselves. 400 when this server cannot restart itself.
+      security:
+        - bearerAuth: []
+      responses:
+        '202':
+          description: Restarting
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRestart' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/settings/network/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string, enum: [listen_port, public_host, turn, turn_port, turn_relay_ports, turn_relay_ip, ice_servers, save_keep_recent, save_keep_daily, save_keep_weekly, network_sharing, import_dir] }
+    put:
+      operationId: setAdminNetSetting
+      tags: [admin]
+      summary: Save one network setting (admin)
+      description: Validates, stores and applies the value live when the setting can be (retention and STUN servers); the others apply after a restart (`restart_pending`). Scalar settings take `value` (booleans `1` or `0`); `turn_relay_ports` takes `min` and `max`; `ice_servers` takes `op` (`add`, `remove` or `none`) and `url`. 400 with the reason for a refused value.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminNetSettingInput' }
+            examples:
+              default: { value: { value: '8443' } }
+      responses:
+        '200':
+          description: The network settings now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminNetwork' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: resetAdminNetSetting
+      tags: [admin]
+      summary: Reset one network setting to the server.env value (admin)
+      description: Deletes the saved value; server.env and flags apply again.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The network settings now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminNetwork' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/settings/external-turn:
+    put:
+      operationId: saveAdminExternalTurn
+      tags: [admin]
+      summary: Add or change an external TURN server (admin)
+      description: 'The secret is write-only: empty keeps the stored one, `clear_secret` removes it; it is never returned. `original` names the server being edited (absent: add).'
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminExternalTurnInput' }
+            examples:
+              default: { value: { name: Relay, mode: secret, urls: ['turn:turn.example.com:3478'], secret: placeholder-secret } }
+      responses:
+        '200':
+          description: The external TURN servers now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminExternalTurn' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      operationId: deleteAdminExternalTurn
+      tags: [admin]
+      summary: Remove one external TURN server (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: The external TURN servers now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminExternalTurn' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/settings/external-turn/reset:
+    post:
+      operationId: resetAdminExternalTurn
+      tags: [admin]
+      summary: Drop the saved external TURN servers (admin)
+      description: The `-turn-external` flags and server.env apply again.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The external TURN servers now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminExternalTurn' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/updates/check:
+    post:
+      operationId: checkAdminUpdates
+      tags: [admin]
+      summary: Check for an update now (admin)
+      description: Starts a check in the background and returns at once; read the result from `getAdminSettings`.
+      security:
+        - bearerAuth: []
+      responses:
+        '202': { description: Started }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/updates/install:
+    post:
+      operationId: installAdminUpdate
+      tags: [admin]
+      summary: Install the available update (admin)
+      description: Stages the update and asks the root helper to install it; the server restarts afterwards. 400 when this server was not installed from the .deb package or nothing is available; 409 `conflict` when the update breaks apps that were seen recently and `confirm_breaking` is not true.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUpdateInstall' }
+            examples:
+              default: { value: { confirm_breaking: false } }
+      responses:
+        '202':
+          description: Staged
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUpdateStaged' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/AdminConflict' }
+  /api/v1/admin/security/renew-cert:
+    post:
+      operationId: renewAdminCertificate
+      tags: [admin]
+      summary: Replace the self-generated TLS certificate (admin)
+      description: New handshakes use the new certificate at once; apps must confirm the new fingerprint. 400 when the certificate is not self-generated or the server runs without TLS.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The new certificate
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCertificate' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/diagnostics/bundle:
+    post:
+      operationId: createAdminDiagnosticsBundle
+      tags: [admin]
+      summary: Download the diagnostics bundle (admin)
+      description: One zip with logs and settings to hand over when something does not work; secrets are redacted as in the web interface.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The zip file
+          headers:
+            Content-Disposition: { schema: { type: string }, description: 'attachment; filename="..."' }
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -5190,4 +6105,253 @@ components:
       required: [id, version]
       properties:
         id: { type: string }
+        version: { type: string }
+    AdminScanSummary:
+      type: object
+      required: [added, already_here, unsupported, failed]
+      properties:
+        added: { type: integer }
+        already_here: { type: integer, description: Already in the library (same SHA-256) }
+        unsupported: { type: integer, description: The extension maps to no system }
+        failed:
+          type: array
+          items:
+            type: object
+            required: [file, reason]
+            properties:
+              file: { type: string }
+              reason: { type: string }
+    AdminScan:
+      type: object
+      required: [running, done, total, added, finished]
+      properties:
+        running: { type: boolean }
+        done: { type: integer, description: Files looked at }
+        total: { type: integer, description: Candidate files in the folder }
+        added: { type: integer }
+        finished: { type: boolean, description: A scan has finished since the server started }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
+        last_error: { type: string }
+        summary: { $ref: '#/components/schemas/AdminScanSummary' }
+    AdminGameRename:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100 }
+    AdminSaveSummary:
+      type: object
+      required: [user_id, username, game_id, game_title, slot, current, open_conflict_count]
+      properties:
+        user_id: { type: string }
+        username: { type: string }
+        game_id: { type: string }
+        game_title: { type: string, description: '`(removed game)` when the game left the library' }
+        slot: { type: string }
+        current: { $ref: '#/components/schemas/SaveCheckpoint' }
+        open_conflict_count: { type: integer, minimum: 0 }
+    AdminSaveList:
+      type: object
+      required: [saves]
+      properties:
+        saves:
+          type: array
+          items: { $ref: '#/components/schemas/AdminSaveSummary' }
+    AdminSaveSlotNew:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, pattern: '^[a-z0-9_-]{1,32}$' }
+    AdminRun:
+      type: object
+      required: [run, archived]
+      properties:
+        run: { $ref: '#/components/schemas/Run' }
+        archived: { type: boolean }
+    AdminRunList:
+      type: object
+      required: [runs]
+      properties:
+        runs:
+          type: array
+          items: { $ref: '#/components/schemas/AdminRun' }
+    AdminRunBoard:
+      type: object
+      required: [plugin_id, rev, tree, updated_by, updated_at]
+      properties:
+        plugin_id: { type: string }
+        rev: { type: integer, format: int64 }
+        tree: { $ref: '#/components/schemas/RunJsonObject' }
+        updated_by: { type: string }
+        updated_at: { type: string, format: date-time }
+    AdminRunDetail:
+      type: object
+      required: [run, archived, boards]
+      properties:
+        run: { $ref: '#/components/schemas/Run' }
+        archived: { type: boolean }
+        boards: { type: array, items: { $ref: '#/components/schemas/AdminRunBoard' } }
+    AdminRunStart:
+      type: object
+      properties:
+        without_missing: { type: boolean, default: false }
+    AdminNetSetting:
+      type: object
+      required: [key, label, value, running_value, default_value, source, needs_restart, restart_pending]
+      properties:
+        key: { type: string, example: listen_port }
+        label: { type: string, example: Listen port }
+        value: { type: string, description: The value that applies after a restart (the saved value or else the server.env value) }
+        running_value: { type: string, description: The value the running server uses }
+        default_value: { type: string, description: The server.env or flag value that applies without a saved value }
+        source: { type: string, enum: [web, env], description: '`web` = saved with the web interface or API' }
+        needs_restart: { type: boolean, description: A change only takes effect after a restart }
+        restart_pending: { type: boolean, description: Saved but not applied yet }
+    AdminTurn:
+      type: object
+      required: [public_host, port, relay_min, relay_max, allocations, fixed, forwards]
+      properties:
+        public_host: { type: string }
+        relay_ip: { type: string, description: Absent while it is not resolved }
+        fixed: { type: boolean, description: The relay IP is configured and not resolved by DNS }
+        port: { type: integer }
+        relay_min: { type: integer }
+        relay_max: { type: integer }
+        allocations: { type: integer }
+        forwards: { type: array, items: { type: string }, description: Router port forwards a public server needs }
+    AdminExternalTurnServer:
+      type: object
+      required: [name, mode, urls, secret_set]
+      properties:
+        name: { type: string }
+        mode: { type: string, enum: [static, secret] }
+        urls: { type: array, items: { type: string } }
+        username: { type: string }
+        secret_set: { type: boolean, description: The password or shared secret is configured; the value is never returned }
+    AdminExternalTurn:
+      type: object
+      required: [source, active, servers]
+      properties:
+        source: { type: string, enum: [web, flags], description: Where the list comes from }
+        active: { type: boolean, description: The servers are handed to apps }
+        servers: { type: array, items: { $ref: '#/components/schemas/AdminExternalTurnServer' } }
+    AdminExternalTurnInput:
+      type: object
+      required: [name, mode, urls]
+      properties:
+        original: { type: string, description: Name of the server being edited }
+        name: { type: string }
+        mode: { type: string, enum: [static, secret] }
+        urls: { type: array, items: { type: string } }
+        username: { type: string }
+        secret: { type: string, writeOnly: true }
+        clear_secret: { type: boolean }
+    AdminNetwork:
+      type: object
+      required: [settings, pending_restart, issues, can_restart, cloudflare_configured, external_turn]
+      properties:
+        settings: { type: array, items: { $ref: '#/components/schemas/AdminNetSetting' } }
+        pending_restart: { type: array, items: { type: string }, description: Labels of the saved settings that need a restart }
+        issues: { type: array, items: { type: string }, description: Saved values that could not be applied at startup }
+        can_restart: { type: boolean }
+        turn: { $ref: '#/components/schemas/AdminTurn' }
+        cloudflare_configured: { type: boolean }
+        external_turn: { $ref: '#/components/schemas/AdminExternalTurn' }
+    AdminNetSettingInput:
+      type: object
+      properties:
+        value: { type: string }
+        min: { type: string }
+        max: { type: string }
+        op: { type: string, enum: [add, remove, none] }
+        url: { type: string }
+    AdminRestart:
+      type: object
+      required: [port_changed]
+      properties:
+        url: { type: string }
+        port_changed: { type: boolean }
+    AdminSecurity:
+      type: object
+      required: [tls, trusted_proxy, can_renew_cert]
+      properties:
+        tls: { type: boolean }
+        trusted_proxy: { type: array, items: { type: string } }
+        fingerprint: { type: string, description: SHA-256 fingerprint of the certificate }
+        cert_source: { type: string }
+        cert_not_after: { type: string, format: date-time }
+        can_renew_cert: { type: boolean }
+    AdminCertificate:
+      type: object
+      required: [fingerprint, not_after]
+      properties:
+        fingerprint: { type: string }
+        not_after: { type: string, format: date-time }
+    AdminUpdateAvailable:
+      type: object
+      required: [version, channel, published_at, size, breaking, breaking_count, skipped]
+      properties:
+        version: { type: string }
+        channel: { type: string }
+        notes_url: { type: string }
+        published_at: { type: string, format: date-time }
+        size: { type: integer, format: int64 }
+        breaking: { type: boolean, description: Some app seen in the last 30 days is too old for this version }
+        breaking_count: { type: integer }
+        skipped: { type: boolean }
+    AdminUpdateResult:
+      type: object
+      required: [version, time, ok, message]
+      properties:
+        version: { type: string }
+        time: { type: string, format: date-time }
+        ok: { type: boolean }
+        message: { type: string }
+    AdminUpdateSettings:
+      type: object
+      required: [current_version, channel, channel_is_set, default_channel, compiled_channel, auto, packaged, request_pending, active_sessions, in_container]
+      properties:
+        current_version: { type: string }
+        channel: { type: string, enum: [stable, beta, 'off'], description: Effective channel }
+        channel_is_set: { type: boolean, description: An admin selected the channel }
+        default_channel: { type: string }
+        compiled_channel: { type: string }
+        auto: { type: boolean, description: Effective automatic install }
+        disabled_reason: { type: string, description: Why the updater does not run; absent when it runs }
+        last_check: { type: string, format: date-time }
+        last_error: { type: string }
+        available: { $ref: '#/components/schemas/AdminUpdateAvailable' }
+        packaged: { type: boolean, description: This server can install updates itself }
+        staged_version: { type: string }
+        request_pending: { type: boolean }
+        last_result: { $ref: '#/components/schemas/AdminUpdateResult' }
+        active_sessions: { type: integer }
+        manual_command: { type: string, description: Shown when the update cannot be installed from here }
+        paused: { $ref: '#/components/schemas/AdminUpdatePause' }
+        skipped_version: { type: string }
+        in_container: { type: boolean }
+    AdminSettings:
+      type: object
+      required: [hub_name, allow_user_uploads, network, security, updates]
+      properties:
+        hub_name: { type: string }
+        allow_user_uploads: { type: boolean }
+        network: { $ref: '#/components/schemas/AdminNetwork' }
+        security: { $ref: '#/components/schemas/AdminSecurity' }
+        updates: { $ref: '#/components/schemas/AdminUpdateSettings' }
+    AdminSettingsUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        allow_user_uploads: { type: boolean }
+        update_channel: { type: string, enum: ['', stable, beta] }
+        update_auto: { type: boolean }
+    AdminUpdateInstall:
+      type: object
+      properties:
+        confirm_breaking: { type: boolean, default: false }
+    AdminUpdateStaged:
+      type: object
+      required: [version]
+      properties:
         version: { type: string }

@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/phabioo/uzume/server/internal/adminhost"
 	"github.com/phabioo/uzume/server/internal/api"
 	"github.com/phabioo/uzume/server/internal/hub"
 	"github.com/phabioo/uzume/server/internal/pluginpkg"
@@ -42,6 +43,7 @@ type Server struct {
 	log     *slog.Logger
 	restart func()
 	status  *statusinfo.Source
+	host    adminhost.Host // process-level facts for the admin settings API (nil in tests that do not need it)
 }
 
 // Register attaches the API routes (including the info endpoint and ROM download) to mux. The web interface
@@ -174,6 +176,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"ListAdminSystems", "UpdateAdminSystem", "UpdateAdminSystemCore", "InstallAdminCore", "UpgradeAdminCore", "RemoveAdminCore", "SyncAdminCores", "UpdateAdminCoreSettings",
 			"GetAdminFirmwareFile", "PutAdminFirmwareFile", "PinAdminFirmwareFile", "RemoveAdminFirmwareFile",
 			"ListAdminPlugins", "StageAdminPlugin", "OfferAdminPlugin", "DiscardAdminPlugin", "RemoveAdminPlugin", "RefreshAdminPluginIndex", "InstallAdminIndexPlugin",
+			"CreateAdminDiagnosticsBundle", "DeleteAdminGame", "RenameAdminGame", "GetAdminLibraryRescan", "StartAdminLibraryRescan", "ListAdminRuns", "DeleteAdminRun", "GetAdminRun", "ArchiveAdminRun", "ExportAdminRun", "FinishAdminRun", "RemoveAdminRunInvite", "ResendAdminRunInvite", "PauseAdminRun", "ResendAdminRunInvites", "ResumeAdminRun", "StartAdminRun", "UnarchiveAdminRun", "ListAdminSaves", "RenewAdminCertificate", "GetAdminSettings", "UpdateAdminSettings", "DeleteAdminExternalTurn", "SaveAdminExternalTurn", "ResetAdminExternalTurn", "RestartAdminServer", "ResetAdminNetSetting", "SetAdminNetSetting", "CheckAdminUpdates", "InstallAdminUpdate", "DeleteAdminSaveSlot", "GetAdminSaveSlot", "ResolveAdminSaveConflict", "DownloadAdminSaveContent", "ListAdminSaveHistory", "DeleteAdminSaveVersion", "DownloadAdminSaveHistoryContent", "RestoreAdminSaveVersion", "RenameAdminSaveSlot", "CreateAdminSaveSlot", "CreateAdminSaveSnapshot", "UploadAdminSaveFile",
 			"ListRuns", "CreateRun", "GetRun", "JoinRun", "DeclineRun", "LeaveRun", "InviteRun", "SetRunStatus", "PutRunState", "AppendRunEvent", "ListRunEvents", "PutRunBoard":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {

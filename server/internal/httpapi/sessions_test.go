@@ -32,9 +32,9 @@ type dev struct {
 	id, tok, user, name string
 }
 
-func newSessEnv(t *testing.T, mod func(*hub.Options)) *sessEnv {
+func newSessEnv(t *testing.T, mod func(*hub.Options), opts ...Option) *sessEnv {
 	t.Helper()
-	e := newEnv(t, mod)
+	e := newEnv(t, mod, opts...)
 	srv := httptest.NewServer(e.mux)
 	t.Cleanup(srv.Close)
 	g, err := e.svc.AddROM(context.Background(), bytes.NewReader([]byte("homebrew-rom-dummy")), "demo.nds", "Demo Homebrew", "", e.admin.ID)

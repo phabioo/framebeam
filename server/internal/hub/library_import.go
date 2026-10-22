@@ -87,6 +87,27 @@ func (s *Service) scanStep(total, done, added int) {
 	s.Publish(TopicLibrary)
 }
 
+// StartRescan imports the import folder in the background (one scan at a time; the progress is ScanProgress).
+// started is false when a scan already runs. A missing or non-existing folder is a bad request. Source files are
+// only read. maxBytes 0 means MaxROMBytes. The scan runs on after ctx ends.
+func (s *Service) StartRescan(ctx context.Context, dir, userID string, maxBytes int64) (started bool, err error) {
+	if dir == "" {
+		return false, badRequest("No import folder is configured")
+	}
+	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
+		return false, badRequest("The import folder %s does not exist", dir)
+	}
+	if !s.BeginScan() {
+		return false, nil
+	}
+	bg := context.WithoutCancel(ctx)
+	go func() {
+		sum, err := s.ImportFolder(bg, dir, userID, maxBytes)
+		s.EndScan(sum, err)
+	}()
+	return true, nil
+}
+
 // ImportFolder imports every file directly inside dir whose extension maps to a system into the library
 // (content-addressed, like an upload; title from the file name). Files already in the library by SHA-256 and
 // files with unknown extensions are skipped. Source files are only read, never moved, changed or deleted.

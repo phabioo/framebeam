@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/phabioo/uzume/server/internal/adminhost"
 	"github.com/phabioo/uzume/server/internal/config"
 	"github.com/phabioo/uzume/server/internal/diag"
 	"github.com/phabioo/uzume/server/internal/hub"
@@ -516,29 +517,10 @@ func (s *Server) netBody(r *http.Request, sess *session, res settingsRes) (netBo
 	nb.TURNOn = desired.TURN
 	nb.CanRestart = s.cfg.Net.RequestRestart != nil
 
-	// Settings saved but not applied yet, except those that failed at startup (shown as an error card).
-	run := s.cfg.Net.Running
-	issues := map[string]NetIssue{}
-	for _, is := range s.cfg.Net.Issues {
-		if NetSignature(&desired, is.Key) == is.Value {
-			issues[is.Key] = is
-			nb.Issues = append(nb.Issues, is.Message)
-		}
-	}
-	_, turnBroken := issues[config.NetTURN]
-	for _, k := range config.NetKeys {
-		if !config.NetNeedsRestart(k) {
-			continue
-		}
-		if _, bad := issues[k]; bad || (turnBroken && turnKeys[k]) {
-			continue
-		}
-		if desired.NetValue(k) != run.NetValue(k) {
-			nb.Pending = append(nb.Pending, config.NetLabel(k))
-		}
-	}
+	nb.Pending, nb.Issues = s.netPending(desired)
 
 	// Reachability from configuration only: nothing probes the hub from outside.
+	run := s.cfg.Net.Running
 	host := strings.TrimSpace(run.PublicHost)
 	turnOn := s.cfg.TURN != nil
 	switch {
@@ -590,6 +572,32 @@ func (s *Server) netBody(r *http.Request, sess *session, res settingsRes) (netBo
 	nb.Cloudflare = s.svc.CloudflareStatus().Configured
 	nb.Restarting = res.Restarting
 	return nb, nil
+}
+
+// netPending lists the labels of saved settings that are not applied yet (they need a restart), except those that
+// failed at startup, and the messages of those failed ones.
+func (s *Server) netPending(desired config.Config) (pending, issueMsgs []string) {
+	run := s.cfg.Net.Running
+	issues := map[string]NetIssue{}
+	for _, is := range s.cfg.Net.Issues {
+		if NetSignature(&desired, is.Key) == is.Value {
+			issues[is.Key] = is
+			issueMsgs = append(issueMsgs, is.Message)
+		}
+	}
+	_, turnBroken := issues[config.NetTURN]
+	for _, k := range config.NetKeys {
+		if !config.NetNeedsRestart(k) {
+			continue
+		}
+		if _, bad := issues[k]; bad || (turnBroken && turnKeys[k]) {
+			continue
+		}
+		if desired.NetValue(k) != run.NetValue(k) {
+			pending = append(pending, config.NetLabel(k))
+		}
+	}
+	return pending, issueMsgs
 }
 
 // ---- handlers: pages ----
@@ -725,18 +733,14 @@ func (s *Server) certInfo() (string, time.Time) {
 
 // settingsRenewCert replaces the self-generated certificate; new TLS handshakes use it immediately.
 func (s *Server) settingsRenewCert(w http.ResponseWriter, r *http.Request, sess *session) {
-	if s.cfg.RenewCert == nil || s.cfg.CertSource != "Self-generated" {
+	switch _, _, err := s.RenewCert(sess.User.Username); {
+	case err == nil:
+		s.redirect(w, r, "/settings/security?ok=certrenewed")
+	case errors.Is(err, adminhost.ErrUnsupported):
 		s.redirect(w, r, "/settings/security?err=renewunsupported")
-		return
-	}
-	fp, _, err := s.cfg.RenewCert()
-	if err != nil {
-		s.log.Error("renew tls certificate", "err", err)
+	default:
 		s.redirect(w, r, "/settings/security?err=renewfailed")
-		return
 	}
-	s.log.Warn("TLS certificate renewed from Settings; apps must confirm the new fingerprint", "new_sha256_fingerprint", fp, "admin", sess.User.Username)
-	s.redirect(w, r, "/settings/security?ok=certrenewed")
 }
 
 // ---- handlers: Updates ----
@@ -919,48 +923,65 @@ func validNetKey(key string) bool {
 	return false
 }
 
-// settingsNetSave validates and stores one network setting (autosave), then applies it live if it can be.
-func (s *Server) settingsNetSave(w http.ResponseWriter, r *http.Request, sess *session) {
-	key := r.PathValue("key")
+// netSave validates and stores one network setting, then applies it live if it can be. A refused value is a
+// *adminhost.ValidationError; the web interface and the admin API both call it.
+func (s *Server) netSave(ctx context.Context, key string, form url.Values) error {
 	if !validNetKey(key) {
-		s.notFound(w, r)
-		return
+		return hub.ErrNotFound
 	}
-	fail := func(msg string) {
-		s.settingsDone(w, r, sess, netSection(key), settingsRes{FieldKey: key, Msg: upper1(msg), Form: r.PostForm}, true)
-	}
-	cand, _, err := s.netDesired(r.Context())
+	cand, _, err := s.netDesired(ctx)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return err
 	}
-	raw, err := netRaw(key, r.PostForm, &cand)
+	raw, err := netRaw(key, form, &cand)
 	if err != nil {
-		fail(err.Error())
-		return
+		return &adminhost.ValidationError{Msg: err.Error()}
 	}
 	if err := cand.SetNet(key, raw); err != nil {
-		fail(err.Error())
-		return
+		return &adminhost.ValidationError{Msg: err.Error()}
 	}
 	if err := cand.ValidateNet(key); err != nil {
-		fail(err.Error())
-		return
+		return &adminhost.ValidationError{Msg: err.Error()}
 	}
+	if err := s.checkListenPort(key, cand); err != nil {
+		return err
+	}
+	if err := s.svc.SetNetOverride(ctx, key, cand.NetValue(key)); err != nil {
+		return err
+	}
+	return s.applyLiveNet(ctx)
+}
+
+// checkListenPort tests that a changed listen port can be bound.
+func (s *Server) checkListenPort(key string, cand config.Config) error {
 	if key == config.NetListenPort && cand.ListenPort() != s.cfg.Net.Running.ListenPort() {
 		addr := config.ListenWithPort(s.cfg.Net.Running.Listen, cand.ListenPort())
 		if err := s.testBind(addr); err != nil {
 			s.log.Info("listen port test bind failed", "addr", addr, "err", err)
-			fail(fmt.Sprintf("Port %d is in use", cand.ListenPort()))
-			return
+			return &adminhost.ValidationError{Msg: fmt.Sprintf("Port %d is in use", cand.ListenPort())}
 		}
 	}
-	if err := s.svc.SetNetOverride(r.Context(), key, cand.NetValue(key)); err != nil {
+	return nil
+}
+
+// netFail answers a failed netSave/netReset of the web interface: a refusal next to the field, anything else a 500.
+func (s *Server) netFail(w http.ResponseWriter, r *http.Request, sess *session, key string, err error) {
+	var ve *adminhost.ValidationError
+	switch {
+	case errors.As(err, &ve):
+		s.settingsDone(w, r, sess, netSection(key), settingsRes{FieldKey: key, Msg: upper1(ve.Msg), Form: r.PostForm}, true)
+	case errors.Is(err, hub.ErrNotFound):
+		s.notFound(w, r)
+	default:
 		s.fail(w, r, err)
-		return
 	}
-	if err := s.applyLiveNet(r.Context()); err != nil {
-		s.fail(w, r, err)
+}
+
+// settingsNetSave validates and stores one network setting (autosave), then applies it live if it can be.
+func (s *Server) settingsNetSave(w http.ResponseWriter, r *http.Request, sess *session) {
+	key := r.PathValue("key")
+	if err := s.netSave(r.Context(), key, r.PostForm); err != nil {
+		s.netFail(w, r, sess, key, err)
 		return
 	}
 	s.settingsDone(w, r, sess, netSection(key), settingsRes{OK: "netsaved"}, false)
@@ -1024,17 +1045,14 @@ func (s *Server) settingsExternalTURNReset(w http.ResponseWriter, r *http.Reques
 	s.settingsDone(w, r, sess, "network", settingsRes{OK: "extturnsaved"}, false)
 }
 
-// settingsNetReset deletes the saved value: server.env/flags apply again.
-func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *session) {
-	key := r.PathValue("key")
+// netReset deletes the saved value (server.env/flags apply again) after checking the configuration that results.
+func (s *Server) netReset(ctx context.Context, key string) error {
 	if !validNetKey(key) {
-		s.notFound(w, r)
-		return
+		return hub.ErrNotFound
 	}
-	_, stored, err := s.netDesired(r.Context())
+	_, stored, err := s.netDesired(ctx)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return err
 	}
 	// Validate the configuration that results from the reset, like a save would.
 	rest := make(map[string]string, len(stored))
@@ -1047,46 +1065,42 @@ func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *
 	cand.ICEServers = config.CloneICE(s.cfg.Net.Base.ICEServers)
 	cand.ApplyNet(rest)
 	if err := cand.ValidateNet(key); err != nil {
-		s.settingsDone(w, r, sess, netSection(key), settingsRes{FieldKey: key, Msg: upper1(err.Error()), Form: r.PostForm}, true)
-		return
+		return &adminhost.ValidationError{Msg: err.Error()}
 	}
-	if key == config.NetListenPort && cand.ListenPort() != s.cfg.Net.Running.ListenPort() {
-		addr := config.ListenWithPort(s.cfg.Net.Running.Listen, cand.ListenPort())
-		if err := s.testBind(addr); err != nil {
-			s.log.Info("listen port test bind failed", "addr", addr, "err", err)
-			s.settingsDone(w, r, sess, netSection(key), settingsRes{FieldKey: key, Msg: fmt.Sprintf("Port %d is in use", cand.ListenPort()), Form: r.PostForm}, true)
-			return
-		}
+	if err := s.checkListenPort(key, cand); err != nil {
+		return err
 	}
-	if err := s.svc.ResetNetOverride(r.Context(), key); err != nil {
-		s.fail(w, r, err)
-		return
+	if err := s.svc.ResetNetOverride(ctx, key); err != nil {
+		return err
 	}
-	if err := s.applyLiveNet(r.Context()); err != nil {
-		s.fail(w, r, err)
+	return s.applyLiveNet(ctx)
+}
+
+// settingsNetReset deletes the saved value: server.env/flags apply again.
+func (s *Server) settingsNetReset(w http.ResponseWriter, r *http.Request, sess *session) {
+	key := r.PathValue("key")
+	if err := s.netReset(r.Context(), key); err != nil {
+		s.netFail(w, r, sess, key, err)
 		return
 	}
 	s.settingsDone(w, r, sess, netSection(key), settingsRes{OK: "netreset"}, false)
 }
 
-// settingsNetRestart asks the process to restart (graceful shutdown, then re-exec). The response is rendered
-// first; the shutdown waits for it to be written.
-func (s *Server) settingsNetRestart(w http.ResponseWriter, r *http.Request, sess *session) {
+// prepareRestart works out where the hub will be after a restart. The address comes from the configuration (public
+// host, else a concrete listen host), never from the request's Host header. Without one the URL stays empty and the
+// admin is asked to open the new port. The returned func asks the process to restart; call it after the response.
+func (s *Server) prepareRestart(ctx context.Context) (adminhost.Restart, func(), error) {
 	if s.cfg.Net.RequestRestart == nil {
-		s.settingsDone(w, r, sess, "network", settingsRes{Err: "This server cannot restart itself. Restart the service manually."}, true)
-		return
+		return adminhost.Restart{}, nil, adminhost.ErrUnsupported
 	}
-	desired, _, err := s.netDesired(r.Context())
+	desired, _, err := s.netDesired(ctx)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return adminhost.Restart{}, nil, err
 	}
 	scheme := "https"
 	if !s.cfg.UseTLS {
 		scheme = "http"
 	}
-	// The address comes from the configuration (public host, else a concrete listen host), never from the
-	// request's Host header. Without one the URL stays empty and the page asks the admin to open the new port.
 	host := s.cfg.PublicHost
 	if host == "" {
 		if h, _, err := net.SplitHostPort(s.cfg.Listen); err == nil && h != "" {
@@ -1096,13 +1110,28 @@ func (s *Server) settingsNetRestart(w http.ResponseWriter, r *http.Request, sess
 		}
 	}
 	port := desired.ListenPort()
-	rb := &restartBody{Changed: port != s.cfg.Net.Running.ListenPort()}
+	rb := adminhost.Restart{PortChanged: port != s.cfg.Net.Running.ListenPort()}
 	if host != "" {
 		rb.URL = scheme + "://" + net.JoinHostPort(host, strconv.Itoa(port)) + "/settings/network"
 	}
+	return rb, s.cfg.Net.RequestRestart, nil
+}
+
+// settingsNetRestart asks the process to restart (graceful shutdown, then re-exec). The response is rendered
+// first; the shutdown waits for it to be written.
+func (s *Server) settingsNetRestart(w http.ResponseWriter, r *http.Request, sess *session) {
+	rb, restart, err := s.prepareRestart(r.Context())
+	if errors.Is(err, adminhost.ErrUnsupported) {
+		s.settingsDone(w, r, sess, "network", settingsRes{Err: "This server cannot restart itself. Restart the service manually."}, true)
+		return
+	}
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
 	s.log.Info("hub restart requested from the web interface", "user", sess.User.Username)
-	s.renderSettings(w, r, sess, http.StatusOK, "network", settingsRes{OK: "restarting", Restarting: rb})
-	s.cfg.Net.RequestRestart()
+	s.renderSettings(w, r, sess, http.StatusOK, "network", settingsRes{OK: "restarting", Restarting: &restartBody{URL: rb.URL, Changed: rb.PortChanged}})
+	restart()
 }
 
 // turnForwards lists the router port forwards a public server needs (ADR 0012 D1).
