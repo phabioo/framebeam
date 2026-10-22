@@ -6,6 +6,9 @@
 # its version stays without prerelease and index entry and can never be promoted. Instead every run has its own
 # concurrency group (nothing is cancelled) and queues here, oldest run id first, across release.yml, promote.yml and index-refresh.yml.
 #
+# Runs created more than STALE_HOURS (default 12) ago are ignored: GitHub can keep a ghost run "queued" forever that
+# can neither be cancelled nor deleted, and no real index update waits that long.
+#
 #   wait-index-turn.sh [max-wait-minutes]      (default 40)
 # Needs gh (GH_TOKEN, GH_REPO) and GITHUB_RUN_ID. Exit 0 = go ahead, 1 = an older run did not finish in time.
 set -euo pipefail
@@ -13,6 +16,7 @@ set -euo pipefail
 max_min="${1:-40}"
 me="${GITHUB_RUN_ID:?GITHUB_RUN_ID is required}"
 deadline=$(( $(date +%s) + max_min * 60 ))
+stale_before="$(date -u -d "-${STALE_HOURS:-12} hours" +%Y-%m-%dT%H:%M:%SZ)"
 
 # Ids of runs of the index-writing workflows that are not finished and are older than this one.
 older_active() {
@@ -20,7 +24,8 @@ older_active() {
   for wf in release.yml promote.yml index-refresh.yml; do
     for st in queued in_progress waiting requested pending; do
       # A workflow file that does not exist (yet) on the default branch has no runs: gh fails, which counts as "none".
-      out="$(gh run list --workflow "$wf" --status "$st" --limit 100 --json databaseId --jq '.[].databaseId' 2>/dev/null)" || out=""
+      out="$(gh run list --workflow "$wf" --status "$st" --limit 100 --json databaseId,createdAt \
+        --jq ".[] | select(.createdAt >= \"$stale_before\") | .databaseId" 2>/dev/null)" || out=""
       printf '%s\n' "$out"
     done
   done | awk -v me="$me" 'NF && $1 < me' | sort -n | uniq
