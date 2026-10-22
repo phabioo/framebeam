@@ -278,8 +278,15 @@ void FakeHub::handleAdmin(QSslSocket* sock, const FakeRequest& req) {
             {{"Content-Disposition", "attachment; filename=\"uzume-server-log-20261022-081500.txt\""}});
     return;
   }
-  ++adminCalls[QString::fromLatin1(req.method) + QLatin1Char(' ') + path];
+  const QString callKey = QString::fromLatin1(req.method) + QLatin1Char(' ') + path;
+  ++adminCalls[callKey];
   lastAdminBody = req.body;
+  adminBodies[callKey] = req.body;
+  if (adminRoutes.contains(callKey)) {
+    const AdminRoute& route = adminRoutes[callKey];
+    respond(sock, route.status, route.body);
+    return;
+  }
   respond(sock, 200, json({{QStringLiteral("ok"), true}, {QStringLiteral("path"), path}}));
 }
 

@@ -201,6 +201,9 @@ qt_add_qml_module(uzume_ui
     AdminSaveDialog.qml
     ServerScreen.qml
     ServerStatusPage.qml
+    ServerSystemsPage.qml
+    ServerSystemsFileDialog.qml
+    ServerPluginsPage.qml
   RESOURCES
     fonts/IBMPlexSans-Light.ttf
     fonts/IBMPlexSans-Regular.ttf

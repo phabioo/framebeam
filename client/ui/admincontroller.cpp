@@ -1,5 +1,6 @@
 #include "admincontroller.h"
 
+#include <QJSValue>
 #include <QTimer>
 #include <QVariantList>
 #include <algorithm>
@@ -84,7 +85,9 @@ void AdminController::launch(Pending p) {
   start(p);
 }
 
-int AdminController::request(const QString& method, const QString& path, const QVariant& body) {
+int AdminController::request(const QString& method, const QString& path, const QVariant& bodyIn) {
+  // A JS object arrives from QML as a QJSValue inside the variant; JSON needs the plain QVariantMap.
+  const QVariant body = bodyIn.metaType() == QMetaType::fromType<QJSValue>() ? bodyIn.value<QJSValue>().toVariant() : bodyIn;
   Pending p;
   p.id = nextId_++;
   p.start = [this, method, path, body](const Pending& self) {

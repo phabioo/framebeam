@@ -171,6 +171,14 @@ class FakeHub : public QTcpServer {
   bool confirmed() const;
   QMap<QString, int> adminCalls;
   QByteArray lastAdminBody;
+  // Fixed answers for admin routes (key "METHOD /api/v1/admin/..." without the query): status and JSON body (empty = no body).
+  // `adminBodies` keeps the last request body of every admin route (key as in `adminCalls`).
+  struct AdminRoute {
+    int status = 200;
+    QByteArray body;
+  };
+  QMap<QString, AdminRoute> adminRoutes;
+  QMap<QString, QByteArray> adminBodies;
   static QJsonObject sampleAdminStatus();
 
   // Saves (saves_v1)

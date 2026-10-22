@@ -17,12 +17,16 @@ Rectangle {
     readonly property Component pageComponent: {
         switch (root.page) {
         case "status": return statusPage
+        case "systems": return systemsPage
+        case "plugins": return pluginsPage
         default: return null
         }
     }
     color: Theme.bg
 
     Component { id: statusPage; ServerStatusPage { player: root.player } }
+    Component { id: systemsPage; ServerSystemsPage { player: root.player } }
+    Component { id: pluginsPage; ServerPluginsPage { player: root.player } }
 
     RowLayout {
         anchors.fill: parent
