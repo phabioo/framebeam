@@ -122,15 +122,16 @@ class ReportUiTest : public QObject {
     hub.reportFailStatus = 503;
     r->send();
     QTRY_COMPARE_WITH_TIMEOUT(r->state(), QStringLiteral("failed"), 8000);
-    // Every action stays inside the card (with wide fonts the row wraps).
+    // Every action stays inside the card (with wide fonts the row wraps); wait for the relayout after the state change.
     QTRY_VERIFY(h.item("reportSend") != nullptr && h.item("reportSend")->isVisible());
     QQuickItem* card = h.item("reportCard");
     QVERIFY(card != nullptr);
-    const QRectF cardRect = card->mapRectToScene(QRectF(0, 0, card->width(), card->height()));
     for (const char* name : {"reportSaveAsFile", "reportCancel", "reportSend"}) {
       QQuickItem* b = h.item(name);
       QVERIFY2(b != nullptr && b->isVisible(), name);
-      QVERIFY2(cardRect.contains(b->mapRectToScene(QRectF(0, 0, b->width(), b->height()))), name);
+      QTRY_VERIFY2_WITH_TIMEOUT(card->mapRectToScene(QRectF(0, 0, card->width(), card->height()))
+                                    .contains(b->mapRectToScene(QRectF(0, 0, b->width(), b->height()))),
+                                name, 5000);
     }
     QCOMPARE(r->description(), QString("Keep this text"));
     QVERIFY(!r->errorText().isEmpty());

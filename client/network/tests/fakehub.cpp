@@ -1480,10 +1480,12 @@ void FakeHub::handleRuns(QSslSocket* sock, const FakeRequest& req) {
       }
     }
     const qint64 seq = addRunEvent(runId, body.value(QStringLiteral("type")).toString(), body.value(QStringLiteral("text")).toString(), runsMe,
-                                   body.value(QStringLiteral("plugin_id")).toString(), clientId);
+                                   body.value(QStringLiteral("plugin_id")).toString(), clientId, false);
     QJsonObject& stored = runEvents[runId].last();
     stored.insert(QStringLiteral("source"), body.value(QStringLiteral("source")).toString());
     stored.insert(QStringLiteral("payload"), body.value(QStringLiteral("payload")).toObject());
+    // Push only after source and payload are patched in: a client that takes the WSS event must see the complete event.
+    sendWs(QStringLiteral("run_event"), {{QStringLiteral("run_id"), runId}, {QStringLiteral("event"), stored}});
     if (runEventDropResponses > 0) {
       --runEventDropResponses;
       sock->abort();

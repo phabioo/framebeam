@@ -596,8 +596,9 @@ jobs:
             # console, followed by the files and the exit code (0xC0000005 = access violation, 3/4 = abort/terminate).
             $failed = Select-String -Path ctest.log -Pattern '^\s*\d+/\d+ Test\s+#\d+: (\S+) \.+\*{3}(Failed|Exception|Timeout)' |
               ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique
+            $logDir = $env:FRAMEBEAM_TEST_LOG_DIR
             foreach ($t in $failed) {
-              $first = Join-Path $env:FRAMEBEAM_TEST_LOG_DIR "test_$t.txt"
+              $first = Join-Path $logDir "test_$t.txt"
               if (Test-Path $first) {
                 Write-Host "::group::first run of $t ($first)"
                 Select-String -Path $first -Pattern 'FAIL!|QFATAL' -Context 3,3 | Out-Host
@@ -613,6 +614,8 @@ jobs:
                 $k, $v = $kv -split '=', 2
                 Set-Item -Path "env:$k" -Value $v
               }
+              # The first-run log is printed above and the rerun writes its own file; a second stdout logger makes QtTest exit at once.
+              Remove-Item Env:FRAMEBEAM_TEST_LOG_DIR -ErrorAction SilentlyContinue
               Push-Location $exe.DirectoryName
               # Two -o: file (survives a crash) AND stdout. "$t.txt,txt" is one argument "<file>,<format>".
               $txt = Join-Path $exe.DirectoryName "$t.txt"
