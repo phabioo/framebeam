@@ -11,12 +11,15 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/phabioo/framebeam/server/internal/config"
+	"github.com/phabioo/framebeam/server/internal/diag"
+	"github.com/phabioo/framebeam/server/internal/health"
 	"github.com/phabioo/framebeam/server/internal/hub"
+	"github.com/phabioo/framebeam/server/internal/statusinfo"
 	"github.com/phabioo/framebeam/server/internal/turnsrv"
 )
 
@@ -68,6 +71,12 @@ type Config struct {
 	TURN *turnsrv.Server
 	// Net describes the network settings and the restart hook (Settings > Network).
 	Net NetConfig
+	// Errors holds the recent WARN/ERROR log records for the Status page (default diag.RecentErrors).
+	Errors *diag.ErrorRing
+	// Log holds the recent log lines for "Download log" (default diag.Recent).
+	Log *diag.Ring
+	// Disk replaces the disk reader of the Status page (tests only).
+	Disk func(dir string) (total, free uint64, ok bool)
 }
 
 // Server is the web interface.
@@ -79,6 +88,7 @@ type Server struct {
 	login *limiter
 	// verifySem bounds concurrent Argon2id verifications (64 MiB each) so parallel requests cannot exhaust memory.
 	verifySem chan struct{}
+	src       *statusinfo.Source
 	done      chan struct{} // closed by Shutdown: long-lived streams (SSE) end
 	once      sync.Once
 }
@@ -91,9 +101,23 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	if cfg.MaxUploadBytes <= 0 {
 		cfg.MaxUploadBytes = DefaultMaxUploadBytes
 	}
+	if cfg.Errors == nil {
+		cfg.Errors = diag.RecentErrors
+	}
+	if cfg.Log == nil {
+		cfg.Log = diag.Recent
+	}
 	s := &Server{svc: svc, cfg: cfg, log: log, tmpl: map[string]*template.Template{}, done: make(chan struct{}),
 		login: newLimiter(svc.Now), verifySem: make(chan struct{}, maxConcurrentVerify)}
-	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm", "plugins", "runs", "notfound"} {
+	var turnIssues []string
+	for _, is := range cfg.Net.Issues {
+		if is.Key == config.NetTURN {
+			turnIssues = append(turnIssues, is.Message)
+		}
+	}
+	s.src = &statusinfo.Source{Svc: svc, TURN: cfg.TURN, PublicHost: cfg.PublicHost, PublicPort: cfg.PublicPort,
+		ListenPort: func() int { return cfg.Net.Running.ListenPort() }, TURNIssues: turnIssues, Errors: cfg.Errors, Log: cfg.Log, Disk: cfg.Disk}
+	for _, p := range []string{"login", "setup", "invite", "library", "saves", "clients", "settings", "users", "systems", "confirm", "plugins", "runs", "status", "notfound"} {
 		t, err := template.New(p).Funcs(template.FuncMap{"asset": assetURL}).ParseFS(templatesFS, "templates/layout.html", "templates/"+p+".html")
 		if err != nil {
 			return nil, err
@@ -102,6 +126,9 @@ func New(svc *hub.Service, cfg Config, log *slog.Logger) (*Server, error) {
 	}
 	return s, nil
 }
+
+// StatusSource is the health data source of the Status page; the admin REST API uses the same one.
+func (s *Server) StatusSource() *statusinfo.Source { return s.src }
 
 // Shutdown ends long-lived responses (the /events streams) so a graceful http.Server.Shutdown does not
 // wait for them. Idempotent; wire it with http.Server.RegisterOnShutdown.
@@ -219,6 +246,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("GET /runs/{id}/export", s.guard(s.runExport))
 	h("GET /runs/{id}/delete", s.guard(s.runDeleteConfirm))
 	h("POST /runs/{id}/delete", s.guard(s.runDelete))
+	h("GET /status", s.guard(s.statusGet))
+	h("GET /status/log", s.guard(s.statusLog))
+	h("GET /metrics", s.metricsGet)
 	h("GET /settings", s.guard(s.settingsGet))
 	h("GET /settings/{section}", s.guard(s.settingsGet))
 	h("POST /settings/network/restart", s.guard(s.settingsNetRestart))
@@ -236,6 +266,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	h("POST /settings/password", s.guard(s.settingsPassword))
 	h("POST /settings/security/renew-cert", s.guard(s.settingsRenewCert))
 	h("POST /settings/diagnostics/bundle", s.guard(s.settingsDiagBundle))
+	h("POST /settings/metrics", s.guard(s.settingsMetrics))
+	h("POST /settings/metrics/token", s.guard(s.settingsMetricsToken))
 }
 
 // secure sets security headers (no inline script/style) and prevents caching of pages.
@@ -308,6 +340,9 @@ type pageData struct {
 	ActiveRuns          int    // runs in status active (nav badge)
 	ShowRuns            bool   // the "Runs" nav item is shown (a plugin asks for run.state, or runs exist)
 	UpdateAvailable     bool   // a newer Hub version is known (nav dot on Settings)
+	IsAdmin             bool   // the signed-in user is an admin (members see only Play and Settings)
+	StatusProblem       string // title of the most urgent Hub problem (badge on Status), admins only
+	NavGroups           []navGroup
 	Theme               string // light, dark or system (Hub setting)
 	Flash, Error        string
 	Fragment            bool
@@ -435,20 +470,21 @@ func (s *Server) base(r *http.Request, sess *session, nav, title string) pageDat
 			d.ShowRuns = v
 		}
 		d.UpdateAvailable = s.svc.UpdateAvailableBadge(r.Context())
+		d.IsAdmin = sess.User.Role == hub.RoleAdmin
+		if d.IsAdmin {
+			if p := health.MostUrgent(s.problems(r.Context())); p != nil {
+				d.StatusProblem = p.Title
+			}
+		}
+		d.NavGroups = navGroups(navInput{Admin: d.IsAdmin, Active: nav, Conflicts: d.Conflicts, Firmware: d.Firmware, Pending: d.Pending,
+			ActiveRuns: d.ActiveRuns, ShowRuns: d.ShowRuns, UpdateAvailable: d.UpdateAvailable, StatusProblem: d.StatusProblem})
 	}
 	return d
 }
 
 // navFragment renders the sidebar nav (badges and active item); the active item comes from HX-Current-URL.
 func (s *Server) navFragment(w http.ResponseWriter, r *http.Request, sess *session) {
-	nav := ""
-	if u, err := url.Parse(r.Header.Get("HX-Current-URL")); err == nil {
-		for _, n := range []string{"library", "saves", "systems", "clients", "users", "plugins", "runs", "settings"} {
-			if u.Path == "/"+n || strings.HasPrefix(u.Path, "/"+n+"/") {
-				nav = n
-			}
-		}
-	}
+	nav := navActiveFromURL(r.Header.Get("HX-Current-URL"))
 	d := s.base(r, sess, nav, "")
 	d.MainSwap = false
 	s.render(w, http.StatusOK, "library", "nav-fragment", d)

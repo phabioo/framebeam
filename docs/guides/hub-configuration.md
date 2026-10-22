@@ -123,6 +123,37 @@ Everything in it passes a redaction pass: TURN secret and credentials (`username
 
 If the web interface does not come up, `framebeam-hub diagnostics out.zip [-data-dir <dir>]` writes the same layout from the command line (as the service user, for example `sudo -u framebeam framebeam-hub diagnostics /tmp/out.zip -data-dir /var/lib/framebeam`). It never opens the database, so a running Hub is not disturbed; `hub-info.json` then has `"mode": "offline"` and lacks cores, counts and Players, and the network values come from `hub.env`/flags, not the saved web settings. It refuses to overwrite an existing file.
 
+## Status page and metrics endpoint
+
+**Status** (admin only, sidebar group ADMIN) shows the health of the Hub and refreshes itself every 10 s: Hub name, version, uptime and public address; a banner for the single most urgent problem (the sidebar badge carries the same short text); CPU, memory (Hub process, and the whole machine where the platform reports it) and the disk of the data directory; running Sessions with viewers and the TURN relay allocations; connected Players with version and state (a Player older than the Hub is amber); the warnings and errors of the last 24 hours with "Download log" (the last log lines held in memory, redacted like the diagnostics bundle). Problems are: data directory above 90 % used (error above 97 %), the built-in TURN relay not started with the saved settings, and a failed Hub update install. CPU, memory and disk are read on Linux and Windows; elsewhere the cards show "n/a".
+
+**Settings → Metrics** switches an optional Prometheus endpoint; it is off by default (`GET /metrics` then answers 404). Turning it on creates a token that is shown once; the Hub keeps only its SHA-256 and never logs it. "Create new token" replaces it at once. A scrape sends the token as a bearer header and gets the text format 0.0.4; without a valid token the Hub answers 401.
+
+```yaml
+scrape_configs:
+  - job_name: framebeam-hub
+    scheme: https
+    authorization: { credentials_file: /etc/prometheus/framebeam.token }   # the token, nothing else in the file
+    static_configs: [{ targets: ['hub.example.com:8443'] }]
+    tls_config: { insecure_skip_verify: true }   # only for the Hub's self-signed certificate; prefer a reverse proxy with a real one
+```
+
+| Metric | Type | Meaning |
+|---|---|---|
+| `framebeam_hub_info{version}` | gauge | always 1, carries the Hub version |
+| `framebeam_hub_uptime_seconds` | gauge | seconds since the process started |
+| `framebeam_sessions_active`, `framebeam_session_viewers` | gauge | running Sessions and their viewers |
+| `framebeam_players_connected` | gauge | Players with an open connection |
+| `framebeam_turn_enabled` | gauge | 1 when the built-in TURN relay runs |
+| `framebeam_turn_allocations`, `framebeam_turn_relay_ports` | gauge | live relay allocations and the size of the relay port range (only with TURN) |
+| `framebeam_disk_free_bytes`, `framebeam_disk_total_bytes` | gauge | the volume holding the data directory |
+| `framebeam_process_memory_bytes`, `framebeam_cpu_usage_ratio` | gauge | memory held by the Hub process; machine-wide CPU load 0 to 1 |
+| `framebeam_log_records_total{level}` | counter | WARN and ERROR log records since the start |
+
+The same data is available over the REST API for the admin in the Player (admin access token; 401 without a token, 403 for users): `GET /api/v1/admin/status` (the Status page as JSON, problems most urgent first), `GET /api/v1/admin/status/log` (redacted log text), `GET`/`PUT /api/v1/admin/metrics` (`{"enabled": bool}`; switching on for the first time returns the token once) and `POST /api/v1/admin/metrics/token` (new token, returned once). Both the page and the API read one data builder (`server/internal/statusinfo`).
+
+The endpoint carries no names, paths or secrets. It lives on the Hub's own listener: put it behind your reverse proxy like the rest.
+
 ## Reverse proxy
 
 The Hub can run behind a TLS-terminating reverse proxy (nginx, Caddy, Traefik, HAProxy; run the Hub with `-dev` or on loopback, the proxy provides HTTPS). Tell the Hub which peers are proxies:

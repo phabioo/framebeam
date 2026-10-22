@@ -9,6 +9,7 @@
 {{define "settings-nav-inner"}}
   <div class="set-nav-title">Settings</div>
   {{range .Body.Nav}}
+  {{if .Group}}<div class="set-group eyebrow">{{.Group}}</div>{{end}}
   <a class="set-item{{if .Selected}} on{{end}}" href="/settings/{{.ID}}" hx-get="/settings/{{.ID}}" hx-target="#settings-area" hx-swap="innerHTML" hx-push-url="true"{{if .Selected}} aria-current="page"{{end}}>
     <span class="set-item-name">{{.Title}}</span>
     <span class="set-item-status {{.Level}}"><i class="dot" aria-hidden="true"></i>{{.Status}}</span>
@@ -36,6 +37,7 @@
 {{else if eq .Body.Section "saves"}}{{template "set-saves" .}}
 {{else if eq .Body.Section "security"}}{{template "set-security" .}}
 {{else if eq .Body.Section "diagnostics"}}{{template "set-diagnostics" .}}
+{{else if eq .Body.Section "metrics"}}{{template "set-metrics" .}}
 {{end}}
 {{end}}
 
@@ -434,6 +436,44 @@
     </form>
   </div>
 </section>
+{{end}}
+
+{{/* ---- Metrics ---- */}}
+{{define "set-metrics"}}
+{{with .Body.Metrics}}
+{{if .Token}}
+<section class="set-card set-token" role="status">
+  <div class="eyebrow">Your metrics token</div>
+  <div class="set-row"><div><div class="value mono" id="metrics-token">{{.Token}}</div>
+    <div class="help">Copy it now. It is shown only once and the Hub keeps just a hash of it. If you lose it, create a new one.</div></div></div>
+</section>
+{{end}}
+<section class="set-card">
+  <div class="eyebrow">Prometheus endpoint</div>
+  <div class="set-row">
+    <div><div class="label">Metrics endpoint</div>
+      <div class="help">For your own monitoring tools, read-only: uptime, Sessions, viewers, connected Players, TURN relay allocations, disk space, CPU, memory and log record counts. No names, paths or secrets.</div></div>
+    <form method="post" action="/settings/metrics" hx-post="/settings/metrics" hx-target="#settings-area" hx-swap="innerHTML" role="group" aria-label="Metrics endpoint">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="enabled" value="{{if .On}}0{{else}}1{{end}}">
+      <button class="btn small{{if not .On}} primary{{end}}" type="submit">{{if .On}}Turn off{{else}}Turn on{{end}}</button>
+    </form>
+  </div>
+  {{if .On}}
+  <div class="set-row"><div><div class="label">Address</div><div class="value mono">{{.URL}}</div>
+    <div class="help">Send the header <span class="mono">Authorization: Bearer &lt;token&gt;</span>. Without a valid token the Hub answers 401.</div></div></div>
+  <div class="set-row"><div><div class="label">Token</div>
+    <div class="help">{{if .TokenSet}}A token is set. The Hub keeps only a hash, so it cannot show it again.{{else}}No token yet.{{end}}</div></div>
+    <form method="post" action="/settings/metrics/token" hx-post="/settings/metrics/token" hx-target="#settings-area" hx-swap="innerHTML" hx-confirm="Create a new token? The current one stops working at once.">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <button class="btn small" type="submit">Create new token</button>
+    </form>
+  </div>
+  {{else}}
+  <div class="set-row"><div class="help">Off: the address does not exist and the Hub answers 404. Turning it on creates a token.</div></div>
+  {{end}}
+</section>
+{{end}}
 {{end}}
 
 {{/* ---- Security ---- */}}

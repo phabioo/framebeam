@@ -400,7 +400,7 @@ Decided by Fabio on 2026-10-21. Useful before a test evening. UI parts (backup s
 - [ ] Update rollback: "Restore previous version" for Player and Hub from the index (last 5 releases), Hub with a database backup before the update (finishes ADR 0011 D8) (M)
 - [ ] "Report a problem": builds on "Collect logs", sends the bundle with a short description to the user's own Hub; admins see the list in the Hub web (S)
 - [ ] Connection assistant in the Player: Hub reachable, STUN, TURN, NAT type, test connection to the Hub, plain-language result and "Add to bundle" (S-M)
-- [ ] Hub health page: CPU, RAM, disk, active Sessions, TURN load, recent errors; optional `/metrics` (Prometheus) (S)
+- [x] Hub health page: CPU, RAM, disk, active Sessions, TURN load, recent errors; optional `/metrics` (Prometheus) (S). Done: admin page Status (`/status`, refreshes every 10 s), sidebar in groups Play / SETUP / ADMIN (Round 4), Settings → Metrics with a bearer-token `GET /metrics`. Not yet: TURN bitrate, relayed/direct per Session, Backup disk and "Backup failed" (come with the backup feature), the Reports entry (comes with the reports page).
 - [x] Done (0.17, [ADR 0029](adr/0029-operations-and-safety.md) D1): Docker image for the Hub (`ghcr.io/<owner>/framebeam-hub`, arm64 and amd64, volume `/data`, non-root, no self-update in the container, [guide](guides/hub-docker.md), CI build, push by `release.yml`, `stable`/`latest` by `promote.yml`) (S)
 - [ ] Plugin UI language (pulled forward from the plugins wave): `GameContext.language` from the Player language or the game language (S)
 

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: FrameBeam Hub API
-  version: 1.22.0
+  version: 1.23.0
   description: |
     HTTPS/JSON API of the FrameBeam Hub (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the Hub under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for Player-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for a Player on the same PC as the Hub (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected Players receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on Player devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
@@ -26,6 +26,7 @@ tags:
   - name: saves
   - name: sessions
   - name: runs
+  - name: admin
   - name: ws
 paths:
   /.well-known/framebeam:
@@ -2094,6 +2095,110 @@ paths:
         '409': { $ref: '#/components/responses/RunConflict' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/status:
+    get:
+      operationId: getAdminStatus
+      tags: [admin]
+      summary: Hub health (admin only)
+      description: |
+        The same data as the Status page of the web interface: identity, uptime, open problems (most urgent first),
+        CPU, memory, the disk of the data directory, running Sessions, the built-in TURN relay, connected Players and
+        the warnings and errors of the last 24 hours (secrets removed). Needs the access token of a device of an
+        admin user, otherwise 403.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/status/log:
+    get:
+      operationId: getAdminStatusLog
+      tags: [admin]
+      summary: Download the recent Hub log (admin only)
+      description: The last log lines the Hub keeps in memory as plain text, redacted like the diagnostics bundle.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Log text
+          headers:
+            Content-Disposition: { schema: { type: string }, example: 'attachment; filename="framebeam-hub-log-20261022-081500.txt"' }
+          content:
+            text/plain:
+              schema: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/metrics:
+    get:
+      operationId: getAdminMetrics
+      tags: [admin]
+      summary: State of the Prometheus metrics endpoint (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current setting
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMetrics' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    put:
+      operationId: setAdminMetrics
+      tags: [admin]
+      summary: Switch the Prometheus metrics endpoint on or off (admin only)
+      description: |
+        Off by default; while off `GET /metrics` answers 404. Switching it on for the first time creates a token and
+        returns it once in `token`; later calls never return it.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminMetricsUpdate' }
+            examples:
+              default: { value: { enabled: true } }
+      responses:
+        '200':
+          description: The setting now stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMetrics' }
+        '400':
+          description: Invalid body
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/admin/metrics/token:
+    post:
+      operationId: createAdminMetricsToken
+      tags: [admin]
+      summary: Create a new metrics token (admin only)
+      description: Replaces the token; the previous one stops working at once. The new token is returned once, the Hub keeps only a hash.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The new token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMetricsToken' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/v1/ws:
     get:
       operationId: connectWebSocket
@@ -2445,6 +2550,106 @@ components:
         hub_id: { type: string, format: uuid, description: Only when approved (once) }
         user_id: { type: string, description: Hub-local user ID; only when approved }
         device_credential: { type: string, description: 'Prefix fbd_; only when approved, once' }
+    AdminMetrics:
+      type: object
+      required: [enabled, token_set]
+      properties:
+        enabled: { type: boolean }
+        token_set: { type: boolean, description: A token exists (only its hash is stored) }
+        token: { type: string, description: 'Prefix fbm_; present once, when switching on created the token' }
+    AdminMetricsUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    AdminMetricsToken:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, description: 'Prefix fbm_; shown once' }
+    AdminProblem:
+      type: object
+      required: [id, title, detail, severity]
+      properties:
+        id: { type: string, description: 'Stable id such as `disk`, `turn`, `update`' }
+        title: { type: string, description: 'Short text, for example `Disk 92 %`' }
+        detail: { type: string }
+        severity: { type: string, enum: [warn, error] }
+        action_label: { type: string, description: 'Label of the suggested action, empty when none' }
+        action_href: { type: string, description: 'Web interface path of the action; informational for Players' }
+    AdminStatusSession:
+      type: object
+      required: [game_title, owner, device_name, visibility, started_at, viewers]
+      properties:
+        game_title: { type: string }
+        owner: { type: string, description: Display name of the owner user }
+        device_name: { type: string }
+        visibility: { type: string, enum: [private, hub_users, invite_only] }
+        started_at: { type: string, format: date-time }
+        viewers: { type: integer }
+    AdminStatusPlayer:
+      type: object
+      required: [device_name, user, version, state, outdated]
+      properties:
+        device_name: { type: string }
+        user: { type: string }
+        version: { type: string, description: Player version }
+        state: { type: string, enum: [in_session, watching, playing, idle] }
+        outdated: { type: boolean, description: The Player version is below the Hub version }
+    AdminStatusError:
+      type: object
+      required: [time, level, message]
+      properties:
+        time: { type: string, format: date-time }
+        level: { type: string, enum: [warn, error] }
+        message: { type: string, description: Redacted }
+    AdminStatus:
+      type: object
+      required: [hub_name, hub_version, uptime_seconds, public_address, time, problems, memory, sessions, viewers, players, errors, metrics_enabled]
+      properties:
+        hub_name: { type: string }
+        hub_version: { type: string }
+        uptime_seconds: { type: integer, format: int64 }
+        public_address: { type: string, description: 'host:port Players use; the host of the request when no public host is set' }
+        time: { type: string, format: date-time, description: When the data was read }
+        problems:
+          type: array
+          description: Open problems, the most urgent first (empty when all is well)
+          items: { $ref: '#/components/schemas/AdminProblem' }
+        cpu_percent: { type: number, description: 'Machine-wide CPU load 0 to 100; absent where the platform has no reader' }
+        memory:
+          type: object
+          required: [process_bytes]
+          properties:
+            process_bytes: { type: integer, format: int64, description: Memory the Hub process holds }
+            system_total_bytes: { type: integer, format: int64, description: Absent where the platform has no reader }
+            system_used_bytes: { type: integer, format: int64 }
+        disk:
+          type: object
+          description: The volume holding the data directory; absent where the platform has no reader
+          required: [total_bytes, free_bytes]
+          properties:
+            total_bytes: { type: integer, format: int64 }
+            free_bytes: { type: integer, format: int64 }
+        sessions:
+          type: array
+          items: { $ref: '#/components/schemas/AdminStatusSession' }
+        viewers: { type: integer, description: Viewers over all Sessions }
+        turn:
+          type: object
+          description: The built-in TURN relay; absent when it is off
+          required: [allocations, relay_ports]
+          properties:
+            allocations: { type: integer }
+            relay_ports: { type: integer, description: Size of the relay port range }
+        players:
+          type: array
+          items: { $ref: '#/components/schemas/AdminStatusPlayer' }
+        errors:
+          type: array
+          description: Warnings and errors of the last 24 hours, newest first
+          items: { $ref: '#/components/schemas/AdminStatusError' }
+        metrics_enabled: { type: boolean }
     LocalStatus:
       type: object
       required: [admin_exists, network_sharing, import_dir, hub_version]

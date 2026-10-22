@@ -24,6 +24,87 @@ const (
 	PollTokenAuthScopes pollTokenAuthContextKey = "pollTokenAuth.Scopes"
 )
 
+// Defines values for AdminProblemSeverity.
+const (
+	AdminProblemSeverityError AdminProblemSeverity = "error"
+	AdminProblemSeverityWarn  AdminProblemSeverity = "warn"
+)
+
+// Valid indicates whether the value is a known member of the AdminProblemSeverity enum.
+func (e AdminProblemSeverity) Valid() bool {
+	switch e {
+	case AdminProblemSeverityError:
+		return true
+	case AdminProblemSeverityWarn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminStatusErrorLevel.
+const (
+	AdminStatusErrorLevelError AdminStatusErrorLevel = "error"
+	AdminStatusErrorLevelWarn  AdminStatusErrorLevel = "warn"
+)
+
+// Valid indicates whether the value is a known member of the AdminStatusErrorLevel enum.
+func (e AdminStatusErrorLevel) Valid() bool {
+	switch e {
+	case AdminStatusErrorLevelError:
+		return true
+	case AdminStatusErrorLevelWarn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminStatusPlayerState.
+const (
+	Idle      AdminStatusPlayerState = "idle"
+	InSession AdminStatusPlayerState = "in_session"
+	Playing   AdminStatusPlayerState = "playing"
+	Watching  AdminStatusPlayerState = "watching"
+)
+
+// Valid indicates whether the value is a known member of the AdminStatusPlayerState enum.
+func (e AdminStatusPlayerState) Valid() bool {
+	switch e {
+	case Idle:
+		return true
+	case InSession:
+		return true
+	case Playing:
+		return true
+	case Watching:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminStatusSessionVisibility.
+const (
+	AdminStatusSessionVisibilityHubUsers   AdminStatusSessionVisibility = "hub_users"
+	AdminStatusSessionVisibilityInviteOnly AdminStatusSessionVisibility = "invite_only"
+	AdminStatusSessionVisibilityPrivate    AdminStatusSessionVisibility = "private"
+)
+
+// Valid indicates whether the value is a known member of the AdminStatusSessionVisibility enum.
+func (e AdminStatusSessionVisibility) Valid() bool {
+	switch e {
+	case AdminStatusSessionVisibilityHubUsers:
+		return true
+	case AdminStatusSessionVisibilityInviteOnly:
+		return true
+	case AdminStatusSessionVisibilityPrivate:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CoreOrigin.
 const (
 	Framebeam        CoreOrigin = "framebeam"
@@ -629,19 +710,19 @@ func (e SessionInviteInfoState) Valid() bool {
 
 // Defines values for SessionVisibility.
 const (
-	HubUsers   SessionVisibility = "hub_users"
-	InviteOnly SessionVisibility = "invite_only"
-	Private    SessionVisibility = "private"
+	SessionVisibilityHubUsers   SessionVisibility = "hub_users"
+	SessionVisibilityInviteOnly SessionVisibility = "invite_only"
+	SessionVisibilityPrivate    SessionVisibility = "private"
 )
 
 // Valid indicates whether the value is a known member of the SessionVisibility enum.
 func (e SessionVisibility) Valid() bool {
 	switch e {
-	case HubUsers:
+	case SessionVisibilityHubUsers:
 		return true
-	case InviteOnly:
+	case SessionVisibilityInviteOnly:
 		return true
-	case Private:
+	case SessionVisibilityPrivate:
 		return true
 	default:
 		return false
@@ -662,6 +743,140 @@ func (e TokenResponseTokenType) Valid() bool {
 		return false
 	}
 }
+
+// AdminMetrics defines model for AdminMetrics.
+type AdminMetrics struct {
+	Enabled bool `json:"enabled"`
+
+	// Token Prefix fbm_; present once, when switching on created the token
+	Token *string `json:"token,omitempty"`
+
+	// TokenSet A token exists (only its hash is stored)
+	TokenSet bool `json:"token_set"`
+}
+
+// AdminMetricsToken defines model for AdminMetricsToken.
+type AdminMetricsToken struct {
+	// Token Prefix fbm_; shown once
+	Token string `json:"token"`
+}
+
+// AdminMetricsUpdate defines model for AdminMetricsUpdate.
+type AdminMetricsUpdate struct {
+	Enabled bool `json:"enabled"`
+}
+
+// AdminProblem defines model for AdminProblem.
+type AdminProblem struct {
+	// ActionHref Web interface path of the action; informational for Players
+	ActionHref *string `json:"action_href,omitempty"`
+
+	// ActionLabel Label of the suggested action, empty when none
+	ActionLabel *string `json:"action_label,omitempty"`
+	Detail      string  `json:"detail"`
+
+	// Id Stable id such as `disk`, `turn`, `update`
+	Id       string               `json:"id"`
+	Severity AdminProblemSeverity `json:"severity"`
+
+	// Title Short text, for example `Disk 92 %`
+	Title string `json:"title"`
+}
+
+// AdminProblemSeverity defines model for AdminProblem.Severity.
+type AdminProblemSeverity string
+
+// AdminStatus defines model for AdminStatus.
+type AdminStatus struct {
+	// CpuPercent Machine-wide CPU load 0 to 100; absent where the platform has no reader
+	CpuPercent *float32 `json:"cpu_percent,omitempty"`
+
+	// Disk The volume holding the data directory; absent where the platform has no reader
+	Disk *struct {
+		FreeBytes  int64 `json:"free_bytes"`
+		TotalBytes int64 `json:"total_bytes"`
+	} `json:"disk,omitempty"`
+
+	// Errors Warnings and errors of the last 24 hours, newest first
+	Errors     []AdminStatusError `json:"errors"`
+	HubName    string             `json:"hub_name"`
+	HubVersion string             `json:"hub_version"`
+	Memory     struct {
+		// ProcessBytes Memory the Hub process holds
+		ProcessBytes int64 `json:"process_bytes"`
+
+		// SystemTotalBytes Absent where the platform has no reader
+		SystemTotalBytes *int64 `json:"system_total_bytes,omitempty"`
+		SystemUsedBytes  *int64 `json:"system_used_bytes,omitempty"`
+	} `json:"memory"`
+	MetricsEnabled bool                `json:"metrics_enabled"`
+	Players        []AdminStatusPlayer `json:"players"`
+
+	// Problems Open problems, the most urgent first (empty when all is well)
+	Problems []AdminProblem `json:"problems"`
+
+	// PublicAddress host:port Players use; the host of the request when no public host is set
+	PublicAddress string               `json:"public_address"`
+	Sessions      []AdminStatusSession `json:"sessions"`
+
+	// Time When the data was read
+	Time time.Time `json:"time"`
+
+	// Turn The built-in TURN relay; absent when it is off
+	Turn *struct {
+		Allocations int `json:"allocations"`
+
+		// RelayPorts Size of the relay port range
+		RelayPorts int `json:"relay_ports"`
+	} `json:"turn,omitempty"`
+	UptimeSeconds int64 `json:"uptime_seconds"`
+
+	// Viewers Viewers over all Sessions
+	Viewers int `json:"viewers"`
+}
+
+// AdminStatusError defines model for AdminStatusError.
+type AdminStatusError struct {
+	Level AdminStatusErrorLevel `json:"level"`
+
+	// Message Redacted
+	Message string    `json:"message"`
+	Time    time.Time `json:"time"`
+}
+
+// AdminStatusErrorLevel defines model for AdminStatusError.Level.
+type AdminStatusErrorLevel string
+
+// AdminStatusPlayer defines model for AdminStatusPlayer.
+type AdminStatusPlayer struct {
+	DeviceName string `json:"device_name"`
+
+	// Outdated The Player version is below the Hub version
+	Outdated bool                   `json:"outdated"`
+	State    AdminStatusPlayerState `json:"state"`
+	User     string                 `json:"user"`
+
+	// Version Player version
+	Version string `json:"version"`
+}
+
+// AdminStatusPlayerState defines model for AdminStatusPlayer.State.
+type AdminStatusPlayerState string
+
+// AdminStatusSession defines model for AdminStatusSession.
+type AdminStatusSession struct {
+	DeviceName string `json:"device_name"`
+	GameTitle  string `json:"game_title"`
+
+	// Owner Display name of the owner user
+	Owner      string                       `json:"owner"`
+	StartedAt  time.Time                    `json:"started_at"`
+	Viewers    int                          `json:"viewers"`
+	Visibility AdminStatusSessionVisibility `json:"visibility"`
+}
+
+// AdminStatusSessionVisibility defines model for AdminStatusSession.Visibility.
+type AdminStatusSessionVisibility string
 
 // CoreInfo defines model for CoreInfo.
 type CoreInfo struct {
@@ -1759,6 +1974,9 @@ type PutUploadChunkParams struct {
 	ContentRange string `json:"Content-Range"`
 }
 
+// SetAdminMetricsJSONRequestBody defines body for SetAdminMetrics for application/json ContentType.
+type SetAdminMetricsJSONRequestBody = AdminMetricsUpdate
+
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = TokenRequest
 
@@ -2303,6 +2521,21 @@ type ServerInterface interface {
 	// Hub info (no auth, grants no rights)
 	// (GET /.well-known/framebeam)
 	GetHubInfo(w http.ResponseWriter, r *http.Request)
+	// State of the Prometheus metrics endpoint (admin only)
+	// (GET /api/v1/admin/metrics)
+	GetAdminMetrics(w http.ResponseWriter, r *http.Request)
+	// Switch the Prometheus metrics endpoint on or off (admin only)
+	// (PUT /api/v1/admin/metrics)
+	SetAdminMetrics(w http.ResponseWriter, r *http.Request)
+	// Create a new metrics token (admin only)
+	// (POST /api/v1/admin/metrics/token)
+	CreateAdminMetricsToken(w http.ResponseWriter, r *http.Request)
+	// Hub health (admin only)
+	// (GET /api/v1/admin/status)
+	GetAdminStatus(w http.ResponseWriter, r *http.Request)
+	// Download the recent Hub log (admin only)
+	// (GET /api/v1/admin/status/log)
+	GetAdminStatusLog(w http.ResponseWriter, r *http.Request)
 	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(w http.ResponseWriter, r *http.Request)
@@ -2508,6 +2741,106 @@ func (siw *ServerInterfaceWrapper) GetHubInfo(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHubInfo(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminMetrics operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminMetrics(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminMetrics(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetAdminMetrics operation middleware
+func (siw *ServerInterfaceWrapper) SetAdminMetrics(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAdminMetrics(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAdminMetricsToken operation middleware
+func (siw *ServerInterfaceWrapper) CreateAdminMetricsToken(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAdminMetricsToken(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminStatusLog operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminStatusLog(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminStatusLog(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4908,6 +5241,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/.well-known/framebeam", wrapper.GetHubInfo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/metrics", wrapper.GetAdminMetrics)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/admin/metrics", wrapper.SetAdminMetrics)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/metrics/token", wrapper.CreateAdminMetricsToken)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/status", wrapper.GetAdminStatus)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/status/log", wrapper.GetAdminStatusLog)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}", wrapper.GetCorePackage)
@@ -5022,6 +5360,357 @@ func (response GetHubInfo200JSONResponse) VisitGetHubInfoResponse(w http.Respons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminMetricsRequestObject struct {
+}
+
+type GetAdminMetricsResponseObject interface {
+	VisitGetAdminMetricsResponse(w http.ResponseWriter) error
+}
+
+type GetAdminMetrics200JSONResponse AdminMetrics
+
+func (response GetAdminMetrics200JSONResponse) VisitGetAdminMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminMetrics401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminMetrics401JSONResponse) VisitGetAdminMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminMetrics403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminMetrics403JSONResponse) VisitGetAdminMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminMetrics429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response GetAdminMetrics429JSONResponse) VisitGetAdminMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminMetricsRequestObject struct {
+	Body *SetAdminMetricsJSONRequestBody
+}
+
+type SetAdminMetricsResponseObject interface {
+	VisitSetAdminMetricsResponse(w http.ResponseWriter) error
+}
+
+type SetAdminMetrics200JSONResponse AdminMetrics
+
+func (response SetAdminMetrics200JSONResponse) VisitSetAdminMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminMetrics400JSONResponse Error
+
+func (response SetAdminMetrics400JSONResponse) VisitSetAdminMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminMetrics401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SetAdminMetrics401JSONResponse) VisitSetAdminMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminMetrics403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response SetAdminMetrics403JSONResponse) VisitSetAdminMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminMetrics413JSONResponse struct{ TooLargeJSONResponse }
+
+func (response SetAdminMetrics413JSONResponse) VisitSetAdminMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetAdminMetrics429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response SetAdminMetrics429JSONResponse) VisitSetAdminMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminMetricsTokenRequestObject struct {
+}
+
+type CreateAdminMetricsTokenResponseObject interface {
+	VisitCreateAdminMetricsTokenResponse(w http.ResponseWriter) error
+}
+
+type CreateAdminMetricsToken200JSONResponse AdminMetricsToken
+
+func (response CreateAdminMetricsToken200JSONResponse) VisitCreateAdminMetricsTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminMetricsToken401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateAdminMetricsToken401JSONResponse) VisitCreateAdminMetricsTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminMetricsToken403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreateAdminMetricsToken403JSONResponse) VisitCreateAdminMetricsTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminMetricsToken429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response CreateAdminMetricsToken429JSONResponse) VisitCreateAdminMetricsTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStatusRequestObject struct {
+}
+
+type GetAdminStatusResponseObject interface {
+	VisitGetAdminStatusResponse(w http.ResponseWriter) error
+}
+
+type GetAdminStatus200JSONResponse AdminStatus
+
+func (response GetAdminStatus200JSONResponse) VisitGetAdminStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStatus401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminStatus401JSONResponse) VisitGetAdminStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStatus403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminStatus403JSONResponse) VisitGetAdminStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStatus429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response GetAdminStatus429JSONResponse) VisitGetAdminStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStatusLogRequestObject struct {
+}
+
+type GetAdminStatusLogResponseObject interface {
+	VisitGetAdminStatusLogResponse(w http.ResponseWriter) error
+}
+
+type GetAdminStatusLog200ResponseHeaders struct {
+	ContentDisposition *string
+}
+
+type GetAdminStatusLog200TextResponse struct {
+	Body    string
+	Headers GetAdminStatusLog200ResponseHeaders
+}
+
+func (response GetAdminStatusLog200TextResponse) VisitGetAdminStatusLogResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "text/plain")
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	w.WriteHeader(200)
+
+	_, err := w.Write([]byte(response.Body))
+	return err
+}
+
+type GetAdminStatusLog401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminStatusLog401JSONResponse) VisitGetAdminStatusLogResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStatusLog403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminStatusLog403JSONResponse) VisitGetAdminStatusLogResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStatusLog429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response GetAdminStatusLog429JSONResponse) VisitGetAdminStatusLogResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -9906,6 +10595,21 @@ type StrictServerInterface interface {
 	// Hub info (no auth, grants no rights)
 	// (GET /.well-known/framebeam)
 	GetHubInfo(ctx context.Context, request GetHubInfoRequestObject) (GetHubInfoResponseObject, error)
+	// State of the Prometheus metrics endpoint (admin only)
+	// (GET /api/v1/admin/metrics)
+	GetAdminMetrics(ctx context.Context, request GetAdminMetricsRequestObject) (GetAdminMetricsResponseObject, error)
+	// Switch the Prometheus metrics endpoint on or off (admin only)
+	// (PUT /api/v1/admin/metrics)
+	SetAdminMetrics(ctx context.Context, request SetAdminMetricsRequestObject) (SetAdminMetricsResponseObject, error)
+	// Create a new metrics token (admin only)
+	// (POST /api/v1/admin/metrics/token)
+	CreateAdminMetricsToken(ctx context.Context, request CreateAdminMetricsTokenRequestObject) (CreateAdminMetricsTokenResponseObject, error)
+	// Hub health (admin only)
+	// (GET /api/v1/admin/status)
+	GetAdminStatus(ctx context.Context, request GetAdminStatusRequestObject) (GetAdminStatusResponseObject, error)
+	// Download the recent Hub log (admin only)
+	// (GET /api/v1/admin/status/log)
+	GetAdminStatusLog(ctx context.Context, request GetAdminStatusLogRequestObject) (GetAdminStatusLogResponseObject, error)
 	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(ctx context.Context, request RevokeSelfRequestObject) (RevokeSelfResponseObject, error)
@@ -10143,6 +10847,133 @@ func (sh *strictHandler) GetHubInfo(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetHubInfoResponseObject); ok {
 		if err := validResponse.VisitGetHubInfoResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminMetrics operation middleware
+func (sh *strictHandler) GetAdminMetrics(w http.ResponseWriter, r *http.Request) {
+	var request GetAdminMetricsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminMetrics(ctx, request.(GetAdminMetricsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminMetrics")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminMetricsResponseObject); ok {
+		if err := validResponse.VisitGetAdminMetricsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetAdminMetrics operation middleware
+func (sh *strictHandler) SetAdminMetrics(w http.ResponseWriter, r *http.Request) {
+	var request SetAdminMetricsRequestObject
+
+	var body SetAdminMetricsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetAdminMetrics(ctx, request.(SetAdminMetricsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetAdminMetrics")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetAdminMetricsResponseObject); ok {
+		if err := validResponse.VisitSetAdminMetricsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAdminMetricsToken operation middleware
+func (sh *strictHandler) CreateAdminMetricsToken(w http.ResponseWriter, r *http.Request) {
+	var request CreateAdminMetricsTokenRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAdminMetricsToken(ctx, request.(CreateAdminMetricsTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAdminMetricsToken")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAdminMetricsTokenResponseObject); ok {
+		if err := validResponse.VisitCreateAdminMetricsTokenResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminStatus operation middleware
+func (sh *strictHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
+	var request GetAdminStatusRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminStatus(ctx, request.(GetAdminStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminStatus")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminStatusResponseObject); ok {
+		if err := validResponse.VisitGetAdminStatusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminStatusLog operation middleware
+func (sh *strictHandler) GetAdminStatusLog(w http.ResponseWriter, r *http.Request) {
+	var request GetAdminStatusLogRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminStatusLog(ctx, request.(GetAdminStatusLogRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminStatusLog")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminStatusLogResponseObject); ok {
+		if err := validResponse.VisitGetAdminStatusLogResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -53,14 +53,16 @@ func NetSignature(c *config.Config, key string) string {
 var turnKeys = map[string]bool{config.NetTURN: true, config.NetPublicHost: true, config.NetTURNPort: true,
 	config.NetRelayPorts: true, config.NetRelayIP: true}
 
-// Settings sections (GET /settings/{section}).
-var settingsSections = []struct{ ID, Title, Subtitle string }{
-	{"updates", "Updates", "Versions, channel and automatic installs for this hub"},
-	{"general", "General", "How the hub appears to Players and users"},
-	{"network", "Network", "Ports, public address and relay for Players outside your network"},
-	{"saves", "Saves", "How many older versions of each save the hub keeps"},
-	{"security", "Security", "Transport, certificate and the admin account"},
-	{"diagnostics", "Diagnostics", "One file with logs and settings to hand over when something does not work"},
+// Settings sections (GET /settings/{section}), in the order of the section column, grouped as in design 0-3 E.
+// Backups and Storage join the DATA group with their pages.
+var settingsSections = []struct{ ID, Title, Subtitle, Group string }{
+	{"general", "General", "How the hub appears to Players and users", "HUB"},
+	{"network", "Network & TURN", "Ports, public address and relay for Players outside your network", ""},
+	{"security", "Security", "Transport, certificate and the admin account", ""},
+	{"updates", "Updates", "Versions, channel and automatic installs for this hub", ""},
+	{"diagnostics", "Diagnostics", "One file with logs and settings to hand over when something does not work", ""},
+	{"saves", "Saves retention", "How many older versions of each save the hub keeps", "DATA"},
+	{"metrics", "Metrics", "An optional read-only endpoint for your own monitoring tools", "INTEGRATIONS"},
 }
 
 // settingsFlash holds the success texts of the settings pages that are not in the shared flash table.
@@ -70,6 +72,8 @@ var settingsFlash = map[string]string{
 	"netreset":     "Reset to the hub.env value.",
 	"namesaved":    "Hub name saved.",
 	"restarting":   "The hub is restarting.",
+	"metrics":      "Metrics setting saved.",
+	"metricstoken": "New token created. The previous token no longer works.",
 }
 
 // settingsQuiet lists the success keys of autosaving fields: the saved indicator is enough, no banner.
@@ -101,12 +105,14 @@ type settingsBody struct {
 	MinPassword             int
 	Updates                 updatesBody
 	Net                     netBody
+	Metrics                 metricsSettings
 }
 
 type navItem struct {
 	ID, Title, Status string
 	Level             string // ok, warn, muted
 	Selected          bool
+	Group             string // eyebrow above the item (first item of a group)
 }
 
 type updatesBody struct {
@@ -191,6 +197,7 @@ type settingsRes struct {
 	Restarting     *restartBody
 	NoticeOverride string
 	Edit           string // external TURN server whose edit form is open
+	Token          string // new metrics token, shown once
 }
 
 // ---- rendering ----
@@ -290,7 +297,8 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, sess *se
 	b.Net = nb
 	b.PlayerAddr = s.playerAddress(r, nb)
 
-	b.Nav = s.settingsNav(section, updStatus, updErr, nb)
+	b.Metrics = s.metricsSettings(r, res.Token)
+	b.Nav = s.settingsNav(section, updStatus, updErr, nb, b.Metrics)
 
 	notice := res.NoticeOverride
 	if notice == "" && res.OK != "" && !(hx && settingsQuiet[res.OK]) {
@@ -335,11 +343,16 @@ func (s *Server) playerAddress(r *http.Request, nb netBody) string {
 	return r.Host
 }
 
-func (s *Server) settingsNav(current string, st hub.UpdateStatus, updErr error, nb netBody) []navItem {
+func (s *Server) settingsNav(current string, st hub.UpdateStatus, updErr error, nb netBody, mt metricsSettings) []navItem {
 	items := make([]navItem, 0, len(settingsSections))
 	for _, sec := range settingsSections {
-		it := navItem{ID: sec.ID, Title: sec.Title, Selected: sec.ID == current, Level: "muted"}
+		it := navItem{ID: sec.ID, Title: sec.Title, Selected: sec.ID == current, Level: "muted", Group: sec.Group}
 		switch sec.ID {
+		case "metrics":
+			it.Status = "Off"
+			if mt.On {
+				it.Status, it.Level = "On · read-only", "ok"
+			}
 		case "updates":
 			ch := upper1(st.Settings.Channel)
 			switch {
