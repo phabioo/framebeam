@@ -57,7 +57,8 @@ jobs:
     needs: pr
     if: needs.pr.outputs.skip != 'true'
     # A called workflow cannot get more permissions than its caller grants: ci.yml's version job declares contents: write
-    # (used only to reserve the tag on pushes to main; branch runs never write).
+    # (used only to reserve the tag on pushes to main; branch runs never write), its flaky-report job issues: write (main only).
     permissions:
       contents: write
+      issues: write
     uses: ./.github/workflows/ci.yml

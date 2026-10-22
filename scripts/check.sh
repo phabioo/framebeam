@@ -89,9 +89,17 @@ DDC_PATH=""
 client_libdatachannel() { DDC_PATH="$("$ROOT/scripts/fetch-libdatachannel.sh")" && [ -d "$DDC_PATH" ]; }
 SDL3_PATH=""
 client_sdl3() { SDL3_PATH="$("$ROOT/scripts/fetch-sdl3.sh")" && [ -d "$SDL3_PATH" ]; }
+# client_diag FILE: failed tests and the QtTest assertions of a ctest run.
+client_diag() {
+  grep -E '^\s*[0-9]+/[0-9]+ Test\s+#[0-9]+: .*\*\*\*|tests failed|The following tests FAILED|^\s+[0-9]+ - ' "$1" | head -n 20
+  echo "--- failed test output (FAIL!/QWARN/QFATAL, context) ---"
+  grep -E -B2 -A4 'FAIL!|QFATAL|QWARN|Exception|Segmentation' "$1" | head -n 110
+}
 # FRAMEBEAM_CTEST_REGEX (optional): ctest -R filter. ctest with the output of failed tests (QtTest FAIL!/QWARN/QFATAL with context) so the assertion is not lost.
 # Tests run in parallel (CTEST_PARALLEL_LEVEL, default: number of CPUs); every test uses its own temporary directories and
 # fake Hub port, CTEST_PARALLEL_LEVEL=1 restores the serial run.
+# FRAMEBEAM_CTEST_RETRY=1 (CI): a failed run is repeated once for the failed tests only (serial). Tests that pass on the retry are
+# reported as flaky (GitHub warning annotation, names appended to FRAMEBEAM_FLAKY_FILE) and do not fail the check; a second failure does.
 client_test() {
   local p="$1" out rc=0
   out="$(mktemp)"
@@ -100,9 +108,28 @@ client_test() {
   local jobs="${CTEST_PARALLEL_LEVEL:-$(nproc 2>/dev/null || echo 2)}"
   (cd "$ROOT/client" && ctest --preset "$p" --output-on-failure -j "$jobs" "${sel[@]}" >"$out" 2>&1) || rc=$?
   if [ "$rc" -ne 0 ]; then
-    grep -E '^\s*[0-9]+/[0-9]+ Test\s+#[0-9]+: .*\*\*\*|tests failed|The following tests FAILED|^\s+[0-9]+ - ' "$out" | head -n 20
-    echo "--- failed test output (FAIL!/QWARN/QFATAL, context) ---"
-    grep -E -B2 -A4 'FAIL!|QFATAL|QWARN|Exception|Segmentation' "$out" | head -n 110
+    client_diag "$out"
+  fi
+  if [ "$rc" -ne 0 ] && [ -n "${FRAMEBEAM_CTEST_RETRY:-}" ]; then
+    local retry names name rrc=0
+    names="$(sed -nE 's/^[[:space:]]*[0-9]+\/[0-9]+ Test[[:space:]]+#[0-9]+: ([^ ]+) \.+\*\*\*(Failed|Exception|Timeout).*/\1/p' "$out" | sort -u)"
+    if [ -n "$names" ]; then
+      echo "--- retrying failed tests once: $(echo "$names" | tr '\n' ' ')---"
+      retry="$(mktemp)"
+      (cd "$ROOT/client" && ctest --preset "$p" --output-on-failure --rerun-failed >"$retry" 2>&1) || rrc=$?
+      if [ "$rrc" -eq 0 ]; then
+        echo "flaky (failed once, passed on retry): $(echo "$names" | tr '\n' ' ')"
+        for name in $names; do
+          [ "${GITHUB_ACTIONS:-}" != true ] || echo "::warning title=Flaky test::$name failed once and passed on retry"
+          [ -z "${FRAMEBEAM_FLAKY_FILE:-}" ] || echo "$name" >>"$FRAMEBEAM_FLAKY_FILE"
+        done
+        rc=0
+      else
+        echo "--- retry failed too ---"
+        client_diag "$retry"
+      fi
+      rm -f "$retry"
+    fi
   fi
   # Nightly (FRAMEBEAM_REQUIRE_CORES): the real-core tests must run, a skip counts as a failure.
   if [ "$rc" -eq 0 ] && [ -n "${FRAMEBEAM_REQUIRE_CORES:-}" ] \
