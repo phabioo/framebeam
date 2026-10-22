@@ -128,6 +128,17 @@ It changes whenever the certificate changes (`uzume-server renew-cert`, `reset`,
 
 An app should check `setup_required` in `getHubInfo` before it asks for the code (`false` means the server is set up already: offer to join it), and compare the security code before it sends the setup code over a connection to a self-generated certificate.
 
+
+### Join link
+
+`uzume://join/<host[:port]>/<invite>#<fingerprint>` opens the app on "Join a server" with the invite and the server's certificate pinned in one step.
+
+- `host[:port]`: the server address (the default port 8443 is added when missing; a scheme is dropped).
+- `invite`: the invite code, normalized to `UZ-XXXX-XXXX` (`UZ` plus 8 Crockford characters; spaces, hyphens and case are ignored).
+- `fingerprint`: the SHA-256 fingerprint of the server's leaf certificate, 64 hex digits written without colons in a generated link; the app also accepts colons and any case and normalizes to upper case with colons.
+
+Example: `uzume://join/server.example.com:8443/UZ-7H4K-2Q9W#<64 hex digits>`. The app connects, compares the fingerprint of the certificate the server presents with the one in the link and shows the security code. When they differ it stops with a hard stop and sends nothing (no invite, no password). A link that is incomplete or malformed asks the person to paste the invite code instead. There is no web landing page for the link ([ADR 0030](../adr/0030-one-app-one-server-uzume.md) D2). The app takes the link from the command line, from a second start of the app (which hands it to the running one) or from Ctrl+V on the start screen.
+
 ### WSS messages (`/api/v1/ws`)
 
 Envelope `{type, id?, payload}` (JSON text frames); schema `schemas/ws-<type>.schema.json`, example `schemas/examples/ws-<type>.example.json`. The first client message must be `hello`. The server pings every 20 s.
