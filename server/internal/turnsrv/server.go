@@ -152,8 +152,10 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 	}
 
 	host := cfg.ListenHost
-	// With a fixed port a failure is final. With port 0 the UDP port is picked first and TCP must bind the same
-	// number; that can fail (on Windows the number may lie in an excluded TCP port range), so pick again.
+	// With a fixed port a failure is final. With port 0 the TCP port is picked first and UDP must bind the same
+	// number: the OS never hands out an excluded TCP port for port 0, whereas on Windows UDP port 0 returns
+	// sequential numbers that can all lie inside one excluded TCP range (Hyper-V/WinNAT, WSAEACCES). A UDP
+	// failure is rare, so pick again.
 	attempts := 1
 	if cfg.Port == 0 {
 		attempts = 20
@@ -162,18 +164,18 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 	var ln net.Listener
 	for i := 0; ; i++ {
 		var err error
-		pc, err = net.ListenPacket("udp", net.JoinHostPort(host, strconv.Itoa(cfg.Port)))
+		ln, err = net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(cfg.Port)))
 		if err != nil {
-			return nil, fmt.Errorf("turn udp listener: %w", err)
+			return nil, fmt.Errorf("turn tcp listener: %w", err)
 		}
-		s.port = pc.LocalAddr().(*net.UDPAddr).Port
-		ln, err = net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(s.port)))
+		s.port = ln.Addr().(*net.TCPAddr).Port
+		pc, err = net.ListenPacket("udp", net.JoinHostPort(host, strconv.Itoa(s.port)))
 		if err == nil {
 			break
 		}
-		pc.Close()
+		ln.Close()
 		if i+1 >= attempts {
-			return nil, fmt.Errorf("turn tcp listener: %w", err)
+			return nil, fmt.Errorf("turn udp listener: %w", err)
 		}
 	}
 	first, idle := cfg.TCPFirstReadTimeout, cfg.TCPIdleTimeout
@@ -491,7 +493,7 @@ func (g *relayGen) AllocatePacketConn(network string, requested int) (net.Packet
 		listen = "127.0.0.1"
 	}
 	try := func(port int) (net.PacketConn, net.Addr, error) {
-		c, err := net.ListenPacket("udp4", net.JoinHostPort(listen, strconv.Itoa(port)))
+		c, err := net.ListenPacket("udp4", net.JoinHostPort(listen, strconv.Itoa(cfg.Port)))
 		if err != nil {
 			return nil, nil, err
 		}
