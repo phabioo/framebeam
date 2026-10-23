@@ -379,14 +379,14 @@ class HubFeaturesUiTest : public QObject {
       QCOMPARE(h.item("userName")->property("text").toString(), QStringLiteral("lena"));
       QCOMPARE(h.item("userDevice")->property("text").toString(), h.controller->deviceName());
       QCOMPARE(h.item("userAvatarInitial")->property("text").toString(), QStringLiteral("L"));
-      // Admins get the "Settings for" switch; "Server" shows who it affects and the short empty state.
+      // Admins get the "Settings for" switch; "Server" shows who it affects and the server settings pane (here the server has no admin_v1, so it says so).
       QVERIFY(h.controller->isAdmin());
       h.controller->showSettings();
       QTRY_VERIFY(h.item("settingsScopeRow") != nullptr && h.item("settingsScopeRow")->isVisible());
       QVERIFY(h.click("scopeServer"));
-      QTRY_VERIFY(h.item("settingsServerEmpty") != nullptr && h.item("settingsServerEmpty")->isVisible());
+      QTRY_VERIFY(h.item("serverSettingsUnavailable") != nullptr && h.item("serverSettingsUnavailable")->isVisible());
       QVERIFY(h.click("scopePc"));
-      QTRY_VERIFY(h.item("settingsServerEmpty") == nullptr || !h.item("settingsServerEmpty")->isVisible());
+      QTRY_VERIFY(h.item("serverSettingsUnavailable") == nullptr || !h.item("serverSettingsUnavailable")->isVisible());
     }
     {
       FakeHub hub(QStringLiteral("a"));

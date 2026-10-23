@@ -769,6 +769,26 @@ QString PlayerController::logFile() const { return QDir::toNativeSeparators(file
 
 QString PlayerController::userName() const { return conn_->userDisplayName(); }
 bool PlayerController::isAdmin() const { return conn_->userRole() == QLatin1String("admin"); }
+QString PlayerController::hubVersion() const { return conn_->hubInfo().hubVersion; }
+QString PlayerController::versionRelation() const {
+  if (conn_->state() != HubConnection::State::Connected) return QStringLiteral("unknown");
+  const auto order = update::compareVersions(conn_->hubInfo().hubVersion, updates_->currentVersion());
+  if (!order.has_value()) return QStringLiteral("unknown");
+  return *order == 0 ? QStringLiteral("same") : *order < 0 ? QStringLiteral("server_older") : QStringLiteral("app_older");
+}
+
+void PlayerController::showSetupAssistant() {
+  if (!admin_->available() || setupAssistantOpen_) return;
+  setupAssistantOpen_ = true;
+  emit setupAssistantChanged();
+}
+
+void PlayerController::hideSetupAssistant() {
+  if (!setupAssistantOpen_) return;
+  setupAssistantOpen_ = false;
+  emit setupAssistantChanged();
+}
+
 QString PlayerController::deviceName() const { return profiles_->deviceName(); }
 QString PlayerController::playerVersion() const { return HandshakeInfo::detect().playerVersion; }
 QString PlayerController::platformText() const {

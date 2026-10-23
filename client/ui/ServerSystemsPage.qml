@@ -249,6 +249,35 @@ Item {
             }
         })
     }
+    // Parity with the old web admin: the automatic update per system and per core, and the firmware mode of a system.
+    function patchSystem(body: var, doneText: string) {
+        const sys = root.system
+        if (!sys) return
+        root.say("", "done")
+        root.call("PATCH", "/admin/systems/" + sys.id, body, function (ok, data, code, message) {
+            if (ok) { root.adopt(data); root.say(doneText, "done") }
+            else { root.systems = root.systems.slice(); root.say(root.failText(qsTr("Could not change the setting"), message), "error") }   // puts the control back
+        })
+    }
+    function patchCore(coreId: string, auto: string) {
+        const sys = root.system
+        if (!sys) return
+        root.say("", "done")
+        root.call("PATCH", "/admin/systems/" + sys.id + "/cores/" + coreId, { auto_update: auto }, function (ok, data, code, message) {
+            if (ok) {
+                root.adopt(data)
+                root.say(auto === "off" ? qsTr("This build stays as it is; it is no longer updated automatically.") : qsTr("This core follows the automatic updates of the system again."), "done")
+            } else {
+                root.systems = root.systems.slice()
+                root.say(root.failText(qsTr("Could not change the setting"), message), "error")
+            }
+        })
+    }
+    readonly property var selectedInstalled: {
+        const sys = root.system
+        if (!sys || !root.selectedCore) return null
+        return (sys.cores ?? []).filter(c => c.core_id === root.selectedCore.core_id)[0] ?? null
+    }
     function uploadFirmware(fileUrl: string) {
         const sys = root.system
         const fileId = root.uploadFileId
@@ -619,6 +648,13 @@ Item {
                                     onClicked: root.updateCore(root.selectedCore.core_id)
                                 }
                                 UzButton {
+                                    objectName: "corePin"
+                                    size: "sm"
+                                    visible: root.selectedInstalled !== null
+                                    text: root.selectedInstalled && root.selectedInstalled.auto_update === "off" ? qsTr("Follow automatic updates") : qsTr("Keep this build")
+                                    onClicked: root.patchCore(root.selectedCore.core_id, root.selectedInstalled.auto_update === "off" ? "auto" : "off")
+                                }
+                                UzButton {
                                     objectName: "coreRemove"
                                     size: "sm"
                                     kind: "danger"
@@ -642,6 +678,18 @@ Item {
                     resetMode: "none"
                     onToggled: (on) => root.setAutoUpdate(on)
                 }
+                UzSettingsRow {
+                    objectName: "systemAutoUpdateRow"
+                    Layout.fillWidth: true
+                    label: qsTr("Automatic updates for %1").arg(root.system ? root.system.display_name : "")
+                    description: qsTr("Follow the server setting, or turn the nightly update on or off for this system only.")
+                    ctrl: "segment"
+                    controlName: "systemAutoUpdate"
+                    values: [{ value: "default", label: qsTr("Server setting") }, { value: "on", label: qsTr("On") }, { value: "off", label: qsTr("Off") }]
+                    current: root.system ? root.system.auto_update : "default"
+                    resetMode: "none"
+                    onValuePicked: (value) => root.patchSystem({ auto_update: value }, qsTr("Automatic updates for %1 are set.").arg(root.system.display_name))
+                }
             }
 
             // ---------------------------------------------------- Firmware
@@ -650,6 +698,18 @@ Item {
                 Layout.fillWidth: true
                 visible: root.phase === "ready" && root.system !== null && root.tab === "firmware"
                 spacing: Theme.space1
+                UzSettingsRow {
+                    objectName: "firmwareModeRow"
+                    Layout.fillWidth: true
+                    label: qsTr("Firmware")
+                    description: qsTr("Built-in: the core brings its own firmware and files are optional. Files: this system needs the files below.")
+                    ctrl: "segment"
+                    controlName: "firmwareMode"
+                    values: [{ value: "builtin", label: qsTr("Built-in") }, { value: "native", label: qsTr("Files") }]
+                    current: root.system ? root.system.firmware_mode : "builtin"
+                    resetMode: "none"
+                    onValuePicked: (value) => root.patchSystem({ firmware_mode: value }, qsTr("Firmware mode of %1 is set.").arg(root.system.display_name))
+                }
                 UzSectionLabel { Layout.fillWidth: true; text: qsTr("Firmware files") }
                 UzTable {
                     objectPrefix: "firmwareTable"

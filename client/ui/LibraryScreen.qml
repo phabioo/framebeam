@@ -386,6 +386,19 @@ Rectangle {
                 player: root.player
             }
 
+            // Version states of the server problems (package 8, 8k-2): server older than the app, app older than the server.
+            ServerProblemLine {
+                Layout.fillWidth: true
+                player: root.player
+            }
+
+            // Admin part of the Library (package 8): Rescan folders with its result line.
+            LibraryAdminBar {
+                Layout.fillWidth: true
+                visible: root.player.admin.available
+                player: root.player
+            }
+
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -565,6 +578,13 @@ Rectangle {
                         }
                     }
                 }
+            }
+
+            // Admin details of the selected game (Uploaded by, File, SHA-256, Saves; Rename, Delete).
+            LibraryAdminDetails {
+                Layout.fillWidth: true
+                visible: root.player.admin.available && root.player.selectedGameId !== ""
+                player: root.player
             }
         }
         }

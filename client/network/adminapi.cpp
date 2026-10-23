@@ -108,7 +108,7 @@ QPointer<QNetworkReply> AdminApi::request(const QString& method, const QString& 
   return reply;
 }
 
-QPointer<QNetworkReply> AdminApi::download(const QString& path, const QString& targetFile, Done done) {
+QPointer<QNetworkReply> AdminApi::download(const QString& path, const QString& targetFile, Done done, const QString& method) {
   if (!pathAllowed(path)) {
     refuse(std::move(done), QStringLiteral("invalid_path"), tr("Unsupported request path."));
     return {};
@@ -118,7 +118,8 @@ QPointer<QNetworkReply> AdminApi::download(const QString& path, const QString& t
            targetFile.isEmpty() ? tr("No file chosen.") : tr("Not connected to a server."));
     return {};
   }
-  QNetworkReply* reply = conn_->authorizedGet(path);
+  QNetworkReply* reply = method == QLatin1String("POST") ? conn_->authorizedSend("POST", path, QByteArray(), {}, "application/json")
+                                                           : conn_->authorizedGet(path);
   if (reply == nullptr) {
     refuse(std::move(done), QStringLiteral("not_connected"), tr("Not connected to a server."));
     return {};
@@ -199,7 +200,7 @@ QPointer<QNetworkReply> AdminApi::download(const QString& path, const QString& t
 }
 
 QPointer<QNetworkReply> AdminApi::upload(const QString& method, const QString& path, const QString& sourceFile,
-                                         const QString& contentType, Done done) {
+                                         const QString& contentType, Done done, const HttpHeaders& headers) {
   if (!methodAllowed(method) || method == QLatin1String("GET")) {
     refuse(std::move(done), QStringLiteral("invalid_method"), tr("Unsupported request method."));
     return {};
@@ -219,7 +220,7 @@ QPointer<QNetworkReply> AdminApi::upload(const QString& method, const QString& p
     refuse(std::move(done), QStringLiteral("file_error"), msg);
     return {};
   }
-  QNetworkReply* reply = conn_->authorizedSendStream(method.toLatin1(), path, file, {},
+  QNetworkReply* reply = conn_->authorizedSendStream(method.toLatin1(), path, file, headers,
                                                      contentType.isEmpty() ? QByteArray("application/octet-stream") : contentType.toLatin1());
   if (reply == nullptr) {
     delete file;

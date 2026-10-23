@@ -253,6 +253,13 @@ FocusScope {
             }
         }
 
+        // Admins: "Show saves of: Mine / All users" (package 8, SavesAdminSwitch); "All users" opens a sheet over the window.
+        SavesAdminSwitch {
+            Layout.fillWidth: true
+            visible: root.player.admin.available && !root.inGame
+            player: root.player
+        }
+
         Flickable {
             id: flick
             Layout.fillWidth: true

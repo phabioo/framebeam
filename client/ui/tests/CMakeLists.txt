@@ -87,6 +87,20 @@ uzume_add_test(ui_admin_systems admin_systems_ui_test.cpp ${FB_NETTEST_DIR}/fake
 target_include_directories(test_ui_admin_systems PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_admin_systems PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# Server settings (0.18 package 8, 3q-app-1 to 3q-app-7): Settings for "Server", the seven pages, restart line, backups with polling,
+# restore / rollback through Confirm it's you, metrics token shown once, diagnostics bundle download.
+uzume_add_test(ui_admin_settings admin_settings_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_admin_settings PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_admin_settings PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Admin area, rest (0.18 package 8): Library and Saves admin parts, Runs actions, What's new, setup assistant, server problems and the parity
+# edits of the Users and Systems pages; FakeHub with fixed answers for the admin routes.
+uzume_add_test(ui_admin_library admin_library_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_admin_library PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_admin_library PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
 # SettingsRow in isolation (grid, dot slot, More / Less, segment -> select, disabled reason, narrow); no hub, no core.
 uzume_add_test(ui_settings_row settings_row_ui_test.cpp LIBS ${FB_UI_TEST_LIBS})
 
@@ -274,7 +288,7 @@ target_compile_definitions(test_ui_runs PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_D
 # that only fit with Linux font metrics (Windows CI renders wider; 16 px letter spacing is about the Windows fallback font).
 # Not on Windows: its fonts are already the wide case, extra spacing there tests something no user sees.
 if(NOT WIN32)
-  foreach(t ui_shell_layout ui_library_saves ui_ingame ui_plugin_slots ui_settings_row ui_design_system ui_screens ui_plugins ui_connection_check ui_report ui_admin ui_admin_users ui_admin_systems)
+  foreach(t ui_shell_layout ui_library_saves ui_ingame ui_plugin_slots ui_settings_row ui_design_system ui_screens ui_plugins ui_connection_check ui_report ui_admin ui_admin_users ui_admin_systems ui_admin_settings ui_admin_library)
     add_test(NAME ${t}_widefont COMMAND test_${t})
     set_tests_properties(${t}_widefont PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;UZUME_TEST_WIDE_FONT=16")
   endforeach()

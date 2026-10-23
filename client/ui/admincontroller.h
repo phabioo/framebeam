@@ -84,8 +84,12 @@ class AdminController : public QObject {
 
   // Generic calls (see the header comment). The returned id is the one of the signal.
   Q_INVOKABLE int request(const QString& method, const QString& path, const QVariant& body = QVariant());
-  Q_INVOKABLE int download(const QString& path, const QString& fileUrlOrPath);
-  Q_INVOKABLE int upload(const QString& method, const QString& path, const QString& fileUrlOrPath, const QString& contentType);
+  Q_INVOKABLE int download(const QString& path, const QString& fileUrlOrPath, const QString& method = QStringLiteral("GET"));
+  // `headers`: extra request headers as {name: value} (save upload of a person: expected revision and SHA-256 of the file).
+  Q_INVOKABLE int upload(const QString& method, const QString& path, const QString& fileUrlOrPath, const QString& contentType,
+                         const QVariantMap& headers = QVariantMap());
+  Q_INVOKABLE QString sha256OfFile(const QString& fileUrlOrPath) const;  // lower-case hex, empty when unreadable
+  Q_INVOKABLE qint64 sizeOfFile(const QString& fileUrlOrPath) const;     // -1 when unreadable
 
   Q_INVOKABLE void confirm(const QString& password);
   Q_INVOKABLE void cancelConfirm();
