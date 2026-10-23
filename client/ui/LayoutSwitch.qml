@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Uzume.App
 
-// In-game screen layout switch (3g-3i, D12): segment with mini icons. layouts = the values the system offers
+// In-game screen layout switch (fullscreen toolbar, D12): square segmented control with mini icons. layouts = the values the system offers
 // ("stacked" | "side" | "top"); applies to the running game only.
 Rectangle {
     id: root
@@ -32,18 +32,18 @@ Rectangle {
     readonly property var names: ({ "stacked": "layoutStacked", "side": "layoutSide", "top": "layoutTop" })
 
     visible: layouts.length > 1
-    implicitHeight: 36
-    implicitWidth: row.implicitWidth + 6
+    implicitHeight: Theme.row28 + 2
+    implicitWidth: row.implicitWidth + 2
     radius: 0
-    color: Theme.surface
+    color: "transparent"
     border.width: 1
-    border.color: Theme.borderInput
+    border.color: Theme.rule
 
     RowLayout {
         id: row
         anchors.fill: parent
-        anchors.margins: 3
-        spacing: 2
+        anchors.margins: 1
+        spacing: 0
         Repeater {
             model: root.layouts
             delegate: Rectangle {
@@ -53,13 +53,11 @@ Rectangle {
                 objectName: root.names[modelData] || ""
                 readonly property bool active: root.current === modelData
                 Layout.fillHeight: true
-                implicitWidth: content.implicitWidth + (root.compact ? 16 : 20)
+                implicitWidth: content.implicitWidth + (root.compact ? 16 : 28)
                 Accessible.role: Accessible.Button
                 Accessible.name: root.labels[modelData] || modelData
                 radius: 0
-                color: active ? Theme.surfaceRaised : "transparent"
-                border.width: active ? 1 : 0
-                border.color: Theme.borderButton
+                color: active ? Theme.accent : (optHover.hovered ? Theme.hover : "transparent")
                 RowLayout {
                     id: content
                     anchors.centerIn: parent
@@ -76,7 +74,7 @@ Rectangle {
                                 height: 7
                                 color: "transparent"
                                 border.width: 1.5
-                                border.color: opt.active ? Theme.text : Theme.textMuted
+                                border.color: opt.active ? Theme.inkOnAccent : Theme.muted
                                 opacity: opt.modelData === "top" && index === 1 ? 0.25 : 1
                             }
                         }
@@ -85,9 +83,10 @@ Rectangle {
                         visible: !root.compact
                         text: root.labels[opt.modelData] || opt.modelData
                         textFormat: Text.PlainText
-                        font.pixelSize: 13
-                        font.weight: opt.active ? Font.DemiBold : Font.Medium
-                        color: opt.active ? Theme.text : Theme.textMuted
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.small.size
+                        font.weight: opt.active ? Font.Medium : Font.Normal
+                        color: opt.active ? Theme.inkOnAccent : Theme.muted
                     }
                 }
                 Rectangle {
@@ -96,9 +95,10 @@ Rectangle {
                     anchors.fill: parent
                     radius: opt.radius
                     color: "transparent"
-                    border.width: 1.5
-                    border.color: Theme.accent
+                    border.width: 2
+                    border.color: opt.active ? Theme.inkOnAccent : Theme.accent
                 }
+                HoverHandler { id: optHover; cursorShape: Qt.PointingHandCursor }
                 // a mouse click leaves the focus with the game
                 TapHandler { onTapped: root.picked(opt.modelData) }
             }

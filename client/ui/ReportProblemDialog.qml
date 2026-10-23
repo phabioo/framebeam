@@ -19,8 +19,8 @@ Popup {
     modal: true
     dim: true
     focus: true
-    width: Math.min(580, parent ? parent.width - 32 : 580)
-    height: Math.min(implicitHeight, parent ? parent.height - 32 : implicitHeight)
+    width: Math.min(Theme.dialogLg, parent ? parent.width - 2 * Theme.space2 : Theme.dialogLg)
+    height: Math.min(implicitHeight, parent ? parent.height - 2 * Theme.space2 : implicitHeight)
     padding: 0
     closePolicy: Popup.CloseOnEscape   // a typed text is never lost to a stray click
 
@@ -42,10 +42,9 @@ Popup {
     }
 
     background: Rectangle {
-        radius: Theme.radius12
-        color: Theme.popupBg
+        color: Theme.surface
         border.width: 1
-        border.color: Theme.borderPopup
+        border.color: Theme.rule
     }
 
     contentItem: ColumnLayout {
@@ -54,23 +53,25 @@ Popup {
 
         ColumnLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: 28
-            Layout.rightMargin: 28
-            Layout.topMargin: 24
-            Layout.bottomMargin: 12
+            Layout.leftMargin: Theme.space3
+            Layout.rightMargin: Theme.space3
+            Layout.topMargin: Theme.space3
+            Layout.bottomMargin: Theme.space15
             spacing: 4
+            UzSectionLabel { Layout.fillWidth: true; Layout.bottomMargin: Theme.space1; text: qsTr("Diagnostics") }
             UzLabel {
                 Layout.fillWidth: true
                 text: qsTr("Report a problem")
-                font.pixelSize: 20
-                font.weight: Font.DemiBold
+                font.pixelSize: Theme.roles.dialogTitle.size
+                font.weight: Theme.roles.dialogTitle.weight
+                font.letterSpacing: Theme.roles.dialogTitle.spacing
             }
             UzLabel {
                 objectName: "reportSub"
                 Layout.fillWidth: true
                 text: qsTr("Goes to the admins of %1. They see it under Reports.").arg(root.ctl.hubName)
-                color: Theme.textMuted
-                font.pixelSize: Theme.fontSmall
+                color: Theme.muted
+                font.pixelSize: Theme.roles.input.size
                 wrapMode: Text.WordWrap
             }
         }
@@ -96,19 +97,18 @@ Popup {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    Layout.leftMargin: 28
-                    Layout.rightMargin: 28
+                    Layout.leftMargin: Theme.space3
+                    Layout.rightMargin: Theme.space3
                     spacing: 6
-                    UzLabel { text: qsTr("What happened?"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
+                    UzLabel { text: qsTr("What happened?"); font.pixelSize: Theme.roles.input.size; font.weight: Font.Medium }
                     ScrollView {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 96
                         clip: true
                         background: Rectangle {
-                            radius: Theme.radius8
                             color: Theme.surface
-                            border.width: description.activeFocus ? 1.5 : 1
-                            border.color: description.activeFocus ? Theme.accent : Theme.borderInput
+                            border.width: 1
+                            border.color: description.activeFocus ? Theme.accent : Theme.rule
                         }
                         TextArea {
                             id: description
@@ -117,10 +117,10 @@ Popup {
                             readOnly: root.locked
                             wrapMode: TextEdit.Wrap
                             selectByMouse: true
-                            color: Theme.text
-                            font.pixelSize: Theme.fontBody
+                            color: Theme.ink
+                            font.pixelSize: Theme.roles.body.size
                             selectionColor: Theme.accent
-                            selectedTextColor: Theme.textOnAccent
+                            selectedTextColor: Theme.inkOnAccent
                             padding: 10
                             leftPadding: 12
                             rightPadding: 12
@@ -136,8 +136,8 @@ Popup {
                         objectName: "reportLinked"
                         visible: root.ctl.linkedText !== ""
                         text: root.ctl.linkedText
-                        color: Theme.textFaint
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.dim
+                        font.pixelSize: Theme.roles.small.size
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
@@ -145,9 +145,9 @@ Popup {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    Layout.leftMargin: 28
-                    Layout.rightMargin: 28
-                    Layout.topMargin: 16
+                    Layout.leftMargin: Theme.space3
+                    Layout.rightMargin: Theme.space3
+                    Layout.topMargin: Theme.space2
                     spacing: 2
                     RowLayout {
                         Layout.fillWidth: true
@@ -164,8 +164,8 @@ Popup {
                         objectName: "reportPreparing"
                         visible: root.st === "preparing"
                         text: qsTr("Collecting logs…")
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontSmall
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.input.size
                     }
                     Repeater {
                         model: root.ctl.attachments
@@ -174,12 +174,12 @@ Popup {
                             required property var modelData
                             objectName: "reportAttach_" + row.modelData.id
                             Layout.fillWidth: true
-                            implicitHeight: 34
+                            implicitHeight: Theme.row36
                             color: "transparent"
                             Accessible.role: Accessible.CheckBox
                             Accessible.name: row.modelData.label
                             Accessible.checked: row.modelData.checked
-                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.borderRow }
+                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
                             RowLayout {
                                 anchors.fill: parent
                                 spacing: 10
@@ -188,25 +188,25 @@ Popup {
                                     Layout.preferredHeight: 16
                                     radius: 0
                                     color: row.modelData.checked ? Theme.accent : "transparent"
-                                    border.width: 1.5
-                                    border.color: row.modelData.checked ? Theme.accent : Theme.borderButton
+                                    border.width: 1
+                                    border.color: row.modelData.checked ? Theme.accent : Theme.rule
                                     opacity: root.locked ? 0.5 : 1
                                     Text {
                                         anchors.centerIn: parent
                                         visible: row.modelData.checked
                                         text: "✓"
-                                        font.pixelSize: 11
+                                        font.pixelSize: Theme.roles.meta11.size
                                         font.weight: Font.Bold
-                                        color: Theme.textOnAccent
+                                        color: Theme.inkOnAccent
                                     }
                                 }
                                 UzLabel {
                                     Layout.fillWidth: true
                                     text: row.modelData.label + (row.modelData.detail !== "" ? "  ·  " + row.modelData.detail : "")
                                     elide: Text.ElideRight
-                                    font.pixelSize: Theme.fontSmall
+                                    font.pixelSize: Theme.roles.input.size
                                 }
-                                UzMono { text: row.modelData.sizeText; color: Theme.textFaint; font.pixelSize: Theme.fontMeta }
+                                UzMono { text: row.modelData.sizeText; color: Theme.dim; font.pixelSize: Theme.roles.small.size }
                             }
                             TapHandler {
                                 enabled: !root.locked
@@ -221,8 +221,8 @@ Popup {
                         Layout.fillWidth: true
                         Layout.topMargin: 6
                         text: qsTr("Sent: your text") + (root.ctl.includedFiles.length > 0 ? ", " + root.ctl.includedFiles.join(", ") : "")
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.small.size
                         font.family: Theme.mono
                         wrapMode: Text.WrapAnywhere
                     }
@@ -231,8 +231,8 @@ Popup {
                         visible: root.ctl.blockedText !== ""
                         Layout.fillWidth: true
                         text: root.ctl.blockedText
-                        color: Theme.pluginWarn
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.accentText
+                        font.pixelSize: Theme.roles.small.size
                         wrapMode: Text.WordWrap
                     }
                     UzLabel {
@@ -240,8 +240,8 @@ Popup {
                         Layout.fillWidth: true
                         Layout.topMargin: 8
                         text: qsTr("Never included: passwords, the server pairing token, ROMs, saves.")
-                        color: Theme.textFaint
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.dim
+                        font.pixelSize: Theme.roles.small.size
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -251,10 +251,10 @@ Popup {
         // Footer: the buttons while editing, the state card while sending / sent / offline / failed.
         ColumnLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: 28
-            Layout.rightMargin: 28
-            Layout.topMargin: 16
-            Layout.bottomMargin: 20
+            Layout.leftMargin: Theme.space3
+            Layout.rightMargin: Theme.space3
+            Layout.topMargin: Theme.space2
+            Layout.bottomMargin: Theme.space3
             spacing: 12
 
             Rectangle {
@@ -263,10 +263,9 @@ Popup {
                 visible: root.st === "sending" || root.st === "sent" || root.st === "offline" || root.st === "failed"
                 Layout.fillWidth: true
                 implicitHeight: stateCol.implicitHeight + 24
-                radius: Theme.radius9
-                color: root.st === "failed" ? Theme.errorBg : Theme.surfaceRaised
+                color: root.st === "failed" ? Theme.dangerTint : Theme.hover
                 border.width: 1
-                border.color: root.st === "failed" ? Theme.dangerBorder : Theme.borderCard
+                border.color: root.st === "failed" ? Theme.danger : Theme.rule
                 ColumnLayout {
                     id: stateCol
                     anchors.fill: parent
@@ -277,11 +276,11 @@ Popup {
                         UzLabel {
                             text: root.st === "sent" ? "✓" : root.st === "offline" ? "⊘" : root.st === "failed" ? "▲" : ""
                             visible: text !== ""
-                            color: root.st === "sent" ? Theme.ok : root.st === "failed" ? Theme.error : Theme.textMuted
+                            color: root.st === "sent" ? Theme.ok : root.st === "failed" ? Theme.danger : Theme.muted
                         }
                         UzLabel {
                             objectName: "reportStateTitle"
-                            font.weight: Font.DemiBold
+                            font.weight: Font.Medium
                             text: root.st === "sending" ? qsTr("Sending to %1…").arg(root.ctl.hubName)
                                 : root.st === "sent" ? qsTr("Report sent · #%1").arg(root.ctl.reportId)
                                 : root.st === "offline" ? qsTr("%1 is offline").arg(root.ctl.hubName)
@@ -292,8 +291,8 @@ Popup {
                         objectName: "reportStateText"
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontSmall
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.input.size
                         text: root.st === "sending" ? qsTr("%1. You can keep using Uzume.").arg(root.ctl.progressText)
                             : root.st === "sent" ? qsTr("The admins of %1 see it under Reports. Nothing else to do.").arg(root.ctl.hubName)
                             : root.st === "offline" ? qsTr("Save the report as a file and send it later, or keep the dialog open; it sends when the server is back.")
@@ -305,7 +304,7 @@ Popup {
                         Layout.fillWidth: true
                         implicitHeight: 4
                         radius: 0
-                        color: Theme.borderCard
+                        color: Theme.rule
                         Rectangle {
                             width: parent.width * root.ctl.progress
                             height: parent.height
@@ -321,8 +320,8 @@ Popup {
                 visible: root.ctl.saveNote !== ""
                 Layout.fillWidth: true
                 text: root.ctl.saveNote
-                color: Theme.textMuted
-                font.pixelSize: Theme.fontMeta
+                color: Theme.muted
+                font.pixelSize: Theme.roles.small.size
                 wrapMode: Text.WrapAnywhere
             }
 
@@ -330,7 +329,7 @@ Popup {
             Flow {
                 objectName: "reportActions"
                 Layout.fillWidth: true
-                spacing: Theme.space8
+                spacing: Theme.space1
                 layoutDirection: Qt.RightToLeft
                 UzButton {
                     objectName: "reportSend"

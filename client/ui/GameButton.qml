@@ -3,10 +3,10 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// Button of the in-game header and panel (docs/design/player.md GameHeader "Button style"): 30 high, radius 7, padding
-// 0 10, 13/500, transparent inside a group box; hover #1f2024; on state (Speed-up, Diagnostics, open popover) accent on
-// #15262b; danger (Reset popover open) #ef8a78 on #2a1a17. look: "flat" | "outlined" (border #3a3b40, 32 high) |
-// "surface" (own surface and border, 32 high). Always dark (the game view is dark in both themes).
+// Compact button of the plugin surfaces hosted in the game view (plugin panel, console, screen sheet); the game header and panel
+// use UzButton. Square, 30 high, padding 0 10, 13/500, transparent; hover `hover`; `on` (pressed / toggled) = `pressed` plane with an
+// `ink-2` frame, danger = danger text on the danger tint. look: "flat" | "outlined" (`rule` frame, 32 high) | "surface" (same,
+// 32 high).
 Button {
     id: control
     property string iconKind: ""
@@ -30,7 +30,7 @@ Button {
     property bool showHint: true     // false: the key badge gives way (header with very wide fonts)
     readonly property real hintFullWidth: hint !== "" ? keyText.implicitWidth + 8 + row.spacing : 0   // badge incl. gap, whether shown or not
 
-    readonly property color fg: !enabled ? Theme.gameFaint : on ? Theme.gameAccent : danger ? Theme.gameDanger : muted ? Theme.gameTextMuted : Theme.gameText
+    readonly property color fg: !enabled ? Theme.disabledInk : on ? Theme.ink : danger ? Theme.danger : muted ? Theme.muted : Theme.ink
 
     implicitHeight: look === "flat" ? 30 : 32
     implicitWidth: fixedWidth > 0 ? fixedWidth : row.implicitWidth + 2 * hPad + (look === "outlined" ? 2 : 0)
@@ -39,7 +39,8 @@ Button {
     padding: 0
     hoverEnabled: true
     focusPolicy: Qt.NoFocus
-    font.pixelSize: 13
+    font.family: Theme.sans
+    font.pixelSize: Theme.roles.buttonSm.size
     font.weight: Font.Medium
     Accessible.name: tip !== "" ? tip : text
     ToolTip.visible: hovered && tip !== ""
@@ -79,7 +80,7 @@ Button {
                     verticalAlignment: Text.AlignVCenter
                     text: control.text
                     textFormat: Text.PlainText
-                    font.pixelSize: control.monoLabel ? 12 : control.font.pixelSize
+                    font.pixelSize: control.monoLabel ? Theme.roles.small.size : control.font.pixelSize
                     font.weight: control.font.weight
                     font.family: control.monoLabel ? Theme.mono : Qt.application.font.family
                     color: control.fg
@@ -94,7 +95,7 @@ Button {
                 textFormat: Text.PlainText
                 font.family: Theme.mono
                 font.pixelSize: 11
-                color: control.on ? Theme.gameAccent : Theme.gameFaint
+                color: control.on ? Theme.ink : Theme.dim
             }
             Rectangle {
                 visible: control.hint !== "" && control.showHint
@@ -104,7 +105,7 @@ Button {
                 radius: 0
                 color: "transparent"
                 border.width: 1
-                border.color: control.on ? Theme.gameOnBorder : Theme.gameKeyLine
+                border.color: control.on ? Theme.ink2 : Theme.rule
                 Text {
                     id: keyText
                     anchors.centerIn: parent
@@ -113,7 +114,7 @@ Button {
                     font.family: Theme.mono
                     font.pixelSize: 10
                     font.weight: Font.Medium
-                    color: control.on ? Theme.gameAccent : Theme.gameTextMuted
+                    color: control.on ? Theme.ink : Theme.muted
                 }
             }
             GameIcon {
@@ -121,19 +122,18 @@ Button {
                 visible: control.caret !== ""
                 anchors.verticalCenter: parent.verticalCenter
                 kind: "caret"
-                color: Theme.gameFaint
+                color: Theme.dim
             }
         }
     }
     background: Rectangle {
         visible: !control.plain
         radius: 0
-        color: control.on ? (control.look === "surface" ? Theme.gameOnBg : Theme.gameOnBg)
-             : control.danger ? Theme.gameDangerBg
-             : control.look === "surface" ? (control.hovered ? Theme.gameHover : Theme.gameTrack)
-             : (control.hovered && control.enabled ? Theme.gameHover : "transparent")
+        color: control.on ? Theme.pressed
+             : control.danger ? Theme.dangerTint
+             : control.look === "surface" ? (control.hovered ? Theme.hover : "transparent")
+             : (control.hovered && control.enabled ? Theme.hover : "transparent")
         border.width: control.look === "flat" ? 0 : 1
-        border.color: control.on && control.look === "surface" ? Theme.gameAccent
-                    : control.look === "outlined" ? Theme.gameKeyLine : Theme.gameDivider
+        border.color: control.on ? Theme.ink2 : Theme.rule
     }
 }

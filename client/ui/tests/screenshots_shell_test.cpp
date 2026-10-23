@@ -146,6 +146,11 @@ class ShellScreenshotsTest : public QObject {
     h.controller->showSettings();
     QTest::qWait(150);
     shot(h, QStringLiteral("3p-settings"));
+    // The This PC sections below the fold: the section column scrolls the page to each of them.
+    for (const char* sec : {"appearance", "library", "storage", "diagnostics"}) {
+      QVERIFY(h.click((QByteArray("section_") + sec).constData()));
+      shot(h, QStringLiteral("3p-settings-") + QString::fromLatin1(sec));
+    }
     const QString id = hub.hubId;
     QVERIFY(h.click((QByteArray("hubEdit_") + id.toUtf8()).constData()));
     QQuickItem* host = h.item((QByteArray("hubEditAddress_") + id.toUtf8()).constData());

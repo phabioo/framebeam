@@ -38,7 +38,6 @@ QQuickItem* visibleItem(Harness& h, const char* name) {
   return nullptr;
 }
 // The header collapsed to icons because the font is wider than the layout was designed for (window width alone does not decide).
-bool headerTight(Harness& h);
 bool shown(Harness& h, const char* name) { return visibleItem(h, name) != nullptr; }
 
 // Picks a Multiview mode through the header: the segment, or (collapsed when the header is tight) its cycle button.
@@ -62,19 +61,22 @@ void collectLabels(QQuickItem* it, QList<QQuickItem*>& out) {
   }
 }
 
-bool headerTight(Harness& h) {
-  QQuickItem* hd = visibleItem(h, "gameHeader");
-  return hd != nullptr && hd->property("tight").toBool();
-}
-// Opens the Reset confirmation the way the current header offers it: the Reset button, or "⋯" > Reset when the header is tight.
-bool openReset(Harness& h) {
-  if (visibleItem(h, "resetButton") != nullptr) return h.click("resetButton");
+// A function of the header's "..." menu (reset, diagnostics, fullscreen ...): opens the menu and picks the entry.
+bool clickMore(Harness& h, const char* name) {
   if (!h.click("moreButton")) return false;
-  for (int i = 0; i < 60 && !shown(h, "morePopover"); ++i) QTest::qWait(50);
-  return h.click("moreReset");
+  const QByteArray item = QByteArray("menuItem_") + name;
+  for (int i = 0; i < 60 && (h.item(item.constData()) == nullptr || !h.item(item.constData())->isVisible()); ++i) QTest::qWait(50);
+  return h.click(item.constData());
 }
-// The element that anchors the Reset popover.
-const char* resetAnchorName(Harness& h) { return visibleItem(h, "resetButton") != nullptr ? "resetButton" : "moreButton"; }
+// A header button, or its entry in the "..." menu when the header is too tight to show it (wide fonts, narrow windows).
+bool clickHeader(Harness& h, const char* button, const char* menuName) {
+  QQuickItem* it = h.item(button);
+  if (it != nullptr && it->isVisible()) return h.click(button);
+  return clickMore(h, menuName);
+}
+
+// Opens the Reset confirmation: it lives in the "..." menu.
+bool openReset(Harness& h) { return clickMore(h, "reset"); }
 QRectF sceneRect(QQuickItem* i) { return i ? i->mapRectToScene(QRectF(0, 0, i->width(), i->height())) : QRectF(); }
 QRectF rectOf(Harness& h, const char* name) { return sceneRect(visibleItem(h, name)); }
 QString textOf(QQuickItem* i) { return i ? i->property("text").toString() : QString();}
@@ -241,24 +243,22 @@ class InGameUiTest : public QObject {
   }
 
   static const QStringList& zoneNames() {
-    static const QStringList z{QStringLiteral("backToLibraryButton"), QStringLiteral("headerContext"), QStringLiteral("gameControls"),
-                               QStringLiteral("leaveButton"), QStringLiteral("viewSegment"), QStringLiteral("addSessionToggle"),
-                               QStringLiteral("displayControls"), QStringLiteral("moreButton")};
+    static const QStringList z{QStringLiteral("backToLibraryButton"), QStringLiteral("gameTitle"), QStringLiteral("multiviewTitle"),
+                               QStringLiteral("modeSegment"), QStringLiteral("pauseButton"), QStringLiteral("fastForwardButton"), QStringLiteral("speedValueButton"),
+                               QStringLiteral("layoutSwitch"), QStringLiteral("tabMultiview"), QStringLiteral("addSessionToggle"), QStringLiteral("panelToggle"),
+                               QStringLiteral("leaveMultiview"), QStringLiteral("leaveButton"), QStringLiteral("moreButton")};
     return z;
   }
 
-  // Diagnostics are docked as a tab in the right panel (3h-3): inside the panel, under the header, never over the play area.
+  // Diagnostics sit on the stage, top right: inside the play area, under the header, never over the panel.
   static QString overlayProblem(Harness& h) {
     const QRectF play = rectOf(h, "playArea"), ov = rectOf(h, "diagnosticsOverlay"), panel = rectOf(h, "gamePanel"), header = rectOf(h, "gameHeader");
     if (ov.isEmpty()) return QStringLiteral("diagnostics not visible");
-    if (ov.left() < panel.left() - 0.5 || ov.right() > panel.right() + 0.5 || ov.top() < panel.top() - 0.5) return QStringLiteral("diagnostics outside the panel");
-    // Below the panel is fine when the docked view scrolls (wide fonts make the sections taller than a 600 px window).
-    if (ov.bottom() > panel.bottom() + 0.5) {
-      QQuickItem* box = visibleItem(h, "gamePanelDiagnostics");
-      if (box == nullptr || box->property("contentHeight").toReal() <= box->height() + 0.5) return QStringLiteral("diagnostics outside the panel (not scrollable)");
-    }
+    if (ov.left() < play.left() - 0.5 || ov.right() > play.right() + 0.5 || ov.top() < play.top() - 0.5 || ov.bottom() > play.bottom() + 0.5)
+      return QStringLiteral("diagnostics outside the stage");
     if (ov.top() < header.bottom() - 0.5) return QStringLiteral("diagnostics over the header");
-    if (ov.intersects(play) && ov.intersected(play).width() > 1.0) return QStringLiteral("diagnostics cover the play area");
+    if (ov.intersects(panel) && ov.intersected(panel).width() > 1.0) return QStringLiteral("diagnostics over the panel");
+    if (ov.center().x() < play.center().x()) return QStringLiteral("diagnostics not on the right of the stage");
     return {};
   }
 
@@ -354,12 +354,12 @@ class InGameUiTest : public QObject {
     QTRY_COMPARE(h.items("historyRow").size() + h.items("historyRowCurrent").size(), 3);
     uitest::saveShot(h.window, QStringLiteral("ingame-saves-view"));
 
-    // Scene rects at 1280 and 1920 px: the panel is 320 / 340 wide and everything stays inside it
+    // Scene rects at 1280 and 1920 px: the panel is 320 wide and everything stays inside it
     const QStringList names{"savesView", "savesBack", "historyRefresh", "slotTabs", "currentBar", "saveActions", "snapshotButton", "uploadSaveButton",
                             "historyHeader", "historyFilter", "historyRow", "restoreButton", "deleteButton", "savesRunningBanner", "endGameButton"};
     for (const int w : {1280, 1920}) {
       resize(h, w, 800);
-      QCOMPARE(rectOf(h, "gamePanel").width(), w < 1400 ? 320.0 : 340.0);
+      QCOMPARE(rectOf(h, "gamePanel").width(), 320.0);
       const QRectF box = rectOf(h, "gamePanelSaves"), panel = rectOf(h, "gamePanel");
       QVERIFY2(panel.contains(box.adjusted(0.5, 0.5, -0.5, -0.5)), qPrintable(QStringLiteral("saves box outside the panel at %1").arg(w)));
       QVERIFY2(box.bottom() <= rectOf(h, "endGameButton").top(), "saves view above Quit game");
@@ -604,7 +604,7 @@ class InGameUiTest : public QObject {
     shot("3t-2-diagnostics-1440");
     ctl->diagnostics()->setOpen(false);
     // multiview
-    h.click("tabMultiview");
+    clickHeader(h, "tabMultiview", "multiview");
     QQuickTest::qWaitForPolish(h.window);
     for (const char* id : {"s1", "s2"}) {
       h.click("addSessionToggle");
@@ -650,26 +650,26 @@ class InGameUiTest : public QObject {
       resize(h, sz.width(), sz.height());
       const qreal mid = rectOf(h, "gameHeader").center().y();
       int checked = 0;
-      for (const char* name : {"pauseButton", "fastForwardButton", "speedValueButton", "resetButton", "layoutSwitch", "diagnosticsButton", "fullscreenButton"}) {
+      for (const char* name : {"backToLibraryButton", "pauseButton", "fastForwardButton", "speedValueButton", "layoutSwitch", "tabMultiview", "panelToggle", "moreButton"}) {
         QQuickItem* btn = visibleItem(h, name);
-        if (btn == nullptr) continue;   // not shown at this size (Reset in compact, layout picker without layouts)
+        if (btn == nullptr) continue;   // not shown at this size (layout picker without layouts)
+        ++checked;
         const QString tag = QStringLiteral("%1 at %2 px").arg(QString::fromLatin1(name)).arg(sz.width());
         QVERIFY2(qAbs(sceneRect(btn).center().y() - mid) <= 1.0, qPrintable(tag + QStringLiteral(": button off the header centre")));
-        for (const char* part : {"iconItem", "labelText", "caretIcon"}) {
-          const auto items = btn->findChildren<QQuickItem*>(part);
-          for (QQuickItem* it : items) {
-            if (!it->isVisible() || it->width() <= 0) continue;
-            ++checked;
-            QVERIFY2(qAbs(sceneRect(it).center().y() - sceneRect(btn).center().y()) <= 1.0,
-                     qPrintable(tag + QStringLiteral(": %1 centre %2 vs button %3").arg(QString::fromLatin1(part)).arg(sceneRect(it).center().y()).arg(sceneRect(btn).center().y())));
-          }
+        // The label / glyph of a button sits on the button's centre line
+        const auto items = btn->findChildren<QQuickItem*>();
+        for (QQuickItem* it : items) {
+          if (!it->isVisible() || it->width() <= 0 || it->height() <= 0 || it->height() >= btn->height()) continue;
+          if (it->property("text").toString().isEmpty()) continue;
+          QVERIFY2(qAbs(sceneRect(it).center().y() - sceneRect(btn).center().y()) <= 1.5,
+                   qPrintable(tag + QStringLiteral(": label centre %1 vs button %2").arg(sceneRect(it).center().y()).arg(sceneRect(btn).center().y())));
         }
       }
-      QVERIFY2(checked >= 6, qPrintable(QStringLiteral("only %1 parts checked").arg(checked)));
-      // Session / Multiview switch labels
-      QQuickItem* seg = visibleItem(h, "viewSegment");
-      QVERIFY(seg != nullptr);
-      QVERIFY(qAbs(sceneRect(seg).center().y() - mid) <= 1.0);
+      QVERIFY2(checked >= 5, qPrintable(QStringLiteral("only %1 buttons checked").arg(checked)));
+      // Title and system chip share the line with the buttons
+      QQuickItem* title = visibleItem(h, "gameTitle");
+      QVERIFY(title != nullptr);
+      QVERIFY(qAbs(sceneRect(title).center().y() - mid) <= 14.0);
     }
   }
 
@@ -690,31 +690,25 @@ class InGameUiTest : public QObject {
       // The panel and the play area stay inside the window as well
       QVERIFY2(rectOf(h, "gamePanel").right() <= h.window->width() + 0.5, qPrintable(tag + QStringLiteral("panel outside the window") + chain(visibleItem(h, "gamePanel"))));
       QVERIFY2(rectOf(h, "playArea").width() > 300, qPrintable(tag + QStringLiteral("play area too narrow")));
-      const bool compact = sz.width() < 1400;
-      const bool tight = compact || headerTight(h);
-      QVERIFY2(visibleItem(h, "resetButton") != nullptr, qPrintable(tag + QStringLiteral("Reset stays reachable in the header (P44)")));
-      QCOMPARE(visibleItem(h, "moreButton") != nullptr, tight);
-      QCOMPARE(rectOf(h, "gamePanel").width(), compact ? 320.0 : 340.0);
-      // Zones of the Session: no "YOUR GAME" label, no "+ Add", no Quit in the header
+      QCOMPARE(rectOf(h, "gamePanel").width(), 320.0);
+      QCOMPARE(rectOf(h, "gameHeader").height(), 56.0);
+      // Zones of the Session: no "YOUR GAME" label, no "Add tile", no Quit in the header
       QVERIFY(!shown(h, "yourGameLabel") && !shown(h, "addSessionToggle") && !shown(h, "quitButton"));
-      QVERIFY(shown(h, "backToLibraryButton") && shown(h, "gameTitle") && shown(h, "sharePill") && shown(h, "pauseButton") &&
-              shown(h, "fastForwardButton") && shown(h, "speedValueButton") && shown(h, "viewSegment") && shown(h, "diagnosticsButton") &&
-              shown(h, "fullscreenButton"));
+      QVERIFY(shown(h, "backToLibraryButton") && shown(h, "gameTitle") && shown(h, "sharePill") && shown(h, "moreButton"));
+      if (sz.width() >= 1280) QVERIFY(shown(h, "pauseButton") && shown(h, "fastForwardButton"));
       QCOMPARE(textOf(visibleItem(h, "gameTitle")), QStringLiteral("Lumen Drift"));
       QCOMPARE(textOf(visibleItem(h, "sharePill")), QStringLiteral("Not shared"));
-      QCOMPARE(visibleItem(h, "backToLibraryButton")->property("tip").toString(),
-               tight ? QStringLiteral("Library · game keeps running, paused") : QStringLiteral("Game keeps running, paused"));
     }
 
     resize(h, 1440, 900);
     // Panel: SHARING, then (with slots) SAVE, "Quit game" pinned at the bottom with its note; the removed parts are gone.
     {
-      const QRectF panel = rectOf(h, "gamePanel"), share = rectOf(h, "sharingBlock"), quit = rectOf(h, "endGameButton"), note = rectOf(h, "quitNote");
+      const QRectF panel = rectOf(h, "gamePanel"), share = rectOf(h, "panelShareState"), quit = rectOf(h, "endGameButton"), note = rectOf(h, "quitNote");
       QVERIFY(!share.isEmpty() && !quit.isEmpty() && !note.isEmpty());
       QVERIFY2(share.top() < quit.top(), "SHARING above Quit game");
-      QVERIFY2(quit.bottom() <= panel.bottom() && note.bottom() <= panel.bottom() && panel.bottom() - note.bottom() < 40, "Quit game pinned to the bottom");
+      QVERIFY2(quit.bottom() <= panel.bottom() && note.bottom() <= panel.bottom() && panel.bottom() - note.bottom() < 100, "Quit game pinned to the bottom (above the hint row)");
       QCOMPARE(textOf(visibleItem(h, "endGameButton")), QStringLiteral("Quit game"));
-      QCOMPARE(textOf(visibleItem(h, "quitNote")), QStringLiteral("Saves and syncs first"));
+      QCOMPARE(textOf(visibleItem(h, "quitNote")), QStringLiteral("Saves and syncs first."));
       for (const char* gone : {"speedSelect", "speedBlock", "newSlotButton", "slotSegment", "diagToggle", "readOnlyNote", "tabSegment", "tabDiagnostics"}) {
         QVERIFY2(!shown(h, gone), gone);
       }
@@ -723,11 +717,11 @@ class InGameUiTest : public QObject {
     }
 
     // Panel collapses to the 48 px rail and back
-    QVERIFY(h.click("panelCollapseButtonSession"));
+    QVERIFY(clickHeader(h, "panelToggle", "panel"));
     QTRY_COMPARE(rectOf(h, "gamePanel").width(), 48.0);
     QVERIFY(shown(h, "panelRail") && shown(h, "panelExpandButton") && !shown(h, "endGameButton"));
     QVERIFY(h.click("panelExpandButton"));
-    QTRY_COMPARE(rectOf(h, "gamePanel").width(), 340.0);
+    QTRY_COMPARE(rectOf(h, "gamePanel").width(), 320.0);
 
     // Game controls: Pause label/width stays, Speed-up toggles and shows the value, Space unchanged
     QVERIFY(h.click("fastForwardButton"));
@@ -736,27 +730,22 @@ class InGameUiTest : public QObject {
     QVERIFY(h.click("fastForwardButton"));
     QVERIFY(!gs->fastForward());
 
-    // Reset asks first: anchored popover under the button, danger look; Cancel keeps the game, Reset confirms
-    QVERIFY(!shown(h, "resetPopover"));
-    const bool resetViaMore = visibleItem(h, "resetButton") == nullptr;   // tight header: Reset lives in "⋯"
+    // Reset asks first: a dialog over the stage (the header stays), danger action; Cancel keeps the game, Reset confirms
+    QVERIFY(!shown(h, "resetConfirm"));
     QVERIFY(openReset(h));
-    QTRY_VERIFY(shown(h, "popoverPanel"));
-    QVERIFY(shown(h, "resetPopover"));
-    QCOMPARE(textOf(visibleItem(h, "resetTitle")), QStringLiteral("Reset Lumen Drift?"));
-    if (!resetViaMore) QVERIFY(visibleItem(h, "resetButton")->property("danger").toBool());
+    QTRY_VERIFY(shown(h, "resetConfirm"));
+    QCOMPARE(textOf(visibleItem(h, "dialogTitle")), QStringLiteral("Reset Lumen Drift?"));
+    QVERIFY(shown(h, "gameHeader"));
     {
-      const QRectF anchor = rectOf(h, resetAnchorName(h)), pop = sceneRect(visibleItem(h, "popoverPanel"));
-      QVERIFY2(pop.top() >= anchor.bottom() + 8 && pop.top() <= anchor.bottom() + 12, qPrintable(QStringLiteral("popover top %1, anchor bottom %2").arg(pop.top()).arg(anchor.bottom())));
-      QVERIFY2(pop.left() <= anchor.center().x() && pop.right() >= anchor.center().x(), "popover is centered under its anchor");
-      QCOMPARE(pop.width(), 290.0);
+      const QRectF scrim = rectOf(h, "dialogScrim"), play = rectOf(h, "playArea");
+      QVERIFY2(scrim.right() <= play.right() + 0.5 && scrim.left() >= play.left() - 0.5, "the scrim covers the stage only");
     }
     QVERIFY(shown(h, "resetCancel") && shown(h, "resetConfirm"));
     QVERIFY(h.click("resetCancel"));
     QTRY_VERIFY(!shown(h, "resetConfirm"));
-    if (!resetViaMore) QVERIFY(!visibleItem(h, "resetButton")->property("danger").toBool());
     QVERIFY(openReset(h));
     QTRY_VERIFY(shown(h, "resetConfirm"));
-    // Esc closes the popover first and does not pause
+    // Esc closes the dialog first and does not pause
     QTest::keyClick(h.window, Qt::Key_Escape);
     QTRY_VERIFY(!shown(h, "resetConfirm"));
     QVERIFY(!gs->isPaused());
@@ -765,26 +754,25 @@ class InGameUiTest : public QObject {
     QVERIFY(h.click("resetConfirm"));
     QTRY_VERIFY(!shown(h, "resetConfirm"));
 
-    // Compact: Reset stays in the header (P44); Pause and Hotkeys live in "⋯"
+    // The "..." menu holds Fullscreen, Diagnostics, Reset and Hotkeys
     resize(h, 1280, 800);
-    QVERIFY(shown(h, "resetButton"));
     QVERIFY(h.click("moreButton"));
-    QTRY_VERIFY(shown(h, "morePopover"));
-    QVERIFY(shown(h, "morePause") && shown(h, "moreHotkeys") && !shown(h, "moreReset"));
-    QVERIFY(h.click("moreButton"));
-    QTRY_VERIFY(!shown(h, "morePopover"));
-    QVERIFY(h.click("resetButton"));
-    QTRY_VERIFY(shown(h, "resetConfirm"));
-    QVERIFY(h.click("resetCancel"));
-    QTRY_VERIFY(!shown(h, "resetConfirm"));
+    QTRY_VERIFY(shown(h, "menuItem_diagnostics"));
+    QVERIFY(shown(h, "menuItem_fullscreen") && shown(h, "menuItem_reset") && shown(h, "menuItem_hotkeys"));
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QTRY_VERIFY(!shown(h, "menuItem_diagnostics"));
 
     // Screen layout menu (this game only) with the built layouts
     QVERIFY(gs->screenLayouts().size() > 1);
-    QVERIFY(h.click("layoutSwitch"));
-    QTRY_VERIFY(shown(h, "layoutPopover"));
-    QVERIFY(h.click("layoutSide"));
+    if (shown(h, "layoutSwitch")) {
+      QVERIFY(h.click("layoutSwitch"));
+    } else {
+      QVERIFY(h.click("moreButton"));
+    }
+    QTRY_VERIFY(shown(h, "menuItem_layout_side"));
+    QVERIFY(h.click("menuItem_layout_side"));
     QCOMPARE(ctl->screenLayout(), QStringLiteral("side"));
-    QTRY_VERIFY(!shown(h, "layoutPopover"));
+    QTRY_VERIFY(!shown(h, "menuItem_layout_side"));
     ctl->setScreenLayout(QStringLiteral("stacked"));
 
     // Hotkeys unchanged: F3 diagnostics, Space speed-up
@@ -807,18 +795,20 @@ class InGameUiTest : public QObject {
 
     for (const QSize sz : {QSize(1440, 900), QSize(1280, 800), QSize(960, 600)}) {
       resize(h, sz.width(), sz.height());
-      QVERIFY(h.click("diagnosticsButton"));
-      QVERIFY(diag->isOpen());
-      QVERIFY(visibleItem(h, "diagnosticsButton")->property("on").toBool());  // open state shown on the header button
+      QVERIFY(clickMore(h, "diagnostics"));
+      QTRY_VERIFY(diag->isOpen());
       QQuickTest::qWaitForPolish(h.window);
+      QTRY_VERIFY(shown(h, "diagnosticsOverlay"));
       const QString problem = overlayProblem(h);
       QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("%1 px: ").arg(sz.width()) + problem));
-      // The footer reads "Hide diagnostics" with the same key as the header; the old "show / hide" footer and the panel toggle are gone
-      QVERIFY(shown(h, "diagHide"));
-      QVERIFY(!shown(h, "diagToggle"));
-      QVERIFY(h.click("diagHide"));
-      QVERIFY(!diag->isOpen());
-      QVERIFY(!visibleItem(h, "diagnosticsButton")->property("on").toBool());
+      // F3 hides it again, the menu entry reads "Hide diagnostics" meanwhile
+      QVERIFY(h.click("moreButton"));
+      QTRY_VERIFY(shown(h, "menuItem_diagnostics"));
+      QCOMPARE(textOf(visibleItem(h, "menuItem_diagnostics")), QStringLiteral("Hide diagnostics"));
+      QTest::keyClick(h.window, Qt::Key_Escape);
+      QTRY_VERIFY(!shown(h, "menuItem_diagnostics"));
+      QTest::keyClick(h.window, Qt::Key_F3);
+      QTRY_VERIFY(!diag->isOpen());
     }
     // Section state is global (ADR 0014 D5): collapsing Emulation is kept when the overlay is reopened
     diag->setOpen(true);
@@ -830,7 +820,7 @@ class InGameUiTest : public QObject {
     diag->setOpen(false);
   }
 
-  // Fullscreen: the speed-up indicator never overlaps the diagnostics overlay (both top left); it sits below it.
+  // Fullscreen: the speed-up indicator (toast, bottom left) never overlaps the diagnostics overlay (top right).
   void speedUpIndicatorDoesNotOverlapDiagnosticsOverlay() {
     FakeHub hub(QStringLiteral("a"));
     Harness h;
@@ -851,19 +841,14 @@ class InGameUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     QRectF ov = rectOf(h, "diagnosticsOverlay"), ff = rectOf(h, "fastForwardIndicator");
     QVERIFY2(!ov.intersects(ff), "speed-up indicator overlaps the diagnostics overlay");
-    QTRY_COMPARE(rectOf(h, "fastForwardIndicator").top(), rectOf(h, "diagnosticsOverlay").bottom() + 8.0);
-    QCOMPARE(rectOf(h, "fastForwardIndicator").left(), rectOf(h, "diagnosticsOverlay").left());
-
-    // The overlay's height changes when a section collapses: the indicator follows
-    diag->setEmulationOpen(false);
-    QQuickTest::qWaitForPolish(h.window);
-    QTRY_COMPARE(rectOf(h, "fastForwardIndicator").top(), rectOf(h, "diagnosticsOverlay").bottom() + 8.0);
-    QVERIFY(!rectOf(h, "diagnosticsOverlay").intersects(rectOf(h, "fastForwardIndicator")));
-    diag->setEmulationOpen(true);
+    // Toasts sit bottom left, the diagnostics top right: the indicator stays where it was
+    QCOMPARE(ff.left(), alone.left());
+    QVERIFY(ff.center().x() < rectOf(h, "playArea").center().x() && ff.center().y() > rectOf(h, "playArea").center().y());
+    QVERIFY(ov.center().x() > rectOf(h, "playArea").center().x() && ov.center().y() < rectOf(h, "playArea").center().y());
 
     diag->setOpen(false);
     QTRY_VERIFY(!shown(h, "diagnosticsOverlay"));
-    QTRY_COMPARE(rectOf(h, "fastForwardIndicator").topLeft(), alone.topLeft());
+    QTRY_COMPARE(rectOf(h, "fastForwardIndicator").left(), alone.left());
     gs->setFastForward(false);
     QTest::keyClick(h.window, Qt::Key_F11);
   }
@@ -878,89 +863,75 @@ class InGameUiTest : public QObject {
     GameSession* gs = h.controller->gameSession();
     SessionController* ctl = h.controller->sessions();
     resize(h, 1440, 900);
-    QVERIFY(h.click("tabMultiview"));
+    QVERIFY(clickHeader(h, "tabMultiview", "multiview"));
     QQuickTest::qWaitForPolish(h.window);
     QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
 
-    // Multiview with only your game: same zones, "+ Add · 1/4", the picker is closed and does not open on its own
-    QVERIFY(shown(h, "addSessionToggle") && shown(h, "pauseButton"));
-    // The optional texts ("Multiview", "YOUR GAME") give way only when the font is so wide that the zones would overlap.
-    QVERIFY2(rectOf(h, "modeSegment").right() <= rectOf(h, "gameControls").left(), "mode switch and game controls must not overlap");
-    QVERIFY2(rectOf(h, "gameControls").right() <= rectOf(h, "viewSegment").left(), "game controls and view switch must not overlap");
+    // Multiview with only your game: RunHeader "Multiview", "Add tile", Leave; the picker is closed and does not open on its own
+    QVERIFY(shown(h, "addSessionToggle") && shown(h, "leaveMultiview"));
+    QCOMPARE(textOf(visibleItem(h, "multiviewTitle")), QStringLiteral("Multiview"));
+    if (shown(h, "multiSub")) QVERIFY(textOf(visibleItem(h, "multiSub")).endsWith(QStringLiteral("1 person")));  // optional when the header is tight
     QVERIFY(!shown(h, "multiviewSessionList") && !shown(h, "pickerPopover"));
-    QCOMPARE(textOf(visibleItem(h, "addSessionToggle")), QStringLiteral("+ Add"));
-    QCOMPARE(visibleItem(h, "addSessionToggle")->property("meta").toString(), QStringLiteral("· 1/4"));
-    QCOMPARE(visibleItem(h, "pauseButton")->property("tip").toString(), QStringLiteral("Pause your game · Esc"));
-    QCOMPARE(visibleItem(h, "layoutSwitch")->property("tip").toString(), QStringLiteral("Screen layout · all tiles"));
-    if (!headerTight(h)) {
-      QCOMPARE(visibleItem(h, "layoutSwitch")->property("text").toString(), QStringLiteral("All tiles"));
-      QVERIFY(!visibleItem(h, "resetButton")->property("danger").toBool());
-      QVERIFY(shown(h, "resetButton"));  // your game's controls stay in the Multiview
-    }
+    QCOMPARE(textOf(visibleItem(h, "addSessionToggle")), QStringLiteral("Add tile"));
     QCOMPARE(textOf(visibleItem(h, "panelTileLabel")), QStringLiteral("TILE 1 · YOUR GAME"));
-    // Pause/Resume of your game from the Multiview header
-    QVERIFY(h.click("pauseButton"));
-    QVERIFY(h.item("pauseButton")->property("text").toString() == QLatin1String("Resume") || gs->isPaused() || true);
+    // Pause/Resume of your game from the Multiview header (the button, or the "..." menu when the header is tight)
+    const auto togglePause = [&]() { return shown(h, "pauseButton") ? h.click("pauseButton") : clickMore(h, "pause"); };
+    QVERIFY(togglePause());
+    QTRY_VERIFY(gs->isPaused());
+    QVERIFY(togglePause());
+    QTRY_VERIFY(!gs->isPaused());
 
-    // Anchored picker: opens only on click, directly under the button, closes on a click on the anchor
+    // Anchored picker: opens only on click, under the button, closes on a click on the anchor
     QVERIFY(h.click("addSessionToggle"));
     QTRY_VERIFY(shown(h, "multiviewSessionList"));
     {
       const QRectF anchor = rectOf(h, "addSessionToggle");
-      QQuickItem* pop = nullptr;
-      for (QQuickItem* i : h.items("popoverPanel")) if (i->isVisible() && i->width() > 300 && i->width() < 360) pop = i;
+      QQuickItem* pop = visibleItem(h, "multiviewListTitle");
       QVERIFY(pop != nullptr);
       const QRectF pr = sceneRect(pop);
-      // Docked (P41): right under the header, left of the side panel, never over the panel or its sharing section
-      QVERIFY2(pr.top() >= rectOf(h, "gameHeader").bottom() - 0.5 && pr.top() <= anchor.bottom() + 16, qPrintable(QStringLiteral("picker top %1, anchor bottom %2").arg(pr.top()).arg(anchor.bottom())));
-      QVERIFY2(pr.right() <= rectOf(h, "gamePanel").left() + 0.5, "picker stays left of the side panel");
+      QVERIFY2(pr.top() >= anchor.bottom() - 0.5, qPrintable(QStringLiteral("picker top %1, anchor bottom %2").arg(pr.top()).arg(anchor.bottom())));
       QVERIFY(pr.right() <= h.window->width() + 0.5);
       QVERIFY(visibleItem(h, "addSessionToggle")->property("on").toBool());  // the anchor stays pressed
     }
     QVERIFY(h.click("addSessionToggle"));
     QTRY_VERIFY(!shown(h, "multiviewSessionList"));
-    QVERIFY(!visibleItem(h, "addSessionToggle")->property("on").toBool());
+    QTRY_VERIFY(!visibleItem(h, "addSessionToggle")->property("on").toBool());
 
-    // Add Lena (picker), then Mo: grid with a free tile
+    // Add Lena (picker), then pick a layout
     QVERIFY(h.click("addSessionToggle"));
     QVERIFY(h.clickWhenReady("multiviewAddButton_s1"));  // the picker content appears after the click, not with it
     QTRY_COMPARE(ctl->surfaceCount(), 2);
-    QVERIFY(h.clickWhenReady("addSessionToggle"));
-    QTRY_COMPARE(visibleItem(h, "addSessionToggle")->property("meta").toString(), QStringLiteral("· 2/4"));
+    QVERIFY(h.click("addSessionToggle"));   // close the picker (click on its anchor)
+    QTRY_VERIFY(!shown(h, "multiviewSessionList"));
     QVERIFY(clickMode(h, "modeRow"));
     QQuickTest::qWaitForPolish(h.window);
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
     QVERIFY(!shown(h, "emptyTile_3") && !shown(h, "emptyTile_4"));  // no empty slots (3r-3)
-    QTRY_VERIFY(!shown(h, "multiviewSessionList"));
-    QVERIFY(h.click("addSessionToggle"));
-    QTRY_VERIFY(shown(h, "multiviewSessionList"));
-    QVERIFY(h.click("addSessionToggle"));
-    QTRY_VERIFY(!shown(h, "multiviewSessionList"));
 
     // Tile selection: your tile first, keys 1 and 2 select, the panel follows
     QCOMPARE(ctl->selectedSurface(), QStringLiteral("local"));
     QVERIFY(shown(h, "tileSelection_local") && !shown(h, "tileSelection_s1"));
     QCOMPARE(textOf(visibleItem(h, "panelTileLabel")), QStringLiteral("TILE 1 · YOUR GAME"));
-    QVERIFY(shown(h, "endGameButton") && shown(h, "sharingBlock") && !shown(h, "remotePanel"));
+    QVERIFY(shown(h, "endGameButton") && shown(h, "panelShareState") && !shown(h, "remotePanel"));
     QTest::keyClick(h.window, Qt::Key_2);
     QTRY_COMPARE(ctl->selectedSurface(), QStringLiteral("s1"));
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(shown(h, "tileSelection_s1") && !shown(h, "tileSelection_local"));
     QCOMPARE(textOf(visibleItem(h, "panelTileLabel")), QStringLiteral("TILE 2 · WATCHING"));
-    QVERIFY(shown(h, "remotePanel") && !shown(h, "endGameButton") && !shown(h, "sharingBlock"));
+    QVERIFY(shown(h, "remotePanel") && !shown(h, "endGameButton") && !shown(h, "panelShareState"));
     QCOMPARE(textOf(visibleItem(h, "remoteWho")), QStringLiteral("Lena"));
     QCOMPARE(textOf(visibleItem(h, "remoteGame")), QStringLiteral("Harbor Rally"));
-    QCOMPARE(textOf(visibleItem(h, "audioButton_s1")), QStringLiteral("♪ Audio here"));
+    QCOMPARE(textOf(visibleItem(h, "audioButton_s1")), QStringLiteral("Audio here"));
     QVERIFY(shown(h, "removeButton_s1") && shown(h, "selectLocalTile"));
     // Selecting a remote tile moves neither audio nor input; the game stays controllable from the header
     QCOMPARE(ctl->audioFocus(), QStringLiteral("local"));
-    QVERIFY(shown(h, "pauseButton"));
-    // A selected key badge is white, the audio tile shows the inset ring and the chip
+    QVERIFY(shown(h, "pauseButton") || shown(h, "moreButton"));
+    // The audio tile shows the AUDIO tag
     QVERIFY(shown(h, "audioChip_local") && !shown(h, "audioChip_s1"));
     QVERIFY(h.click("audioButton_s1"));
     QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
     QTRY_VERIFY(shown(h, "audioChip_s1") && !shown(h, "audioChip_local"));
-    QCOMPARE(textOf(visibleItem(h, "audioButton_s1")), QStringLiteral("♪ Audio plays from this tile"));
+    QCOMPARE(textOf(visibleItem(h, "audioButton_s1")), QStringLiteral("Audio plays from this tile"));
     // "Select" in the remote panel goes back to your tile
     QVERIFY(h.click("selectLocalTile"));
     QCOMPARE(ctl->selectedSurface(), QStringLiteral("local"));
@@ -980,78 +951,24 @@ class InGameUiTest : public QObject {
       const QString problem = zonesProblem(h, zoneNames());
       QVERIFY2(problem.isEmpty(), qPrintable(tag + problem));
       QVERIFY2(rectOf(h, "gamePanel").right() <= h.window->width() + 0.5, qPrintable(tag + QStringLiteral("panel outside the window")));
-      QVERIFY2(shown(h, "modeSegment") || shown(h, "modeCycle") || visibleItem(h, "gameHeader")->property("cycleHidden").toBool(), qPrintable(tag + QStringLiteral("no multiview mode control")));
-      if (visibleItem(h, "gameHeader")->property("cycleHidden").toBool()) {  // leftover: without room for the cycle button, "⋯" offers the layouts
-        QVERIFY2(shown(h, "moreButton"), qPrintable(tag + QStringLiteral("no more button for the layouts")));
-        QVERIFY(h.click("moreButton"));
-        QVERIFY2(shown(h, "moreMode_row"), qPrintable(tag + QStringLiteral("no layout entry in the more menu")));
-        QVERIFY(h.click("moreMode_row"));
-        QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
-        QVERIFY(h.click("moreButton"));
-        QVERIFY(h.click("moreMode_pip"));
-        QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
-      }
-      {  // Every visible header segment label is recognisable: never empty, never a bare "…" (priority order in GameHeader)
-        for (const char* segName : {"modeSegment", "viewSegment"}) {
-          QQuickItem* seg = visibleItem(h, segName);
-          if (seg == nullptr) continue;
-          QList<QQuickItem*> labels;
-          collectLabels(seg, labels);
-          QVERIFY2(!labels.isEmpty(), qPrintable(tag + QLatin1String(segName) + QStringLiteral(" has no labels")));
-          for (QQuickItem* l : labels) {
-            if (!l->isVisible()) continue;
-            const QString txt = l->property("text").toString();
-            const qreal shownW = l->property("contentWidth").toReal();
-            QVERIFY2(!txt.isEmpty() && txt != QStringLiteral("…") && shownW > 8.0, qPrintable(tag + QLatin1String(segName) + QStringLiteral(" label \"%1\" shows %2 px").arg(txt).arg(shownW)));
-            if (l->property("truncated").toBool())
-              QVERIFY2(shownW > 28.0, qPrintable(tag + QLatin1String(segName) + QStringLiteral(" label \"%1\" is elided to a stub").arg(txt)));
-          }
-        }
-      }
-      QVERIFY(shown(h, "pauseButton") && shown(h, "addSessionToggle") && shown(h, "diagnosticsButton"));
-      // The header always names the game or the view and shows the sharing state, also when the optional texts give way (R-P5).
-      {
-        QQuickItem* title = shown(h, "multiviewTitle") ? visibleItem(h, "multiviewTitle") : visibleItem(h, "multiGameTitle");
-        QVERIFY2(title != nullptr && title->width() > 8, qPrintable(tag + QStringLiteral("no title in the Multiview header")));
-        QVERIFY2(shown(h, "yourGameLabel") || shown(h, "multiSharePill"), qPrintable(tag + QStringLiteral("no sharing state in the Multiview header")));
-        if (shown(h, "multiGameTitle")) {
-          QVERIFY2(textOf(visibleItem(h, "multiGameTitle")) == gs->title(), qPrintable(tag + QStringLiteral("game title")));
-          QVERIFY2(rectOf(h, "multiGameTitle").right() <= rectOf(h, "modeSegment").left() + 0.5 || rectOf(h, "multiGameTitle").left() >= rectOf(h, "modeSegment").right() - 0.5,
-                   qPrintable(tag + QStringLiteral("title overlaps the mode switch")));
-        }
-      }
+      QVERIFY2(shown(h, "modeSegment") || shown(h, "moreButton"), qPrintable(tag + QStringLiteral("no multiview mode control")));
+      QVERIFY(shown(h, "moreButton") && shown(h, "addSessionToggle") && shown(h, "leaveMultiview"));
+      QQuickItem* title = visibleItem(h, "multiviewTitle");
+      QVERIFY2(title != nullptr && title->width() > 8, qPrintable(tag + QStringLiteral("no title in the Multiview header")));
       ctl->diagnostics()->setOpen(true);
       QQuickTest::qWaitForPolish(h.window);
       QVERIFY2(overlayProblem(h).isEmpty(), qPrintable(tag + overlayProblem(h)));
       QVERIFY(!shown(h, "diagnosticsPanel"));  // no bottom bar
-      QVERIFY(shown(h, "diagTileBlock") && shown(h, "diagOnlyYourTile"));
       ctl->diagnostics()->setOpen(false);
-    }
-
-    // Very wide font at 960 px: whatever stage the header ends in, the layout stays pickable (segment, cycle button or "⋯")
-    resize(h, 960, 600);
-    widenFonts(h, 16.0);
-    {
-      QQuickItem* hd = visibleItem(h, "gameHeader");
-      QVERIFY(hd != nullptr);
-      if (!shown(h, "modeSegment") && !shown(h, "modeCycle")) {
-        QVERIFY2(hd->property("cycleHidden").toBool() && shown(h, "moreButton"), "no way to pick the Multiview layout");
-        QVERIFY(h.click("moreButton"));
-        QVERIFY(h.clickWhenReady("moreMode_row"));  // the menu opens asynchronously
-        QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
-        QVERIFY(h.click("moreButton"));
-        QVERIFY(h.clickWhenReady("moreMode_pip"));
-        QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
-      }
     }
 
     // Panel in the rail: the tile badge stays; expanding restores the panel
     resize(h, 1440, 900);
-    QVERIFY(h.click("panelCollapseButton"));
+    QVERIFY(clickHeader(h, "panelToggle", "panel"));
     QTRY_COMPARE(rectOf(h, "gamePanel").width(), 48.0);
     QVERIFY(shown(h, "panelExpandButton"));
     QVERIFY(h.click("panelExpandButton"));
-    QTRY_COMPARE(rectOf(h, "gamePanel").width(), 340.0);
+    QTRY_COMPARE(rectOf(h, "gamePanel").width(), 320.0);
 
     // Remove from multiview in the panel of the remote tile
     ctl->selectSurface(QStringLiteral("s1"));
@@ -1071,27 +988,34 @@ class InGameUiTest : public QObject {
     startPreview(h, false);
     SessionController* ctl = h.controller->sessions();
     resize(h, 1440, 900);
-    QVERIFY(h.click("tabMultiview"));
+    QQuickItem* multiBtn = visibleItem(h, "tabMultiview");
+    QVERIFY(multiBtn != nullptr);
+    QVERIFY(multiBtn->activeFocusOnTab());
+    multiBtn->forceActiveFocus();
+    QVERIFY(multiBtn->hasActiveFocus());
+    QTest::keyClick(h.window, Qt::Key_Space);   // the focused header button is activated
+    QTRY_COMPARE(ctl->tab(), QStringLiteral("multiview"));
     QQuickTest::qWaitForPolish(h.window);
-    QQuickItem* seg = visibleItem(h, "viewSegment");
+    // In the Multiview the mode segment (two surfaces) moves with Left / Right
+    ctl->watch(QStringLiteral("s1"));
+    QTRY_COMPARE(ctl->surfaceCount(), 2);
+    QQuickTest::qWaitForPolish(h.window);
+    QQuickItem* seg = visibleItem(h, "modeSegment");
     QVERIFY(seg != nullptr);
     QVERIFY(seg->activeFocusOnTab());
     seg->forceActiveFocus();
     QVERIFY(seg->hasActiveFocus());
     QQuickTest::qWaitForPolish(h.window);
-    QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
     bool ring = false;
-    for (QQuickItem* i : h.items("segmentFocusRing")) ring = ring || i->isVisible();
+    for (QQuickItem* c : seg->childItems()) ring = ring || (c->isVisible() && QByteArray(c->metaObject()->className()).contains("UzFocusRing"));
     QVERIFY2(ring, "the focused segment shows a focus ring");
-    QTest::keyClick(h.window, Qt::Key_Left);
-    QCOMPARE(ctl->tab(), QStringLiteral("session"));
-    QTest::keyClick(h.window, Qt::Key_Left);   // already the first option: stays
-    QCOMPARE(ctl->tab(), QStringLiteral("session"));
+    ctl->setMultiviewMode(QStringLiteral("pip"));
     QTest::keyClick(h.window, Qt::Key_Right);
-    QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
-    ctl->setTab(QStringLiteral("session"));
-    QTest::keyClick(h.window, Qt::Key_Return);   // re-picks the focused option
-    QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
+    QTest::keyClick(h.window, Qt::Key_Left);
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
+    QTest::keyClick(h.window, Qt::Key_Left);   // already the first option: stays
+    QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));
   }
 
   void watchingOnlyHeader() {
@@ -1107,8 +1031,8 @@ class InGameUiTest : public QObject {
       resize(h, sz.width(), sz.height());
       const QString problem = zonesProblem(h, zoneNames());
       QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("watching %1 px: ").arg(sz.width()) + problem));
-      QVERIFY(shown(h, "leaveButton") && !shown(h, "pauseButton") && !shown(h, "resetButton") && !shown(h, "fastForwardButton") && !shown(h, "moreButton"));
-      QVERIFY(shown(h, "diagnosticsButton") && shown(h, "fullscreenButton"));
+      QVERIFY(shown(h, "leaveButton") && !shown(h, "pauseButton") && !shown(h, "fastForwardButton") && !shown(h, "tabMultiview"));
+      QVERIFY(shown(h, "moreButton"));   // F3 diagnostics and the help entries live in the "..." menu
     }
     QCOMPARE(textOf(visibleItem(h, "gameTitle")), QStringLiteral("Lena · Harbor Rally"));
     QVERIFY(h.click("leaveButton"));

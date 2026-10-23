@@ -29,23 +29,23 @@ Item {
     }
     function stepIconBg(state: string): color {
         switch (state) {
-        case "ok": return Theme.okBg
-        case "warning": return Theme.pluginWarnBg
-        case "failed": return Theme.neutralPillBg
+        case "ok": return Theme.ground
+        case "warning": return Theme.selected
+        case "failed": return Theme.pressed
         default: return "transparent"
         }
     }
     function stepIconFg(state: string): color {
         switch (state) {
         case "ok": return Theme.ok
-        case "warning": return Theme.pluginWarn
-        case "failed": return Theme.textSecondary
+        case "warning": return Theme.accentText
+        case "failed": return Theme.ink2
         case "running": return Theme.accent
-        default: return Theme.textDisabled
+        default: return Theme.disabledInk
         }
     }
     function stepRing(state: string): color {
-        return state === "running" ? Theme.accent : state === "waiting" || state === "skipped" ? Theme.borderButton : "transparent"
+        return state === "running" ? Theme.accent : state === "waiting" || state === "skipped" ? Theme.rule : "transparent"
     }
 
     Rectangle {
@@ -84,9 +84,9 @@ Item {
             implicitHeight: col.implicitHeight
             height: Math.min(implicitHeight, parent.height - 32)
             radius: 0
-            color: Theme.popupBg
+            color: Theme.surface
             border.width: 1
-            border.color: Theme.borderPopup
+            border.color: Theme.rule
             clip: true
             // Swallow clicks inside the card so the scrim click does not close the dialog.
             MouseArea { anchors.fill: parent }
@@ -101,8 +101,8 @@ Item {
                     Layout.fillWidth: true
                     Layout.leftMargin: 24
                     Layout.rightMargin: 24
-                    Layout.topMargin: 22
-                    Layout.bottomMargin: 14
+                    Layout.topMargin: Theme.space3
+                    Layout.bottomMargin: Theme.space2
                     spacing: 12
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -111,15 +111,16 @@ Item {
                         UzLabel {
                             objectName: "connectionCheckTitle"
                             text: qsTr("Connection check")
-                            font.pixelSize: 18
-                            font.weight: Font.DemiBold
+                            font.pixelSize: Theme.roles.dialogTitle.size
+                            font.weight: Theme.roles.dialogTitle.weight
+                            font.letterSpacing: Theme.roles.dialogTitle.spacing
                         }
                         UzLabel {
                             objectName: "connectionCheckSubtitle"
                             Layout.fillWidth: true
                             text: root.check.subtitle
-                            color: Theme.textMuted
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.muted
+                            font.pixelSize: Theme.roles.small.size
                             elide: Text.ElideRight
                         }
                     }
@@ -133,7 +134,7 @@ Item {
                         onClicked: root.check.close()
                     }
                 }
-                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.borderInput }
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.rule }
 
                 // Steps and summary scroll when the card is taller than the window (large fonts); header and actions stay put.
                 Flickable {
@@ -176,7 +177,7 @@ Item {
                                     anchors.bottom: parent.bottom
                                     width: parent.width
                                     height: 1
-                                    color: Theme.borderRow
+                                    color: Theme.rule2
                                 }
                                 GridLayout {
                                     id: rowGrid
@@ -195,13 +196,13 @@ Item {
                                         Layout.rightMargin: 4
                                         radius: 0
                                         color: root.stepIconBg(row.st)
-                                        border.width: row.st === "running" ? 2 : row.st === "waiting" || row.st === "skipped" ? 1.5 : 0
+                                        border.width: row.st === "running" ? 2 : row.st === "waiting" || row.st === "skipped" ? 1 : 0
                                         border.color: root.stepRing(row.st)
                                         UzLabel {
                                             anchors.centerIn: parent
                                             text: root.stepIcon(row.st)
                                             color: root.stepIconFg(row.st)
-                                            font.pixelSize: 11
+                                            font.pixelSize: Theme.roles.meta11.size
                                             font.weight: Font.DemiBold
                                         }
                                     }
@@ -209,9 +210,9 @@ Item {
                                         Layout.preferredWidth: 150
                                         Layout.alignment: Qt.AlignTop
                                         text: row.modelData.title
-                                        font.pixelSize: Theme.fontBody
+                                        font.pixelSize: Theme.roles.body.size
                                         font.weight: Font.Medium
-                                        color: row.st === "waiting" || row.st === "skipped" ? Theme.textFaint : Theme.text
+                                        color: row.st === "waiting" || row.st === "skipped" ? Theme.dim : Theme.ink
                                     }
                                     ColumnLayout {
                                         Layout.fillWidth: true
@@ -222,9 +223,9 @@ Item {
                                             Layout.fillWidth: true
                                             text: row.modelData.result
                                             wrapMode: Text.WordWrap
-                                            font.pixelSize: Theme.fontSmall
-                                            color: row.st === "warning" ? Theme.pluginWarn
-                                                 : row.st === "waiting" || row.st === "skipped" ? Theme.textFaint : Theme.textSecondary
+                                            font.pixelSize: Theme.roles.input.size
+                                            color: row.st === "warning" ? Theme.accentText
+                                                 : row.st === "waiting" || row.st === "skipped" ? Theme.dim : Theme.ink2
                                         }
                                         UzLabel {
                                             objectName: "connectionCheckExplain_" + row.modelData.id
@@ -234,8 +235,8 @@ Item {
                                             wrapMode: Text.WordWrap
                                             lineHeight: 17
                                             lineHeightMode: Text.FixedHeight
-                                            font.pixelSize: Theme.fontMeta
-                                            color: Theme.textMeta
+                                            font.pixelSize: Theme.roles.small.size
+                                            color: Theme.muted
                                         }
                                     }
                                 }
@@ -253,26 +254,26 @@ Item {
                         Layout.leftMargin: 24
                         Layout.rightMargin: 24
                         Layout.topMargin: 8
-                        implicitHeight: sumCol.implicitHeight + 24
+                        implicitHeight: sumCol.implicitHeight + 2 * Theme.space15
                         radius: 0
-                        color: tone === "ok" ? Theme.okBg : tone === "warn" ? Theme.amberRow : Theme.surface
+                        color: tone === "ok" ? Theme.ground : tone === "warn" ? Theme.selected : Theme.surface
                         border.width: 1
-                        border.color: tone === "ok" ? Theme.ok : tone === "warn" ? Theme.pluginWarnLine : Theme.borderInput
+                        border.color: tone === "ok" ? Theme.ok : tone === "warn" ? Theme.accent : Theme.rule
                         ColumnLayout {
                             id: sumCol
                             anchors.fill: parent
-                            anchors.margins: 12
-                            anchors.leftMargin: 14
-                            anchors.rightMargin: 14
+                            anchors.margins: Theme.space15
+                            anchors.leftMargin: Theme.space2
+                            anchors.rightMargin: Theme.space2
                             spacing: 3
                             UzLabel {
                                 objectName: "connectionCheckSummaryTitle"
                                 Layout.fillWidth: true
                                 text: root.check.summary
                                 wrapMode: Text.WordWrap
-                                font.pixelSize: Theme.fontBody
-                                font.weight: Font.DemiBold
-                                color: summaryCard.tone === "ok" ? Theme.ok : summaryCard.tone === "warn" ? Theme.pluginWarn : Theme.text
+                                font.pixelSize: Theme.roles.body.size
+                                font.weight: Font.Medium
+                                color: summaryCard.tone === "ok" ? Theme.ok : summaryCard.tone === "warn" ? Theme.accentText : Theme.ink
                             }
                             UzLabel {
                                 objectName: "connectionCheckSummaryDetail"
@@ -282,8 +283,8 @@ Item {
                                 wrapMode: Text.WordWrap
                                 lineHeight: 18
                                 lineHeightMode: Text.FixedHeight
-                                font.pixelSize: Theme.fontMeta
-                                color: Theme.textSecondary
+                                font.pixelSize: Theme.roles.small.size
+                                color: Theme.ink2
                             }
                         }
                     }
@@ -296,20 +297,19 @@ Item {
                     Layout.fillWidth: true
                     Layout.leftMargin: 24
                     Layout.rightMargin: 24
-                    Layout.topMargin: 16
-                    Layout.bottomMargin: 20
+                    Layout.topMargin: Theme.space2
+                    Layout.bottomMargin: Theme.space3
                     spacing: 8
                     UzLabel {
                         objectName: "connectionCheckProgress"
                         text: root.check.progressText
                         color: Theme.accentText
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                     }
                     Item { Layout.fillWidth: true }
                     UzButton {
                         objectName: "connectionCheckCancel"
-                        implicitHeight: 34
-                        text: qsTr("Cancel")
+                                                text: qsTr("Cancel")
                         onClicked: root.check.cancel()
                     }
                 }
@@ -323,35 +323,31 @@ Item {
                     Layout.fillWidth: true
                     Layout.leftMargin: 24
                     Layout.rightMargin: 24
-                    Layout.topMargin: 16
-                    Layout.bottomMargin: 20
+                    Layout.topMargin: Theme.space2
+                    Layout.bottomMargin: Theme.space3
                     Layout.preferredHeight: implicitHeight
                     spacing: 8
 
                     UzButton {
                         objectName: "connectionCheckCopy"
-                        implicitHeight: 34
-                        text: root.check.copied ? qsTr("Copied") : qsTr("Copy result")
+                                                text: root.check.copied ? qsTr("Copied") : qsTr("Copy result")
                         onClicked: root.check.copyResult()
                     }
                     UzButton {
                         objectName: "connectionCheckAttach"
                         enabled: root.check.canAttach && !root.check.attached
-                        implicitHeight: 34
-                        text: root.check.attached ? qsTr("Added to the next report") : qsTr("Add to problem report")
+                                                text: root.check.attached ? qsTr("Added to the next report") : qsTr("Add to problem report")
                         onClicked: root.check.addToReport()
                     }
                     UzButton {
                         objectName: "connectionCheckEditHub"
                         visible: root.check.canEditHubAddress
-                        implicitHeight: 34
-                        text: qsTr("Edit server address…")
+                                                text: qsTr("Edit server address…")
                         onClicked: root.check.editHubAddress()
                     }
                     UzButton {
                         objectName: "connectionCheckRun"
-                        implicitHeight: 34
-                        kind: root.check.canEditHubAddress ? "primary" : "outline"
+                                                kind: root.check.canEditHubAddress ? "primary" : "outline"
                         text: qsTr("Run again")
                         onClicked: root.check.run()
                     }

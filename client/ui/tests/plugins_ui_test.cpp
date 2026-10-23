@@ -229,12 +229,14 @@ class PluginsUiTest : public QObject {
     startPreviewGame(h);
     PluginsController* pc = h.controller->plugins();
 
-    // Without plugins/Developer mode there is no tab bar.
-    QVERIFY(h.item("panelTabBar") == nullptr || !h.item("panelTabBar")->isVisible());
+    // Without plugins/Developer mode the strip shows only the Session tab.
+    QVERIFY(h.item("panelTabBar") != nullptr && h.item("panelTabBar")->isVisible());
+    QVERIFY(h.item("panelTab_game") != nullptr && h.item("panelTab_game")->isVisible());
+    QVERIFY(h.item("panelTab_console") == nullptr || !h.item("panelTab_console")->isVisible());
 
     pc->setPreviewConsole(consoleData(false, true));
     QVERIFY(pc->consoleAvailable());
-    QTRY_VERIFY(h.item("panelTabBar") != nullptr && h.item("panelTabBar")->isVisible());
+    QTRY_VERIFY(h.item("panelTab_console") != nullptr && h.item("panelTab_console")->isVisible());
     QVERIFY(h.item("pluginConsole") == nullptr || !h.item("pluginConsole")->isVisible());
     QVERIFY(h.click("panelTab_console"));
     QTRY_VERIFY(h.item("pluginConsole") != nullptr && h.item("pluginConsole")->isVisible());
@@ -270,7 +272,7 @@ class PluginsUiTest : public QObject {
 
     // The console goes away with Developer mode / the plugins: back on the Game tab, no tab bar.
     pc->setPreviewConsole({});
-    QTRY_VERIFY(h.item("panelTabBar") == nullptr || !h.item("panelTabBar")->isVisible());
+    QTRY_VERIFY(h.item("panelTab_console") == nullptr || !h.item("panelTab_console")->isVisible());  // the strip stays, the console tab is gone
     QVERIFY(h.item("sharingBlock") != nullptr && h.item("sharingBlock")->isVisible());
   }
 

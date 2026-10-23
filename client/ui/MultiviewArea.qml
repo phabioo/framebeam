@@ -3,16 +3,16 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// 3r-3 / 3i-3: Multiview with up to four surfaces (ADR 0012 D8, ADR 0026 D2): the local game and/or remote Sessions. Layouts:
+// Multiview with up to four surfaces (boards 3r, ADR 0012 D8, ADR 0026 D2): the local game and/or remote Sessions. Layouts:
 // a single surface fills the area; Row (two or three Sessions side by side, equal columns); Grid 2 x 2 (from four Sessions,
 // never an empty slot); PiP: one main tile and the others as windows inside the main tile (a corner of the picture, S | M | L,
-// dragged to snap to a corner). Area padding 16, tile gap 12. A tile is surface #121315, radius 10, padding 10, border 2 px:
-// the selected tile has the accent border, all others #24252a (the one selection style). Under the picture an info row: index
-// chip, name and the pills "♪ Audio" (the one audible surface) and "Paused". A tile is selected by click or the keys 1-4; the
-// side panel follows (a remote selection does not route input: input always goes to your game). A paused remote game is dimmed
-// and says "Paused by <name>" (ADR 0026 D3). The screen layout of the game applies to every tile. Every surface is one delegate
-// that is only moved when the layout changes, so the local game view is not recreated. The "Running sessions" picker lives in
-// the game screen.
+// dragged to snap to a corner). Area padding 24, tile gap 24. A tile is a MultiviewTile: a 1 px `rule` frame, the 40 x 3 px person
+// rule at its top left, the `stage` with the picture and a 40 px bar with the person square, the name, the system chip and game
+// name and a right-side status (YOU, PAUSED BY <NAME>, RELAYED, ...). The tile whose audio you hear has the Yamabuki frame (2 px
+// in total) and the AUDIO tag; the selected tile (click or keys 1-4, the side panel follows) has an `ink-2` frame. A remote
+// selection does not route input: input always goes to your game. A paused remote game is dimmed and says "Paused by <name>"
+// (ADR 0026 D3). The screen layout of the game applies to every tile. Every surface is one delegate that is only moved when the
+// layout changes, so the local game view is not recreated. The "Add tile" popover lives in the game screen.
 Item {
     id: root
     objectName: "multiviewArea"
@@ -29,21 +29,21 @@ Item {
     signal tileSelected()
 
     // Layout metrics
-    readonly property real pad: 16
-    readonly property real gap: 12
+    readonly property real pad: Theme.space3
+    readonly property real gap: Theme.space3
     readonly property int cols: layoutMode === "row" ? Math.max(1, count) : 2
     readonly property real cellW: Math.max(0, (width - 2 * pad - (cols - 1) * gap) / cols)
     readonly property real cellH: layoutMode === "grid" ? Math.max(0, (height - 2 * pad - gap) / 2) : Math.max(0, height - 2 * pad)
-    // PiP (3i-3): the window sits inside the main tile, 12 px clear of its 2 px border; corner and size are the user's
+    // PiP: the window sits inside the main tile's stage, 16 px clear of its frame; corner and size are the user's
     property string pipCorner: "br"            // "br" | "bl" | "tr" | "tl"
     property string pipSize: "M"               // "S" | "M" | "L"
     property bool pipDragging: false
-    readonly property real pipInset: pad + 2 + 12
+    readonly property real pipInset: pad + 1 + Theme.space2
     readonly property real pipWidth: pipSize === "S" ? 176 : pipSize === "L" ? 320 : 240
     readonly property real pipChrome: 70       // controls row + caption row around the picture
     readonly property real pipSpacing: 8
     readonly property int pipTiles: Math.max(1, count - 1)
-    readonly property real pipViewHeight: Math.max(60, Math.min(pipWidth * 1.35, (height - 2 * pipInset - pipTiles * pipChrome - (pipTiles - 1) * pipSpacing) / pipTiles))
+    readonly property real pipViewHeight: Math.max(60, Math.min(pipWidth * 1.35, (height - 2 * pipInset - 40 - pipTiles * pipChrome - (pipTiles - 1) * pipSpacing) / pipTiles))
     readonly property real pipTileHeight: pipChrome + pipViewHeight
     function snapCorner(cx, cy) { return (cy < height / 2 ? "t" : "b") + (cx < width / 2 ? "l" : "r") }
 
@@ -72,6 +72,64 @@ Item {
         }
     }
 
+    // System code of your own game (the selected game is the running one while the game view is shown)
+    readonly property string localSystem: {
+        const g = root.player.selectedGame
+        return g && g.title === root.ctl.localTitle && g.system ? String(g.system) : ""
+    }
+    readonly property string ownWho: root.ctl.ownName !== "" ? root.ctl.ownName : qsTr("You")
+
+    // A note on a tile's picture: "Paused by Lena" over the frozen picture (title, sub; `compact` in a PiP window)
+    component TileNote: Rectangle {
+        id: note
+        property string title: ""
+        property string sub: ""
+        property bool compact: false
+        readonly property real maxNoteWidth: Math.max(120, note.parent ? note.parent.width - 16 : 400)
+        implicitWidth: Math.min(maxNoteWidth, Math.max(titleText.implicitWidth, subText.visible ? subText.implicitWidth : 0) + 2 * Theme.space2)
+        implicitHeight: noteCol.implicitHeight + (compact ? Theme.space1 * 1.5 : Theme.space2)
+        radius: 0
+        color: Theme.surface
+        border.width: 1
+        border.color: Theme.rule
+        Column {
+            id: noteCol
+            anchors.centerIn: parent
+            width: note.width - 2 * Theme.space2
+            spacing: 2
+            Text {
+                id: titleText
+                objectName: "tileCardTitle"
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                maximumLineCount: note.compact ? 1 : 2
+                elide: Text.ElideRight
+                textFormat: Text.PlainText
+                text: note.title
+                font.family: Theme.sans
+                font.pixelSize: note.compact ? Theme.roles.small.size : Theme.roles.itemTitle.size
+                font.weight: Font.Medium
+                color: Theme.ink
+            }
+            Text {
+                id: subText
+                objectName: "tileCardSub"
+                visible: note.sub !== "" && !note.compact
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                maximumLineCount: 2
+                elide: Text.ElideRight
+                textFormat: Text.PlainText
+                text: note.sub
+                font.family: Theme.sans
+                font.pixelSize: Theme.roles.small.size
+                color: Theme.muted
+            }
+        }
+    }
+
     // One entry per surface, synced incrementally: adding or removing a Session must not recreate the other
     // surfaces (above all not the local game view).
     ListModel { id: surfaceModel }
@@ -95,7 +153,7 @@ Item {
     }
 
 
-    // Corner targets while a PiP window is dragged (3i-3): dashed 60 x 40 areas in the corners it is not in
+    // Corner targets while a PiP window is dragged: dashed 60 x 40 areas in the corners it is not in
     Repeater {
         model: root.layoutMode === "pip" && root.pipDragging ? ["tl", "tr", "bl", "br"] : []
         delegate: Rectangle {
@@ -104,14 +162,14 @@ Item {
             visible: modelData !== root.pipCorner
             x: modelData.charAt(1) === "l" ? root.pipInset : root.width - root.pipInset - width
             y: modelData.charAt(0) === "t" ? root.pipInset : root.height - root.pipInset - height
-            width: 60; height: 40; radius: 0
+            width: 60; height: 40
             color: "transparent"
             border.width: 1
-            border.color: Theme.gameKeyLine
+            border.color: Theme.dim
             z: 1
         }
     }
-    UzLabel {
+    Text {
         objectName: "pipDragHint"
         visible: root.layoutMode === "pip" && root.pipDragging
         anchors.horizontalCenter: parent.horizontalCenter
@@ -119,8 +177,10 @@ Item {
         anchors.bottomMargin: root.pad + 6
         z: 3
         text: qsTr("Drag to snap to a corner · S / M / L size")
-        font.pixelSize: 12
-        color: Theme.gameMeta
+        textFormat: Text.PlainText
+        font.family: Theme.sans
+        font.pixelSize: Theme.roles.small.size
+        color: Theme.muted
     }
 
     Repeater {
@@ -131,6 +191,7 @@ Item {
             readonly property string modelData: sid
             readonly property int slot: root.order.indexOf(modelData)
             readonly property var info: root.ctl.surfaceInfo[modelData] || ({})
+            readonly property var link: root.ctl.surfaceLinks[modelData] || null
             readonly property bool isLocal: modelData === "local"
             readonly property bool audible: root.ctl.audioFocus === modelData
             readonly property bool picked: root.selected === modelData
@@ -141,10 +202,19 @@ Item {
             readonly property bool paused: localPaused || remotePaused
             readonly property bool loading: !isLocal && info.loading === true && !remotePaused
             readonly property real lane: stripLoader.active ? 24 : 0     // row above the picture for the plugin strip
+            readonly property string who: isLocal ? root.ownWho : (info.who || "")
+            readonly property color personColor: Theme.playerColor(slot + 1, Theme.dark)
+            // Right side of the bar: YOU, PAUSED BY <NAME>, CONNECTING, RELAYED (the AUDIO tag follows it)
+            readonly property string status: remotePaused ? qsTr("Paused by %1").arg(info.pausedBy || info.who || "")
+                : localPaused ? qsTr("Paused")
+                : loading ? qsTr("Connecting")
+                : isLocal ? qsTr("You")
+                : (link && link.tone !== "ok" ? link.text : "")
             property real dragDx: 0
             property real dragDy: 0
             readonly property bool atTop: root.pipCorner.charAt(0) === "t"
             readonly property bool atLeft: root.pipCorner.charAt(1) === "l"
+            readonly property real stagePad: pipTile ? 10 : Theme.space2
 
             objectName: "surfaceTile_" + modelData
             visible: slot >= 0
@@ -160,13 +230,25 @@ Item {
                                : root.height - root.pipInset - slot * root.pipTileHeight - (slot - 1) * root.pipSpacing)
               : root.pad) + dragDy
 
+            // Frame; the `stage` plane behind the picture (a PiP window sits on the picture, so it has its own `surface`)
             Rectangle {
-                id: surfaceBg
+                id: frame
                 anchors.fill: parent
                 radius: 0
-                color: tapHover.hovered && !tile.pipTile ? Theme.gameHover : (tile.pipTile ? Theme.gameTile : Theme.gameTileBody)
-                border.width: tile.multiple ? 2 : 0
-                border.color: tile.pipTile ? Theme.gamePopoverBorder : Theme.gameTileEdge
+                color: tile.pipTile ? Theme.surface : "transparent"
+                border.width: 1
+                border.color: tile.audible && tile.multiple ? Theme.accent : Theme.rule
+            }
+            Rectangle {
+                id: stagePlane
+                visible: !tile.pipTile
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: bar.top
+                anchors.margins: 1
+                anchors.bottomMargin: 0
+                color: tapHover.hovered ? Theme.hover : Theme.stage
             }
             HoverHandler { id: tapHover; cursorShape: Qt.PointingHandCursor }
             TapHandler {
@@ -193,17 +275,17 @@ Item {
                 id: pictureBox
                 objectName: "tilePicture_" + tile.modelData
                 anchors.fill: parent
-                anchors.leftMargin: tile.pipTile ? 10 : 12
-                anchors.rightMargin: tile.pipTile ? 10 : 12
-                anchors.topMargin: (tile.pipTile ? 38 : 12) + tile.lane
-                anchors.bottomMargin: tile.pipTile ? 32 : 12 + 26 + 8
+                anchors.leftMargin: tile.stagePad + 1
+                anchors.rightMargin: tile.stagePad + 1
+                anchors.topMargin: (tile.pipTile ? 38 : tile.stagePad + 1) + tile.lane
+                anchors.bottomMargin: tile.pipTile ? 32 : 40 + tile.stagePad
                 Loader {
                     anchors.fill: parent
                     opacity: tile.remotePaused || tile.loading ? 0.45 : 1
                     sourceComponent: tile.isLocal ? localComp : remoteComp
                 }
-                // Paused / loading states (3r-3): remote paused by the host, your own paused game, a Session still connecting
-                TileStateCard {
+                // Paused / loading states: remote paused by the host, your own paused game, a Session still connecting
+                TileNote {
                     objectName: "tilePausedBanner"
                     visible: tile.paused
                     anchors.centerIn: parent
@@ -211,13 +293,41 @@ Item {
                     title: tile.remotePaused ? qsTr("❚❚ Paused by %1").arg(tile.info.pausedBy || tile.info.who || "") : qsTr("❚❚ Paused")
                     sub: tile.remotePaused ? qsTr("Frozen picture · resumes here") : qsTr("Esc or Resume continues")
                 }
-                TileStateCard {
+                // Waiting for a Session that has no picture yet: the ensō, who and what is starting (waiting tile of 3r-5)
+                Column {
                     objectName: "tileLoadingCard"
                     visible: tile.loading
                     anchors.centerIn: parent
-                    compact: tile.pipTile
-                    title: qsTr("%1’s game is loading").arg(tile.info.who || "")
-                    sub: qsTr("Connecting…")
+                    width: Math.min(parent.width, 260)
+                    spacing: Theme.space1
+                    UzEnso { visible: !tile.pipTile && pictureBox.height > 140; size: 48; anchors.horizontalCenter: parent.horizontalCenter }
+                    Text {
+                        objectName: "tileCardTitle"
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                        textFormat: Text.PlainText
+                        text: qsTr("%1’s game is loading").arg(tile.info.who || "")
+                        font.family: Theme.sans
+                        font.pixelSize: tile.pipTile ? Theme.roles.small.size : Theme.roles.itemTitle.size
+                        font.weight: Font.Medium
+                        color: Theme.ink
+                    }
+                    Text {
+                        objectName: "tileCardSub"
+                        visible: !tile.pipTile
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        textFormat: Text.PlainText
+                        text: qsTr("Connecting…")
+                        font.family: Theme.mono
+                        font.pixelSize: 10
+                        font.letterSpacing: 0.8
+                        font.capitalization: Font.AllUppercase
+                        color: Theme.dim
+                    }
                 }
             }
             Component {
@@ -240,15 +350,36 @@ Item {
                 }
             }
 
-            // Selection: the tile's own border turns accent (the one selection style)
+            // Audio frame: the second Yamabuki pixel inside the frame (audio-ring), 2 px in total
+            Rectangle {
+                objectName: "tileAudioFrame_" + tile.modelData
+                visible: tile.audible && tile.multiple
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: 0
+                color: "transparent"
+                border.width: 1
+                border.color: Theme.accent
+                z: 5
+            }
+            // Selection: the selected tile (the side panel follows it) has an `ink-2` frame; the audio frame wins
             Rectangle {
                 objectName: "tileSelection_" + tile.modelData
                 visible: tile.picked && tile.multiple
                 anchors.fill: parent
                 radius: 0
                 color: "transparent"
-                border.width: 2
-                border.color: Theme.gameAccent
+                border.width: 1
+                border.color: tile.audible ? Theme.accent : Theme.ink2
+                z: 5
+            }
+            // The person rule: 40 x 3 px at the top left, always with the name
+            Rectangle {
+                objectName: "personRule_" + tile.modelData
+                x: 0; y: 0
+                width: Theme.personMarker; height: 3
+                color: tile.personColor
+                z: 6
             }
 
             // Plugin tile strip (remote tiles only): 20 high in its own row above the picture, so it never covers the game image
@@ -267,8 +398,8 @@ Item {
             Loader {
                 id: stripLoader
                 active: !tile.isLocal && tile.strip !== null
-                x: tile.pipTile ? 10 : 12
-                y: tile.pipTile ? 38 : 12
+                x: tile.stagePad + 1
+                y: tile.pipTile ? 38 : tile.stagePad + 1
                 z: 6
                 sourceComponent: PluginTileStrip {
                     player: root.player
@@ -285,10 +416,12 @@ Item {
                 y: stripLoader.y
                 z: 6
                 width: 20; height: 20; radius: 0
-                color: moreHover.hovered ? Theme.gameSegmentOn : Theme.gameChip
+                color: moreHover.hovered ? Theme.pressed : Theme.surface
+                border.width: 1
+                border.color: Theme.rule
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Choose the strip")
-                Text { anchors.centerIn: parent; text: "⋯"; font.pixelSize: 14; color: Theme.gameText }
+                UzGlyph { anchors.centerIn: parent; name: "more"; size: 14; color: Theme.ink2 }
                 HoverHandler { id: moreHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler {
                     onTapped: {
@@ -305,56 +438,95 @@ Item {
                 }
             }
 
-            // Info row under the picture: index chip, name, pills (not in a PiP window, which has its own rows)
-            RowLayout {
+            // Name bar under the picture: key number, person square, name, system chip and game, status, AUDIO tag
+            // (not in a PiP window, which has its own rows)
+            Item {
+                id: bar
                 objectName: "tileInfoRow_" + tile.modelData
                 visible: !tile.pipTile
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.margins: 12
-                height: 26
-                spacing: 8
-                Rectangle {
-                    objectName: "keyBadge_" + tile.modelData
-                    visible: tile.multiple
-                    Layout.preferredWidth: 22; Layout.preferredHeight: 20; radius: 0
-                    color: Theme.gameBadge
-                    UzMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
-                }
-                UzLabel {
-                    id: chipText
-                    objectName: "nameChip_" + tile.modelData
-                    visible: tile.multiple || !tile.isLocal
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    elide: Text.ElideRight
-                    text: tile.info.name || ""
-                    font.pixelSize: 13
-                    color: Theme.gameText
-                }
-                Item { visible: !chipText.visible; Layout.fillWidth: true }
-                Rectangle {
-                    objectName: "audioChip_" + tile.modelData
-                    visible: tile.audible && tile.multiple
-                    Layout.preferredWidth: audioText.implicitWidth + 16
-                    Layout.preferredHeight: 20
-                    radius: 0
-                    color: Theme.gameOnBg
-                    UzLabel { id: audioText; anchors.centerIn: parent; text: tile.width < 300 ? qsTr("♪") : qsTr("♪ Audio"); font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.gameAccent }
-                }
-                Rectangle {
-                    objectName: "pausedPill_" + tile.modelData
-                    visible: tile.paused
-                    Layout.preferredWidth: pausedText.implicitWidth + 16
-                    Layout.preferredHeight: 20
-                    radius: 0
-                    color: Theme.gameBadge
-                    UzLabel { id: pausedText; anchors.centerIn: parent; text: qsTr("Paused"); font.pixelSize: 11; color: Theme.gameBadgeText }
+                anchors.margins: 1
+                height: 40
+                Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.rule2 }
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 14
+                    anchors.rightMargin: 14
+                    spacing: 10
+                    UzMono {
+                        objectName: "keyBadge_" + tile.modelData
+                        visible: tile.multiple
+                        text: String(tile.slot + 1)
+                        font.pixelSize: 10
+                        font.letterSpacing: 0.8
+                        color: Theme.dim
+                    }
+                    Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; color: tile.personColor }
+                    Text {
+                        id: chipText
+                        objectName: "nameChip_" + tile.modelData
+                        Layout.maximumWidth: Math.max(60, bar.width * 0.4)
+                        Layout.minimumWidth: 0
+                        elide: Text.ElideRight
+                        textFormat: Text.PlainText
+                        text: tile.who
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.itemTitleSm.size
+                        font.weight: Font.Medium
+                        color: Theme.ink
+                    }
+                    UzSystemChip {
+                        visible: tile.isLocal && root.localSystem !== ""
+                        system: root.localSystem
+                    }
+                    UzMono {
+                        objectName: "tileGame_" + tile.modelData
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        elide: Text.ElideRight
+                        text: tile.info.game || ""
+                        font.pixelSize: 10
+                        font.letterSpacing: 0.8
+                        font.capitalization: Font.AllUppercase
+                        color: Theme.dim
+                    }
+                    UzMono {
+                        objectName: tile.paused ? "pausedPill_" + tile.modelData : "tileStatus_" + tile.modelData
+                        visible: tile.status !== ""
+                        Layout.minimumWidth: 0
+                        Layout.maximumWidth: Math.max(60, bar.width * 0.4)
+                        elide: Text.ElideRight
+                        text: tile.status
+                        font.pixelSize: 10
+                        font.letterSpacing: 0.8
+                        font.capitalization: Font.AllUppercase
+                        color: Theme.dim
+                    }
+                    Rectangle {
+                        objectName: "audioChip_" + tile.modelData
+                        visible: tile.audible && tile.multiple
+                        Layout.preferredWidth: audioText.implicitWidth + 12
+                        Layout.preferredHeight: 18
+                        radius: 0
+                        color: Theme.accent
+                        Text {
+                            id: audioText
+                            anchors.centerIn: parent
+                            text: qsTr("AUDIO")
+                            textFormat: Text.PlainText
+                            font.family: Theme.mono
+                            font.pixelSize: 10
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 1.0
+                            color: Theme.inkOnAccent
+                        }
+                    }
                 }
             }
 
-            // PiP window (3i-3): controls row (index chip, size steps, audio, swap, remove) and the caption
+            // PiP window: controls row (key number, size steps, audio, swap, remove) and the caption
             RowLayout {
                 visible: tile.pipTile
                 anchors.top: parent.top
@@ -364,12 +536,15 @@ Item {
                 anchors.topMargin: 10
                 height: 24
                 spacing: 4
+                z: 7
                 Rectangle {
                     objectName: "pipKeyBadge_" + tile.modelData
                     visible: tile.pipTile
-                    Layout.preferredWidth: 22; Layout.preferredHeight: 20; radius: 0
-                    color: Theme.gameBadge
-                    UzMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
+                    Layout.preferredWidth: 22; Layout.preferredHeight: 20
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Theme.rule
+                    UzMono { anchors.centerIn: parent; text: String(tile.slot + 1); font.pixelSize: 10; color: Theme.ink2 }
                 }
                 Row {
                     spacing: 2
@@ -378,9 +553,9 @@ Item {
                         delegate: Rectangle {
                             required property string modelData
                             objectName: "pipSize_" + modelData + "_" + tile.modelData
-                            width: 20; height: 20; radius: 0
-                            color: root.pipSize === modelData ? Theme.gameOnBg : "transparent"
-                            UzMono { anchors.centerIn: parent; text: parent.modelData; font.pixelSize: 10; color: root.pipSize === parent.modelData ? Theme.gameAccent : Theme.gameTextMuted }
+                            width: 20; height: 20
+                            color: root.pipSize === modelData ? Theme.accent : "transparent"
+                            UzMono { anchors.centerIn: parent; text: parent.modelData; font.pixelSize: 10; color: root.pipSize === parent.modelData ? Theme.inkOnAccent : Theme.muted }
                             TapHandler { onTapped: root.pipSize = parent.modelData }
                         }
                     }
@@ -388,43 +563,61 @@ Item {
                 Rectangle {
                     objectName: "pipAudioChip_" + tile.modelData
                     visible: tile.audible && tile.multiple
-                    Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 0
-                    color: Theme.gameOnBg
-                    UzLabel { anchors.centerIn: parent; text: "♪"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.gameAccent }
+                    Layout.preferredWidth: 20; Layout.preferredHeight: 20
+                    color: Theme.accent
+                    UzGlyph { anchors.centerIn: parent; name: "volume"; size: 14; color: Theme.inkOnAccent }
                 }
                 Item { Layout.fillWidth: true }
-                GameButton {
+                UzButton {
                     objectName: "swapButton_" + tile.modelData
-                    look: "surface"
-                    fixedWidth: 24
+                    kind: "link"
+                    focusPolicy: Qt.NoFocus
                     implicitHeight: 24
-                    glyph: "⇄"
-                    tip: qsTr("Swap with the main picture")
+                    implicitWidth: 24
+                    hPadding: 0
+                    text: "⇄"
+                    Accessible.name: qsTr("Swap with the main picture")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 500
+                    ToolTip.text: qsTr("Swap with the main picture")
                     onClicked: root.ctl.makeMain(tile.modelData)
                 }
-                GameButton {
+                UzButton {
                     objectName: "removeButton_" + tile.modelData
                     visible: !tile.isLocal
-                    look: "surface"
-                    fixedWidth: 24
+                    kind: "link"
+                    focusPolicy: Qt.NoFocus
                     implicitHeight: 24
-                    glyph: "×"
-                    tip: qsTr("Remove from multiview")
+                    implicitWidth: 24
+                    hPadding: 0
+                    text: "×"
+                    Accessible.name: qsTr("Remove from multiview")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 500
+                    ToolTip.text: qsTr("Remove from multiview")
                     onClicked: root.ctl.removeSurface(tile.modelData)
                 }
             }
-            UzLabel {
+            RowLayout {
                 visible: tile.pipTile
-                objectName: "pipCaption_" + tile.modelData
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 anchors.margins: 10
                 anchors.bottomMargin: 8
-                elide: Text.ElideRight
-                text: tile.info.name || ""
-                font.pixelSize: 11
-                color: Theme.gameText
+                spacing: 6
+                Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; color: tile.personColor }
+                Text {
+                    objectName: "pipCaption_" + tile.modelData
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    elide: Text.ElideRight
+                    textFormat: Text.PlainText
+                    text: tile.info.name || ""
+                    font.family: Theme.sans
+                    font.pixelSize: Theme.roles.small.size
+                    color: Theme.ink
+                }
             }
         }
     }

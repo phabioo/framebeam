@@ -97,11 +97,10 @@ class BackgroundGameUiTest : public QObject {
     QVERIFY(tile != nullptr);
     QCOMPARE(tile->property("gameId").toString(), QStringLiteral("g1"));
     const QRectF tr = sceneRect(tile);
-    const QRectF cover(tr.x(), tr.y(), tr.width() - 18, tr.width() - 18);
     const QRectF pr = sceneRect(pill);
-    QVERIFY2(pr.left() >= cover.left() - 0.5 && pr.right() <= cover.right() + 0.5 && pr.top() >= cover.top() - 0.5 && pr.bottom() <= cover.bottom() + 0.5,
-             "marker outside the cover");
-    QVERIFY2(pr.right() > cover.right() - 14, "marker is not top right");
+    // The "Paused" tag sits in the title cell of the table row, inside the row.
+    QVERIFY2(pr.left() >= tr.left() - 0.5 && pr.right() <= tr.right() + 0.5 && pr.top() >= tr.top() - 0.5 && pr.bottom() <= tr.bottom() + 0.5,
+             "marker outside the row");
     QQuickItem* pane = h.item("detailPane");
     QVERIFY(pane != nullptr);
     const QRectF pb = sceneRect(pane);
@@ -291,8 +290,8 @@ class BackgroundGameUiTest : public QObject {
     c->playSelected();  // what the Play button does for this game (the dummy ROM is not downloaded, so the button itself is not clickable)
     QQuickItem* dlg = h.item("startConfirmDialog");
     QTRY_VERIFY(dlg != nullptr && dlg->isVisible());
-    QCOMPARE(h.item("startConfirmEyebrow")->property("text").toString(), QStringLiteral("Lumen Drift is running · paused"));
-    QCOMPARE(h.item("startConfirmTitle")->property("text").toString(), QStringLiteral("Quit Lumen Drift and start Night Run?"));
+    QCOMPARE(h.item("startConfirm")->property("label").toString(), QStringLiteral("Lumen Drift is running · paused"));
+    QCOMPARE(h.item("startConfirm")->property("title").toString(), QStringLiteral("Quit Lumen Drift and start Night Run?"));
     QVERIFY(h.item("startConfirmQuit")->property("text").toString().contains(QStringLiteral("Night Run")));
     struct Size { int w, h; };
     for (const Size sz : {Size{960, 600}, Size{1280, 800}, Size{1920, 1080}}) {
@@ -302,7 +301,7 @@ class BackgroundGameUiTest : public QObject {
       const QRectF win(0, 0, sz.w, sz.h);
       for (const char* n : {"startConfirmDialog", "startConfirmCancel", "startConfirmQuit"}) inside(h, n, win);
       const QRectF dr = sceneRect(h.item("startConfirmDialog"));
-      QVERIFY2(dr.width() <= 500.5, "dialog wider than 500");
+      QVERIFY2(dr.width() <= 400.5, "dialog wider than 400");
       inside(h, "startConfirmQuit", dr);
     }
     h.window->resize(1440, 900);
