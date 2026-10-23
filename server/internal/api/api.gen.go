@@ -1961,14 +1961,14 @@ type AdminNetSetting struct {
 	// RunningValue The value the running server uses
 	RunningValue string `json:"running_value"`
 
-	// Source `web` = saved with the web interface or API
+	// Source `web` = saved through the admin API
 	Source AdminNetSettingSource `json:"source"`
 
 	// Value The value that applies after a restart (the saved value or else the server.env value)
 	Value string `json:"value"`
 }
 
-// AdminNetSettingSource `web` = saved with the web interface or API
+// AdminNetSettingSource `web` = saved through the admin API
 type AdminNetSettingSource string
 
 // AdminNetSettingInput defines model for AdminNetSettingInput.
@@ -2125,7 +2125,7 @@ type AdminPlugins struct {
 
 // AdminProblem defines model for AdminProblem.
 type AdminProblem struct {
-	// ActionHref Web interface path of the action; informational for apps
+	// ActionHref Informational path of the suggested action (the app maps the label itself)
 	ActionHref *string `json:"action_href,omitempty"`
 
 	// ActionLabel Label of the suggested action, empty when none
@@ -4876,7 +4876,7 @@ type ServerInterface interface {
 	// Replace the self-generated TLS certificate (admin)
 	// (POST /api/v1/admin/security/renew-cert)
 	RenewAdminCertificate(w http.ResponseWriter, r *http.Request)
-	// Server settings as the Settings pages show them (admin)
+	// Server settings as the Settings screens of the app show them (admin)
 	// (GET /api/v1/admin/settings)
 	GetAdminSettings(w http.ResponseWriter, r *http.Request)
 	// Change general and update settings (admin)
@@ -24942,7 +24942,7 @@ type StrictServerInterface interface {
 	// Replace the self-generated TLS certificate (admin)
 	// (POST /api/v1/admin/security/renew-cert)
 	RenewAdminCertificate(ctx context.Context, request RenewAdminCertificateRequestObject) (RenewAdminCertificateResponseObject, error)
-	// Server settings as the Settings pages show them (admin)
+	// Server settings as the Settings screens of the app show them (admin)
 	// (GET /api/v1/admin/settings)
 	GetAdminSettings(ctx context.Context, request GetAdminSettingsRequestObject) (GetAdminSettingsResponseObject, error)
 	// Change general and update settings (admin)

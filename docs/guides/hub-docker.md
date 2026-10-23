@@ -79,7 +79,7 @@ services:
       # UZUME_TURN: "1"
       # UZUME_PUBLIC_HOST: "hub.example.com"
     ports:
-      - "8443:8443"                  # web interface and API (TCP)
+      - "8443:8443"                  # API and signaling (TCP)
       # With UZUME_TURN=1 (same numbers as -turn-port and -turn-relay-ports):
       # - "3478:3478/udp"
       # - "3478:3478/tcp"
@@ -93,7 +93,7 @@ volumes:
   uzume-data:
 ```
 
-Bridge networking is fine for the web port. For the TURN relay the server announces the address from `UZUME_PUBLIC_HOST` (or `UZUME_TURN_RELAY_IP`), so publish exactly the relay range you configured and forward the same ports on the router. If relaying is unreliable behind NAT, `network_mode: host` removes Docker's port translation (then drop the `ports` section).
+Bridge networking is fine for the server port. For the TURN relay the server announces the address from `UZUME_PUBLIC_HOST` (or `UZUME_TURN_RELAY_IP`), so publish exactly the relay range you configured and forward the same ports on the router. If relaying is unreliable behind NAT, `network_mode: host` removes Docker's port translation (then drop the `ports` section).
 
 ## Volumes and permissions
 
@@ -104,7 +104,7 @@ Bridge networking is fine for the web port. For the TURN relay the server announ
 
 ## Upgrade
 
-The server never updates itself inside a container (`UZUME_SERVER_CONTAINER=1`): Settings → Updates shows that a newer version exists and tells you to pull the image. Sessions end while the container restarts. `docker exec uzume-server uzume-server update` (or `update -check`) says whether a newer version exists and prints the image tag to pull; it installs nothing.
+The server never updates itself inside a container (`UZUME_SERVER_CONTAINER=1`): Settings › Server › Updates shows that a newer version exists and tells you to pull the image. Sessions end while the container restarts. `docker exec uzume-server uzume-server update` (or `update -check`) says whether a newer version exists and prints the image tag to pull; it installs nothing.
 
 ```sh
 docker compose pull && docker compose up -d

@@ -15,7 +15,7 @@ import (
 	"github.com/phabioo/uzume/server/internal/auth"
 )
 
-// Admin operations the web interface needs (0.14 UI round 3, designs 3m-2, 3n-2, 4jh-3). None of them is part of
+// Admin operations the app needs (0.14 UI round 3, designs 3m-2, 3n-2, 4jh-3). None of them is part of
 // the app API.
 
 // ---- Users ----
@@ -41,9 +41,9 @@ func (s *Service) RenameUser(ctx context.Context, userID, displayName string) (e
 	return nil
 }
 
-// SetUserRole changes the role of a user. Making a user an admin needs a password (the web interface signs in with
+// SetUserRole changes the role of a user. Making a user an admin needs a password (the app signs in with
 // username and password, MinPasswordLen characters); the user must not be disabled. Making an admin a regular user
-// keeps the password (a member may have one, ADR 0030 D5) and ends their web sessions; the actor cannot demote themselves and the last admin stays.
+// keeps the password (a member may have one, ADR 0030 D5); the actor cannot demote themselves and the last admin stays.
 func (s *Service) SetUserRole(ctx context.Context, actorID, userID string, role Role, password string) (err error) {
 	defer s.publishOK(&err, TopicUsers, TopicClients)
 	u, err := s.GetUser(ctx, userID)
@@ -206,7 +206,7 @@ func (s *Service) RunInviteTimes(ctx context.Context, runID string) (map[string]
 	return out, internal2(rows.Err())
 }
 
-// RemoveRunInvite removes the open invitation of a user from a run that is not over (web interface). Only a
+// RemoveRunInvite removes the open invitation of a user from a run that is not over. Only a
 // participant who is still "invited" can be removed. The run gets a server event.
 func (s *Service) RemoveRunInvite(ctx context.Context, actorID, runID, userID string) (err error) {
 	defer s.publishOK(&err, TopicRuns)

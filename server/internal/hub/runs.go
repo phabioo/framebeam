@@ -45,7 +45,7 @@ func RunSaveSlot(runID string) string {
 	return b.String()
 }
 
-// TopicRuns is published when a run changes (the web interface refreshes its Runs page).
+// TopicRuns is published when a run changes (the app refreshes its Runs page).
 const TopicRuns = "runs"
 
 // Run and participant states.
@@ -195,7 +195,7 @@ type RunEvent struct {
 	ClientID  string          `json:"client_id"`
 }
 
-// RunBoard is the board tree of one plugin of a run (web page).
+// RunBoard is the board tree of one plugin of a run (shown in the app).
 type RunBoard struct {
 	PluginID  string          `json:"plugin_id"`
 	Rev       int64           `json:"rev"`
@@ -1099,13 +1099,13 @@ func (s *Service) SetRunStatus(ctx context.Context, userID, runID, status string
 	return s.setRunStatus(ctx, userID, runID, status, false, false)
 }
 
-// SetRunStatusAdmin changes the status as the server admin (web interface), without being a participant: pause,
+// SetRunStatusAdmin changes the status as the server admin (admin API), without being a participant: pause,
 // resume, start (from "starting") and finish or abandon a run that is not over.
 func (s *Service) SetRunStatusAdmin(ctx context.Context, adminID, runID, status string) (Run, error) {
 	return s.setRunStatus(ctx, adminID, runID, status, true, false)
 }
 
-// StartRunAdmin starts a run that is still "starting" as the server admin (web interface "Start now"). With
+// StartRunAdmin starts a run that is still "starting" as the server admin ("Start now" in the app). With
 // withoutInvited, participants who are only invited and have not joined are removed first ("Start without Sam"),
 // in the same transaction as the status change.
 func (s *Service) StartRunAdmin(ctx context.Context, adminID, runID string, withoutInvited bool) (Run, error) {
@@ -1359,7 +1359,7 @@ func (s *Service) AppendRunEvent(ctx context.Context, in AppendRunEventInput) (s
 	return ev.Seq, true, nil
 }
 
-// PutRunBoard stores the board tree of a plugin of the run (the server web page renders it) and returns the new rev.
+// PutRunBoard stores the board tree of a plugin of the run (the app renders it) and returns the new rev.
 func (s *Service) PutRunBoard(ctx context.Context, userID, runID, pluginID string, tree json.RawMessage) (int64, error) {
 	s.runs.mu.Lock()
 	defer s.runs.mu.Unlock()
@@ -1404,7 +1404,7 @@ func (s *Service) PutRunBoard(ctx context.Context, userID, runID, pluginID strin
 	return rev, nil
 }
 
-// ---- admin (web interface) ----
+// ---- admin ----
 
 // ActiveRunCount is the number of non-archived runs in status active (sidebar badge).
 func (s *Service) ActiveRunCount(ctx context.Context) (int, error) {

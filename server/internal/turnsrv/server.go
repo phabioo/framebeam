@@ -66,7 +66,7 @@ type Config struct {
 	Log       *slog.Logger
 }
 
-// Status is the state shown on the Settings page.
+// Status is the state shown on the Settings screen of the app.
 type Status struct {
 	PublicHost  string
 	Port        int

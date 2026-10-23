@@ -20,7 +20,7 @@ const (
 	ExternalTURNFromWeb   = "web"
 )
 
-// Limits of the web form.
+// Limits of the form fields.
 const (
 	maxExternalTURN     = 8
 	maxExternalTURNURLs = 8
@@ -35,7 +35,7 @@ const (
 //     credentials per device (username "<expiry-unix>:<device-id>", password base64(HMAC-SHA1(secret, username)),
 //     TTL like the embedded TURN) and re-sends them by ice_update before they expire.
 //
-// Two sources, the same precedence as the other server settings: the list saved in the web interface (Settings,
+// Two sources, the same precedence as the other server settings: the list saved in the app (Settings,
 // Network) wins; without a saved list the servers from the flags/server.env (-turn-external) apply. Secrets of
 // flag-configured servers only exist in memory (read from the environment or a file); secrets saved in the web
 // interface live in the settings table like the embedded TURN secret. Neither is ever logged or part of
@@ -203,7 +203,7 @@ func (s *Service) reloadExternal(ctx context.Context) error {
 }
 
 // StartExternalTURN activates the external TURN servers until ctx ends. flags is the list from -turn-external; a
-// list saved in the web interface replaces it. Apps get the servers by ice_update; shared-secret credentials are
+// list saved in the app replaces it. Apps get the servers by ice_update; shared-secret credentials are
 // renewed by a periodic ice_update push that always reads the current list, so edits apply without a restart.
 func (s *Service) StartExternalTURN(ctx context.Context, flags []ExternalTURN, o ExternalTURNOptions) {
 	s.ext.mu.Lock()
@@ -255,7 +255,7 @@ func (s *Service) StartExternalTURN(ctx context.Context, flags []ExternalTURN, o
 	}()
 }
 
-// ExternalTURNInput is one add/edit of an external TURN server from the web interface. Secret is the new shared
+// ExternalTURNInput is one add/edit of an external TURN server from the app. Secret is the new shared
 // secret or password; empty keeps the existing one unless ClearSecret is set.
 type ExternalTURNInput struct {
 	Original    string // name of the server to edit; empty adds a new one

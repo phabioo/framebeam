@@ -18,7 +18,7 @@ import (
 
 // Admin API for the settings (0.18, `admin_v1`): server name, uploads, network, external TURN servers, updates,
 // certificate and diagnostics bundle. The web theme, the admin password and the backups / metrics settings are
-// not part of it. Validation and apply code are the web interface's (adminhost.Host); no secret is ever returned.
+// not part of it. Validation and apply code are the app's (adminhost.Host); no secret is ever returned.
 
 // hostError turns the refusals of the host into API errors.
 func hostError(err error) error {
@@ -215,7 +215,7 @@ func (s *Server) UpdateAdminSettings(ctx context.Context, req api.UpdateAdminSet
 	return api.UpdateAdminSettings200JSONResponse(out), nil
 }
 
-// netForm turns the body into the fields of the web form.
+// netForm turns the body into the fields of the form fields.
 func netForm(b api.AdminNetSettingInput) url.Values {
 	f := url.Values{}
 	set := func(k string, v *string) {
@@ -409,7 +409,7 @@ func (s *Server) RenewAdminCertificate(ctx context.Context, _ api.RenewAdminCert
 	return api.RenewAdminCertificate200JSONResponse{Fingerprint: fp, NotAfter: notAfter}, nil
 }
 
-// diagBundleResponse streams the zip like the web interface; once it has started a failure can only truncate it.
+// diagBundleResponse streams the zip like the app; once it has started a failure can only truncate it.
 type diagBundleResponse struct {
 	ctx  context.Context
 	info diag.Info

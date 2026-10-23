@@ -14,12 +14,12 @@ If the file moved or was deleted, the game shows "File missing on this device" u
 ## Upload to the server
 
 - In the game detail, "Upload to Hub" sends the file in chunks. It resumes after a lost connection or an app restart. Once a file is stored on the server, the game is visible to everyone and others can download it.
-- "Upload ROM" in the Library header uses the same resumable upload when the server supports it. In the server web admin (Library) the upload works in chunks with JavaScript and falls back to a plain form without it.
+- "Upload ROM" in the Library header uses the same resumable upload when the server supports it.
 - The upload needs the permission to upload and is limited to 4 GiB per file. Unfinished uploads are removed after 7 days.
 
 ## What others see
 
-- A game that is only local is visible to you (and to other users who registered the same file or a file of the same game) and to server admins, who see it as "Local only" in the web Library.
+- A game that is only local is visible to you (and to other users who registered the same file or a file of the same game) and to server admins, who see it as "Local only" in the app's library.
 - Files are never sent between apps. Another user needs their own copy of the file, or you upload it to the server.
 - Different dumps of the same game (same system, game code and version) become one game with several files, so saves are shared. Different versions or regions stay separate games.
 - Files without a readable header (for example `.zcci`) match by hash only: another dump of the same game is a separate game.

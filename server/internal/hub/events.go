@@ -6,7 +6,7 @@ import (
 )
 
 // Event topics published on the in-process bus. Events carry only the topic;
-// subscribers (the web interface) re-fetch whatever they display.
+// subscribers (the app) re-fetch whatever they display.
 const (
 	TopicClients = "clients"
 	TopicSaves   = "saves"

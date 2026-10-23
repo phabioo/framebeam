@@ -12,7 +12,7 @@ import (
 )
 
 // Admin endpoints (0.17): the server health view and the metrics setting for the admin in the app. They use the
-// same data builder (statusinfo) as the web Status page. Admin tokens only: 401 without a token, 403 for users.
+// same data builder (statusinfo) as the app status view. Admin tokens only: 401 without a token, 403 for users.
 
 // WithStatus gives the admin endpoints their data source; without it they answer 404.
 func WithStatus(src *statusinfo.Source) Option { return func(s *Server) { s.status = src } }
@@ -159,7 +159,7 @@ func (s *Server) CreateAdminMetricsToken(ctx context.Context, _ api.CreateAdminM
 	return api.CreateAdminMetricsToken200JSONResponse(api.AdminMetricsToken{Token: tok}), nil
 }
 
-// WithHost gives the admin settings and library endpoints the process-level facts (the web interface server
+// WithHost gives the admin settings and library endpoints the process-level facts (the server host
 // implements it); without it they answer 404.
 func WithHost(h adminhost.Host) Option { return func(s *Server) { s.host = h } }
 

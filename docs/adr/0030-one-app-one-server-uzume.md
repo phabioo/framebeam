@@ -137,7 +137,7 @@ Consequences:
 
 ## Consequences
 
-- The Hub web code (handlers, templates, JavaScript, static assets, tests) is deleted in package 12; nothing browser-facing stays in the server.
+- The Hub web code (handlers, templates, JavaScript, static assets, tests) is deleted in package 12; nothing browser-facing stays in the server. Done in code on 2026-10-23 (package 12): the server serves only `/api/v1`, WebSocket signaling and file transfer.
 - The admin API grows the OpenAPI contract considerably; the app's admin area is the largest UI work of the milestone.
 - Accounts change the identity model of architecture 10 (passwords for all, sign-in on new devices, user switching). The migration keeps existing users and devices working without a password.
 - There is no upgrade path from FrameBeam: the server is set up fresh, the app is installed again and paired again, Docker users switch to the `uzume-server` image (amendment of D1).

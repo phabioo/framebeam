@@ -12,7 +12,7 @@ const (
 	settingAppearance       = "appearance"
 )
 
-// Appearance values of the web interface.
+// Appearance values of the app.
 const (
 	AppearanceLight  = "light"
 	AppearanceDark   = "dark"
@@ -60,7 +60,7 @@ func (s *Service) CanUpload(ctx context.Context, u User) (bool, error) {
 	return s.AllowUserUploads(ctx)
 }
 
-// Appearance returns the web interface mode (light, dark, system). Without a stored choice (new installs, or a
+// Appearance returns the app mode (light, dark, system). Without a stored choice (new installs, or a
 // value this version does not know) it is system: the page follows prefers-color-scheme of the browser.
 func (s *Service) Appearance(ctx context.Context) (string, error) {
 	v, ok, err := s.getSetting(ctx, settingAppearance)
@@ -74,7 +74,7 @@ func (s *Service) Appearance(ctx context.Context) (string, error) {
 	return AppearanceSystem, nil
 }
 
-// SetAppearance stores the web interface mode.
+// SetAppearance stores the app mode.
 func (s *Service) SetAppearance(ctx context.Context, mode string) error {
 	switch mode {
 	case AppearanceLight, AppearanceDark, AppearanceSystem:

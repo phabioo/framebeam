@@ -9,9 +9,9 @@ import (
 )
 
 // Admin API for users, invites, pairing requests and devices (0.18, `admin_v1`). Every handler calls the same hub
-// functions as the web interface; admin tokens only (401 without a token, 403 for users).
+// functions as the app; admin tokens only (401 without a token, 403 for users).
 
-// pairingCodeTTL is the lifetime of the pairing code of a new user or a new code (like the web interface).
+// pairingCodeTTL is the lifetime of the pairing code of a new user or a new code (like the app).
 const pairingCodeTTL = 24 * time.Hour
 
 func adminUserBody(u hub.User, devices int, lastSeen *time.Time) api.AdminUser {

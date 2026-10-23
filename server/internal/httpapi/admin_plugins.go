@@ -9,7 +9,7 @@ import (
 )
 
 // Admin API for plugins and the plugin index (0.18, `admin_v1`). The handlers call the same hub functions as the
-// Plugins page of the web interface.
+// Plugins screen of the app.
 
 func adminPluginBody(p hub.Plugin) api.AdminPlugin {
 	return api.AdminPlugin{Info: pluginInfo(p), Source: api.AdminPluginSource(p.Source), UploadedByName: strPtr(p.UploadedByName)}

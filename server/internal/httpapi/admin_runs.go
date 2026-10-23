@@ -196,7 +196,7 @@ func (s *Server) DeleteAdminRun(ctx context.Context, req api.DeleteAdminRunReque
 	return api.DeleteAdminRun204Response{}, nil
 }
 
-// runExportResponse streams the event log like the web export: the page size is bounded, the document is not built in
+// runExportResponse streams the event log like the app export: the page size is bounded, the document is not built in
 // memory. A failure after the first byte ends the document with an "error" member (see hub.RunExport.WriteTo) and
 // is logged.
 type runExportResponse struct {

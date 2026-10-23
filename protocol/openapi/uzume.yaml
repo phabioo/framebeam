@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Uzume server API
-  version: 1.33.0
+  version: 1.34.0
   description: |
     HTTPS/JSON API of the Uzume server (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the server under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for app-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for an app on the same PC as the server (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected apps receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on app devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games); 0.17 adds problem reports (`reports_v1`: `POST /reports` from any paired device, the admin list, files, zip archive, seen mark and delete under `/admin/reports`); 0.18 adds the admin API under `/admin/...` (`admin_v1`: users and invites, pairing requests and devices, systems, cores and firmware, plugins and the plugin index; only advertised to admins); 0.18 also adds server accounts (`accounts_v1`: sign in with user name and password under `auth`, the own account, password, "Confirm it's you" and devices under `account`, an admin password reset and the password policy under `admin`; dangerous admin steps answer 403 `confirmation_required` until the caller confirmed); 0.18 also adds a zip export of all saves of a user for the admin to download before removing the person (`exportAdminUserSaves`, read-only, no confirmation); 0.18 also adds the setup code (`setup_code_v1`: `POST /setup` trades the setup code that a server without an admin prints at start and on `uzume-server setup-code` for the first admin and a paired device, `setup_required` in the server info). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
@@ -559,8 +559,8 @@ paths:
       tags: [library]
       summary: Upload a ROM (admin, or users when the server allows user uploads)
       description: |
-        Raw body upload (`application/octet-stream`, at most 4 GiB, the same limit as the web upload).
-        Same validation and de-duplication (by SHA-256) as the web upload. `uploaded_by` is the caller.
+        Raw body upload (`application/octet-stream`, at most 4 GiB).
+        Same validation and de-duplication (by SHA-256) for every upload. `uploaded_by` is the caller.
         Admins may always upload; users only when the server setting `allow_user_uploads` is on
         (otherwise 403 `uploads_disabled`; the handshake feature `uploads_v1` is advertised only when allowed).
       security:
@@ -2188,7 +2188,7 @@ paths:
       tags: [admin]
       summary: Server health (admin only)
       description: |
-        The same data as the Status page of the web interface: identity, uptime, open problems (most urgent first),
+        Server health: identity, uptime, open problems (most urgent first),
         CPU, memory, the disk of the data directory, running Sessions, the built-in TURN relay, connected apps and
         the warnings and errors of the last 24 hours (secrets removed). Needs the access token of a device of an
         admin user, otherwise 403.
@@ -3226,7 +3226,7 @@ paths:
       summary: Change the role of a user (admin)
       description: |
         `user` turns an admin into a regular user (not yourself, not the last admin: 403). `admin` makes a user an admin and
-        needs `password` (at least 12 characters; the web interface signs in with it); the user must be enabled (400).
+        needs `password` (at least 12 characters; the app signs in with it); the user must be enabled (400).
         Setting the role a user already has changes nothing.
       security:
         - bearerAuth: []
@@ -4034,7 +4034,7 @@ paths:
       operationId: deleteAdminSaveSlot
       tags: [admin]
       summary: Delete a slot of a user with its whole history (admin)
-      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. `confirm_revision` must be the checkpoint revision the caller saw (409 `save_conflict_stale` otherwise); 409 `session_running` while a Session of the user runs the game, 409 `conflict` while the slot has an open conflict. No undo.
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made by the server on behalf of the admin (device `Web`) and never overwrites silently. `confirm_revision` must be the checkpoint revision the caller saw (409 `save_conflict_stale` otherwise); 409 `session_running` while a Session of the user runs the game, 409 `conflict` while the slot has an open conflict. No undo.
       security:
         - bearerAuth: []
       parameters:
@@ -4148,7 +4148,7 @@ paths:
       operationId: deleteAdminSaveVersion
       tags: [admin]
       summary: Delete a history version of a user's slot (admin)
-      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. 409 `conflict` for the secured version of an open conflict.
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made by the server on behalf of the admin (device `Web`) and never overwrites silently. 409 `conflict` for the secured version of an open conflict.
       security:
         - bearerAuth: []
       responses:
@@ -4177,7 +4177,7 @@ paths:
       operationId: restoreAdminSaveVersion
       tags: [admin]
       summary: Restore a history version as the checkpoint of a user's slot (admin)
-      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. 
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made by the server on behalf of the admin (device `Web`) and never overwrites silently. 
       security:
         - bearerAuth: []
       requestBody:
@@ -4213,7 +4213,7 @@ paths:
       operationId: createAdminSaveSnapshot
       tags: [admin]
       summary: Keep the current checkpoint of a user's slot as a snapshot (admin)
-      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. 
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made by the server on behalf of the admin (device `Web`) and never overwrites silently. 
       security:
         - bearerAuth: []
       requestBody:
@@ -4246,7 +4246,7 @@ paths:
       operationId: resolveAdminSaveConflict
       tags: [admin]
       summary: Resolve a save conflict of a user's slot (admin)
-      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. Both contents stay in the history; the resolution is recorded as made by the web interface.
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made by the server on behalf of the admin (device `Web`) and never overwrites silently. Both contents stay in the history; the resolution is recorded as made by the web interface.
       security:
         - bearerAuth: []
       requestBody:
@@ -4306,7 +4306,7 @@ paths:
       operationId: renameAdminSaveSlot
       tags: [admin]
       summary: Rename a slot of a user (admin)
-      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. 409 `save_slot_protected` for `default`, `save_slot_exists`, `session_running`.
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made by the server on behalf of the admin (device `Web`) and never overwrites silently. 409 `save_slot_protected` for `default`, `save_slot_exists`, `session_running`.
       security:
         - bearerAuth: []
       requestBody:
@@ -4336,7 +4336,7 @@ paths:
       operationId: uploadAdminSaveFile
       tags: [admin]
       summary: Upload a save file into a user's slot (admin; raw body)
-      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made as the web interface (device `Web`) and never overwrites silently. Raw `application/octet-stream` body (max 64 MiB). `X-Uzume-Expected-Revision` must equal the current checkpoint revision (0 for a new slot), otherwise 409 `save_conflict_stale` and nothing changes.
+      description: Acts on the slot of the user in the path with the same rules as the app endpoint of the same name; the change is made by the server on behalf of the admin (device `Web`) and never overwrites silently. Raw `application/octet-stream` body (max 64 MiB). `X-Uzume-Expected-Revision` must equal the current checkpoint revision (0 for a new slot), otherwise 409 `save_conflict_stale` and nothing changes.
       security:
         - bearerAuth: []
       parameters:
@@ -4614,8 +4614,8 @@ paths:
     get:
       operationId: getAdminSettings
       tags: [admin]
-      summary: Server settings as the Settings pages show them (admin)
-      description: General (name, user uploads), Network (every network value with its running, default and saved state, the built-in and external TURN servers, a pending restart), Security (transport and certificate) and Updates. Backups, metrics, passwords and the web theme have their own endpoints or none. Secrets are never returned.
+      summary: Server settings as the Settings screens of the app show them (admin)
+      description: General (name, user uploads), Network (every network value with its running, default and saved state, the built-in and external TURN servers, a pending restart), Security (transport and certificate) and Updates. Backups, metrics, passwords have their own endpoints or none. Secrets are never returned.
       security:
         - bearerAuth: []
       responses:
@@ -4868,7 +4868,7 @@ paths:
       operationId: createAdminDiagnosticsBundle
       tags: [admin]
       summary: Download the diagnostics bundle (admin)
-      description: One zip with logs and settings to hand over when something does not work; secrets are redacted as in the web interface.
+      description: One zip with logs and settings to hand over when something does not work; secrets are redacted as everywhere in the server logs.
       security:
         - bearerAuth: []
       responses:
@@ -5371,7 +5371,7 @@ components:
         detail: { type: string }
         severity: { type: string, enum: [warn, error] }
         action_label: { type: string, description: 'Label of the suggested action, empty when none' }
-        action_href: { type: string, description: 'Web interface path of the action; informational for apps' }
+        action_href: { type: string, description: 'Informational path of the suggested action (the app maps the label itself)' }
     AdminStatusSession:
       type: object
       required: [game_title, owner, device_name, visibility, started_at, viewers]
@@ -6923,7 +6923,7 @@ components:
         value: { type: string, description: The value that applies after a restart (the saved value or else the server.env value) }
         running_value: { type: string, description: The value the running server uses }
         default_value: { type: string, description: The server.env or flag value that applies without a saved value }
-        source: { type: string, enum: [web, env], description: '`web` = saved with the web interface or API' }
+        source: { type: string, enum: [web, env], description: '`web` = saved through the admin API' }
         needs_restart: { type: boolean, description: A change only takes effect after a restart }
         restart_pending: { type: boolean, description: Saved but not applied yet }
     AdminTurn:

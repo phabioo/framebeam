@@ -25,7 +25,7 @@ type saveRetention struct {
 }
 
 // RestoreInput restores a history version as the new checkpoint. DeviceID is the caller's device, or
-// WebDeviceID(user) for the web interface.
+// WebDeviceID(user) for the app.
 type RestoreInput struct {
 	UserID, DeviceID, GameID, Slot string
 	Version, ExpectedRevision      int
@@ -96,7 +96,7 @@ func (s *Service) RestoreSaveVersion(ctx context.Context, in RestoreInput) (_ Sa
 var pathPartRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 // UploadSaveInput is a deliberate save file upload (feature saves_v4). DeviceID is the caller's device, or
-// WebDeviceID(user) for the web interface. ExpectedRevision nil = no check (web only); otherwise 0 = the slot must
+// WebDeviceID(user) for the app. ExpectedRevision nil = no check (web only); otherwise 0 = the slot must
 // not exist yet, N = the current checkpoint revision must be N.
 type UploadSaveInput struct {
 	UserID, DeviceID, GameID, Slot string
@@ -560,7 +560,7 @@ func (s *Service) RunSaveSweep(ctx context.Context, every time.Duration, onErr f
 // ---- push ----
 
 // notifySaveUpdated sends save_updated for a changed checkpoint to the user's connected devices except the
-// originating one (originDeviceID "" = all, e.g. a change made in the web interface). reason "" = the
+// originating one (originDeviceID "" = all, e.g. a change made in the app). reason "" = the
 // checkpoint's own sync reason.
 func (s *Service) notifySaveUpdated(userID, originDeviceID, gameID, slot string, cp SaveCheckpoint, reason string) {
 	s.notifySaveUpdatedExtra(userID, originDeviceID, gameID, slot, cp, reason, "")

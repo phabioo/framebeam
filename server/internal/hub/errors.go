@@ -83,7 +83,7 @@ var (
 	ErrDisplayNameTaken = &Error{Code: CodeDisplayNameTaken, Message: "Display name is already taken"}
 	ErrUserDisabled     = &Error{Code: CodeUserDisabled, Message: "User has been disabled"}
 	ErrUploadsDisabled  = &Error{Code: CodeUploadsDisabled, Message: "Uploads by users are disabled on this server"}
-	// ErrSaveSlotExists: a slot with that name already exists (409, web interface).
+	// ErrSaveSlotExists: a slot with that name already exists (409).
 	ErrSaveSlotExists = &Error{Code: CodeSaveSlotExists, Message: "A slot with this name already exists"}
 	// ErrSessionRunning: a Session of the same user runs the game, so its slots cannot be uploaded to, renamed or deleted (409).
 	ErrSessionRunning = &Error{Code: CodeSessionRunning, Message: "A Session of this game is running; end it first"}

@@ -14,7 +14,7 @@ type RunningSession struct {
 }
 
 // RunningSessionFor returns the active hosted Session of the user for the game; ok is false when none runs. The
-// web interface uses it to explain why restoring and uploading saves is not possible right now.
+// app uses it to explain why restoring and uploading saves is not possible right now.
 func (s *Service) RunningSessionFor(ctx context.Context, userID, gameID string) (rs RunningSession, ok bool, err error) {
 	var created int64
 	err = s.db.QueryRowContext(ctx, `SELECT d.name, s.created_at FROM sessions s JOIN devices d ON d.id = s.owner_device_id

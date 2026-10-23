@@ -15,6 +15,8 @@ Draft 0.1, the design basis of the PoC. The PoC (phases 0-5) is implemented; whe
 - `11-metadata-future.md` – central game metadata and artwork (future) – section 15
 - `12-plugins.md` – plugin interface (0.11, mostly built): Lua runtime, permissions, UI building blocks, distribution, Hub runs
 
+Since 0.18 package 12 the Hub web interface that several files mention is removed: the server serves only the REST API, WSS signaling and file transfer, and administration is in the app ([ADR 0030](../adr/0030-one-app-one-server-uzume.md) D2). Read "Hub web", "Clients page" and similar as the SERVER group of the app.
+
 Design specification of the UI screens: `../design/README.md` (valid from 0.18: `../design/uzume/README.md`).
 
 Naming: these files were written for FrameBeam. Since 0.18 the product is Uzume, the Player is the app and the Hub is the Uzume server ([ADR 0030](../adr/0030-one-app-one-server-uzume.md)); the files keep the old product terms. Concrete identifiers (paths, variables, headers) are updated where they would mislead. Current names of binaries, variables, files and images are in `docs/guides/` and `docs/reference/`.

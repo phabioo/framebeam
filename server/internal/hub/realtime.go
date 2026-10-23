@@ -40,7 +40,7 @@ const presenceReserve = outBuffer / 2
 type sessionState struct {
 	mu    sync.Mutex // serializes Session mutations; lock order: mu, then rt.mu
 	iceMu sync.RWMutex
-	ice   []string // stun: URLs (nil = default STUN); guarded by iceMu (changed live from the web settings)
+	ice   []string // stun: URLs (nil = default STUN); guarded by iceMu (changed live from the app settings)
 	grace time.Duration
 
 	rt rtState

@@ -52,11 +52,11 @@ import (
 	"github.com/phabioo/uzume/server/internal/config"
 	"github.com/phabioo/uzume/server/internal/httpapi"
 	"github.com/phabioo/uzume/server/internal/hub"
+	"github.com/phabioo/uzume/server/internal/serverhost"
 	"github.com/phabioo/uzume/server/internal/store"
 	"github.com/phabioo/uzume/server/internal/tlsutil"
 	"github.com/phabioo/uzume/server/internal/turnsrv"
 	"github.com/phabioo/uzume/server/internal/version"
-	"github.com/phabioo/uzume/server/internal/web"
 )
 
 func main() {
@@ -205,7 +205,7 @@ func openService(ctx context.Context, cfg *config.Config, serving bool) (*hub.Se
 
 // externalTURNServers reads the secrets of the configured external TURN servers (environment or file). A server
 // whose secret is unavailable is kept without a secret (shown as "no secret", not handed to apps) with a
-// warning, so that it can be completed in Settings; secrets are never logged.
+// warning, so that it can be completed in the app; secrets are never logged.
 func externalTURNServers(cfg *config.Config, specs []config.ExternalTURNSpec, log *slog.Logger) []hub.ExternalTURN {
 	var out []hub.ExternalTURN
 	for i, sp := range specs {
@@ -395,7 +395,7 @@ func runImportPlugins(args []string, out io.Writer) error {
 	return nil
 }
 
-// inProcessRestart makes a restart requested on the web interface run the server again inside this process
+// inProcessRestart makes a restart requested through the admin API run the server again inside this process
 // instead of re-executing the binary (Windows has no exec; the service must keep its handle to the SCM).
 var inProcessRestart = runtime.GOOS == "windows"
 
@@ -449,7 +449,7 @@ func runMaybeService(name string, fn func(ctx context.Context) error) error {
 	return fn(ctx)
 }
 
-// serveLoop runs the server; a restart requested on the web interface runs it again when the platform restarts
+// serveLoop runs the server; a restart requested through the admin API runs it again when the platform restarts
 // in-process, else it returns errRestart for main to re-execute the binary.
 func serveLoop(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	for {
@@ -474,12 +474,12 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	ctx, cancelAll := context.WithCancel(ctx)
 	defer cancelAll()
 
-	// Values from server.env and flags; the values saved on the web interface (Settings > Network) win over them.
+	// Values from server.env and flags; the values saved through the admin API (Settings > Network in the app) win over them.
 	base := *cfg
 	base.ICEServers = config.CloneICE(cfg.ICEServers)
 
 	// One server per data directory (also keeps `uzume-server restore` away from a running server). A restore that was
-	// prepared before this start (web or API) is swapped in now, before the database is opened.
+	// prepared before this start (admin API) is swapped in now, before the database is opened.
 	if err := os.MkdirAll(cfg.DataDir, 0o750); err != nil {
 		return err
 	}
@@ -549,12 +549,12 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	webCfg := web.Config{UseTLS: eff.UseTLS()}
+	hostCfg := serverhost.Config{UseTLS: eff.UseTLS()}
 	for _, p := range trusted {
-		webCfg.TrustedProxy = append(webCfg.TrustedProxy, p.String())
+		hostCfg.TrustedProxy = append(hostCfg.TrustedProxy, p.String())
 	}
 	if len(trusted) > 0 {
-		log.Info("trusted reverse proxy configured", "networks", webCfg.TrustedProxy)
+		log.Info("trusted reverse proxy configured", "networks", hostCfg.TrustedProxy)
 	}
 	if eff.TURN && !eff.NetworkSharing {
 		log.Info("built-in TURN relay stays off while Network sharing is off")
@@ -565,11 +565,11 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			defer ts.Close()
 			svc.SetTURN(ts)
 			defer svc.SetTURN(nil)
-			webCfg.TURN = ts
+			hostCfg.TURN = ts
 		case hasTURNOverride(stored):
 			// Saved values must never keep the hub from starting: run without TURN and say so in Settings.
 			log.Error("built-in TURN relay could not be started with the saved settings; starting without it", "err", err)
-			issues = append(issues, web.NetIssue{Key: config.NetTURN, Value: web.NetSignature(&eff, config.NetTURN),
+			issues = append(issues, serverhost.NetIssue{Key: config.NetTURN, Value: serverhost.NetSignature(&eff, config.NetTURN),
 				Message: fmt.Sprintf("The built-in TURN relay could not be started with the saved settings: %v. The server runs without it until you change them.", err)})
 			eff.TURN = false
 		default:
@@ -593,7 +593,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	}
 
 	// External TURN: the list saved in Settings wins over -turn-external; the service always starts so that the
-	// web interface can edit it. While Network sharing is off the servers are configured but not handed out.
+	// app can edit it. While Network sharing is off the servers are configured but not handed out.
 	specs, _ := cfg.ExternalTURNSpecs()
 	if !eff.NetworkSharing && (len(specs) > 0) {
 		log.Info("external TURN servers stay off while Network sharing is off")
@@ -620,13 +620,13 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		}
 		holder := newCertHolder(cert)
 		tlsConf = &tls.Config{GetCertificate: holder.getCertificate, MinVersion: tls.VersionTLS12}
-		webCfg.CertSource = "Self-generated"
+		hostCfg.CertSource = "Self-generated"
 		if cfg.TLSCert != "" {
-			webCfg.CertSource = "Own cert/key"
+			hostCfg.CertSource = "Own cert/key"
 		} else {
-			webCfg.RenewCert = func() (string, time.Time, error) { return holder.renew(cfg.DataDir, time.Now()) }
+			hostCfg.RenewCert = func() (string, time.Time, error) { return holder.renew(cfg.DataDir, time.Now()) }
 		}
-		webCfg.CertState = holder.state
+		hostCfg.CertState = holder.state
 		securityCode = tlsutil.SecurityCode(cert)
 		log.Info("TLS certificate", "sha256_fingerprint", tlsutil.Fingerprint(cert), "security_code", securityCode)
 	} else {
@@ -651,19 +651,14 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		issues = append(issues, listenIssue.issue(eff, base.Listen))
 		eff.Listen = base.Listen
 	}
-	webCfg.Listen = eff.Listen
-	webCfg.ImportDir = importDir
-	webCfg.PublicHost, webCfg.PublicPort = publicAddress(eff)
-	webCfg.Net = web.NetConfig{Base: base, Running: eff, Issues: issues, RequestRestart: requestRestart}
+	hostCfg.Listen = eff.Listen
+	hostCfg.ImportDir = importDir
+	hostCfg.PublicHost, hostCfg.PublicPort = publicAddress(eff)
+	hostCfg.Net = serverhost.NetConfig{Base: base, Running: eff, Issues: issues, RequestRestart: requestRestart}
 
-	webSrv, err := web.New(svc, webCfg, log)
-	if err != nil {
-		ln.Close()
-		return err
-	}
+	host := serverhost.New(svc, hostCfg, log)
 	mux := http.NewServeMux()
-	httpapi.Register(mux, svc, log, httpapi.WithRestart(requestRestart), httpapi.WithStatus(webSrv.StatusSource()), httpapi.WithHost(webSrv))
-	webSrv.Register(mux)
+	httpapi.Register(mux, svc, log, httpapi.WithRestart(requestRestart), httpapi.WithStatus(host.StatusSource()), httpapi.WithHost(host))
 
 	srv := &http.Server{
 		Handler:           withReadDeadline(clientip.Middleware(trusted)(httpapi.LogRequests(log, mux))),
@@ -672,7 +667,6 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
 		TLSConfig:         tlsConf,
 	}
-	srv.RegisterOnShutdown(webSrv.Shutdown) // end SSE streams so Shutdown does not wait for them
 	info := svc.Info()
 	log.Info("Uzume server started", "version", version.String(), "hub_id", info.HubID, "name", info.Name,
 		"listen", ln.Addr().String(), "network_sharing", eff.NetworkSharing, "tls", cfg.UseTLS(), "protocol_version", info.ProtocolVersion)
@@ -762,7 +756,7 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	case err := <-errc:
 		return err
 	case <-restartCh:
-		// Requested on the web interface: shut down like on SIGTERM, then main re-executes the binary.
+		// Requested through the admin API: shut down like on SIGTERM, then main re-executes the binary.
 		restarting = true
 		cancelAll()
 		log.Info("Restart requested")
