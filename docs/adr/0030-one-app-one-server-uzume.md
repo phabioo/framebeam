@@ -51,7 +51,7 @@ Consequences:
 
 - Every administration task moves into the app: AppNav groups PLAY, SERVER (admins only) and THIS PC; Settings have a This PC / Server switch. Admin actions on the library and on saves appear inline where a member sees the same list.
 - The Hub web admin is removed at the end of the milestone (package 12), after the app covers everything it does. Until then it keeps working, so every beta stays usable. No new web pages for administration are built.
-- No web pages remain and the code keeps no browser components (Fabio, 2026-10-22): no admin web, no watching a Session in the browser (dropped from 0.23), and no web stream view for OBS (design 5g is not built as a web page; OBS captures the app window; whether the app gets its own overlay window for that stays open). The server only serves the API, WebSocket signaling and file transfer. Invites have no landing page; they are a code or an `uzume://` link the app opens.
+- No web pages remain and the code keeps no browser components (Fabio, 2026-10-22): no admin web, no watching a Session in the browser (dropped from the Platforms milestone), and no web stream view for OBS (design 5g is not built as a web page; OBS captures the app window; whether the app gets its own overlay window for that stays open). The server only serves the API, WebSocket signaling and file transfer. Invites have no landing page; they are a code or an `uzume://` link the app opens.
 - Admin from a phone or a browser is not supported. A server on a Raspberry Pi or in Docker is administered from a PC with the app; a Linux-only user waits for the Linux app (0.23) and uses the server commands (D4) until then.
 
 ### D3 Admin API
@@ -124,6 +124,7 @@ Consequences:
 
 - One milestone 0.18 "Uzume" with twelve packages in the order of the [roadmap](../history.md#018-uzume-one-app-one-server-new-name). Every merge is a beta and must stay usable.
 - The waves move by one: 0.19 Player comfort and library, 0.20 Emulation, 0.21 Together, 0.22 Plugins, 0.23 Platforms. 1.0 is unchanged.
+- Amendment (2026-10-23): Fabio reordered the waves after 0.19: 0.20 Emulation, 0.21 Randomizer, 0.22 Plugins, 0.23 Together, 0.24 Platforms.
 
 ## Rejected
 

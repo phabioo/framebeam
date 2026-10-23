@@ -36,4 +36,4 @@ New ADR: `docs/adr/NNNN-title.md` with status, date, deciders, context, decision
 | [0028](0028-release-notes-and-changelogs.md) | Release notes and changelogs: PR changelog sections, `CHANGELOG.md` | Accepted |
 | [0029](0029-operations-and-safety.md) | Operations and safety: Docker, backup, status, rollback, problem reports | Accepted (D1 to D5; more follow) |
 | [0030](0030-one-app-one-server-uzume.md) | One app, one server, new name Uzume (0.18): Rename, no web admin, accounts, server commands | Accepted |
-| [0031](0031-game-variants-and-randomizer.md) | Game variants and the randomizer (0.22): Variants with own save slots, tools catalog | Proposed |
+| [0031](0031-game-variants-and-randomizer.md) | Game variants and the randomizer (0.21): Variants with own save slots, tools catalog | Proposed |

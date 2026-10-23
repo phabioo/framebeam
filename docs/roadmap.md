@@ -9,6 +9,7 @@ Decided by Fabio on 2026-10-11: 1.0 is reached when a group of friends completes
 - Platforms: Windows and Linux only; macOS is dropped. Metadata and artwork come after 1.0.
 - The plugins live in their own repositories and are independent of Uzume milestones; Uzume delivers the plugin runtime (0.11). Plugin IDs: `uzume.soullink-core` and `uzume.soullink`.
 - Decided on 2026-10-21: milestones 0.16 to 0.24 ship before 1.0. A test evening with friends stays possible at any time (date open).
+- Decided by Fabio on 2026-10-23: after 0.19 the plugin milestones come first (0.20 Emulation, 0.21 Randomizer, 0.22 Plugins), then 0.23 Together and 0.24 Platforms.
 
 ## Where we stand
 
@@ -54,9 +55,9 @@ Planned, in this order. Each section is the work list; check an item off here an
 |---|---|
 | [0.19](#019-player-comfort-and-library) | App comfort and library: audio, scaling, screenshots, play time, favorites, storage overview, overrides, DS/3DS screen layouts |
 | [0.20](#020-emulation) | Emulation: save states, rewind, run-ahead, `memory.write`, snapshots, cheats |
-| [0.21](#021-together) | Together: online status, notifications, ready check, chat, viewer role, audio mixer, voice chat, controller hand-over |
-| [0.22](#022-randomizer) | Randomizer: game variants, tools catalog, plugin, runs with their own randomized game |
-| [0.23](#023-plugins) | Plugins: developer console, run recap, Discord Rich Presence, tracker plugins |
+| [0.21](#021-randomizer) | Randomizer: game variants, tools catalog, plugin, runs with their own randomized game |
+| [0.22](#022-plugins) | Plugins: developer console, run recap, Discord Rich Presence, tracker plugins |
+| [0.23](#023-together) | Together: online status, notifications, ready check, chat, viewer role, audio mixer, voice chat, controller hand-over |
 | [0.24](#024-platforms) | Platforms: Linux app package, Vulkan |
 | [1.0](#10-test-phase) | Test phase and the SoulLink run |
 
@@ -99,22 +100,9 @@ Cheats (decided by Fabio on 2026-10-23). Action Replay and the other formats run
 - [ ] Cheat database: the server downloads libretro-database `cht/` and the No-Intro DATs at runtime (`-cheat-db-url`, `none` turns it off; refreshed like the core catalog), offline `import-cheats <zip>`; match by ROM hash -> No-Intro name, 3DS by title ID; `GET /games/{id}/cheats` (M)
 - [ ] Run-ahead: 1-2 frames, only for cores with fast serialization, off for 3DS (M)
 
-## 0.21 Together
+## 0.21 Randomizer
 
-Decided by Fabio on 2026-10-21 (as 0.20; renumbered on 2026-10-22). The UI is drawn in the Uzume design (speaking mark, mixer popover, People and Chat tabs, notifications); no own design round. Dependency chains: online status -> notifications -> ready check (same presence over WSS); chat -> audio mixer stage 2 -> voice chat; viewer role -> controller hand-over. Spike first for voice chat (echo and noise without libwebrtc).
-
-- [ ] Online status: who is online and what they play, "Watch" and "Invite" from the list (S)
-- [ ] Notifications (app toasts and bell): Session started, invite, run event; switchable per kind (S-M)
-- [ ] Ready check and shared pause for runs and Sessions (S-M)
-- [ ] Session and run chat with emotes and pings; history on the Hub for runs (M)
-- [ ] Viewer role cleanly separated; quality per viewer (selection and latency display) (M)
-- [ ] Audio mixer stage 2: channels game, tiles and plugin sounds; mixing in Multiview optional (M)
-- [ ] Voice chat: spike first, then microphone, push-to-talk, volume per person, ducking (L)
-- [ ] Controller hand-over: a viewer controls P2 or takes over P1, the host confirms (M-L)
-
-## 0.22 Randomizer
-
-Decided by Fabio on 2026-10-23 ([ADR 0031](adr/0031-game-variants-and-randomizer.md), proposed; design sheet 5, [randomizer.md](design/uzume/randomizer.md); assessment in the project notes). Friends want a SoulLink or Nuzlocke run where each person plays their own randomized game. The engine is the Universal Pokémon Randomizer FVX (GPL-3.0, Gen 1 to 7, never in a repository); each app builds its own variant from a recipe, so no ROM data travels. ORAS is tested first, every generation from GB to 3DS is built: Gen 1 to 5 as a whole ROM, Gen 6 and 7 as a LayeredFS folder in the Azahar dir of the slot. Order by dependency; the spike comes first.
+Decided by Fabio on 2026-10-23 (as 0.22; renumbered on 2026-10-23; [ADR 0031](adr/0031-game-variants-and-randomizer.md), proposed; design sheet 5, [randomizer.md](design/uzume/randomizer.md); assessment in the project notes). Friends want a SoulLink or Nuzlocke run where each person plays their own randomized game. The engine is the Universal Pokémon Randomizer FVX (GPL-3.0, Gen 1 to 7, never in a repository); each app builds its own variant from a recipe, so no ROM data travels. ORAS is tested first, every generation from GB to 3DS is built: Gen 1 to 5 as a whole ROM, Gen 6 and 7 as a LayeredFS folder in the Azahar dir of the slot. Order by dependency; the spike comes first.
 
 - [ ] Spike on Fabio's PC: same base, settings, seed and engine version give the same bytes, for one game per system (GB, GBC, GBA, NDS, 3DS); a LayeredFS folder in the Azahar dir of a run slot loads and leaves Main untouched (S)
 - [ ] Game variants: variant = base game + recipe (engine version, settings, seed, base dump SHA-256 or 3DS update) + owner + own save slot; REST, OpenAPI and migration; start exactly the variant (not another dump); variant cache with limit and Storage entry; LayeredFS into the slot's Azahar dir; `fb.rom.*` reads the started file and lays mod files over the RomFS; library row with variant count, slot picker (M-L)
@@ -124,7 +112,7 @@ Decided by Fabio on 2026-10-23 ([ADR 0031](adr/0031-game-variants-and-randomizer
 - [ ] Runs with variants: run seed and pinned engine version and update, per-person seed derived from the run seed and the user ID or "Same world for everyone", own variants if allowed, "Building your variant" before Play run, run board column Game (M)
 - [ ] SoulLink: show the variant in the run, read encounter data from the variant, test with ORAS (S, plugin repositories)
 
-## 0.23 Plugins
+## 0.22 Plugins
 
 Decided by Fabio on 2026-10-21 (as 0.21; renumbered on 2026-10-22 and 2026-10-23). The UI parts are drawn in the Uzume design (developer console 4d-1/4d-2, run recap 4jh-app-2); no own design round. The plugin UI language moved forward to 0.17.
 
@@ -132,6 +120,19 @@ Decided by Fabio on 2026-10-21 (as 0.21; renumbered on 2026-10-22 and 2026-10-23
 - [ ] Run recap: timeline from the run event log, recap page per run in the app, export as image or HTML (M, server and SoulLink)
 - [ ] Discord Rich Presence as a local app option, switch in My account (S)
 - [ ] Tracker plugins (speedrun splits and autosplitter, randomizer tracker) in their own plugin repositories (M per plugin)
+
+## 0.23 Together
+
+Decided by Fabio on 2026-10-21 (as 0.20; renumbered on 2026-10-22 and 2026-10-23). The UI is drawn in the Uzume design (speaking mark, mixer popover, People and Chat tabs, notifications); no own design round. Dependency chains: online status -> notifications -> ready check (same presence over WSS); chat -> audio mixer stage 2 -> voice chat; viewer role -> controller hand-over. Spike first for voice chat (echo and noise without libwebrtc).
+
+- [ ] Online status: who is online and what they play, "Watch" and "Invite" from the list (S)
+- [ ] Notifications (app toasts and bell): Session started, invite, run event; switchable per kind (S-M)
+- [ ] Ready check and shared pause for runs and Sessions (S-M)
+- [ ] Session and run chat with emotes and pings; history on the Hub for runs (M)
+- [ ] Viewer role cleanly separated; quality per viewer (selection and latency display) (M)
+- [ ] Audio mixer stage 2: channels game, tiles and plugin sounds; mixing in Multiview optional (M)
+- [ ] Voice chat: spike first, then microphone, push-to-talk, volume per person, ducking (L)
+- [ ] Controller hand-over: a viewer controls P2 or takes over P1, the host confirms (M-L)
 
 ## 0.24 Platforms
 
@@ -157,10 +158,10 @@ Decided by Fabio on 2026-10-21 (as 0.22; renumbered on 2026-10-22 and 2026-10-23
 
 ## Later, only on demand
 
-- Netplay, emulation settings sync, StandaloneBackend. (Save states moved to 0.20, controller hand-over to 0.21.)
+- Netplay, emulation settings sync, StandaloneBackend. (Save states moved to 0.20, controller hand-over to 0.23.)
 - Further library features: paging (row actions delete and rename are done in 0.10.x).
 - Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, Virtual Boy (GB, GBC and GBA are scheduled in 0.13) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
-- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.13); a Pokémon editor plugin (needs `memory.write`, which the API describes but the first release does not build; it is now planned in 0.20) and a cheats plugin (built on the core cheats of 0.20); the randomizer plugin moved to 0.22 on 2026-10-23 ([ADR 0031](adr/0031-game-variants-and-randomizer.md)). Gen 8 (Switch) is out of scope: no libretro core.
+- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.13); a Pokémon editor plugin (needs `memory.write`, which the API describes but the first release does not build; it is now planned in 0.20) and a cheats plugin (built on the core cheats of 0.20); the randomizer plugin moved to 0.21 on 2026-10-23 ([ADR 0031](adr/0031-game-variants-and-randomizer.md)). Gen 8 (Switch) is out of scope: no libretro core.
 - Wii U deferred (Fabio, 2026-10-07): Cemu has no libretro core and would need the StandaloneBackend.
 - To evaluate (Fabio, 2026-10-07): Cloudflare Tunnel in front of a self-hosted Hub, so no router port forwards are needed. The Hub itself stays self-hosted; running it on Workers/Pages would be a rewrite and is not planned.
   - Cloudflare TURN (Realtime) moved to 0.10.x (Connections) on 2026-10-11.

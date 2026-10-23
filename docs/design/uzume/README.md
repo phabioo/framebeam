@@ -54,7 +54,7 @@ Each screen entry names the package that builds it. Milestone 0.18 ("Uzume: one 
 | 11 | Installer | 8l Windows installer, 8m Linux, 8h-3 |
 | 12 | Remove the web admin | no web page stays; the OBS stream view (5g) is not built as a web page |
 
-Later waves (build from the boards without their own design round): **0.19** player comfort and library (3c, parts of 3g, 9b, 6g, 6l, 3e, 9a), **0.20** emulation (save states, rewind, run-ahead, diagnostics, cheats: family 11, [cheats.md](cheats.md)), **0.21** together (People and Chat tabs, mixer, voice, notifications, Multiview marks), **0.22** randomizer (sheet 5, [randomizer.md](randomizer.md), [ADR 0031](../../adr/0031-game-variants-and-randomizer.md)), **0.23** plugins (developer console 4d, run recap, SoulLink screens), **0.24** platforms (Linux app, Vulkan; watching in the browser was dropped). Screens that only restyle an existing app screen fall to package 3; the "Built in" line names what each board adds beyond that.
+Later waves (build from the boards without their own design round): **0.19** player comfort and library (3c, parts of 3g, 9b, 6g, 6l, 3e, 9a), **0.20** emulation (save states, rewind, run-ahead, diagnostics, cheats: family 11, [cheats.md](cheats.md)), **0.21** randomizer (sheet 5, [randomizer.md](randomizer.md), [ADR 0031](../../adr/0031-game-variants-and-randomizer.md)), **0.22** plugins (developer console 4d, run recap, SoulLink screens), **0.23** together (People and Chat tabs, mixer, voice, notifications, Multiview marks), **0.24** platforms (Linux app, Vulkan; watching in the browser was dropped). Screens that only restyle an existing app screen fall to package 3; the "Built in" line names what each board adds beyond that.
 
 ## Terms and rules in one place
 
