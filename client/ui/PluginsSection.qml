@@ -225,6 +225,20 @@ ColumnLayout {
                                     tone: "neutral"
                                     text: qsTr("Linked folder")
                                 }
+                                // fb.ui.badge(n) of a running plugin that declares ui.screen (its run tab shows it too).
+                                UzTag {
+                                    textFormat: Text.PlainText
+                                    objectName: "pluginBadge"
+                                    readonly property int count: {
+                                        const e = root.ctl.sidebarEntries
+                                        for (let i = 0; i < e.length; ++i) if (e[i].pluginId === row.modelData.id) return e[i].badge || 0
+                                        return 0
+                                    }
+                                    visible: count > 0
+                                    small: true
+                                    tone: "info"
+                                    text: String(count)
+                                }
                                 Item { Layout.fillWidth: true }
                             }
                             UzLabel {

@@ -157,7 +157,7 @@ Rectangle {
                         UzButton {
                             objectName: "runsStartButton"
                             kind: "primary"
-                            text: qsTr("Start a run")
+                            text: qsTr("New run...")
                             onClicked: startDialog.openStart()
                         }
                     }
@@ -236,13 +236,23 @@ Rectangle {
                         delegate: RunRowDelegate {}
                     }
 
-                    UzLabel {
-                        objectName: "runsEmpty"
+                    ColumnLayout {
                         visible: root.runs.loaded && root.runs.invites.count === 0 && root.runs.active.count === 0 && root.runs.finished.count === 0
                         Layout.fillWidth: true
-                        text: qsTr("No runs yet. Start one with the plugins of your server, or wait for an invite.")
-                        color: Theme.textMuted
-                        wrapMode: Text.WordWrap
+                        spacing: Theme.space12
+                        UzLabel {
+                            objectName: "runsEmpty"
+                            Layout.fillWidth: true
+                            text: qsTr("No runs yet. A run is a playthrough with its own save slot, for 1-8 people.")
+                            color: Theme.textMuted
+                            wrapMode: Text.WordWrap
+                        }
+                        UzButton {
+                            objectName: "runsEmptyStart"
+                            kind: "primary"
+                            text: qsTr("New run...")
+                            onClicked: startDialog.openStart()
+                        }
                     }
                 }
 
@@ -358,7 +368,31 @@ Rectangle {
                         Item { Layout.fillWidth: true }
                     }
 
-                    Eyebrow { text: qsTr("Players · %1").arg(root.runs.participants.count) }
+                    // Tabs: Board, Log, then one tab per run plugin (named after its screen).
+                    readonly property var tabOptions: {
+                        const out = [{ value: "board", label: qsTr("Board"), name: "runTab_board" },
+                                     { value: "log", label: qsTr("Log"), name: "runTab_log" }]
+                        const t = root.runs.runTabs
+                        for (let i = 0; i < t.length; ++i)
+                            out.push({ value: "plugin:" + t[i].pluginId, label: t[i].title + (t[i].badge > 0 ? "  " + t[i].badge : ""),
+                                       name: "runTab_plugin_" + t[i].pluginId })
+                        return out
+                    }
+                    UzSegmented {
+                        objectName: "runTabs"
+                        options: detailCol.tabOptions
+                        current: root.runs.runTab
+                        onPicked: value => root.runs.runTab = value
+                    }
+
+                    // ---------------------------------------------------------- Board: person, save slot, game, status
+                    ColumnLayout {
+                        objectName: "runBoardTab"
+                        visible: root.runs.runTab === "board"
+                        Layout.fillWidth: true
+                        spacing: Theme.space16
+                        PluginRunSection { Layout.fillWidth: true; player: root.player; statusOnly: true }
+                        Eyebrow { text: qsTr("Players · %1").arg(root.runs.participants.count) }
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: partCol.implicitHeight
@@ -403,6 +437,15 @@ Rectangle {
                                             font.weight: Font.Medium
                                         }
                                         UzLabel {
+                                            objectName: "runParticipantSlot"
+                                            Layout.preferredWidth: 180
+                                            visible: root.width > 760
+                                            text: prow.model.slotText
+                                            elide: Text.ElideRight
+                                            color: Theme.textSecondary
+                                            font.pixelSize: Theme.fontSmall
+                                        }
+                                        UzLabel {
                                             Layout.preferredWidth: 200
                                             visible: root.width > 760
                                             text: prow.model.gameTitle
@@ -421,8 +464,22 @@ Rectangle {
                         }
                     }
 
-                    PluginRunSection { Layout.fillWidth: true; player: root.player }
+                    }
 
+                    // ---------------------------------------------------------- Plugin tab (the plugin's screen or run tree)
+                    ColumnLayout {
+                        objectName: "runPluginTab"
+                        visible: root.runs.runTab.indexOf("plugin:") === 0
+                        Layout.fillWidth: true
+                        PluginRunSection { Layout.fillWidth: true; player: root.player; pluginId: root.runs.runTab.substring(7) }
+                    }
+
+                    // ---------------------------------------------------------- Log
+                    ColumnLayout {
+                        objectName: "runLogTab"
+                        visible: root.runs.runTab === "log"
+                        Layout.fillWidth: true
+                        spacing: Theme.space16
                     Eyebrow { objectName: "runEventsTitle"; text: qsTr("Event log · %1").arg(root.runs.events.count) }
                     Rectangle {
                         Layout.fillWidth: true
@@ -496,6 +553,7 @@ Rectangle {
                                 }
                             }
                         }
+                    }
                     }
                 }
             }

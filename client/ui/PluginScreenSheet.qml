@@ -12,6 +12,7 @@ Rectangle {
     objectName: "pluginScreenSheet"
     required property PlayerController player
     property string pluginId: ""
+    property string backText: qsTr("← Back to game")
     readonly property bool open: pluginId !== ""
     readonly property var entry: {
         var e = root.player.plugins.sidebarEntries
@@ -67,7 +68,7 @@ Rectangle {
                     objectName: "pluginScreenBack"
                     muted: true
                     look: "flat"
-                    text: qsTr("← Back to game")
+                    text: root.backText
                     onClicked: root.closeRequested()
                 }
                 PluginTabIcon {

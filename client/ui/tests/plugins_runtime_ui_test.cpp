@@ -237,7 +237,7 @@ class PluginsRuntimeUiTest : public QObject {
     QSignalSpy sections(m_pc.get(), &PluginsController::runSectionsChanged);
     m_pc->startRunView(launch, "RUN-1");
     QCOMPARE(m_pc->runViewId(), QStringLiteral("run-1"));
-    // Only the run's ui.run plugins start; the one that is in both sets runs once (as the run view instance).
+    // Only the run's ui.run or ui.screen plugins start; the one that is in both sets runs once (as the run view instance).
     QCOMPARE(m_pc->runViewPluginIds(), (QStringList{"net.test.both", "net.test.runonly"}));
     QCOMPARE(m_pc->shellPluginIds(), (QStringList{"net.test.both", "net.test.shell"}));
     QTRY_COMPARE_WITH_TIMEOUT(m_pc->runSections().size(), 2, 10000);
@@ -248,8 +248,11 @@ class PluginsRuntimeUiTest : public QObject {
     QCOMPARE(bridge->writes.load(), 0);
     const QVariantMap sec = m_pc->runSections().at(1).toMap();
     QCOMPARE(sec.value("pluginId").toString(), QStringLiteral("net.test.runonly"));
-    QCOMPARE(sec.value("title").toString(), QStringLiteral("Board"));
-    QCOMPARE(m_pc->runSections().at(0).toMap().value("title").toString(), QStringLiteral("Both run"));
+    // Tab names: the ui.screen title, then the ui.run title, then the plugin name ("Board" belongs to Uzume's own tab).
+    QCOMPARE(sec.value("title").toString(), QStringLiteral("net.test.runonly"));
+    QCOMPARE(sec.value("slot").toString(), QStringLiteral("run"));
+    QCOMPARE(m_pc->runSections().at(0).toMap().value("title").toString(), QStringLiteral("Both"));
+    QCOMPARE(m_pc->runSections().at(0).toMap().value("slot").toString(), QStringLiteral("screen"));
     // Not part of the run view: the plugin without ui.run; the local copy of the plugin that is in both sets.
     QTRY_VERIFY_WITH_TIMEOUT(!m_pc->host()->consoleSnapshot("net.test.both").log.isEmpty(), 10000);
     for (const auto& l : m_pc->host()->consoleSnapshot("net.test.both").log) QVERIFY(l.text != QLatin1String("local"));

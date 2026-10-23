@@ -54,7 +54,7 @@ struct UiDecl {
   QString panelTitle;
   bool hud = false;
   bool tile = false;
-  bool screen = false;
+  bool screen = false;  // slot "screen": the plugin's run tab (run view) and its screen sheet (Settings > Plugins, in game)
   QString screenTitle;
   bool detail = false;
   bool run = false;  // slot "run": the run detail view (Runs screen, outside a game)
@@ -64,7 +64,7 @@ struct UiDecl {
   bool any() const { return panel || hud || tile || screen || detail || run || !hotkeys.isEmpty(); }
   // "panel", "hud", "screen", "detail", "run" or "tile:<tileId>" (needs `tile`).
   bool declaresSlot(const QString& slot) const;
-  // "Adds: panel tab · HUD · tile strip · <screen title> screen · game detail · n hotkeys"; empty when nothing.
+  // "Adds: panel tab · HUD · tile strip · game detail · run tab · n hotkeys" (run tab = ui.screen or ui.run); empty when nothing.
   QString addsText() const;
 };
 

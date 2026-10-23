@@ -3,7 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// "Start a run" (mode "start": name, plugins the Hub offers with run.state, players to invite, your game) and "Invite
+// "Start a run" (mode "start": name, rules = None or an installed run plugin, players to invite, your game) and "Invite
 // players" into an open run (mode "invite").
 Popup {
     id: root
@@ -90,28 +90,66 @@ Popup {
                     font.family: Qt.application.font.family
                 }
 
-                Eyebrow { visible: !root.inviting; text: qsTr("Plugins") }
+                Eyebrow { objectName: "runRulesTitle"; visible: !root.inviting; text: qsTr("Rules") }
                 UzLabel {
-                    visible: !root.inviting && root.runs.startPlugins.count === 0
+                    objectName: "runPluginsNone"
+                    visible: !root.inviting && root.runs.startRulesOptions.length === 0
                     Layout.fillWidth: true
                     text: qsTr("Your server offers no plugin for runs yet.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSmall
                     wrapMode: Text.WordWrap
                 }
+                UzSelect {
+                    id: rulesSelect
+                    objectName: "runRulesSelect"
+                    visible: !root.inviting && root.runs.startRulesOptions.length > 0
+                    Layout.fillWidth: true
+                    model: root.runs.startRulesOptions
+                    current: root.runs.startRulesCurrent
+                    displayText: rulesSelect.currentIndex >= 0 ? rulesSelect.currentText : qsTr("Pick a plugin…")
+                    onPicked: value => root.runs.selectStartRules(value)
+                }
+                UzLabel {
+                    objectName: "runRulesHint"
+                    visible: !root.inviting
+                    Layout.fillWidth: true
+                    text: qsTr("Only installed run plugins are listed.")
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontSmall
+                    wrapMode: Text.WordWrap
+                }
+                // What the picked plugin is and may do.
                 Repeater {
                     model: root.inviting ? null : root.runs.startPlugins
-                    delegate: RunCheckRow {
+                    delegate: ColumnLayout {
                         id: plugRow
                         required property var model
                         objectName: "runPlugin_" + plugRow.model.id
-                        title: plugRow.model.name + " " + plugRow.model.version
-                        sub: plugRow.model.description
-                        pillOrigin: plugRow.model.origin
-                        pillText: plugRow.model.originText
-                        detail: plugRow.model.permissionsText !== "" ? qsTr("It will be able to: %1").arg(plugRow.model.permissionsText) : ""
-                        checked: plugRow.model.checked
-                        onToggled: root.runs.toggleStartPlugin(plugRow.model.id)
+                        visible: plugRow.model.checked === true
+                        Layout.fillWidth: true
+                        spacing: 2
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.space8
+                            UzLabel {
+                                Layout.fillWidth: true
+                                text: plugRow.model.description
+                                visible: plugRow.model.description !== ""
+                                color: Theme.textMuted
+                                font.pixelSize: Theme.fontSmall
+                                wrapMode: Text.WordWrap
+                            }
+                            PluginOriginPill { objectName: "runPluginOrigin"; origin: plugRow.model.origin; text: plugRow.model.originText }
+                        }
+                        UzLabel {
+                            visible: plugRow.model.permissionsText !== ""
+                            Layout.fillWidth: true
+                            text: qsTr("It will be able to: %1").arg(plugRow.model.permissionsText)
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontSmall
+                            wrapMode: Text.WordWrap
+                        }
                     }
                 }
                 Repeater {
@@ -134,12 +172,7 @@ Popup {
                     Layout.fillWidth: true
                 }
 
-                // Rules: the run settings of the plugins in the run (groups by plugin; one flat model, no nested repeaters).
-                Eyebrow {
-                    objectName: "runRulesTitle"
-                    visible: !root.inviting && root.runs.startRules.count > 0
-                    text: qsTr("Rules")
-                }
+                // Rule settings (e.g. the mode): only while a plugin is picked (groups by plugin; one flat model, no nested repeaters).
                 Repeater {
                     model: root.inviting ? null : root.runs.startRules
                     delegate: ColumnLayout {
@@ -245,6 +278,15 @@ Popup {
             }
         }
 
+        UzLabel {
+            objectName: "runStartSlotNote"
+            visible: !root.inviting
+            Layout.fillWidth: true
+            text: qsTr("Each person gets Run: %1. Main is not touched.").arg(nameField.text.trim() !== "" ? nameField.text.trim() : "…")
+            color: Theme.textMuted
+            font.pixelSize: Theme.fontSmall
+            wrapMode: Text.WordWrap
+        }
         UzLabel {
             objectName: "runStartError"
             visible: root.runs.startError !== ""

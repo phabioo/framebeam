@@ -53,11 +53,11 @@ class PluginsController : public QObject {
   // [{value, label}]: Auto first, then English, Deutsch (plugins/plugin_language.h).
   Q_PROPERTY(QVariantList pluginLanguageOptions READ pluginLanguageOptions CONSTANT)
   // Installed plugins: [{id, name, version, origin ("official"|"unverified"|"local"), originText ("✓ Official" | "Hub upload ·
-  //  unverified" | "Local file"), problemsText, hasProblems, enabled, devLinked, hubCopy, canToggle, needsConfirm (unverified: the
+  //  unverified" | "Local file"), problemsText, hasProblems, enabled, devLinked, hubCopy, hasScreen (declares ui.screen), canToggle, needsConfirm (unverified: the
   //  warning comes before turning it on), permissionsText, updateVersion ("" when none)}]
   Q_PROPERTY(QVariantList plugins READ plugins NOTIFY pluginsChanged)
-  // Run view (Runs screen, outside a game): one entry per plugin of the shown run that declares ui.run, in start order:
-  // [{pluginId, name, title, origin, tree ({} until the plugin sets its "run" slot), paused, loading}].
+  // Run view (Runs screen, outside a game): one entry per plugin of the shown run that declares ui.run or ui.screen, in start order:
+  // [{pluginId, name, title (tab name), slot ("screen" | "run"), badge, origin, originText, tree ({} until the plugin sets that slot), paused, loading}].
   Q_PROPERTY(QVariantList runSections READ runSections NOTIFY runSectionsChanged)
   // Why plugins of the run view did not start ("" = fine), e.g. "Run Notes: needs x, which is not part of this run ...".
   Q_PROPERTY(QString runViewProblems READ runViewProblems NOTIFY runSectionsChanged)
@@ -89,7 +89,8 @@ class PluginsController : public QObject {
   // most 10 (the UI shows the newest 3 and a pill for the rest). host = true: a notice of the Player itself ("Uzume
   // plugin paused", toastId < 0, actions "restart" / "details").
   Q_PROPERTY(QVariantList toasts READ toasts NOTIFY toastsChanged)
-  // [{pluginId, title, icon, badge, origin}]: sidebar entries under Library (ui.screen) of the running plugins.
+  // [{pluginId, name, title, icon, badge, origin}]: the plugins running in the shell (or game) that declare ui.screen; no sidebar rows,
+  // the entry feeds the plugin screen sheet and the badge of the Settings > Plugins row.
   Q_PROPERTY(QVariantList sidebarEntries READ sidebarEntries NOTIFY sidebarEntriesChanged)
   // [{pluginId, name, tree}]: sections of the game detail (ui.detail) that have a tree.
   Q_PROPERTY(QVariantList detailSections READ detailSections NOTIFY detailSectionsChanged)
@@ -147,7 +148,7 @@ class PluginsController : public QObject {
   // Plugins running in the shell context (no game), in start order.
   QStringList shellPluginIds() const { return shellIds_; }
   bool shellRunning() const { return shellRunning_; }
-  // Run view: while the Runs screen shows a run (and no game runs) the plugins of the run that declare ui.run run next to the
+  // Run view: while the Runs screen shows a run (and no game runs) the plugins of the run that declare ui.run or ui.screen run next to the
   // shell set, as the exact pinned Hub copies (resolveForRun), in the shell context with a read-only fb.run bound to
   // `run.bridge` (current().view == true; writes are refused). Calling it again for the same run and pins keeps the running
   // plugins; another run replaces them. A plugin that is in the shell set too runs once, as the run view instance.
@@ -167,8 +168,6 @@ class PluginsController : public QObject {
   PluginHubClient* hubClient() { return hubClient_.get(); }
   const PluginHubClient* hubClient() const { return hubClient_.get(); }
   bool hubSupported() const { return hubClient_ != nullptr && hubClient_->supported(); }
-  // A plugin with run.state that the current Hub offers is installed here (any version, also as Hub copy): the Runs entry is worth showing.
-  bool hasRunPlugin() const;
   // The Hub offer of one plugin version as a row {id, name, version, origin, originText, permissionsText}; empty when the Hub does not list it.
   QVariantMap hubOffer(const QString& pluginId, const QString& version) const;
   QVariantList hubPlugins() const { return hubPlugins_; }

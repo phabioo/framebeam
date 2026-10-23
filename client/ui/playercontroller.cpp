@@ -133,9 +133,6 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     reloadLibrary();
   });
   plugins_ = std::make_unique<PluginsController>(settings_.get(), profiles_->baseDir(), &session_, conn_.get());
-  connect(plugins_.get(), &PluginsController::sidebarEntriesChanged, this, [this]() {
-    if (page_ == QLatin1String("plugin")) showPluginScreen(pluginPageId_);  // the entry went away: back to the Library
-  });
   loadFolderScans();
   trimRomCache();  // limit lowered while the Player was closed
   // Library sort and "Ready first" are saved per device (3c-2).
@@ -399,7 +396,9 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
       const auto g = model_.game(id);
       return g ? SaveStore::expectedSaveName(g->romSha256 + QLatin1Char('.') + RomCache::extensionFromFilename(g->romFilename)) : QString();
     };
+    env.slotDisplayName = [this](const QString& slot) { return runs_ ? runs_->slotDisplayName(slot) : QString(); };
     history_ = std::make_unique<SaveHistoryController>(env);
+    connect(runs_.get(), &RunsController::runsChanged, history_.get(), &SaveHistoryController::onSlotNamesChanged);
     connect(this, &PlayerController::selectedGameChanged, history_.get(), [this]() {
       history_->setGame(selectedId_);
       history_->onGameStateChanged();
@@ -1258,23 +1257,19 @@ void PlayerController::showControllers() {
   updateScreen();
 }
 
-void PlayerController::showPluginScreen(const QString& pluginId) {
+void PlayerController::openPluginScreen(const QString& pluginId) {
   if (conn_->state() != HubConnection::State::Connected || (gameActive_ && !background_)) {
-    return;
+    return;  // in a game the game view shows the sheet itself
   }
-  bool known = false;
-  for (const QVariant& e : plugins_->sidebarEntries())
-    if (e.toMap().value(QStringLiteral("pluginId")).toString() == pluginId) known = true;
-  if (!known) {
-    showLibrary();
-    return;
+  if (page_ == QLatin1String("runs") && runs_->selectPluginTab(pluginId)) {
+    return;  // the plugin is the opened run's view: its tab shows the screen
   }
-  if (pluginPageId_ != pluginId) {
-    pluginPageId_ = pluginId;
-    emit pluginPageChanged();
+  for (const QVariant& e : plugins_->sidebarEntries()) {  // the plugin runs here and declares a screen
+    if (e.toMap().value(QStringLiteral("pluginId")).toString() == pluginId) {
+      emit pluginScreenRequested(pluginId);
+      return;
+    }
   }
-  page_ = QStringLiteral("plugin");
-  updateScreen();
 }
 
 void PlayerController::showPluginSettings(const QString& pluginId) {
@@ -2070,8 +2065,8 @@ void PlayerController::startRunGame(const QString& runId, const QString& gameId)
   }
   finishRunStart();
   runStart_ = {runId, gameId, saves_->slotFor(gameId)};
-  // The run keeps its own saves: slot run-<first 8 hex of the run id>, never the game's default slot.
-  if (!saves_->setSlot(gameId, runSaveSlot(runId))) {
+  // The run keeps its own saves: the run's save slot (run-<first 8 hex of the run id>), never the game's default slot.
+  if (!saves_->setSlot(gameId, runs_->saveSlotFor(runId))) {
     runStart_ = {};
     return;
   }
