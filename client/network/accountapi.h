@@ -22,6 +22,9 @@ struct AccountInfo {
   bool mustChangePassword = false;    // an admin reset the password
   QDateTime confirmedUntil;           // invalid = not confirmed
   QDateTime confirmLockedUntil;       // invalid = not locked
+  qint64 playSeconds = 0;             // Uzume 0.19: total play time of the person (0 on older servers)
+  int sessions = 0;
+  QDateTime lastPlayedAt;             // invalid = never
   bool valid() const { return !userId.isEmpty(); }
   bool isAdmin() const { return role == QLatin1String("admin"); }
 };

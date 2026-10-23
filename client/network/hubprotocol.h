@@ -146,6 +146,17 @@ struct RomFileEntry {
   bool stored = true;  // false: registered by a Player as a local file, the Hub does not hold the bytes
 };
 
+// Per-user data of a game (Uzume 0.19, `personal` of GET /games). A server without it sends none: `known` stays false and
+// everything is zero/empty (the app keeps its local last-played behaviour then).
+struct GamePersonal {
+  bool known = false;
+  qint64 playSeconds = 0;
+  int sessions = 0;
+  QString lastPlayedAt;  // RFC 3339, "" = never
+  bool favorite = false;
+  QStringList collectionIds;
+};
+
 struct GameEntry {
   QString id;
   QString title;
@@ -161,10 +172,12 @@ struct GameEntry {
   bool onHub = true;               // at least one file is stored on the Hub (downloadable)
   QList<RomFileEntry> roms;        // every known file incl. the primary one
   int gameVersion = -1;            // -1 = unknown
+  GamePersonal personal;           // play time, last played, favourite and collections of the signed-in person
 
   // True if `sha256` is one of the game's files (primary or additional).
   bool hasRom(const QString& sha256) const;
 };
+GamePersonal parsePersonal(const QJsonValue& v);  // not an object = unknown (old server)
 std::optional<GameEntry> parseGame(const QJsonObject& obj);
 
 }  // namespace uzume

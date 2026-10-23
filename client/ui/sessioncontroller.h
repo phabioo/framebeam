@@ -153,7 +153,8 @@ class SessionController : public QObject {
   void setPlayerSettings(PlayerSettings* settings);  // diagnostics states + session visibility (migrates the legacy player-settings.json)
 
   // Local game context (PlayerController): presence, share feed, audio focus.
-  void gameStarted(const QString& gameId, const QString& title);
+  // `runId`: the game was started as a run game (presence carries it, Uzume 0.19).
+  void gameStarted(const QString& gameId, const QString& title, const QString& runId = {});
   void gameEnded();  // ends a shared Session too
 
   // Tests: Hub objects and fake statistics (no media path needed).
@@ -248,6 +249,7 @@ class SessionController : public QObject {
   qint64 audioDueFrames_ = 0;
 
   QString gameId_;
+  QString runId_;  // run of the local game ("" = not a run game)
   QString gameTitle_;
 
   bool shared_ = false;

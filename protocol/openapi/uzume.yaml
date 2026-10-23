@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Uzume server API
-  version: 1.35.0
+  version: 1.36.0
   description: |
     HTTPS/JSON API of the Uzume server (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the server under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for app-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for an app on the same PC as the server (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected apps receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on app devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games); 0.17 adds problem reports (`reports_v1`: `POST /reports` from any paired device, the admin list, files, zip archive, seen mark and delete under `/admin/reports`); 0.18 adds the admin API under `/admin/...` (`admin_v1`: users and invites, pairing requests and devices, systems, cores and firmware, plugins and the plugin index; only advertised to admins); 0.18 also adds server accounts (`accounts_v1`: sign in with user name and password under `auth`, the own account, password, "Confirm it's you" and devices under `account`, an admin password reset and the password policy under `admin`; dangerous admin steps answer 403 `confirmation_required` until the caller confirmed); 0.18 also adds a zip export of all saves of a user for the admin to download before removing the person (`exportAdminUserSaves`, read-only, no confirmation); 0.18 also adds the setup code (`setup_code_v1`: `POST /setup` trades the setup code that a server without an admin prints at start and on `uzume-server setup-code` for the first admin and a paired device, `setup_required` in the server info). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
@@ -526,6 +526,7 @@ paths:
       operationId: listGames
       tags: [library]
       summary: Game library
+      description: Every game carries `personal` (the caller's own play time, favorite flag and collections).
       security:
         - bearerAuth: []
       responses:
@@ -622,6 +623,7 @@ paths:
       operationId: getGame
       tags: [library]
       summary: Single game
+      description: Carries `personal` like the list.
       security:
         - bearerAuth: []
       parameters:
@@ -694,6 +696,159 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         '204': { description: Registrations removed (also when there were none) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/{game_id}/favorite:
+    put:
+      operationId: addFavorite
+      tags: [library]
+      summary: Mark a game as the caller's favorite (idempotent)
+      description: Favorites are per user and follow the person to every PC. 404 for a game that does not exist or that the caller cannot see.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: The game is a favorite (also when it already was) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: removeFavorite
+      tags: [library]
+      summary: Remove a game from the caller's favorites (idempotent)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: The game is not a favorite (also when it was not) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/collections:
+    get:
+      operationId: listCollections
+      tags: [library]
+      summary: The caller's collections
+      description: Oldest first. Collections are per user and follow the person to every PC. `game_ids` are in the order the games were added.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The collections
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CollectionList' }
+              examples:
+                default:
+                  value:
+                    collections:
+                      - id: 5b0f6a52-3c1e-4d7a-9f40-2a6d8e1c7b93
+                        name: Pokemon
+                        game_ids: [9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d]
+                        created_at: '2026-10-05T12:00:00Z'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: createCollection
+      tags: [library]
+      summary: Create a collection
+      description: |
+        `name` is trimmed and 1 to 40 characters long; it must be unique among the caller's collections, ignoring case
+        (409 `conflict`). `game_ids` are optional; an unknown game (or one the caller cannot see) is a 400.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CollectionCreate' }
+            examples:
+              default: { value: { name: Pokemon, game_ids: [9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d] } }
+      responses:
+        '201':
+          description: The collection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Collection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/CollectionNameTaken' }
+  /api/v1/collections/{collection_id}:
+    parameters:
+      - $ref: '#/components/parameters/CollectionId'
+    patch:
+      operationId: renameCollection
+      tags: [library]
+      summary: Rename a collection
+      description: Same name rules as on create. Another user's collection is 404.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CollectionRename' }
+            examples:
+              default: { value: { name: Favourites } }
+      responses:
+        '200':
+          description: The collection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Collection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/CollectionNameTaken' }
+    delete:
+      operationId: deleteCollection
+      tags: [library]
+      summary: Delete a collection
+      description: The games in it are never deleted. Another user's collection is 404.
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/collections/{collection_id}/games/{game_id}:
+    parameters:
+      - $ref: '#/components/parameters/CollectionId'
+    put:
+      operationId: addCollectionGame
+      tags: [library]
+      summary: Add a game to a collection (idempotent)
+      description: 404 for another user's or an unknown collection, and for a game that does not exist or that the caller cannot see.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: The game is in the collection (also when it already was) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: removeCollectionGame
+      tags: [library]
+      summary: Remove a game from a collection (idempotent)
+      description: The game itself is untouched. 404 for another user's or an unknown collection, and for a game that does not exist.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: The game is not in the collection (also when it was not) }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/uploads:
@@ -2806,6 +2961,9 @@ paths:
                     must_change_password: false
                     confirmed_until: null
                     confirm_locked_until: null
+                    play_seconds: 5400
+                    sessions: 3
+                    last_played_at: '2026-10-05T12:00:00Z'
         '401': { $ref: '#/components/responses/Unauthorized' }
     patch:
       operationId: updateAccount
@@ -4893,6 +5051,11 @@ components:
       scheme: bearer
       description: Poll token of a pairing request (opaque, prefix fbp_).
   parameters:
+    CollectionId:
+      name: collection_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     AdminInviteId:
       name: invite_id
       in: path
@@ -5104,6 +5267,13 @@ components:
           examples:
             default: { value: { error: { code: conflict, message: Conflict } } }
             display_name_taken: { value: { error: { code: display_name_taken, message: Display name is already taken } } }
+    CollectionNameTaken:
+      description: The caller already has a collection with this name, ignoring case (`conflict`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            default: { value: { error: { code: conflict, message: You already have a collection with this name } } }
     AdminBackupConflict:
       description: A backup or restore is already running (`conflict`), or there is nothing to cancel
       content:
@@ -5837,6 +6007,45 @@ components:
         added_at: { type: string, format: date-time }
         game_code: { type: string, description: 'Identity read from the ROM header on upload/import: 4-character NDS or GBA game code, 16 uppercase hex digits (3DS program ID) or the Game Boy header title (1 to 16 printable ASCII characters); the kind is `game_code_kind`; empty when unknown or unreadable. Absent on servers before 1.16.0.' }
         game_code_kind: { type: string, enum: ['', nds-gamecode, 3ds-titleid, gba-gamecode, gb-title], description: 'Kind of `game_code`; empty when unknown. `gba-gamecode`: 4-character GBA game code; `gb-title`: Game Boy / Game Boy Color header title (only with a valid header checksum).' }
+        personal: { allOf: [ { $ref: '#/components/schemas/GamePersonal' } ], description: 'The caller''s own data for this game. Sent by `listGames` and `getGame` only (not by upload and register).' }
+    GamePersonal:
+      type: object
+      description: |
+        What the calling user has with one game (0.19). `play_seconds` and `sessions` count the plays the server saw from
+        the app's presence (`in_game`); an open play counts up to now, plays shorter than 10 s are not counted.
+      required: [play_seconds, sessions, last_played_at, favorite, collection_ids]
+      properties:
+        play_seconds: { type: integer, format: int64, minimum: 0 }
+        sessions: { type: integer, minimum: 0, description: Number of plays }
+        last_played_at: { type: string, format: date-time, nullable: true, description: End of the latest play (now while one is open); null when never played }
+        favorite: { type: boolean }
+        collection_ids: { type: array, items: { type: string, format: uuid }, description: 'Collections of the caller that contain the game, oldest collection first' }
+    Collection:
+      type: object
+      required: [id, name, game_ids, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 40 }
+        game_ids: { type: array, items: { type: string, format: uuid }, description: In the order the games were added }
+        created_at: { type: string, format: date-time }
+    CollectionList:
+      type: object
+      required: [collections]
+      properties:
+        collections:
+          type: array
+          items: { $ref: '#/components/schemas/Collection' }
+    CollectionCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 40, description: 'Trimmed; unique per user, ignoring case' }
+        game_ids: { type: array, items: { type: string, format: uuid } }
+    CollectionRename:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 40 }
     SaveSyncReason:
       type: string
       enum: [checkpoint, final, final_session_end, restore, upload]
@@ -6112,6 +6321,8 @@ components:
           type: object
           description: State per plugin id; only plugins that have a row (a missing plugin means state `{}` with revision 0)
           additionalProperties: { $ref: '#/components/schemas/RunPluginState' }
+        play_seconds: { type: integer, format: int64, minimum: 0, description: 'This person''s play time in this run (plays whose presence named the run). Sent by `listRuns`, `getRun` and the admin run reads, not by pushes.' }
+        last_played_at: { type: string, format: date-time, description: End of their latest play in this run; absent when they never played it (or in pushes) }
     RunPluginState:
       type: object
       required: [state, state_rev, updated_at]
@@ -6144,6 +6355,7 @@ components:
           maxItems: 8
           items: { $ref: '#/components/schemas/RunParticipant' }
         last_seq: { type: integer, format: int64, minimum: 0 }
+        play_seconds: { type: integer, format: int64, minimum: 0, description: 'Total play time of all people in this run. Sent by `listRuns`, `getRun` and the admin run reads, not by pushes.' }
     RunList:
       type: object
       required: [runs]
@@ -6427,7 +6639,7 @@ components:
         install_id: { type: string, maxLength: 64, description: Optional. Groups the device rows of one app install (several users on one PC) }
     Account:
       type: object
-      required: [user_id, username, display_name, role, has_password, password_required, must_change_password, confirmed_until, confirm_locked_until]
+      required: [user_id, username, display_name, role, has_password, password_required, must_change_password, confirmed_until, confirm_locked_until, play_seconds, sessions, last_played_at]
       properties:
         user_id: { type: string }
         username: { type: string }
@@ -6438,6 +6650,9 @@ components:
         must_change_password: { type: boolean, description: Set by an admin's password reset; cleared by `setAccountPassword` }
         confirmed_until: { type: string, format: date-time, nullable: true, description: This device's "Confirm it's you" state; null when none or expired }
         confirm_locked_until: { type: string, format: date-time, nullable: true, description: Confirming is locked on this device until then; null when not locked }
+        play_seconds: { type: integer, format: int64, minimum: 0, description: The caller's play time over all games (0.19) }
+        sessions: { type: integer, minimum: 0, description: Number of the caller's plays }
+        last_played_at: { type: string, format: date-time, nullable: true, description: End of the caller's latest play; null when never played }
     AccountUpdate:
       type: object
       required: [display_name]
@@ -6510,7 +6725,7 @@ components:
 
     AdminUser:
       type: object
-      required: [id, username, display_name, role, disabled, created_at, devices]
+      required: [id, username, display_name, role, disabled, created_at, devices, play_seconds, sessions, last_played_at]
       properties:
         id: { type: string, example: u_placeholder_2 }
         username: { type: string, example: sam }
@@ -6520,6 +6735,9 @@ components:
         created_at: { type: string, format: date-time }
         devices: { type: integer, minimum: 0, description: Devices that still have access }
         last_seen_at: { type: string, format: date-time, description: Newest connection of any of their devices; absent when none ever connected }
+        play_seconds: { type: integer, format: int64, minimum: 0, description: Their play time over all games (0.19) }
+        sessions: { type: integer, minimum: 0, description: Number of their plays }
+        last_played_at: { type: string, format: date-time, nullable: true, description: End of their latest play; null when never played }
     AdminUserList:
       type: object
       required: [users]

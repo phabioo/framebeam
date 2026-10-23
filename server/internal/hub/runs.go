@@ -148,6 +148,10 @@ type RunParticipant struct {
 	GameID   *string                   `json:"game_id"`
 	Color    *int                      `json:"color"`
 	States   map[string]RunPluginState `json:"states"`
+	// PlaySeconds and LastPlayedAt are set by the REST reads only (nil in pushes): the participant's play time in
+	// this run (plays whose presence named the run) and the end of the latest one (nil = never played).
+	PlaySeconds  *int64     `json:"play_seconds,omitempty"`
+	LastPlayedAt *time.Time `json:"last_played_at,omitempty"`
 }
 
 // Run is the run object as REST and WSS carry it (archived is web only and not part of the wire format).
@@ -164,7 +168,9 @@ type Run struct {
 	Plugins      []RunPlugin      `json:"plugins"`
 	Participants []RunParticipant `json:"participants"`
 	LastSeq      int64            `json:"last_seq"`
-	Archived     bool             `json:"-"`
+	// PlaySeconds is the total play time of all people in this run; set by the REST reads only (nil in pushes).
+	PlaySeconds *int64 `json:"play_seconds,omitempty"`
+	Archived    bool   `json:"-"`
 }
 
 // Participant returns the participant of a user.
@@ -832,7 +838,11 @@ func (s *Service) GetRun(ctx context.Context, userID, runID string) (Run, error)
 	if _, ok := run.Participant(userID); !ok {
 		return Run{}, ErrNotFound
 	}
-	return viewFor(run, userID), nil
+	rs := []Run{viewFor(run, userID)}
+	if err := s.fillRunPlayTimes(ctx, rs); err != nil {
+		return Run{}, err
+	}
+	return rs[0], nil
 }
 
 // ListRuns returns the non-archived runs the user participates in, most recently changed first.
@@ -847,6 +857,9 @@ func (s *Service) ListRuns(ctx context.Context, userID string) ([]Run, error) {
 	}
 	for i := range out {
 		out[i] = viewFor(out[i], userID)
+	}
+	if err := s.fillRunPlayTimes(ctx, out); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -1449,12 +1462,23 @@ func (s *Service) ListRunsAdmin(ctx context.Context, includeArchived bool) ([]Ru
 		}
 		out = append(out, r)
 	}
+	if err := s.fillRunPlayTimes(ctx, out); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
 // GetRunAdmin returns any run (without participants' state bodies).
 func (s *Service) GetRunAdmin(ctx context.Context, runID string) (Run, error) {
-	return loadRun(ctx, s.db, runID, false)
+	r, err := loadRun(ctx, s.db, runID, false)
+	if err != nil {
+		return Run{}, err
+	}
+	rs := []Run{r}
+	if err := s.fillRunPlayTimes(ctx, rs); err != nil {
+		return Run{}, err
+	}
+	return rs[0], nil
 }
 
 // RunBoards returns the board trees of a run, in plugin order of the run.

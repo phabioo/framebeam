@@ -181,6 +181,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"GetAdminFirmwareFile", "PutAdminFirmwareFile", "PinAdminFirmwareFile", "RemoveAdminFirmwareFile",
 			"ListAdminPlugins", "StageAdminPlugin", "OfferAdminPlugin", "DiscardAdminPlugin", "RemoveAdminPlugin", "RefreshAdminPluginIndex", "InstallAdminIndexPlugin",
 			"CreateAdminDiagnosticsBundle", "DeleteAdminGame", "RenameAdminGame", "GetAdminLibraryRescan", "StartAdminLibraryRescan", "ListAdminRuns", "DeleteAdminRun", "GetAdminRun", "ArchiveAdminRun", "ExportAdminRun", "FinishAdminRun", "RemoveAdminRunInvite", "ResendAdminRunInvite", "PauseAdminRun", "ResendAdminRunInvites", "ResumeAdminRun", "StartAdminRun", "UnarchiveAdminRun", "ListAdminSaves", "RenewAdminCertificate", "GetAdminSettings", "UpdateAdminSettings", "DeleteAdminExternalTurn", "SaveAdminExternalTurn", "ResetAdminExternalTurn", "RestartAdminServer", "ResetAdminNetSetting", "SetAdminNetSetting", "CheckAdminUpdates", "InstallAdminUpdate", "DeleteAdminSaveSlot", "GetAdminSaveSlot", "ResolveAdminSaveConflict", "DownloadAdminSaveContent", "ListAdminSaveHistory", "DeleteAdminSaveVersion", "DownloadAdminSaveHistoryContent", "RestoreAdminSaveVersion", "RenameAdminSaveSlot", "CreateAdminSaveSlot", "CreateAdminSaveSnapshot", "UploadAdminSaveFile",
+			"AddFavorite", "RemoveFavorite", "ListCollections", "CreateCollection", "RenameCollection", "DeleteCollection", "AddCollectionGame", "RemoveCollectionGame",
 			"ListRuns", "CreateRun", "GetRun", "JoinRun", "DeclineRun", "LeaveRun", "InviteRun", "SetRunStatus", "PutRunState", "AppendRunEvent", "ListRunEvents", "PutRunBoard":
 			p, err := s.svc.Authenticate(ctx, tok)
 			if err != nil {
@@ -470,12 +471,17 @@ func (s *Server) ListGames(ctx context.Context, _ api.ListGamesRequestObject) (a
 	if err != nil {
 		return nil, err
 	}
+	personal, err := s.svc.PersonalGames(ctx, principal(ctx).User.ID, "")
+	if err != nil {
+		return nil, err
+	}
 	out := api.ListGames200JSONResponse{Games: make([]api.Game, 0, len(gs))}
 	for _, g := range gs {
 		ag, err := toAPIGame(g)
 		if err != nil {
 			return nil, err
 		}
+		ag.Personal = toAPIPersonal(personal[g.ID])
 		out.Games = append(out.Games, ag)
 	}
 	return out, nil
@@ -490,6 +496,11 @@ func (s *Server) GetGame(ctx context.Context, req api.GetGameRequestObject) (api
 	if err != nil {
 		return nil, err
 	}
+	personal, err := s.svc.PersonalGames(ctx, principal(ctx).User.ID, g.ID)
+	if err != nil {
+		return nil, err
+	}
+	ag.Personal = toAPIPersonal(personal[g.ID])
 	return api.GetGame200JSONResponse(ag), nil
 }
 

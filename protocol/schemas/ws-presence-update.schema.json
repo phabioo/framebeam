@@ -37,9 +37,14 @@
         "game_id": {
           "type": "string",
           "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "App to server only, and only with state in_game: the run being played. The server counts play time per run when the user joined that run with this game, otherwise it ignores it. Never broadcast."
         }
       }
     }
   },
-  "description": "App to server: {state: online|in_game, game_id?}. Server to apps: additionally user_id and device_id (always set), state may be offline."
+  "description": "App to server: {state: online|in_game, game_id?, run_id?}. Server to apps: additionally user_id and device_id (always set), state may be offline; run_id is never sent to other apps."
 }

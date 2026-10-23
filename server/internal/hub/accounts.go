@@ -371,6 +371,8 @@ type Account struct {
 	ConfirmedUntil *time.Time
 	// ConfirmLockedUntil is set while "Confirm it's you" is locked on this device.
 	ConfirmLockedUntil *time.Time
+	// PlayStat is the caller's play time over all games (0.19).
+	PlayStat
 }
 
 // GetAccount returns the account of userID as seen from deviceID (ErrNotFound if the device is not the user's).
@@ -392,6 +394,9 @@ func (s *Service) GetAccount(ctx context.Context, userID, deviceID string) (Acco
 		return Account{}, err
 	}
 	now := s.now().Unix()
+	if a.PlayStat, err = s.UserPlayStats(ctx, userID); err != nil {
+		return Account{}, err
+	}
 	a.HasPassword, a.MustChangePassword = hasPw != 0, must != 0
 	a.PasswordRequired = a.Role == RoleAdmin || req
 	if conf.Valid && conf.Int64 > now {

@@ -95,6 +95,8 @@ type Options struct {
 	PluginIndexURL string
 	// BackupExtras are files outside the data directory that go into every backup (own TLS certificate and key, server.env).
 	BackupExtras []backup.Extra
+	// PlayTickInterval is how often the last_seen_at of open plays is refreshed (default 60 s; injectable for tests).
+	PlayTickInterval time.Duration
 	// BackupFree reports the free space of a folder (injectable for tests; default: the file system).
 	BackupFree backup.FreeFunc
 }
@@ -131,6 +133,7 @@ type Service struct {
 	runs   runState
 	bk     backupState
 	rep    reportState
+	play   playState
 
 	child       bool       // running as the app's child process (Options.Child)
 	localMu     sync.Mutex // local setup defaults
@@ -170,6 +173,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	}
 	s.saveKeep = saveRetention{recent: o.SaveKeepRecent, daily: o.SaveKeepDaily, weekly: o.SaveKeepWeekly}
 	s.sess.init(o)
+	s.initPlay(o)
 	s.cores.init(o)
 	s.child = o.Child
 	s.initUpdates(o)
@@ -212,6 +216,9 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	s.BackfillGameCodes(ctx) // header reads only; failures are logged, never fatal
 	s.BackfillGameVersions(ctx)
 	s.recoverSessions(ctx)
+	if o.CleanStaging { // the serving process only (see startPlay)
+		s.startPlay(ctx)
+	}
 	return s, nil
 }
 

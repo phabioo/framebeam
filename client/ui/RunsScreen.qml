@@ -54,7 +54,7 @@ Rectangle {
         const names = []
         for (let i = 0; i < m.participants.length; ++i) names.push(m.participants[i].name)
         return { runId: m.runId, name: m.name, game: m.game, rules: m.rulesName + (m.rulesVersion !== "" ? " " + m.rulesVersion : ""),
-                 people: names.join(", "), peopleCount: names.length, updated: m.timeText, statusText: m.statusText,
+                 people: names.join(", "), peopleCount: names.length, updated: m.timeText, statusText: m.statusText, played: m.playTimeText,
                  tone: m.tone, over: over }
     }
     function buildRows(): var {
@@ -140,6 +140,18 @@ Rectangle {
                 textFormat: Text.PlainText
                 font.family: Theme.sans
                 font.pixelSize: Theme.roles.input.size
+                color: Theme.muted
+            }
+            Text {
+                objectName: "runRowPlayTime"
+                visible: cell.key === "played"
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width
+                elide: Text.ElideRight
+                text: cell.row ? cell.row.played : ""
+                textFormat: Text.PlainText
+                font.family: Theme.mono
+                font.pixelSize: Theme.roles.meta11.size
                 color: Theme.muted
             }
             Text {
@@ -436,6 +448,7 @@ Rectangle {
                             const c = [{ key: "name", title: qsTr("Run"), fill: 1.3, custom: true }]
                             if (page.width >= 640) c.push({ key: "rules", title: qsTr("Rules"), width: 150, custom: true })
                             if (page.width >= 520) c.push({ key: "people", title: qsTr("People"), fill: 1, custom: true })
+                            if (page.width >= 560) c.push({ key: "played", title: qsTr("Play time"), width: 80, custom: true })
                             c.push({ key: "updated", title: qsTr("Updated"), width: 96, custom: true })
                             c.push({ key: "status", title: qsTr("Status"), width: 112, custom: true })
                             return c
@@ -655,6 +668,8 @@ Rectangle {
                                 const c = [{ key: "name", title: qsTr("Person"), fill: 1, custom: true }]
                                 if (page.width >= 480) c.push({ key: "slot", title: qsTr("Save slot"), fill: 1.2, custom: true })
                                 if (page.width >= 600) c.push({ key: "gameTitle", title: qsTr("Game"), fill: 1 })
+                                if (page.width >= 520) c.push({ key: "playTimeText", title: qsTr("Play time"), width: 80, mono: true })
+                                if (page.width >= 700) c.push({ key: "lastPlayedText", title: qsTr("Last played"), width: 104 })
                                 c.push({ key: "status", title: qsTr("Status"), width: 104, custom: true })
                                 return c
                             }

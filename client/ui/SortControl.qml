@@ -7,10 +7,13 @@ import Uzume.App
 // a "✓" on the selected one and a footer note. picked(key) on user choice; the owner stores it.
 Rectangle {
     id: root
-    property string current: "name_asc"
+    property string current: "played"
     signal picked(string key)
 
     readonly property var sections: [
+        { header: qsTr("Played"), items: [
+            { value: "played", label: qsTr("Recently played"), short: qsTr("Recently played") },
+            { value: "playtime", label: qsTr("Most play time"), short: qsTr("Play time") } ] },
         { header: qsTr("Name"), items: [
             { value: "name_asc", label: qsTr("A–Z"), short: qsTr("Name A–Z") },
             { value: "name_desc", label: qsTr("Z–A"), short: qsTr("Name Z–A") } ] },
@@ -20,8 +23,7 @@ Rectangle {
         { header: qsTr("More"), items: [
             { value: "size_desc", label: qsTr("Size largest first"), short: qsTr("Size, largest") },
             { value: "size_asc", label: qsTr("Size smallest first"), short: qsTr("Size, smallest") },
-            { value: "system", label: qsTr("System then name"), short: qsTr("System") },
-            { value: "played", label: qsTr("Last played this device"), short: qsTr("Last played") } ] }
+            { value: "system", label: qsTr("System then name"), short: qsTr("System") } ] }
     ]
     readonly property string currentLabel: {
         for (const sec of sections) {

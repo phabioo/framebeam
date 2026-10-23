@@ -171,7 +171,7 @@ void SessionController::onHelloAck() {
   refreshSessions();
 }
 
-void SessionController::presence() { socket_.sendPresence(hasLocalGame() ? QStringLiteral("in_game") : QStringLiteral("online"), gameId_); }
+void SessionController::presence() { socket_.sendPresence(hasLocalGame() ? QStringLiteral("in_game") : QStringLiteral("online"), gameId_, hasLocalGame() ? runId_ : QString()); }
 
 QString SessionController::visibilityLabel(const QString& v) {
   if (v == QLatin1String("private")) return tr("Private");
@@ -1001,8 +1001,9 @@ void SessionController::setPictureOptions(bool integerScale, const QString& aspe
   emit viewChanged();
 }
 
-void SessionController::gameStarted(const QString& gameId, const QString& title) {
+void SessionController::gameStarted(const QString& gameId, const QString& title, const QString& runId) {
   gameId_ = gameId;
+  runId_ = runId;
   gameTitle_ = title;
   screenLayout_ = QStringLiteral("stacked");  // the in-game switch applies to this game only
   focusPref_ = QStringLiteral("local");
@@ -1023,6 +1024,7 @@ void SessionController::gameEnded() {
   }
   stopSharing();
   gameId_.clear();
+  runId_.clear();
   gameTitle_.clear();
   order_.removeAll(QStringLiteral("local"));
   if (focusPref_ == QLatin1String("local")) {

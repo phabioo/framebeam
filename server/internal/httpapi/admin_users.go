@@ -14,9 +14,10 @@ import (
 // pairingCodeTTL is the lifetime of the pairing code of a new user or a new code (like the app).
 const pairingCodeTTL = 24 * time.Hour
 
-func adminUserBody(u hub.User, devices int, lastSeen *time.Time) api.AdminUser {
+func adminUserBody(u hub.User, devices int, lastSeen *time.Time, play hub.PlayStat) api.AdminUser {
 	return api.AdminUser{Id: u.ID, Username: u.Username, DisplayName: u.DisplayName, Role: api.AdminUserRole(u.Role),
-		Disabled: u.Disabled(), CreatedAt: u.CreatedAt, Devices: devices, LastSeenAt: lastSeen}
+		Disabled: u.Disabled(), CreatedAt: u.CreatedAt, Devices: devices, LastSeenAt: lastSeen,
+		PlaySeconds: play.Seconds, Sessions: play.Sessions, LastPlayedAt: play.LastPlayedAt}
 }
 
 // lastSeenByUser is the newest connection of any device, per user.
@@ -46,7 +47,7 @@ func (s *Server) adminUserByID(ctx context.Context, id string) (api.AdminUser, e
 	}
 	for _, r := range rows {
 		if r.ID == id {
-			return adminUserBody(r.User, r.Devices, seen[r.ID]), nil
+			return adminUserBody(r.User, r.Devices, seen[r.ID], r.PlayStat), nil
 		}
 	}
 	return api.AdminUser{}, hub.ErrNotFound
@@ -66,7 +67,7 @@ func (s *Server) ListAdminUsers(ctx context.Context, _ api.ListAdminUsersRequest
 	}
 	out := api.AdminUserList{Users: make([]api.AdminUser, 0, len(rows))}
 	for _, r := range rows {
-		out.Users = append(out.Users, adminUserBody(r.User, r.Devices, seen[r.ID]))
+		out.Users = append(out.Users, adminUserBody(r.User, r.Devices, seen[r.ID], r.PlayStat))
 	}
 	return api.ListAdminUsers200JSONResponse(out), nil
 }
@@ -82,7 +83,7 @@ func (s *Server) CreateAdminUser(ctx context.Context, req api.CreateAdminUserReq
 	if err != nil {
 		return nil, err
 	}
-	return api.CreateAdminUser201JSONResponse(api.AdminUserCreated{User: adminUserBody(u, 0, nil),
+	return api.CreateAdminUser201JSONResponse(api.AdminUserCreated{User: adminUserBody(u, 0, nil, hub.PlayStat{}),
 		PairingCode: api.AdminCode{Code: code, ExpiresAt: inv.ExpiresAt}}), nil
 }
 

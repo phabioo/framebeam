@@ -264,6 +264,23 @@ std::optional<CorePackageInfo> parseCorePackage(const QJsonObject& obj) {
   return p;
 }
 
+GamePersonal parsePersonal(const QJsonValue& v) {
+  GamePersonal p;
+  if (!v.isObject()) {
+    return p;
+  }
+  const QJsonObject o = v.toObject();
+  p.known = true;
+  p.playSeconds = qMax<qint64>(0, o.value(QStringLiteral("play_seconds")).toVariant().toLongLong());
+  p.sessions = qMax(0, o.value(QStringLiteral("sessions")).toInt(0));
+  p.lastPlayedAt = o.value(QStringLiteral("last_played_at")).toString();
+  p.favorite = o.value(QStringLiteral("favorite")).toBool(false);
+  for (const QJsonValue& c : o.value(QStringLiteral("collection_ids")).toArray()) {
+    if (c.isString() && !c.toString().isEmpty()) p.collectionIds.append(c.toString());
+  }
+  return p;
+}
+
 std::optional<GameEntry> parseGame(const QJsonObject& obj) {
   GameEntry g;
   g.id = obj.value(QStringLiteral("id")).toString();
@@ -277,6 +294,7 @@ std::optional<GameEntry> parseGame(const QJsonObject& obj) {
   g.addedAt = obj.value(QStringLiteral("added_at")).toString();
   g.gameCode = obj.value(QStringLiteral("game_code")).toString();
   g.gameCodeKind = obj.value(QStringLiteral("game_code_kind")).toString();
+  g.personal = parsePersonal(obj.value(QStringLiteral("personal")));
   if (g.id.isEmpty() || !RomCache::isValidSha256(g.romSha256) || g.romSize < 0) {
     return std::nullopt;
   }

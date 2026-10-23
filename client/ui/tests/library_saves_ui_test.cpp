@@ -1155,7 +1155,8 @@ Item {
     function fill(n) {
         for (let i = 0; i < n; ++i) {
             games.append({gameId: "g" + i, title: "Homebrew " + i, system: "nds", monogram: "H", stateKind: "ready",
-                          tileText: "Ready", tileTone: "ok", progress: 0, addedText: "", onHub: true, localFile: false})
+                          tileText: "Ready", tileTone: "ok", progress: 0, addedText: "", onHub: true, localFile: false,
+                          playTimeText: "–", lastPlayedText: "–"})
         }
     }
     function clear() { games.clear() }

@@ -26,6 +26,9 @@ std::optional<AccountInfo> parseAccount(const QJsonObject& o) {
   a.mustChangePassword = o.value(QStringLiteral("must_change_password")).toBool(false);
   a.confirmedUntil = parseTime(o.value(QStringLiteral("confirmed_until")));
   a.confirmLockedUntil = parseTime(o.value(QStringLiteral("confirm_locked_until")));
+  a.playSeconds = qMax<qint64>(0, o.value(QStringLiteral("play_seconds")).toVariant().toLongLong());
+  a.sessions = qMax(0, o.value(QStringLiteral("sessions")).toInt(0));
+  a.lastPlayedAt = parseTime(o.value(QStringLiteral("last_played_at")));
   if (a.userId.isEmpty()) {
     return std::nullopt;
   }

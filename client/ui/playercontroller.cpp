@@ -366,6 +366,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   sessions_->setPlayerSettings(settings_.get());  // diagnostics overlay states live in settings/player.json (0.6 D5)
   runClient_ = std::make_unique<RunClient>(conn_.get(), sessions_->socket(), profiles_->baseDir());
   runs_ = std::make_unique<RunsController>(runClient_.get(), plugins_.get(), library_.get(), conn_.get());
+  personal_ = std::make_unique<PersonalController>(conn_.get(), &model_);
+  connect(&model_, &LibraryModel::collectionsChanged, this, &PlayerController::selectedGameChanged);
   connect(runs_.get(), &RunsController::launchRequested, this, &PlayerController::startRunGame);
   connect(runs_.get(), &RunsController::availableChanged, this, [this]() {
     if (page_ == QLatin1String("runs") && !runs_->available()) showLibrary();  // the entry went away
@@ -544,6 +546,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   });
   liveTimer_->start();
   connect(library_.get(), &HubLibrary::cleared, this, [this]() {
+    if (personal_) personal_->clear();
     model_.clear();
     emit selectedGameChanged();
   });
@@ -609,7 +612,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     phase_ = PlayPhase::None;
     gameActive_ = true;
     gameStartedMs_ = QDateTime::currentMSecsSinceEpoch();
-    sessions_->gameStarted(launchGame_.id, launchGame_.title);
+    sessions_->gameStarted(launchGame_.id, launchGame_.title,
+                           runStart_.pending() && runStart_.gameId == launchGame_.id ? runStart_.runId : QString());
     // Screen layout default of the system (Emulation > Defaults / system), the in-game switch overrides it for this game only.
     sessions_->setScreenLayout(emulation_->uzumeValue(QString::fromLatin1(EmulationController::kScreenLayoutKey), launchGame_.system, launchGame_.id));
     applyUzumeOptions();  // picture options of the game (gameActive_ is set now)
@@ -667,7 +671,17 @@ PlayerController::~PlayerController() { shutdown(); }
 
 void PlayerController::endGameContext() {
   setBackground(false);
+  const bool wasActive = gameActive_;
   gameActive_ = false;
+  if (wasActive) {
+    // The server adds the play time when the app reports that the game ended (presence): read it back a moment later.
+    QTimer::singleShot(1500, this, [this]() {
+      if (conn_->state() == HubConnection::State::Connected && libraryState_ == QLatin1String("ready") && !library_->isLoading()) {
+        quietRefresh_ = true;
+        library_->reload();
+      }
+    });
+  }
   finishRunStart();
   if (cache_ && !launchGame_.romSha256.isEmpty()) {
     cache_->touch(launchGame_.romSha256, RomCache::extensionFromFilename(launchGame_.romFilename));  // LRU: last use = end of play
@@ -1836,6 +1850,7 @@ void PlayerController::onLibraryLoaded() {
   }
   model_.setLastPlayed(settings_->lastPlayedAll(conn_->hubInfo().hubId));
   model_.setGames(library_->games(), [this](const GameEntry& g) { return romStatusOf(g); });
+  if (personal_) personal_->refresh();  // collections of the person (3c-0)
   {
     // "42 games · Nintendo DS": the system name shows only when all games share one system.
     QString label;

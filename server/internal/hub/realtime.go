@@ -153,6 +153,7 @@ func (s *Service) armOwnerGrace(sessionID, deviceID string) {
 // database closes (server shutdown, in-process restart). The service is not usable for Sessions afterwards.
 func (s *Service) Close() {
 	s.stopBackup()
+	s.stopPlay()
 	s.sess.mu.Lock() // waits for a running grace callback (they hold it while they work)
 	defer s.sess.mu.Unlock()
 	rt := &s.sess.rt
@@ -508,6 +509,7 @@ func (s *Service) attach(c *Client) {
 	c.mu.Unlock()
 	s.Publish(TopicClients) // the Clients page shows who is online
 	if old != nil {
+		s.playDeviceReplaced(old)
 		old.closeWith(CloseCodePolicy, "replaced by a newer connection")
 	}
 	for _, o := range s.clients() {
@@ -547,6 +549,7 @@ func (c *Client) presence(env envelope) {
 	var p struct {
 		State  string `json:"state"`
 		GameID string `json:"game_id"`
+		RunID  string `json:"run_id"`
 	}
 	if err := json.Unmarshal(env.Payload, &p); err != nil || (p.State != "online" && p.State != "in_game") {
 		c.sendError(env.ID, CodeBadRequest, "state must be online or in_game")
@@ -558,9 +561,16 @@ func (c *Client) presence(env envelope) {
 			return
 		}
 	}
+	if p.RunID != "" {
+		if _, err := uuid.Parse(p.RunID); err != nil || p.State != "in_game" {
+			c.sendError(env.ID, CodeBadRequest, "run_id is only valid with state in_game and must be a UUID")
+			return
+		}
+	}
 	c.mu.Lock()
 	c.state, c.gameID = p.State, p.GameID
 	c.mu.Unlock()
+	c.svc.playPresence(c, p.State, p.GameID, p.RunID) // run_id is for play time only, never broadcast
 	msg := encode("presence_update", "", c.presencePayload(""))
 	for _, o := range c.svc.clients() {
 		if o != c {
@@ -626,6 +636,7 @@ func (c *Client) Disconnect() {
 		return
 	}
 	s := c.svc
+	s.playClose(c) // also when replaced by a newer connection: its own play ends with it
 	rt := &s.sess.rt
 	rt.mu.Lock()
 	current := rt.conns[c.deviceID] == c

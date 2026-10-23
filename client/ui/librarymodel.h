@@ -16,6 +16,7 @@
 #include <optional>
 
 #include "hubprotocol.h"
+#include "personalapi.h"
 #include "romdownloader.h"
 
 namespace uzume::ui {
@@ -35,7 +36,15 @@ class LibraryModel : public QAbstractListModel {
   Q_PROPERTY(int totalCount READ totalCount NOTIFY countChanged)
   Q_PROPERTY(int readyCount READ readyCount NOTIFY countChanged)
   Q_PROPERTY(int systemCount READ systemCount NOTIFY countChanged)  // distinct systems among all games ("ON THIS PC · 214 GAMES · 5 SYSTEMS")
-  // Sort (3c-2): "name_asc" | "name_desc" | "added_desc" | "added_asc" | "size_desc" | "size_asc" | "system" | "played".
+  // Collection chips (3c-0, Uzume 0.19): which games belong to the shown list. "all" | "favorites" | a collection id. Combined with
+  // the status chip and the search; an unknown or deleted id falls back to "all".
+  Q_PROPERTY(QString collectionFilter READ collectionFilter WRITE setCollectionFilter NOTIFY filterChanged)
+  // True when the server keeps favourites and collections per person (any game came with `personal`, or GET /collections worked).
+  Q_PROPERTY(bool personalSupported READ personalSupported NOTIFY collectionsChanged)
+  // Chips of the collection row: [{value, label, count, kind: "all" | "favorites" | "collection"}], without "+ Collection".
+  Q_PROPERTY(QVariantList collectionChips READ collectionChips NOTIFY collectionsChanged)
+  // Sort (3c-2): "name_asc" | "name_desc" | "added_desc" | "added_asc" | "size_desc" | "size_asc" | "system" | "played"
+  // (recently played, the default; server last played or this device's, the newer one) | "playtime" (most play time first).
   // Persisted per device by the PlayerController (PlayerSettings).
   Q_PROPERTY(QString sortKey READ sortKey WRITE setSortKey NOTIFY sortChanged)
   // "Ready first": ready games on top, a divider, then the rest; same sort inside both groups. Not applied (and the toggle
@@ -73,7 +82,14 @@ class LibraryModel : public QAbstractListModel {
     ReadyGroupRole,      // bool: "ready" for Ready first (ROM ready, no attention, save sync not pending)
     AddedTextRole,       // "DD.MM.YYYY" (Hub added_at, local time); empty if unknown
     OnHubRole,           // bool: a file of the game is stored on the Hub (false = local-only game, "Local" pill)
-    LocalFileRole        // bool: the game starts from a local file of a library folder (with OnHub: "Local · on Hub")
+    LocalFileRole,       // bool: the game starts from a local file of a library folder (with OnHub: "Local · on Hub")
+    PlaySecondsRole,     // qint64: play time of the signed-in person (0 = never or an older server)
+    PlayTimeTextRole,    // "12 h", "45 min", "–" when never
+    SessionsRole,        // int
+    LastPlayedMsRole,    // qint64 Unix ms, max(server last played, this device's); 0 = never
+    LastPlayedTextRole,  // "Today", "Yesterday", "3 days ago", "DD.MM.YYYY", "–" when never
+    FavoriteRole,        // bool
+    CollectionIdsRole    // QStringList
   };
   Q_ENUM(Roles)
 
@@ -109,6 +125,24 @@ class LibraryModel : public QAbstractListModel {
   int notReadyGroupCount() const { return notReadyGroupCount_; }
   QString countText() const;
   QVariantMap outsideFilter() const;
+  // --- per person (Uzume 0.19) ---
+  QString collectionFilter() const { return collection_; }
+  void setCollectionFilter(const QString& value);
+  bool personalSupported() const { return personalSupported_; }
+  void setPersonalSupported(bool on);
+  QVariantList collectionChips() const;
+  // The collections of the person (order as served); membership of the games follows each collection's game ids. An open
+  // collection filter whose collection is gone falls back to "all".
+  void setCollections(const QList<CollectionInfo>& collections);
+  QList<CollectionInfo> collections() const { return collections_; }
+  // Local changes ahead of the server's answer (the caller reverts them when the request fails).
+  void setFavorite(const QString& gameId, bool favorite);
+  void setCollectionMember(const QString& gameId, const QString& collectionId, bool member);
+  // {supported, playSeconds, playTimeText, sessions, lastPlayedMs, lastPlayedText, favorite, collectionIds, collectionNames};
+  // empty for an unknown game.
+  Q_INVOKABLE QVariantMap personalFor(const QString& gameId) const;
+  Q_INVOKABLE static QString formatPlayTime(qint64 seconds);                     // "–" for 0
+  static QString formatLastPlayed(qint64 msecs, qint64 nowMsecs = 0);            // "–" for 0; nowMsecs 0 = now
   // Last played on this device (Unix ms per game id of the active Hub); never played = missing.
   void setLastPlayed(const QHash<QString, qint64>& byGameId);
   void noteLastPlayed(const QString& gameId, qint64 msecs);
@@ -146,6 +180,7 @@ class LibraryModel : public QAbstractListModel {
   void countChanged();
   void sortChanged();
   void continueChanged();
+  void collectionsChanged();
 
  private:
   struct Item {
@@ -160,6 +195,9 @@ class LibraryModel : public QAbstractListModel {
   static QString attentionOf(const Item& it);  // short reason, empty = none
   bool matches(const Item& it) const;
   bool matchesText(const Item& it) const;
+  bool matchesCollection(const Item& it) const;
+  qint64 lastPlayedOf(const Item& it) const;
+  void afterPersonalChange();
   bool inReadyGroup(const Item& it) const;
   bool lessThan(const Item& a, const Item& b) const;
   int compareTitles(const QString& a, const QString& b) const;
@@ -172,7 +210,10 @@ class LibraryModel : public QAbstractListModel {
   QList<int> visible_;  // indices into items_
   QString filterText_;
   QString filter_ = QStringLiteral("all");
-  QString sortKey_ = QStringLiteral("name_asc");
+  QString collection_ = QStringLiteral("all");
+  QList<CollectionInfo> collections_;
+  bool personalSupported_ = false;
+  QString sortKey_ = QStringLiteral("played");
   bool readyFirst_ = false;
   QHash<QString, qint64> lastPlayed_;
   QString systemLabel_;

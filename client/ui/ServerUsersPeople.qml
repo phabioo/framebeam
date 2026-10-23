@@ -32,6 +32,7 @@ ColumnLayout {
             { key: "person", title: qsTr("Person"), fill: 1.4, custom: true },
             { key: "role", title: qsTr("Role"), width: 90 },
             { key: "status", title: qsTr("Status"), fill: 1 },
+            { key: "played", title: qsTr("Play time"), width: 80, align: "right", mono: true },
             { key: "devices", title: qsTr("Devices"), width: 80, align: "right", mono: true }
         ]
         rows: root.page.peopleRows
@@ -94,6 +95,24 @@ ColumnLayout {
                 Text { text: qsTr("Joined"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted }
                 Text {
                     text: root.u === null ? "" : root.page.dateText(root.u.created_at)
+                    font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink
+                }
+                Text { text: qsTr("Play time"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted }
+                Text {
+                    objectName: "detailPlayTime"
+                    text: root.u === null ? "" : root.page.playText(root.u.play_seconds)
+                    font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink
+                }
+                Text { text: qsTr("Sessions"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted }
+                Text {
+                    objectName: "detailSessions"
+                    text: root.u === null ? "" : Number(root.u.sessions ?? 0) > 0 ? String(root.u.sessions) : "–"
+                    font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink
+                }
+                Text { text: qsTr("Last played"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted }
+                Text {
+                    objectName: "detailLastPlayed"
+                    text: root.u === null ? "" : root.u.last_played_at ? root.page.agoText(root.u.last_played_at) : qsTr("Never")
                     font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink
                 }
                 Text { text: qsTr("Devices"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted }

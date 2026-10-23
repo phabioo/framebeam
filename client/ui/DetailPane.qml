@@ -12,6 +12,9 @@ Rectangle {
     readonly property bool hasGame: game.id !== undefined
     // 3c-5: the selected game is the one paused in the background (detail column with Resume / Quit game).
     readonly property bool running: game.running === true
+    // Per person (0.19, 3c-1): play time, last played, sessions, favourite, collections; supported = false on an older server.
+    readonly property var personal: game.personal ?? ({})
+    readonly property bool personalShown: root.personal.supported === true
     // "overview" (status, SAVE summary, start checklist) or "saves" (3c-3 saves view in the same 392 column)
     property string mode: "overview"
     readonly property SaveHistoryController hist: player.saveHistory
@@ -185,6 +188,20 @@ Rectangle {
                     }
                 }
 
+                // Favourite (toggle) of the game page header (3c-1); favourites are per person.
+                UzButton {
+                    id: favoriteButton
+                    objectName: "favoriteButton"
+                    visible: root.personalShown
+                    on: root.personal.favorite === true
+                    text: root.personal.favorite === true ? qsTr("★ Favourite") : qsTr("☆ Favourite")
+                    size: "sm"
+                    Accessible.checkable: true
+                    Accessible.checked: root.personal.favorite === true
+                    Accessible.name: qsTr("Favourite")
+                    onClicked: root.player.personal.toggleFavorite(root.gameId)
+                }
+
                 // Status table
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -276,6 +293,65 @@ Rectangle {
                                     wrapMode: Text.WrapAnywhere
                                     font.pixelSize: Theme.roles.meta11.size
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // Your play (3c-1 facts): play time and last played, sessions, collections with "+ Collection".
+                ColumnLayout {
+                    objectName: "personalFacts"
+                    visible: root.personalShown
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: 0
+                    Repeater {
+                        model: [
+                            { label: qsTr("Play time"), text: root.personal.playTimeText ?? "–", name: "factPlayTime" },
+                            { label: qsTr("Last played"), text: root.personal.lastPlayedText ?? "–", name: "factLastPlayed" },
+                            { label: qsTr("Sessions"), text: root.personal.sessions > 0 ? String(root.personal.sessions) : "–", name: "factSessions" },
+                            { label: qsTr("Collections"), text: (root.personal.collectionNames ?? []).length > 0 ? root.personal.collectionNames.join(", ") : "–",
+                              name: "factCollections", add: true }
+                        ]
+                        delegate: Item {
+                            id: fact
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            implicitHeight: Math.max(factLabel.implicitHeight, factValue.implicitHeight, fact.modelData.add === true ? addButton.implicitHeight : 0) + 2 * Theme.space1
+                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
+                            UzMono {
+                                id: factLabel
+                                y: Theme.space1
+                                width: 96
+                                text: fact.modelData.label
+                                elide: Text.ElideRight
+                                color: Theme.dim
+                                font.pixelSize: Theme.roles.sectionLabel.size
+                                font.weight: Theme.roles.sectionLabel.weight
+                                font.letterSpacing: Theme.roles.sectionLabel.spacing
+                                font.capitalization: Font.AllUppercase
+                            }
+                            UzLabel {
+                                id: factValue
+                                objectName: fact.modelData.name
+                                y: Theme.space1
+                                x: 96 + Theme.space15
+                                width: fact.width - x - (fact.modelData.add === true ? addButton.width + Theme.space1 : 0)
+                                wrapMode: Text.Wrap
+                                text: fact.modelData.text
+                                font.pixelSize: Theme.roles.input.size
+                                color: Theme.ink2
+                            }
+                            UzButton {
+                                id: addButton
+                                objectName: "addToCollection"
+                                visible: fact.modelData.add === true
+                                kind: "link"
+                                anchors.right: parent.right
+                                y: Math.max(0, (fact.height - height) / 2)
+                                text: qsTr("+ Collection")
+                                onClicked: detailCollections.openAdd(root.gameId)
                             }
                         }
                     }
@@ -549,4 +625,5 @@ Rectangle {
                        : root.player.sessions.visibility === "invite_only" ? qsTr("Invite only") : qsTr("Everyone here"))
         }
     }
+    CollectionDialogs { id: detailCollections; player: root.player }
 }

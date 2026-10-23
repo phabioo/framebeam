@@ -12,6 +12,7 @@ Item {
     required property int cellHeight
     property alias model: view.model
     property bool showAdded: false
+    property bool showPersonal: false
     property string selectedId: ""
     property string runningId: ""
     readonly property alias count: view.count
@@ -65,6 +66,7 @@ Item {
             width: view.cellWidth
             height: view.cellHeight
             showAdded: host.showAdded
+            showPersonal: host.showPersonal
             selected: gameId === host.selectedId
             running: host.runningId !== "" && host.runningId === gameId
             onClicked: host.tileClicked(gameId)
