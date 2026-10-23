@@ -57,11 +57,13 @@ Rectangle {
         anchors.margins: 3
         spacing: 2
         Repeater {
-            model: root.options
+            // The option count, not the array: `options` is usually a binding that yields a new array on every change, and a
+            // rebuilt Repeater inside a Qt 6.4 layout can leave the layout with a deleted item (crash in rearrange).
+            model: root.options.length
             delegate: Rectangle {
                 id: seg
-                required property var modelData
                 required property int index
+                readonly property var modelData: root.options[index] || ({})
                 objectName: modelData.name || ""
                 readonly property bool off: modelData.disabled === true
                 readonly property bool active: root.current === modelData.value && !off
