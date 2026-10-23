@@ -27,6 +27,9 @@ QString hubUrl(int port);
 // trust of its certificate.
 bool isLocalHubAddress(const QString& address, int port);
 QString hubExe(const QString& installDir);
+// The data folder of the Windows service (%ProgramData%\Uzume\Server). UZUME_LOCAL_SERVICE_DATA_DIR replaces it on every
+// OS (tests); empty when unknown (not Windows).
+QString serviceDataDir();
 
 struct Command {
   QString program;

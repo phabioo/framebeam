@@ -159,8 +159,16 @@ void AdminController::onResult(const Pending& p, const AdminApi::Result& r) {
     parked_.append(p);
     if (!confirmNeeded_) {
       confirmNeeded_ = true;
+      autoTried_ = false;
       confirmMessage_.clear();
-      setConfirmState(lockedSeconds_ > 0 ? QStringLiteral("locked") : QStringLiteral("asking"));
+      confirmState_ = lockedSeconds_ > 0 ? QStringLiteral("locked") : QStringLiteral("asking");
+      const QString pw = (d_.autoConfirmPassword && lockedSeconds_ <= 0) ? d_.autoConfirmPassword() : QString();
+      if (!pw.isEmpty()) {
+        autoTried_ = true;
+        confirm(pw);  // emits confirmChanged once, already in "checking"
+      } else {
+        emit confirmChanged();
+      }
       updateClock();
     }
     return;
@@ -236,6 +244,7 @@ void AdminController::confirm(const QString& password) {
 void AdminController::cancelConfirm() {
   if (!confirmNeeded_ || confirmState_ == QLatin1String("checking")) return;
   confirmNeeded_ = false;
+  autoTried_ = false;
   confirmState_.clear();
   confirmMessage_.clear();
   emit confirmChanged();

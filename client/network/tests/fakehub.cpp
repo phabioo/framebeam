@@ -632,16 +632,30 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     respond(sock, 200, json({{QStringLiteral("admin_exists"), localAdminExists},
                              {QStringLiteral("network_sharing"), localNetworkSharing},
                              {QStringLiteral("import_dir"), localImportDir},
+                             {QStringLiteral("child"), localChild},
                              {QStringLiteral("hub_version"), QStringLiteral("0.9.0")}}));
   } else if (req.method == "POST" && (req.path == QLatin1String("/api/v1/local/setup") || req.path == QLatin1String("/api/v1/local/pair"))) {
     lastLocalBody = body;
     const bool setup = req.path.endsWith(QLatin1String("/setup"));
+    (setup ? localSetupCalls : localPairCalls)++;
+    const auto admin = accountsByUser.constFind(QStringLiteral("u_admin_1"));
+    const QString expected = admin != accountsByUser.constEnd() ? admin->password : QStringLiteral("correct horse");
     if (setup && localAdminExists) {
       respondError(sock, 409, QStringLiteral("admin_exists"));
-    } else if (!setup && body.value(QStringLiteral("password")).toString() != QLatin1String("correct horse")) {
+    } else if (!setup && body.value(QStringLiteral("password")).toString() != expected) {
       respondError(sock, 401, QStringLiteral("invalid_credentials"));
     } else {
-      if (setup) localAdminExists = true;
+      if (setup) {
+        localAdminExists = true;
+        FakeAccount a;
+        a.userId = QStringLiteral("u_admin_1");
+        a.username = body.value(QStringLiteral("username")).toString();
+        a.displayName = a.username;
+        a.role = QStringLiteral("admin");
+        a.password = body.value(QStringLiteral("password")).toString();
+        accountsByUser.insert(a.userId, a);
+      }
+      deviceUsers.insert(body.value(QStringLiteral("device_id")).toString(), QStringLiteral("u_admin_1"));
       approvedDelivered_ = true;
       respond(sock, 200, json({{QStringLiteral("status"), QStringLiteral("approved")},
                                {QStringLiteral("hub_id"), hubId},
@@ -681,6 +695,10 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     if (body.contains(QStringLiteral("import_dir")) && !localImportDirError.isEmpty()) {
       respond(sock, 400, json({{QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), QStringLiteral("import_dir_unreadable")},
                                                                     {QStringLiteral("message"), localImportDirError}}}}));
+      return;
+    }
+    if (localChild && body.contains(QStringLiteral("network_sharing"))) {
+      respondError(sock, 409, QStringLiteral("child_mode"));
       return;
     }
     if (body.contains(QStringLiteral("network_sharing"))) localNetworkSharing = body.value(QStringLiteral("network_sharing")).toBool();

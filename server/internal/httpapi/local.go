@@ -33,7 +33,8 @@ func isLocalOp(op string) bool {
 }
 
 func localStatusBody(st hub.LocalStatus) api.LocalStatus {
-	return api.LocalStatus{AdminExists: st.AdminExists, NetworkSharing: st.NetworkSharing, ImportDir: st.ImportDir, HubVersion: st.HubVersion}
+	child := st.Child
+	return api.LocalStatus{AdminExists: st.AdminExists, NetworkSharing: st.NetworkSharing, ImportDir: st.ImportDir, HubVersion: st.HubVersion, Child: &child}
 }
 
 func (s *Server) GetLocalStatus(ctx context.Context, _ api.GetLocalStatusRequestObject) (api.GetLocalStatusResponseObject, error) {

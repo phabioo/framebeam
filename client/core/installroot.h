@@ -42,12 +42,14 @@ enum class MsiScope {
   Machine,        // per-machine Player (UAC)
   MachineWithHub, // per-machine Player + Hub feature installed (UAC), INSTALL_HUB=1
   SetupHub,       // "Set up a Hub on this PC": ALLUSERS=1 INSTALL_HUB=1 NETWORK_SHARING=0 (UAC)
+  ShareHub,       // "Share with others" (0.18 p10): ALLUSERS=1 INSTALL_HUB=1 + the given properties (HUB_PORT, NETWORK_SHARING, IMPORT_SERVER_DATA) (UAC)
 };
 MsiScope detectMsiScope(bool rootWritable, bool hubInstalled);
-QString msiScopeName(MsiScope s);  // user | machine | machine-hub | setup-hub
+QString msiScopeName(MsiScope s);  // user | machine | machine-hub | setup-hub | share-hub
 bool msiScopeNeedsElevation(MsiScope s);
 // /i <msi> /qn /norestart + properties of the scope.
-QStringList msiexecArguments(const QString& msiPath, MsiScope scope);
+// `properties` (NAME=VALUE) are appended for ShareHub only.
+QStringList msiexecArguments(const QString& msiPath, MsiScope scope, const QStringList& properties = {});
 // Copies <root>\Uzume.exe to a fresh folder below tempBase; returns the copy ("" + error on failure).
 QString copyLauncherToTemp(const QString& installRoot, const QString& tempBase, QString* error = nullptr);
 // <launcherCopy> --apply-msi-update [--sha256 <hex> --size <n>] <msi> <scope> <relaunchExe> [relaunchArgs...]: the copy
@@ -56,7 +58,7 @@ QString copyLauncherToTemp(const QString& installRoot, const QString& tempBase, 
 // `sha256`/`size` are the values the Player verified against the signed update index (empty / < 0 = not passed).
 InstallerCommand msiRelaunchCommand(const QString& launcherCopy, const QString& msiPath, MsiScope scope,
                                     const QString& relaunchExe, const QStringList& relaunchArgs = {},
-                                    const QString& sha256 = {}, qint64 size = -1);
+                                    const QString& sha256 = {}, qint64 size = -1, const QStringList& msiProperties = {});
 // Where the per-machine Player lives after "Set up a Hub on this PC" (<programFiles>\Uzume\App).
 QString perMachinePlayerExe(const QString& programFilesDir);
 

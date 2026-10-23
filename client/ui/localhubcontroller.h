@@ -3,16 +3,31 @@
 // (Windows MSI), connects to the Hub on this PC over loopback (its self-signed certificate is trusted automatically for
 // exactly this address), creates the first Hub admin or signs in as an existing admin, and edits the Hub's local
 // settings (network sharing, ROM folder) afterwards.
+//
+// 0.18 package 10 "On this PC and sharing" (ADR 0030 D6) adds the child mode next to that service flow:
+//   mode ""        nothing chosen yet
+//   mode "child"   "Play on this PC": uzume-server runs as a child process of the app (LocalServerProcess), loopback only,
+//                  per user. The first admin is hidden (random password in the CredentialStore only).
+//   mode "service" "Share with others": the same server as the Windows service (one UAC; data moved, never overwritten).
+// startChild() / beginShare() / stopSharing() / shareAgain() move between them; accounts and saves are kept.
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QtQml/qqmlregistration.h>
 #include <functional>
 #include <memory>
+#include <optional>
 
+#include "accountapi.h"
+#include "adminapi.h"
+#include "credentialstore.h"
 #include "hubconnection.h"
 #include "hubsetup.h"
 #include "localhub.h"
+#include "localserverprocess.h"
+#include "playersettings.h"
+#include "profilestore.h"
 
 namespace uzume::ui {
 
@@ -38,12 +53,44 @@ class LocalHubController : public QObject {
   Q_PROPERTY(bool settingsBusy READ settingsBusy NOTIFY changed)
   Q_PROPERTY(QString hubWebUrl READ hubWebUrl NOTIFY changed)
 
+  // ---- 0.18 package 10. Phase additionally: "starting" (the server process of "Play on this PC" is starting).
+  // "" | "child" | "service"
+  Q_PROPERTY(QString mode READ mode NOTIFY changed)
+  // Connected to the server that runs as the child process of this app (nobody else can reach it): the server line says
+  // "on this PC", Users / invites / Online are hidden, "Share with others" is offered.
+  Q_PROPERTY(bool onThisPcOnly READ onThisPcOnly NOTIFY changed)
+  // stopped | starting | running | failed
+  Q_PROPERTY(QString childState READ childState NOTIFY changed)
+  Q_PROPERTY(QString childError READ childError NOTIFY changed)
+  // "Share with others" can be offered (Windows with the installer source).
+  Q_PROPERTY(bool shareSupported READ shareSupported NOTIFY changed)
+  // idle | preparing | installing | stopping | resuming | done | failed
+  Q_PROPERTY(QString sharePhase READ sharePhase NOTIFY changed)
+  // admin_rights_refused | port_in_use | install_failed | password_too_short | name_taken | invalid_input | invalid_port |
+  // not_connected | not_supported | no_local_admin | prepare_failed | stop_failed | start_failed | busy ; empty = none
+  Q_PROPERTY(QString shareErrorCode READ shareErrorCode NOTIFY changed)
+  Q_PROPERTY(QString shareError READ shareError NOTIFY changed)  // English copy (design 8i-6)
+  Q_PROPERTY(int shareSuggestedPort READ shareSuggestedPort NOTIFY changed)  // "Use 8444" after port_in_use
+  // The installer finished and the server now runs as the service: the "You're sharing" dialog (8i-4) is due.
+  Q_PROPERTY(bool shareDone READ shareDone NOTIFY changed)
+  // mode "service": "Stop sharing..." is offered.
+  Q_PROPERTY(bool canStopSharing READ canStopSharing NOTIFY changed)
+  // mode "child" on the data of a former service: "Share again..." is offered.
+  Q_PROPERTY(bool shareAgainAvailable READ shareAgainAvailable NOTIFY changed)
+
  public:
   struct Deps {
     HubConnection* conn = nullptr;
     // Starts the normal "add hub" attempt for the address (PlayerController::addHub).
     std::function<void(const QString&)> addHub;
     update::HubSetupInstaller::Config installer;
+    // 0.18 package 10 (child mode, sharing); without them only the service flow works.
+    ProfileStore* profiles = nullptr;
+    CredentialStore* credentials = nullptr;
+    PlayerSettings* settings = nullptr;
+    std::function<void(const QString&)> connectProfile;  // PlayerController::connectProfile
+    // Called before the server of this PC is stopped for sharing / stopping: ends a running game and uploads the saves.
+    std::function<void()> beforeServerStop;
   };
   explicit LocalHubController(const Deps& deps, QObject* parent = nullptr);
 
@@ -60,10 +107,58 @@ class LocalHubController : public QObject {
   QString settingsNotice() const { return settingsNotice_; }
   bool settingsBusy() const { return settingsBusy_; }
   QString hubWebUrl() const;
+  QString mode() const;
+  bool onThisPcOnly() const;
+  QString childState() const;
+  QString childError() const { return server_.error(); }
+  bool shareSupported() const;
+  QString sharePhase() const { return sharePhase_; }
+  QString shareErrorCode() const { return shareErrorCode_; }
+  QString shareError() const { return shareError_; }
+  int shareSuggestedPort() const { return shareSuggestedPort_; }
+  bool shareDone() const { return shareDone_; }
+  bool canStopSharing() const { return mode() == QLatin1String("service"); }
+  bool shareAgainAvailable() const;
 
   update::HubSetupInstaller* installer() { return &installer_; }
+  LocalServerProcess* serverProcess() { return &server_; }
   // Tests: replaces the elevated `grant-folder` call (exit code, error text).
   void setGrantRunner(std::function<int(const QString& program, const QStringList& args, QString* error)> f) { grant_ = std::move(f); }
+
+ // Tests: replaces the elevated `sharing stop|start` calls (exit code, error text).
+  void setSharingRunner(std::function<int(const QString& program, const QStringList& args, QString* error)> f) { sharing_ = std::move(f); }
+  // Tests: replaces the MSI launch of "Share with others" (gets the MSI properties; false = could not start).
+  void setShareStarter(std::function<bool(const QStringList& msiProperties)> f) { shareStarter_ = std::move(f); }
+  // Tests: "Share with others" is offered although this is not Windows.
+  void setShareSupportedForTests(bool on) { shareSupportedTest_ = on; }
+  // Tests: changes the process settings (backoff, timeouts) before the child starts.
+  void setServerConfigPatch(std::function<void(LocalServerProcess::Config&)> f) { serverConfigPatch_ = std::move(f); }
+
+  // ---- "Play on this PC" (child mode)
+  // Starts the server as a child process, connects to it over loopback (certificate trusted for exactly that address and
+  // port), creates the hidden admin or pairs with the stored password, and saves mode "child".
+  Q_INVOKABLE void startChild();
+  // App start with mode "child" (PlayerController::startup): starts the server again; connects to it when `connect`.
+  // Also finishes a pending "Share with others". Returns false when there is nothing to do (mode is not "child"/"service"
+  // and nothing is pending).
+  bool resumeAtStartup(bool connectToServer);
+  Q_INVOKABLE void restartChild();
+  // App quit, after the save sync: closes the server's stdin and waits for it (kills after 10 s).
+  void stopChild();
+  // "Confirm it's you" on the server of this PC: the hidden admin password while onThisPcOnly and it is stored, else empty.
+  QString autoConfirmPassword() const;
+
+  // ---- "Share with others" / "Stop sharing" (Windows service)
+  // Server name, your name, password (>= 12), join "home" | "internet" (recorded for the settings after sharing), port.
+  // Runs on the child server (rename, password), stores the pending record, stops the child and launches the MSI with
+  // INSTALL_HUB=1 HUB_PORT NETWORK_SHARING=1 IMPORT_SERVER_DATA; the app quits (quitRequested). The next start finishes it.
+  Q_INVOKABLE void beginShare(const QString& serverName, const QString& yourName, const QString& password, const QString& join, int port);
+  Q_INVOKABLE void acknowledgeShareDone();
+  Q_INVOKABLE void dismissShareError();
+  // After "Confirm it's you": elevated `uzume-server sharing stop`, then back to the child process on the same data.
+  Q_INVOKABLE void stopSharing();
+  // Child on the data of the former service: elevated `sharing start`, mode "service".
+  Q_INVOKABLE void shareAgain();
 
   // Button "Set up a Hub on this PC" (also `--setup-local-hub` after the MSI install).
   Q_INVOKABLE void start();
@@ -82,6 +177,7 @@ class LocalHubController : public QObject {
   void changed();
   void setupCompleted();  // paired and connected to the Hub on this PC
   void quitRequested();  // installer started: the Player exits
+  void childConnected();  // the app is connected to its own child server (after startChild / restartChild / app start)
 
  private:
   void onState(HubConnection::State s);
@@ -92,8 +188,59 @@ class LocalHubController : public QObject {
   void setPhase(const QString& p, const QString& err = {});
   static QString friendly(const QString& code, const QString& message);
 
+  struct HiddenAdmin {
+    QString username;
+    QString password;
+  };
+  void onChildState(HubConnection::State s);
+  void onServerStateChanged();
+  void onChildReady(int port);
+  void connectToChild();
+  void pairChild();
+  void finishChild();
+  void failChild(const QString& text);
+  bool startServerProcess();
+  QString effectiveDataDir() const;
+  QString hiddenTarget() const;
+  std::optional<HiddenAdmin> hiddenAdmin() const;
+  void storeHiddenAdmin(const HiddenAdmin& a);
+  void clearHiddenAdmin();
+  static QString osUserName();
+  static QString randomPassword();
+  void failShare(const QString& code, const QString& text = {}, int port = 0);
+  void setShareProgress(const QString& phase);
+  static QString shareCopy(const QString& code, const QString& detail, int port);
+  void adminRequest(const QString& method, const QString& path, const QVariantMap& body, const std::function<void(const AdminApi::Result&)>& done,
+                    bool confirmed = false);
+  void shareSteps(const QString& serverName, const QString& yourName, const QString& password, const QString& join, int port);
+  void launchShareInstaller(int port);
+  void rollbackShare(const QString& code, const QString& text);
+  bool resolvePendingShare();
+  // Runs `uzume-server <args> --result FILE` elevated (sharing_), reads the result file; `what` is "stop" | "start".
+  void runSharing(const QStringList& args, const QString& what, const std::function<void(const QJsonObject&)>& done);
+  void goToService(int port);
+  void goToChild(const QString& dataDir, int port);
+  void beforeStop();
+
   Deps deps_;
   update::HubSetupInstaller installer_;
+  LocalServerProcess server_;
+  AdminApi adminApi_;
+  AccountApi accountApi_;
+  bool manualForm_ = false;   // the sign-in form of a child attempt was submitted by the person (not the hidden admin)
+  bool childFlow_ = false;     // a child attempt is running: its loopback address is trusted automatically
+  int childPort_ = 0;
+  int childRetries_ = 0;
+  bool shareHandled_ = false;
+  QString sharePhase_ = QStringLiteral("idle");
+  QString shareErrorCode_;
+  QString shareError_;
+  int shareSuggestedPort_ = 0;
+  bool shareDone_ = false;
+  bool shareSupportedTest_ = false;
+  std::function<int(const QString&, const QStringList&, QString*)> sharing_;
+  std::function<bool(const QStringList&)> shareStarter_;
+  std::function<void(LocalServerProcess::Config&)> serverConfigPatch_;
   localhub::Info info_;
   int retries_ = 0;
   bool setupForm_ = false;  // the last form was "Create the Hub admin"

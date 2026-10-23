@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QStringList>
 #include <functional>
 #include <optional>
 
@@ -33,9 +34,13 @@ class HubSetupInstaller : public QObject {
     QString installRoot;            // of this Player (its launcher is copied)
     QString downloadDir;            // empty: <temp>/uzume-server-setup-<uuid>
     QString programFilesDir;        // empty: env ProgramFiles
+    // "Share with others" (0.18 package 10): MSI scope ShareHub with these properties (NAME=VALUE) instead of SetupHub.
+    QStringList shareProperties;
   };
   explicit HubSetupInstaller(const Config& config, QObject* parent = nullptr);
 
+  // "Share with others": the properties of the next start() (empty = the plain "Set up a server" install).
+  void setShareProperties(const QStringList& props) { config_.shareProperties = props; }
   // Tests inject a fake instead of QProcess::startDetached.
   void setLauncher(std::function<bool(const QString&, const QStringList&)> f) { launcher_ = std::move(f); }
 

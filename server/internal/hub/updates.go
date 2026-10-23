@@ -267,7 +267,12 @@ func (s *Service) storedAvailable(ctx context.Context) *UpdateAvailable {
 	return &a
 }
 
+// packaged reports whether the running binary is an installed package the updater may replace. A child process of the
+// app never is: the app updates the binary (ADR 0030 D6), so nothing is staged or requested.
 func (s *Service) packaged() bool {
+	if s.child {
+		return false
+	}
 	return updates.IsPackaged(s.updCfg.platform, s.updCfg.executable, s.updCfg.requestDir)
 }
 

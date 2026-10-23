@@ -8,6 +8,8 @@
 //	uzume-server reset [-confirm NAME]        delete all data and start fresh (the server must be stopped)
 //	uzume-server help                         list all commands
 //	uzume-server setup-admin -username <name> create the first admin (password from stdin)
+//	uzume-server import-data --from DIR       copy the data folder of a stopped server (the app's "On this PC" server) into this server's data folder
+//	uzume-server sharing stop|start           Windows: stop (disable) or start (enable) the server service; needs administrator
 //	uzume-server grant-folder <path>          Windows: let the server service account read a folder (needs administrator)
 //	uzume-server renew-cert                   renew the self-generated TLS certificate now and exit
 //	uzume-server import-cores <dir>           import libretro buildbot core zips from a directory (offline) and exit
@@ -67,6 +69,11 @@ func main() {
 	if errors.Is(err, flag.ErrHelp) {
 		os.Exit(0) // the flag package printed the usage
 	}
+	var xe *exitError
+	if errors.As(err, &xe) {
+		fmt.Fprintln(os.Stderr, "Error:", xe.Error())
+		os.Exit(xe.code)
+	}
 	var ue *usageError
 	if errors.As(err, &ue) {
 		fmt.Fprintln(os.Stderr, "Error:", ue.Error())
@@ -77,6 +84,19 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+// exitError is a failure with its own exit status (import-data refusals: 3).
+type exitError struct {
+	code int
+	err  error
+}
+
+func (e *exitError) Error() string { return e.err.Error() }
+func (e *exitError) Unwrap() error { return e.err }
+
+// stdout is where the server writes its (few) lines for a parent process: the setup banner and, in child mode,
+// UZUME_READY. A variable so that tests can capture it.
+var stdout io.Writer = os.Stdout
 
 // usageError is an unknown command (exit status 2).
 type usageError struct{ msg string }
@@ -102,6 +122,13 @@ func dispatch(args []string) error {
 			os.Exit(2)
 		}
 		return err
+	case "sharing":
+		err := runSharing(rest, os.Stdout, newSharingSystem())
+		if errors.Is(err, errSharingUnsupported) {
+			fmt.Fprintln(os.Stderr, "uzume-server sharing is only available on Windows")
+			os.Exit(2)
+		}
+		return err
 	}
 	// The commands read the settings of the service (on Linux /etc/uzume/server.env) like the service does.
 	loadServerEnv()
@@ -124,6 +151,8 @@ func dispatch(args []string) error {
 		return runImportCores(rest, os.Stdout)
 	case "import-plugins":
 		return runImportPlugins(rest, os.Stdout)
+	case "import-data":
+		return runImportData(rest, os.Stdout)
 	case "diagnostics":
 		return runDiagnostics(rest, os.Stdout)
 	case "backup":
@@ -166,7 +195,7 @@ func openService(ctx context.Context, cfg *config.Config, serving bool) (*hub.Se
 		CoreBuildbotURL: cfg.CoreBuildbotURL, CoreInfoURL: cfg.CoreInfoURL, CoreTrustKeys: keys,
 		SaveKeepRecent: cfg.SaveKeepRecent, SaveKeepDaily: cfg.SaveKeepDaily, SaveKeepWeekly: cfg.SaveKeepWeekly,
 		UpdateIndexURL: cfg.UpdateIndexURL, PluginIndexURL: cfg.PluginIndex(), UpdateRequestDir: cfg.UpdateRequestDir, UpdateChannel: version.Channel,
-		BackupExtras: backupExtras(cfg)})
+		BackupExtras: backupExtras(cfg), Child: cfg.Child})
 	if err != nil {
 		db.Close()
 		return nil, nil, err
@@ -393,6 +422,18 @@ func runServer(args []string) error {
 	return runMaybeService(hubServiceName, func(ctx context.Context) error {
 		log, closeLog := newLogger(filepath.Join(cfg.DataDir, "logs", "hub.log"))
 		defer closeLog()
+		if cfg.Child {
+			// The server never outlives the app: when the pipe from the app closes (or breaks) it shuts down
+			// like on SIGTERM.
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithCancel(ctx)
+			defer cancel()
+			go func() {
+				watchParent(os.Stdin)
+				log.Info("stdin closed: the app is gone, shutting down")
+				cancel()
+			}()
+		}
 		return serveLoop(ctx, cfg, log)
 	})
 }
@@ -413,7 +454,8 @@ func runMaybeService(name string, fn func(ctx context.Context) error) error {
 func serveLoop(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	for {
 		err := serve(ctx, cfg, log)
-		if !errors.Is(err, errRestart) || !inProcessRestart {
+		// A child process never re-executes the binary (the app may have replaced or is about to replace it).
+		if !errors.Is(err, errRestart) || !(inProcessRestart || cfg.Child) {
 			return err
 		}
 		if ctx.Err() != nil {
@@ -467,8 +509,13 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		closeDB()
 	}()
 	svc.SetBackupRestart(requestRestart)
-	// Network sharing: the flag only seeds the stored setting once; afterwards the stored value wins.
-	if err := svc.SeedNetworkSharing(ctx, base.NetworkSharing); err != nil {
+	// Network sharing: the flag only seeds the stored setting once; afterwards the stored value wins. A fresh data
+	// folder of a child process is seeded off.
+	seed := base.NetworkSharing
+	if cfg.Child {
+		seed = false
+	}
+	if err := svc.SeedNetworkSharing(ctx, seed); err != nil {
 		return fmt.Errorf("store network sharing: %w", err)
 	}
 	svc.SetLocalDefaults(hub.LocalDefaults{NetworkSharing: base.NetworkSharing, ImportDir: base.ImportDir()})
@@ -477,6 +524,10 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return fmt.Errorf("read network settings: %w", err)
 	}
 	eff, issues := effectiveConfig(&base, stored, log)
+	if cfg.Child {
+		// Whatever is stored (it matters again when the server runs on its own), a child process is loopback only.
+		eff.NetworkSharing = false
+	}
 	importDir := eff.ImportDir()
 	if err := os.MkdirAll(importDir, 0o750); err != nil {
 		if eff.ImportDir() == base.ImportDir() {
@@ -585,11 +636,14 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	// Listener: the effective (possibly saved) address, else the one from server.env/flags.
 	listen := func(addr string) (net.Listener, error) { return net.Listen("tcp", addr) }
 	if !eff.NetworkSharing {
-		log.Info("Network sharing is off: listening on loopback only")
+		log.Info("Network sharing is off: listening on loopback only", "child", cfg.Child)
 		listen = listenLoopback
 	}
 	ln, listenIssue, err := chooseListen(eff.Listen, base.Listen, listen)
 	if err != nil {
+		if cfg.Child && isAddrInUse(err) && !strings.Contains(err.Error(), "address in use") {
+			err = fmt.Errorf("address in use: %w", err)
+		}
 		return err
 	}
 	if listenIssue != nil {
@@ -622,7 +676,12 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	info := svc.Info()
 	log.Info("Uzume server started", "version", version.String(), "hub_id", info.HubID, "name", info.Name,
 		"listen", ln.Addr().String(), "network_sharing", eff.NetworkSharing, "tls", cfg.UseTLS(), "protocol_version", info.ProtocolVersion)
-	announceSetup(ctx, svc, eff, securityCode, log, os.Stdout)
+	if cfg.Child {
+		// The app sets the server up through the local API; stdout carries only the line below.
+		announceSetup(ctx, svc, eff, securityCode, log, io.Discard)
+	} else {
+		announceSetup(ctx, svc, eff, securityCode, log, stdout)
+	}
 
 	bg.Add(2)
 	go func() {
@@ -687,6 +746,10 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	}()
 
 	errc := make(chan error, 1)
+	if cfg.Child {
+		// The listener is bound (the kernel queues connections already): tell the app the real port.
+		fmt.Fprintf(stdout, "UZUME_READY %d\n", listenPort(ln.Addr()))
+	}
 	go func() {
 		if cfg.UseTLS() {
 			errc <- srv.ServeTLS(limitListener(ln, maxConns), "", "")

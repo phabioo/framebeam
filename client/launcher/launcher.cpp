@@ -97,7 +97,7 @@ int applyMsiUpdate(const uzume::launcher::MsiUpdateRequest& req) {
   if (!stillRunning && verificationRequired(req) && !verifyAndLockMsi(req, &lock)) {
     refused = true;  // size/SHA-256 differ from what the Player verified, or were not passed: install nothing
   }
-  const std::wstring params = (refused || stillRunning) ? std::wstring() : msiexecParameters(req.msi, req.scope);
+  const std::wstring params = (refused || stillRunning) ? std::wstring() : msiexecParameters(req.msi, req.scope, req.properties);
   wchar_t sys[MAX_PATH] = {};
   if (!params.empty() && GetSystemDirectoryW(sys, MAX_PATH) > 0) {
     const std::wstring msiexec = std::wstring(sys) + L"\\msiexec.exe";

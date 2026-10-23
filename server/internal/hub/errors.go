@@ -12,6 +12,7 @@ const (
 	CodeForbidden          Code = "forbidden"
 	CodeNotFound           Code = "not_found"
 	CodeConflict           Code = "conflict"
+	CodeChildMode          Code = "child_mode"
 	CodeRateLimited        Code = "rate_limited"
 	CodeInternal           Code = "internal"
 	CodeDeviceRevoked      Code = "device_revoked"
