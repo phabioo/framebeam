@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/url"
 	"strconv"
@@ -34,14 +35,20 @@ func netEnv(t *testing.T, mod func(*NetConfig)) (*env, *int) {
 	return e, restarts
 }
 
-func freePort(t *testing.T) int {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
+// testPort is a listen port for tests; with fakeBind it needs no real socket, so the OS cannot interfere.
+const testPort = 28443
+
+// fakeBind is a deterministic test bind: every address works except those ending in ":<busy port>".
+// Real binds are flaky on Windows, where a just-released port is quickly reused by another connection.
+func fakeBind(busy ...int) func(string) error {
+	return func(addr string) error {
+		for _, p := range busy {
+			if strings.HasSuffix(addr, ":"+strconv.Itoa(p)) {
+				return errors.New("address already in use")
+			}
+		}
+		return nil
 	}
-	defer ln.Close()
-	return ln.Addr().(*net.TCPAddr).Port
 }
 
 var hxPane = map[string]string{"HX-Request": "true", "HX-Target": "settings-area"}
@@ -109,7 +116,7 @@ func TestNetworkSettingsPrecedenceResetAndPending(t *testing.T) {
 	notContains(t, rec, "Restart required to apply")
 
 	// Listen port: free port is accepted (test-bind), keeps the host part of the address and is pending.
-	p := freePort(t)
+	p := testPort
 	status(t, postTok(c, tok, "/settings/network/listen_port", url.Values{"value": {strconv.Itoa(p)}}), 303)
 	contains(t, c.get("/settings/network", nil), "Restart required to apply: Listen port", `value="`+strconv.Itoa(p)+`"`)
 	// HTMX autosave answers with the re-rendered section, not a redirect.
@@ -284,7 +291,7 @@ func TestNetworkRestartEndpoint(t *testing.T) {
 		t.Fatalf("restarts: %d", *restarts)
 	}
 	// Changed port: a link to the new address, no reload.
-	p := freePort(t)
+	p := testPort
 	status(t, postTok(c, tok, "/settings/network/listen_port", url.Values{"value": {strconv.Itoa(p)}}), 303)
 	// The link is built from the configured public host, never from the request's Host header.
 	rec = c.do("POST", "http://evil.example/settings/network/restart", strings.NewReader(url.Values{"_csrf": {tok}}.Encode()),
@@ -325,7 +332,7 @@ func TestNetworkStartupIssuesAndReachability(t *testing.T) {
 	contains(t, rec, "Saved port 9999 could not be used", "Not applied at startup")
 	notContains(t, rec, "stale issue", "Restart required to apply: Listen port") // not pending: it already failed
 	// Changing the value clears the error card and makes the change pending again.
-	p := freePort(t)
+	p := testPort
 	status(t, postTok(c, tok, "/settings/network/listen_port", url.Values{"value": {strconv.Itoa(p)}}), 303)
 	rec = c.get("/settings/network", nil)
 	notContains(t, rec, "Saved port 9999")
@@ -398,19 +405,15 @@ func TestNetworkResetValidatesResult(t *testing.T) {
 	status(t, postTok(c, tok, "/settings/network/turn/reset", nil), 303)
 	status(t, postTok(c, tok, "/settings/network/public_host/reset", nil), 303)
 
-	// A base listen port that is occupied now cannot be restored.
-	busy, err := net.Listen("tcp", ":0") // wildcard like the test bind: Windows lets a wildcard bind coexist with a loopback one
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer busy.Close()
-	bp := busy.Addr().(*net.TCPAddr).Port
+	// A base listen port that is occupied now cannot be restored (the port is marked busy in the stub).
+	const bp = testPort + 1
 	e2, _ := netEnv(t, func(n *NetConfig) {
 		n.Base.Listen = "127.0.0.1:" + strconv.Itoa(bp)
+		n.TestBind = fakeBind(bp)
 	})
 	c2 := e2.client()
 	tok2 := c2.login()
-	free := freePort(t)
+	free := testPort
 	status(t, postTok(c2, tok2, "/settings/network/listen_port", url.Values{"value": {strconv.Itoa(free)}}), 303)
 	rec = postTok(c2, tok2, "/settings/network/listen_port/reset", nil)
 	status(t, rec, 400)

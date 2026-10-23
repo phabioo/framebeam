@@ -7,8 +7,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
-#include <QSaveFile>
 #include <algorithm>
+#include <atomic>
+#include <filesystem>
 #include <map>
 
 #include "format_helpers.h"
@@ -612,6 +613,7 @@ qint64 cacheUsage(Plugin& p) {
   QDirIterator it(p.info.cacheDir, QDir::Files, QDirIterator::Subdirectories);
   while (it.hasNext()) {
     it.next();
+    if (it.fileName().contains(QLatin1Char('~'))) continue;  // leftover temp file of an interrupted write
     total += it.fileInfo().size();
     ++files;
   }
@@ -661,9 +663,28 @@ int cacheWrite(lua_State* L) {
     if (used - old + static_cast<qint64>(n) > kCacheQuota) return luaL_error(L, "cache quota exceeded (256 MiB per plugin)");
     if (!existed && p->cacheFiles >= kMaxCacheFiles) return luaL_error(L, "cache file limit exceeded (%d files per plugin)", kMaxCacheFiles);
     if (!QDir().mkpath(fi.absolutePath())) return luaL_error(L, "cannot create the cache folder");
-    QSaveFile f(path);
-    if (!f.open(QIODevice::WriteOnly) || f.write(data, static_cast<qint64>(n)) != static_cast<qint64>(n) || !f.commit())
+    // Atomic without a flush (a cache needs no durability, only no torn files; QSaveFile would fsync every write, very slow
+    // on CI disks): write a temp sibling whose name no cache name can have ('~'), then rename over the target.
+    static std::atomic<unsigned> tmpSeq{0};
+    const QString tmp = path + QStringLiteral(".%1~").arg(tmpSeq.fetch_add(1));
+    bool ok = false;
+    {
+      QFile f(tmp);
+      ok = f.open(QIODevice::WriteOnly | QIODevice::Truncate) && f.write(data, static_cast<qint64>(n)) == static_cast<qint64>(n);
+      if (ok) {
+        f.close();
+        ok = f.error() == QFileDevice::NoError;
+      }
+    }
+    if (ok) {
+      std::error_code ec;  // replaces an existing target atomically (MoveFileExW / rename(2))
+      std::filesystem::rename(std::filesystem::path(tmp.toStdWString()), std::filesystem::path(path.toStdWString()), ec);
+      ok = !ec;
+    }
+    if (!ok) {
+      QFile::remove(tmp);
       return luaL_error(L, "cannot write the cache file");
+    }
     p->cacheBytes = used - old + static_cast<qint64>(n);
     if (!existed) ++p->cacheFiles;
     lua_pushboolean(L, 1);

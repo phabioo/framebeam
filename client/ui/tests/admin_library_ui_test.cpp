@@ -297,6 +297,8 @@ class AdminLibraryUiTest : public QObject {
     QVERIFY(h.click("adminAskConfirm"));
     QTRY_COMPARE(calls(hub, "POST", "/users/u_2/games/g1/saves/default/snapshots"), 1);
     QCOMPARE(bodyOf(hub, "POST", "/users/u_2/games/g1/saves/default/snapshots").value("label").toString(), QStringLiteral("Before the boss"));
+    QTRY_VERIFY(!shown(h, "adminAskDialog"));  // busy until the reply is processed; its scrim would swallow the next click
+    QTRY_COMPARE(text(h.item("savesAdminNote")), QStringLiteral("Kept a snapshot"));
 
     // Close returns to Mine.
     QVERIFY(h.clickWhenReady("savesAdminClose"));

@@ -200,6 +200,7 @@ class AdminSystemsUiTest : public QObject {
     QVERIFY(h.click("switchCoreConfirm"));
     QTRY_COMPARE(calls(hub, QStringLiteral("PATCH ") + gba), 1);
     QCOMPARE(bodyOf(hub, QStringLiteral("PATCH ") + gba).value("default_core_id").toString(), QStringLiteral("gbasp"));
+    QTRY_VERIFY(!shown(h, "switchCoreDialog"));  // busy until the reply is processed; its scrim would swallow the next click
     // Update now of an installed core (details of the selected row).
     QVERIFY(h.click("coresTableRow_0"));
     hub.adminRoutes[QStringLiteral("POST ") + gba + QStringLiteral("/cores/mgba/update")] = {200, QByteArray(kGbaMgba)};

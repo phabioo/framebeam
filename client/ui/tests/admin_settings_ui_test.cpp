@@ -341,7 +341,8 @@ class AdminSettingsUiTest : public QObject {
     QTRY_VERIFY(shown(h, "backupDayRow"));
     hub.adminRoutes[route] = {200, R"JSON({"mode": "weekly", "weekday": 0, "time": "03:00", "keep": 14, "include_roms": false, "folder": "/mnt/backup/uzume"})JSON"};
     hub.adminRoutes[get(QStringLiteral("/backups/status"))] = {200, backupStatus("", "weekly", 14)};
-    QTRY_VERIFY_WITH_TIMEOUT((h.click("backupKeepChange"), shown(h, "settingsEditDialog")), 8000);   // the Day row moved it down
+    QVERIFY(h.clickWhenReady("backupKeepChange"));  // after the Day row moved it down: click() waits for the layout polish
+    QTRY_VERIFY(shown(h, "settingsEditDialog"));
     editAndSave(h, QStringLiteral("14"));
     QTRY_COMPARE(calls(hub, route), 2);
     QCOMPARE(bodyOf(hub, route).value("keep").toInt(), 14);

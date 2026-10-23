@@ -34,6 +34,7 @@ target_include_directories(uzume_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(uzume_cli cli/main.cpp cli/sessioncommands.cpp cli/sessioncommands.h)
 target_link_libraries(uzume_cli PRIVATE uzume_core uzume_media)
 uzume_warnings(uzume_cli)
+uzume_vcpkg_runtime(uzume_cli)
 set_target_properties(uzume_cli PROPERTIES OUTPUT_NAME uzume-cli)
 
 set(FB_TESTDATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tests/testdata")

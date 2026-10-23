@@ -15,6 +15,7 @@ target_link_libraries(uzume_app PRIVATE
   uzume_core uzume_emulation uzume_ui uzume_uiplugin uzume_linkhandler
   Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia)
 uzume_warnings(uzume_app)
+uzume_vcpkg_runtime(uzume_app)
 # Executable name: Uzume.exe on Windows (the launcher in ../launcher is Uzume.exe at the top level), uzume elsewhere.
 if(WIN32)
   set_target_properties(uzume_app PROPERTIES OUTPUT_NAME Uzume)
