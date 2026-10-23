@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>11b-3 Import file · preview</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}[style*="grid-template-rows"] .uz-toast{min-width:0;width:100%;box-sizing:border-box;height:auto;min-height:44px;padding-top:10px;padding-bottom:10px}[style*="grid-template-rows"] .uz-toast-action{white-space:nowrap}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;overflow:hidden;font-family:var(--font-sans)">
+  <dc-import name="S11a1" theme="{{ theme }}" hint-size="1280px,800px"></dc-import>
+  <div style="position:absolute;inset:0;z-index:8;background:var(--scrim);display:flex;align-items:center;justify-content:center;gap:24px">
+    <x-import component-from-global-scope="Uzume.Dialog" label="CHEATS · GBA · MGBA" title="Add cheats to Lumen Drift" size="lg" actions="{{ act }}" hints="{{ hints }}" on-close="{{ noop }}"><x-import component-from-global-scope="Uzume.Tabs" items="{{ atabs }}" active="Import file"></x-import><div style="display:flex;align-items:center;gap:8px;"><span style="font:500 12px/16px var(--font-mono);color:var(--ink)">LUMEN-DRIFT.CHT</span><span style="font-size:12px;line-height:18px;color:var(--muted)">· 4 KB</span><span style="margin-left:auto"></span><x-import component-from-global-scope="Uzume.Button" size="sm">Choose another…</x-import></div><span style="font-size:12px;line-height:18px;color:var(--muted)">14 cheats found; 12 work with mGBA.</span><div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div style="min-height:36px;display:flex;align-items:center;border-bottom:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.Checkbox" label="All 12" indeterminate="{{ yes }}"></x-import></div><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:36px;border-bottom:1px solid var(--rule-2)"><x-import component-from-global-scope="Uzume.Checkbox" label="Infinite money" default-checked="{{ yes }}"></x-import><span><span style="font:500 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)">GSA</span></span></div><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:36px;border-bottom:1px solid var(--rule-2)"><x-import component-from-global-scope="Uzume.Checkbox" label="Max items" default-checked="{{ yes }}"></x-import><span><span style="font:500 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)">GSA</span></span></div><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:36px;border-bottom:1px solid var(--rule-2)"><x-import component-from-global-scope="Uzume.Checkbox" label="Fast text"></x-import><span><span style="font:500 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)">CB</span></span></div><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:36px;border-bottom:1px solid var(--rule-2)"><x-import component-from-global-scope="Uzume.Checkbox" label="Moon jump" default-checked="{{ yes }}"></x-import><span><span style="font:500 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)">CB</span></span></div><span style="font-size:12px;line-height:18px;color:var(--muted)">…and 8 more</span><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:36px;border-bottom:1px solid var(--rule-2)"><x-import component-from-global-scope="Uzume.Checkbox" label="Debug menu" disabled="{{ yes }}"></x-import><span><span style="font:500 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)">RAW</span><span style="font-size:12px;line-height:18px;color:var(--muted)"> · not supported</span></span></div></div></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "atabs": ["Enter code", "Import file", "Cheat database"], "fmts": [{"value": "Detect", "label": "Detect", "hint": "Found: GSA"}, {"value": "GSA", "label": "GameShark (GSA)"}, {"value": "CB", "label": "CodeBreaker (CB)"}, {"value": "AR GBA", "label": "Action Replay (AR GBA)"}]}, { noop: () => {}, act: [B('Import 11 cheats', 'primary'), B('Cancel')], hints: [G('L', 'Tab'), G('R', 'Tab'), G('A', 'Choose'), G('Start', 'Add'), G('B', 'Cancel')] });
+  }
+}
+</script>
+</body>
+</html>
