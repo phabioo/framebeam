@@ -646,7 +646,7 @@ class HubFeaturesUiTest : public QObject {
     QVERIFY(!pc->selectedGame().value(QStringLiteral("coreText")).toString().contains(QStringLiteral("missing"), Qt::CaseInsensitive));
   }
 
-  // ------------------------------------------------------------ "Set up a Hub on this PC" (0.9)
+  // ------------------------------------------------------------ "Set up a server on this PC" (0.9)
 
   static QString hubPort(const FakeHub& hub) { return QString::number(QUrl(hub.address()).port()); }
 

@@ -240,9 +240,6 @@ func (s *Service) ChangePassword(ctx context.Context, userID, newPassword string
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM web_sessions WHERE user_id = ?`, userID); err != nil {
-		return internal(err)
-	}
 	return internal2(tx.Commit())
 }
 
