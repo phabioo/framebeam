@@ -388,7 +388,14 @@ class AdminUiTest : public QObject {
     QTRY_VERIFY(h.controller->admin()->available());
     AdminController* a = h.controller->admin();
     QSignalSpy replied(a, &AdminController::replied);
-    const int before = hub.requests.size();
+    // Background requests of the app itself (the collections of the person after the library loaded) may land at any time;
+    // the admin API must send none of its own.
+    const auto sent = [&hub]() {
+      int n = 0;
+      for (const FakeRequest& r : std::as_const(hub.requests)) n += r.path.startsWith(QLatin1String("/api/v1/collections")) ? 0 : 1;
+      return n;
+    };
+    const int before = sent();
     for (const char* p : {"/games", "/admin", "admin/users", "/admin/../games", "/admin//x", "/accounts/x"}) {
       const int id = a->request(QStringLiteral("GET"), QString::fromLatin1(p));
       QTRY_VERIFY2(!lastReply(replied, id).isEmpty(), p);
@@ -397,7 +404,7 @@ class AdminUiTest : public QObject {
     const int id = a->request(QStringLiteral("TRACE"), QStringLiteral("/admin/users"));
     QTRY_VERIFY(!lastReply(replied, id).isEmpty());
     QCOMPARE(lastReply(replied, id).value("code").toString(), QStringLiteral("invalid_method"));
-    QCOMPARE(hub.requests.size(), before);
+    QCOMPARE(sent(), before);
     QVERIFY(AdminApi::pathAllowed(QStringLiteral("/admin/users?role=admin")));
     QVERIFY(AdminApi::pathAllowed(QStringLiteral("/account/confirm")));
   }
