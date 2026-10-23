@@ -3,17 +3,17 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// Game view (3g-2, 3r-2, 3h-2, 3i-2, 3t-2, 3x-2): GameHeader (56 px, five zones) over the play area and the GamePanel
-// (340, 320 at 1280, or a 48 px rail). Session = your game; Multiview = MultiviewArea (tiles), the panel follows the
-// selected tile. Diagnostics: one overlay toggled by the header button and F3, top right of the play area. The anchored
-// popovers (Reset, speed, screen layout, Running sessions, "⋯") are opened from the header and live here so they can
-// overlap header and play area. Fullscreen (F11) drops header and panel; the toolbar appears when the mouse moves to the
-// top. Without a local game (watching only) the remote Session fills the surface.
+// Game view (boards 3g and 3r): GameHeader (RunHeader, 56 px) over the stage and the GamePanel (320, or a 48 px rail). Session =
+// your game on the empty stage; Multiview = MultiviewArea (tiles), the panel follows the selected tile. The stage draws only the
+// game, the register marks and what the design allows on it: toasts at the bottom left, the F3 diagnostics block at the top right
+// and plugin HUD widgets. Pause and Reset are UzDialogs over a scrim on the stage only, so the header stays visible. The menus
+// (⋯, speed, screen layout) live in the header, the Add tile popover and the panel's tab overflow menu here. Fullscreen (F11)
+// drops header and panel; the toolbar appears when the mouse moves to the top. Without a local game (watching only) the remote
+// Session fills the surface.
 // Keys (never forwarded to the core; defaults, configurable in Controllers > Hotkeys except Esc): Esc closes an open popover,
-// else always pauses (window and fullscreen, ADR 0026 D1) and shows the pause card; a second Esc or "Resume" continues.
-// F11 toggles fullscreen and is the only key that leaves it; F3 diagnostics (docked as a panel tab, in fullscreen the floating
-// overlay), F5 snapshot, Space speed-up (only when the core allows it; also while the Session is shared), 1-4 select a tile in
-// the Multiview (audio moves with "Audio here").
+// else always pauses (window and fullscreen, ADR 0026 D1) and shows the pause dialog; a second Esc or "Resume" continues.
+// F11 toggles fullscreen and is the only key that leaves it; F3 the diagnostics block, F5 snapshot, Space speed-up (only when the
+// core allows it; also while the Session is shared), 1-4 select a tile in the Multiview (audio moves with "Audio here").
 Rectangle {
     id: root
     required property PlayerController player
@@ -22,13 +22,13 @@ Rectangle {
     readonly property DiagnosticsModel diag: ctl.diagnostics
     readonly property string tab: ctl.tab
     property Item multiLocal: null
-    color: Theme.gameBg
+    color: Theme.ground
 
     // Fullscreen mirrors the window; applyToWindow = false keeps tests and screenshots from resizing it.
     property bool fullscreen: false
     property bool applyToWindow: true
     property bool toolbarPinned: false      // tests/screenshots: toolbar shown without the mouse at the top
-    // The toolbar also stays while the game is paused in fullscreen (3y-2): Resume and Leave fullscreen are in it.
+    // The toolbar also stays while the game is paused in fullscreen: Resume and Leave fullscreen are in it.
     readonly property bool toolbarShown: topHover.hovered || toolbarPinned || (root.fullscreen && root.session.paused)
     // QWindow::Visibility values (the attached Window type has no enum)
     readonly property int visFullScreen: 5
@@ -36,17 +36,11 @@ Rectangle {
     property int windowedVisibility: 2
     property bool enteredHere: false
 
-    // 1280 and below: compact header and a 320 px panel
-    readonly property bool compact: width < 1400
-    // Anchored popover that is open: "" | "reset" | "speed" | "layout" | "picker" | "more" | "tabs". The picker never opens on its own.
+    // The popover or dialog that is open: "" | "reset" (dialog) | "picker" (Add tile) | "tabs" (panel tab overflow).
     property string popover: ""
     property bool panelCollapsed: false
     readonly property bool multiMode: tab !== "session"
-    readonly property var tileBadges: {
-        var m = {}, o = ctl.surfaceOrder
-        for (var i = 0; i < o.length; ++i) m[o[i]] = i + 1
-        return m
-    }
+    readonly property bool menuOpen: header.menuOpen
 
     // Layouts of the running system (D12); remote pictures offer the switch for frames with two stacked screens.
     readonly property var screenLayouts: session.active ? session.screenLayouts : (ctl.watching ? ["stacked", "side", "top"] : [])
@@ -57,7 +51,7 @@ Rectangle {
     // In-game plugin screen (fb.ui.open("screen")): plugin id, "" = closed. The game keeps running underneath.
     property string screenSheetPlugin: ""
     function openPluginScreen(pluginId) {
-        root.popover = ""
+        root.closePopover()
         root.screenSheetPlugin = pluginId
         Qt.callLater(focusLocal)
     }
@@ -83,13 +77,35 @@ Rectangle {
         var v = root.tab === "session" ? view : root.multiLocal
         if (v) v.forceActiveFocus()
     }
+    // Popovers and dialogs: one at a time. The Add tile popover and the tab menu are Popups (they close themselves on Esc and a
+    // click outside); Reset is a dialog bound to `popover`.
+    function openPopover(name) {
+        if (root.popover === name) return
+        root.closePopover()
+        root.popover = name
+        if (name === "picker") pickerPop.openFor(header.addAnchor, "below", "end")
+        else if (name === "tabs") tabsMenu.openFor(panel.overflowAnchor, "below", true)
+    }
+    // A press outside closes a popup before the click on its anchor arrives; that click must not reopen it.
+    property double popupClosedAt: 0
+    property string popupClosedName: ""
+    function popupClosedByPress(name) {
+        if (root.popover !== name) return
+        root.popover = ""
+        root.popupClosedAt = Date.now()
+        root.popupClosedName = name
+        Qt.callLater(root.focusLocal)
+    }
     function togglePopover(name) {
-        root.popover = root.popover === name ? "" : name
-        if (root.popover === "") Qt.callLater(focusLocal)
+        if (root.popover === "" && root.popupClosedName === name && Date.now() - root.popupClosedAt < 400) { root.popupClosedName = ""; return }
+        if (root.popover === name) root.closePopover()
+        else root.openPopover(name)
     }
     function closePopover() {
         if (root.popover === "") return false
         root.popover = ""
+        pickerPop.close()
+        tabsMenu.close()
         Qt.callLater(focusLocal)
         return true
     }
@@ -97,14 +113,14 @@ Rectangle {
         if (visible) {
             Qt.callLater(focusLocal)
         } else {
-            root.popover = ""
+            root.closePopover()
             root.screenSheetPlugin = ""
             if (root.fullscreen && root.enteredHere) root.setFullscreen(false)   // leaving the game view: the window goes back to where it was
         }
     }
-    // A tab picked with the keyboard (focus on a header segment) keeps the focus there; a mouse click hands it back to the game.
-    onTabChanged: { root.popover = ""; if (!header.segmentFocused) Qt.callLater(focusLocal) }
-    onFullscreenChanged: root.popover = ""
+    // A tab picked with the keyboard (focus on a header button) keeps the focus there; a mouse click hands it back to the game.
+    onTabChanged: { root.closePopover(); if (!header.segmentFocused) Qt.callLater(focusLocal) }
+    onFullscreenChanged: root.closePopover()
 
     function setFullscreen(on) {
         if (on === root.fullscreen) return
@@ -123,23 +139,21 @@ Rectangle {
     }
     function toggleFullscreen() { setFullscreen(!root.fullscreen) }
     // Esc (ADR 0026 D1): closes an open popover; else it always pauses or resumes your game, in a window and in fullscreen
-    // (the pause card opens). F11 is the only key that leaves fullscreen. Watching only: nothing to pause.
+    // (the pause dialog opens). F11 is the only key that leaves fullscreen. Watching only: nothing to pause.
     function handleEscape() {
         if (!root.visible) return   // game in the background (Library shown): Esc never acts on it
         if (root.closePluginScreen()) return
         if (root.closePopover()) return
         if (root.session.active) root.session.togglePause()
     }
-    // Second line of the pause card: what viewers see (only while shared) and where the game was saved.
-    readonly property string pauseDetailText: {
-        var parts = []
-        if (root.ctl.shared) parts.push(qsTr("Viewers see “Paused by %1”.").arg(root.ctl.ownName !== "" ? root.ctl.ownName : qsTr("the host")))
+    // The pause dialog: what viewers see (only while shared) and where the game was saved.
+    readonly property string pauseViewersText: root.ctl.shared
+        ? qsTr("Viewers see “Paused by %1”.").arg(root.ctl.ownName !== "" ? root.ctl.ownName : qsTr("the host")) : ""
+    readonly property string pauseSaveText: {
         var sh = root.player.saveHistory
-        if (sh.slotsAvailable && sh.available) {
-            var when = sh.history.length > 0 ? sh.history[0].when : ""
-            parts.push(qsTr("Saved to “%1”").arg(sh.slotLabel) + (when !== "" ? " · " + when : ""))
-        }
-        return parts.join(" ")
+        if (!(sh.slotsAvailable && sh.available)) return ""
+        var when = sh.history.length > 0 ? sh.history[0].when : ""
+        return qsTr("Saved to “%1”").arg(sh.slotLabel) + (when !== "" ? " · " + when : "")
     }
     function saveSnapshot() {
         if (root.session.active && root.player.saveHistory.available && !root.player.saveHistory.busy)
@@ -155,6 +169,11 @@ Rectangle {
                 root.fullscreen = Number(w.visibility) === root.visFullScreen
             }
         }
+    }
+    // Resumed: the keys go back to the game
+    Connections {
+        target: root.session
+        function onStateChanged() { if (!root.session.paused) Qt.callLater(root.focusLocal) }
     }
 
     // Player hotkeys are configurable (Controllers > Hotkeys): the controller maps the Qt key to an action name.
@@ -224,45 +243,21 @@ Rectangle {
         anchors.right: parent.right
         z: 5
         visible: !root.fullscreen
-        height: visible ? 56 : 0
+        height: visible ? Theme.header56 : 0
         player: root.player
-        compact: root.compact
         popover: root.popover
+        panelShown: !root.panelCollapsed
         hotkeys: root.hotkeyLabels
-        onPopoverToggled: (name) => root.togglePopover(name)
         onFullscreenRequested: root.toggleFullscreen()
+        onResetRequested: root.openPopover("reset")
+        onPanelToggled: root.panelCollapsed = !root.panelCollapsed
+        onPickerToggled: root.togglePopover("picker")
     }
 
-    // Non-blocking notice: the save of the running game changed on another device
-    Rectangle {
-        id: noticeBar
-        objectName: "saveNotice"
-        anchors.top: header.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        visible: root.player.saveHistory.notice !== ""
-        height: visible ? Math.max(36, noticeText.implicitHeight + 16) : 0
-        color: Theme.accentChipBg
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 20
-            anchors.rightMargin: 12
-            UzLabel {
-                id: noticeText
-                Layout.fillWidth: true
-                text: root.player.saveHistory.notice
-                wrapMode: Text.WordWrap
-                font.pixelSize: 13
-                color: Theme.accentText
-            }
-            UzButton { kind: "link"; focusPolicy: Qt.NoFocus; text: qsTr("Dismiss"); onClicked: root.player.saveHistory.dismissNotice() }
-        }
-    }
-
-    // Play area and panel
+    // Stage and panel
     Item {
         id: body
-        anchors.top: noticeBar.bottom
+        anchors.top: header.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -278,16 +273,21 @@ Rectangle {
                 Layout.fillHeight: true
                 Layout.minimumWidth: 0
 
-                // Session tab: your game
+                // The stage plane behind your game; the Multiview tiles sit on the page `ground` and bring their own stage
+                Rectangle { anchors.fill: parent; color: root.tab === "session" ? Theme.stage : Theme.ground }
+
+                // Session tab: your game, framed by the register marks (`dim`)
                 Item {
                     objectName: "sessionTab"
                     anchors.fill: parent
                     visible: root.tab === "session"
 
+                    UzRegisterMarks { tone: "dim"; inset: Theme.space1 }
                     GameView {
                         id: view
                         objectName: "gameView"
                         anchors.fill: parent
+                        anchors.margins: Theme.space3 + Theme.space05
                         session: root.session
                         layout: root.ctl.screenLayout
                         focus: true
@@ -297,33 +297,7 @@ Rectangle {
                             anchors.centerIn: parent
                             visible: !root.session.hasFrame && root.session.state !== GameSession.Failed
                             text: qsTr("Starting emulator…")
-                            color: Theme.gameTextMuted
-                        }
-                        Rectangle {
-                            objectName: "fastForwardIndicator"
-                            visible: root.session.fastForward && !root.session.paused
-                            // With the fullscreen diagnostics overlay open (top left), sit directly below it, left edges aligned.
-                            readonly property bool belowDiag: diagnosticsOverlay.visible
-                            readonly property point diagBottomLeft: {
-                                void parent.width; void parent.height; void diagnosticsOverlay.height;
-                                return parent.mapFromItem(diagnosticsOverlay, 0, diagnosticsOverlay.height)
-                            }
-                            anchors.top: parent.top
-                            anchors.left: parent.left
-                            anchors.topMargin: belowDiag ? diagBottomLeft.y + 8 : 12
-                            anchors.leftMargin: belowDiag ? diagBottomLeft.x : 12
-                            width: ffLabel.implicitWidth + 20
-                            height: ffLabel.implicitHeight + 10
-                            radius: 0
-                            color: "#99000000"
-                            UzLabel {
-                                id: ffLabel
-                                anchors.centerIn: parent
-                                text: qsTr("Speed-up ×%1").arg(Math.round(root.session.fastForwardRatio * 10) / 10)
-                                color: Theme.gameText
-                                font.pixelSize: 13
-                                font.weight: Font.Medium
-                            }
+                            color: Theme.muted
                         }
                     }
                 }
@@ -335,31 +309,16 @@ Rectangle {
                     visible: root.tab !== "session"
                     spacing: 0
 
-                    Rectangle {
-                        objectName: "gameMessage"
-                        Layout.fillWidth: true
-                        visible: root.ctl.message !== ""
-                        implicitHeight: 34
-                        color: root.ctl.messageIsError ? Theme.errorBg : Theme.surfaceRaised
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 20
-                            anchors.rightMargin: 12
-                            UzLabel {
-                                Layout.fillWidth: true
-                                text: root.ctl.message
-                                color: root.ctl.messageIsError ? Theme.errorText : Theme.gameText
-                                font.pixelSize: 13
-                            }
-                            UzButton { kind: "link"; focusPolicy: Qt.NoFocus; text: qsTr("Dismiss"); onClicked: root.ctl.dismissMessage() }
-                        }
-                    }
-                    UzLabel {
+                    UzStateBlock {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.margins: 20
+                        Layout.margins: Theme.space3
+                        Layout.preferredWidth: 360
                         visible: !root.session.active && !root.ctl.watching
-                        text: root.ctl.joining ? qsTr("Joining Session…") : qsTr("Not watching a Session.")
-                        color: Theme.gameTextMuted
+                        kind: root.ctl.joining ? "loading" : "empty"
+                        title: root.ctl.joining ? qsTr("Joining Session…") : qsTr("Not watching a Session.")
+                        text: root.ctl.joining ? "" : qsTr("Add a tile to watch a Session from the server.")
+                        action: root.ctl.joining ? "" : qsTr("Add tile")
+                        onActionClicked: root.openPopover("picker")
                     }
                     Item {
                         Layout.fillWidth: true
@@ -368,125 +327,182 @@ Rectangle {
                             anchors.fill: parent
                             player: root.player
                             onLocalReady: (v) => { root.multiLocal = v; Qt.callLater(root.focusLocal) }
-                            onPickerRequested: root.popover = "picker"
+                            onPickerRequested: root.openPopover("picker")
                             onTileSelected: Qt.callLater(root.focusLocal)
                             onEscapePressed: root.handleEscape()
                         }
                     }
                 }
 
-                // Pause card (3y-2, ADR 0026 D1): Esc or the Pause buttons pause, the card shows in a window and in fullscreen
-                // (in the Multiview window the paused tile says so itself). Resume continues, F11 and "Leave fullscreen" leave.
-                Rectangle {
-                    id: pauseOverlay
-                    objectName: "pauseOverlay"
-                    visible: root.session.paused && (root.tab === "session" || root.fullscreen)
-                    anchors.fill: parent
+                // F3 diagnostics: the block in the top right corner of the stage (one of the three things the empty stage allows)
+                DiagnosticsOverlay {
+                    id: diagnosticsOverlay
+                    objectName: "diagnosticsOverlay"
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.margins: Theme.space2
+                    z: 10
+                    visible: root.diag.open
+                    model: root.diag
+                    multi: root.multiMode
+                }
+
+                // Plugin HUD widgets and notices; stays in fullscreen, where the panel is hidden
+                PluginHudLayer {
+                    id: hudLayer
+                    player: root.player
+                    // The bottom-left widget stack: the toasts sit above it (it is 16 px from the edge)
+                    property Item leftStack: null
+                    Component.onCompleted: {
+                        for (var i = 0; i < children.length; ++i)
+                            if (children[i].objectName === "hudStack_bottom-left") leftStack = children[i]
+                    }
+                    onDetailsRequested: panel.openTab("console")
+                }
+
+                // Toasts, bottom left of the stage: persistent notices (Speed-up) have no close mark
+                Column {
+                    id: toasts
+                    objectName: "toastStack"
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+                    anchors.margins: Theme.space3
+                    anchors.bottomMargin: Theme.space3 + (hudLayer.leftStack && hudLayer.leftStack.visible && hudLayer.leftStack.height > 0 ? hudLayer.leftStack.height + Theme.space2 - Theme.space3 + Theme.space2 : 0)
+                    spacing: Theme.space1
                     z: 12
-                    color: root.fullscreen ? "#8c000000" : "#73000000"
-                    // Absorbs the pointer so the game or a tile underneath is not clicked by accident
-                    MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; hoverEnabled: true }
-                    Rectangle {
-                        objectName: "pauseCard"
-                        anchors.centerIn: parent
-                        width: Math.min(380, parent.width - 32)
-                        implicitHeight: pauseCol.implicitHeight + 48
-                        height: implicitHeight
-                        radius: 0
-                        color: Theme.withAlpha(Theme.sumi.ground, 0.92)
-                        border.width: 1
-                        border.color: Theme.gameDivider
-                        ColumnLayout {
-                            id: pauseCol
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.margins: 24
-                            anchors.leftMargin: 32
-                            anchors.rightMargin: 32
-                            spacing: 8
-                            UzLabel {
-                                objectName: "pauseTitle"
-                                Layout.alignment: Qt.AlignHCenter
-                                text: qsTr("Paused")
-                                font.pixelSize: 22
-                                font.weight: Font.DemiBold
-                                color: Theme.gameText
-                            }
-                            UzLabel {
-                                objectName: "pauseDetail"
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                                text: root.pauseDetailText
-                                visible: text !== ""
-                                font.pixelSize: 13
-                                lineHeight: 1.2
-                                color: Theme.gameMeta
-                            }
-                            // The buttons stack when they do not fit side by side (wide fonts); a single one never exceeds the card.
-                            GridLayout {
-                                Layout.alignment: Qt.AlignHCenter
-                                Layout.topMargin: 8
-                                columnSpacing: 10
-                                rowSpacing: 8
-                                columns: !pauseLeave.visible || pauseResume.implicitWidth + pauseLeave.implicitWidth + columnSpacing <= pauseCol.width ? 2 : 1
-                                KeyHintButton {
-                                    id: pauseResume
-                                    objectName: "pauseResume"
-                                    Layout.alignment: Qt.AlignHCenter
-                                    maxWidth: pauseCol.width
-                                    kind: "primary"
-                                    focusPolicy: Qt.NoFocus
-                                    text: qsTr("Resume")
-                                    onClicked: root.session.togglePause()
-                                }
-                                KeyHintButton {
-                                    id: pauseLeave
-                                    objectName: "pauseLeaveFullscreen"
-                                    Layout.alignment: Qt.AlignHCenter
-                                    maxWidth: pauseCol.width
-                                    visible: root.fullscreen
-                                    focusPolicy: Qt.NoFocus
-                                    text: qsTr("Leave fullscreen")
-                                    onClicked: root.setFullscreen(false)
-                                }
-                            }
-                            UzLabel {
-                                objectName: "pauseHint"
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                                Layout.topMargin: 4
-                                text: root.fullscreen ? qsTr("Esc or Resume continues · %1 leaves fullscreen").arg(root.hotkeyLabels.fullscreen || "F11")
-                                                      : qsTr("Esc or Resume continues")
-                                font.pixelSize: 12
-                                color: Theme.gameFaint
-                            }
-                        }
+                    readonly property real maxToastWidth: Math.max(240, playArea.width - 2 * Theme.space3)
+
+                    UzToast {
+                        objectName: "fastForwardIndicator"
+                        visible: root.session.fastForward && !root.session.paused
+                        width: Math.min(implicitWidth, toasts.maxToastWidth)
+                        kind: "done"
+                        closable: false
+                        text: qsTr("Speed-up ×%1").arg(Math.round(root.session.fastForwardRatio * 10) / 10)
+                    }
+                    // The save of the running game changed on another device (non-blocking)
+                    UzToast {
+                        objectName: "saveNotice"
+                        visible: root.player.saveHistory.notice !== ""
+                        width: Math.min(420, toasts.maxToastWidth)
+                        kind: "warning"
+                        maxLines: 3
+                        text: root.player.saveHistory.notice
+                        onCloseRequested: root.player.saveHistory.dismissNotice()
+                    }
+                    UzToast {
+                        objectName: "gameMessage"
+                        visible: root.ctl.message !== "" && root.multiMode
+                        width: Math.min(420, toasts.maxToastWidth)
+                        kind: root.ctl.messageIsError ? "error" : "done"
+                        maxLines: 2
+                        text: root.ctl.message
+                        onCloseRequested: root.ctl.dismissMessage()
+                    }
+                    UzToast {
+                        objectName: "fullscreenToast"
+                        visible: root.fullscreen && root.player.saveHistory.message !== ""
+                        width: Math.min(420, toasts.maxToastWidth)
+                        kind: "done"
+                        closable: false
+                        maxLines: 2
+                        text: root.player.saveHistory.message
+                    }
+                    UzToast {
+                        objectName: "fullscreenHint"
+                        visible: root.fullscreen && !root.toolbarShown && hintTimer.running
+                        width: Math.min(implicitWidth, toasts.maxToastWidth)
+                        kind: "done"
+                        closable: false
+                        maxLines: 2
+                        text: root.hotkeyLabels.diagnostics !== "" ? qsTr("Toolbar appears when you move the mouse to the top · %1 diagnostics").arg(root.hotkeyLabels.diagnostics)
+                                                                   : qsTr("Toolbar appears when you move the mouse to the top")
                     }
                 }
 
-                // Diagnostics overlay (3y): only in fullscreen, Emulation, top left. Windowed, the diagnostics are docked as a tab
-                // of the side panel (3h-3) so they never cover the game or the remote tiles.
-                DiagnosticsOverlay {
-                    id: diagnosticsOverlay
-                    hotkey: root.hotkeyLabels.diagnostics
-                    objectName: "diagnosticsOverlay"
-                    x: 16
-                    y: 16
-                    z: 10
-                    visible: root.diag.open && root.fullscreen
-                    model: root.diag
-                    fullscreen: root.fullscreen
-                    multi: false
-                    tileBadges: root.tileBadges
+                // Pause (board 3g-3, ADR 0026 D1): Esc or the Pause buttons pause, the dialog shows in a window and in fullscreen
+                // (in the Multiview window the paused tile says so itself). Resume continues, F11 and "Leave fullscreen" leave.
+                UzDialog {
+                    id: pauseDialog
+                    objectName: "pauseOverlay"
+                    size: "lg"
+                    label: root.session.title
+                    title: qsTr("Paused")
+                    text: root.pauseViewersText
+                    onClosed: if (root.session.paused) root.session.togglePause()
+                    Binding { target: pauseDialog; property: "shown"; value: root.session.paused && (root.tab === "session" || root.fullscreen) }
+
+                    ColumnLayout {
+                        objectName: "pauseDetail"
+                        visible: root.pauseSaveText !== ""
+                        Layout.fillWidth: true
+                        spacing: 0
+                        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.rule }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.minimumHeight: Theme.row32
+                            spacing: Theme.space15
+                            UzMono {
+                                Layout.preferredWidth: 72
+                                text: qsTr("SAVE")
+                                font.pixelSize: 10
+                                font.letterSpacing: 1.2
+                                color: Theme.dim
+                            }
+                            UzLabel {
+                                objectName: "pauseSaveText"
+                                Layout.fillWidth: true
+                                text: root.pauseSaveText
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: Theme.roles.itemTitleSm.size
+                                color: Theme.ink2
+                            }
+                        }
+                        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.rule2 }
+                    }
+                    actions: [
+                        UzButton {
+                            objectName: "pauseResume"
+                            kind: "primary"
+                            focusPolicy: Qt.NoFocus
+                            text: qsTr("Resume")
+                            onClicked: root.session.togglePause()
+                        },
+                        UzButton {
+                            objectName: "pauseLeaveFullscreen"
+                            visible: root.fullscreen
+                            focusPolicy: Qt.NoFocus
+                            text: qsTr("Leave fullscreen")
+                            onClicked: root.setFullscreen(false)
+                        }
+                    ]
+                    hints: [
+                        UzKbd { keys: "Esc"; label: qsTr("Resume") },
+                        UzKbd { visible: root.fullscreen && root.hotkeyLabels.fullscreen !== ""; keys: root.hotkeyLabels.fullscreen || "F11"; label: qsTr("Leave fullscreen") }
+                    ]
                 }
 
-                // Plugin HUD widgets and notices (4e, 4g-2); stays in fullscreen, where the panel is hidden
-                PluginHudLayer {
-                    player: root.player
-                    onDetailsRequested: panel.openTab("console")
+                // Reset (header ⋯ menu): the confirmation covers the stage, the header stays
+                UzDialog {
+                    id: resetDialog
+                    objectName: "resetDialog"
+                    label: root.session.title
+                    title: qsTr("Reset %1?").arg(root.session.title)
+                    text: qsTr("Unsaved progress since the last checkpoint is lost.")
+                    onClosed: root.closePopover()
+                    Binding { target: resetDialog; property: "shown"; value: root.popover === "reset" }
+                    actions: [
+                        UzButton { objectName: "resetCancel"; focusPolicy: Qt.NoFocus; text: qsTr("Cancel"); onClicked: root.closePopover() }
+                    ]
+                    dangerActions: [
+                        UzButton {
+                            objectName: "resetConfirm"
+                            kind: "danger"
+                            focusPolicy: Qt.NoFocus
+                            text: qsTr("Reset")
+                            onClicked: { root.session.reset(); root.closePopover() }
+                        }
+                    ]
                 }
             }
 
@@ -496,7 +512,6 @@ Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: visible ? implicitWidth : 0
                 player: root.player
-                compact: root.compact
                 collapsed: root.panelCollapsed
                 multi: root.multiMode
                 tile: root.multiMode ? root.ctl.selectedSurface : "local"
@@ -504,7 +519,7 @@ Rectangle {
                 onSavesClosed: Qt.callLater(root.focusLocal)
                 onSelectLocalRequested: root.ctl.selectSurface("local")
                 overflowOpen: root.popover === "tabs"
-                onOverflowRequested: root.popover = root.popover === "tabs" ? "" : "tabs"
+                onOverflowRequested: root.togglePopover("tabs")
             }
         }
     }
@@ -514,7 +529,7 @@ Rectangle {
         id: sheet
         player: root.player
         pluginId: root.screenSheetPlugin
-        anchors.top: noticeBar.bottom
+        anchors.top: header.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -522,257 +537,32 @@ Rectangle {
         onCloseRequested: root.closePluginScreen()
     }
 
-    // ---- anchored popovers (opened from the header) ----
+    // ---- popups opened from the header and the panel ----
 
-    AnchoredPopover {
-        id: resetPop
-        objectName: "resetPopover"
-        anchorItem: header.resetAnchor
-        open: root.popover === "reset"
-        danger: true
-        popWidth: 290
-        scrimTop: header.height
-        onCloseRequested: root.closePopover()
-        Column {
-            width: parent.width
-            spacing: 10
-            Column {
-                width: parent.width
-                spacing: 4
-                UzLabel {
-                    objectName: "resetTitle"
-                    width: parent.width
-                    wrapMode: Text.WordWrap
-                    text: qsTr("Reset %1?").arg(root.session.title)
-                    font.pixelSize: 14
-                    font.weight: Font.DemiBold
-                    color: Theme.gameText
-                }
-                UzLabel {
-                    width: parent.width
-                    wrapMode: Text.WordWrap
-                    lineHeight: 1.2
-                    text: qsTr("Unsaved progress since the last checkpoint is lost.")
-                    font.pixelSize: 12
-                    color: Theme.gameBadgeText
-                }
-            }
-            Row {
-                layoutDirection: Qt.RightToLeft
-                width: parent.width
-                spacing: 8
-                Rectangle {
-                    objectName: "resetConfirm"
-                    width: confirmLabel.implicitWidth + 24
-                    height: 30
-                    radius: 0
-                    color: Theme.gameDanger
-                    Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("Reset")
-                    UzLabel { id: confirmLabel; anchors.centerIn: parent; text: qsTr("Reset"); font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.inkOnAccent }
-                    TapHandler { onTapped: { root.session.reset(); root.closePopover() } }
-                }
-                Rectangle {
-                    objectName: "resetCancel"
-                    width: cancelLabel.implicitWidth + 24
-                    height: 30
-                    radius: 0
-                    color: "transparent"
-                    border.width: 1
-                    border.color: Theme.gameKeyLine
-                    Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("Cancel")
-                    UzLabel { id: cancelLabel; anchors.centerIn: parent; text: qsTr("Cancel"); font.pixelSize: 13; color: Theme.gameText }
-                    TapHandler { onTapped: root.closePopover() }
-                }
-            }
-        }
-    }
-
-    AnchoredPopover {
-        id: speedPop
-        objectName: "speedPopover"
-        anchorItem: header.speedAnchor
-        open: root.popover === "speed"
-        popWidth: 150
-        padding: 4
-        scrimTop: header.height
-        onCloseRequested: root.closePopover()
-        Column {
-            width: parent.width
-            Repeater {
-                model: root.session.speedUpRatios
-                delegate: PopoverItem {
-                    required property var modelData
-                    objectName: "speedOption_" + modelData
-                    width: parent.width
-                    monoText: true
-                    text: modelData + "×"
-                    current: Math.abs(root.session.fastForwardRatio - Number(modelData)) < 0.001
-                    onActivated: { root.session.fastForwardRatio = Number(modelData); root.closePopover() }
-                }
-            }
-        }
-    }
-
-    AnchoredPopover {
-        id: layoutPop
-        objectName: "layoutPopover"
-        anchorItem: header.layoutAnchor
-        open: root.popover === "layout"
-        popWidth: 190
-        padding: 4
-        scrimTop: header.height
-        onCloseRequested: root.closePopover()
-        Column {
-            width: parent.width
-            Repeater {
-                model: root.screenLayouts
-                delegate: PopoverItem {
-                    required property string modelData
-                    objectName: modelData === "stacked" ? "layoutStacked" : modelData === "side" ? "layoutSide" : "layoutTop"
-                    width: parent.width
-                    text: modelData === "stacked" ? qsTr("Stacked") : modelData === "side" ? qsTr("Side by side") : qsTr("Top only")
-                    iconKind: "layout"
-                    current: root.ctl.screenLayout === modelData
-                    onActivated: { root.ctl.screenLayout = modelData; root.closePopover() }
-                }
-            }
-            UzLabel {
-                width: parent.width
-                topPadding: 4
-                bottomPadding: 6
-                leftPadding: 10
-                text: root.multiMode ? qsTr("Applies to all tiles") : qsTr("This game only")
-                font.pixelSize: 11
-                color: Theme.gameFaint
-            }
-        }
-    }
-
-    AnchoredPopover {
-        id: morePop
-        objectName: "morePopover"
-        anchorItem: header.moreAnchor
-        open: root.popover === "more"
-        popWidth: 250
-        padding: 4
-        scrimTop: header.height
-        onCloseRequested: root.closePopover()
-        Column {
-            width: parent.width
-            // Very wide fonts: the header has no room even for the mode cycle button, so the layout choice lives here.
-            Repeater {
-                model: header.cycleHidden && header.modeAvailable ? header.modeChoices : []
-                delegate: PopoverItem {
-                    required property var modelData
-                    objectName: "moreMode_" + modelData
-                    width: parent.width
-                    text: modelData === "pip" ? qsTr("PiP") : modelData === "row" ? qsTr("Row") : qsTr("Grid 2×2")
-                    current: header.ctl.multiviewMode === modelData
-                    onActivated: { header.ctl.multiviewMode = modelData; root.closePopover() }
-                }
-            }
-            PopoverItem {
-                objectName: "morePause"
-                width: parent.width
-                text: root.session.paused ? qsTr("Resume") : qsTr("Pause")
-                trailing: "Esc"
-                onActivated: { root.session.togglePause(); root.closePopover() }
-            }
-            PopoverItem {
-                objectName: "moreHotkeys"
-                width: parent.width
-                divider: true
-                text: qsTr("Hotkeys…")
-                trailing: qsTr("Controllers")
-                onActivated: { root.popover = ""; root.player.leaveGameView(); root.player.showControllers() }
-            }
-            PopoverItem {
-                objectName: "moreReport"
-                width: parent.width
-                text: qsTr("Report a problem…")
-                onActivated: { root.closePopover(); root.player.report.show() }
-            }
-        }
-    }
-
-    // "+n ▾": the panel tabs that do not fit. Opens left of the side panel, at the height of the tab bar, so it never covers
-    // the sharing section (P41).
-    AnchoredPopover {
-        id: tabsPop
-        objectName: "panelTabOverflowPopover"
-        anchorItem: panel.overflowAnchor
-        open: root.popover === "tabs" && panel.tabPlan.overflow.length > 0
-        popWidth: 250
-        padding: 4
-        dockRight: panel.visible ? panel.width + 8 : 8
-        scrimTop: header.height
-        onCloseRequested: root.closePopover()
-        Column {
-            width: parent.width
-            Repeater {
-                model: panel.tabPlan.overflow
-                delegate: PopoverItem {
-                    required property var modelData
-                    objectName: "panelTabOverflowItem_" + modelData.id
-                    width: parent.width
-                    text: modelData.name
-                    trailing: panel.originMarker(modelData.origin)
-                    onActivated: { root.closePopover(); panel.openTab(modelData.id) }
-                }
-            }
-        }
-    }
-
-    AnchoredPopover {
+    // Add tile: the running sessions that can be put in the Multiview (3r-5). Never opens on its own.
+    UzPopover {
         id: pickerPop
         objectName: "pickerPopover"
-        anchorItem: header.addAnchor
-        open: root.popover === "picker"
-        popWidth: 320
-        padding: 12
-        dockRight: panel.visible ? panel.width + 16 : 16   // below the header, left of the side panel (P41)
-        scrimTop: header.height
-        onCloseRequested: root.closePopover()
+        popWidth: 360
+        onClosed: root.popupClosedByPress("picker")
         SessionPicker {
-            width: parent.width
+            Layout.fillWidth: true
             player: root.player
             maxListHeight: Math.max(120, root.height * 0.5 - 60)
         }
     }
 
-    // ---- fullscreen furniture (3g, 3y) ----
-
-    // Closed overlay in fullscreen: small chip "F3 Diagnostics" (3y)
-    Rectangle {
-        objectName: "diagChip"
-        visible: root.fullscreen && !root.diag.open
-        x: 16
-        y: 16
-        z: 10
-        implicitWidth: chipRow.implicitWidth + 20
-        implicitHeight: 28
-        radius: 0
-        color: Theme.withAlpha(Theme.sumi.ground, 0.8)
-        RowLayout {
-            id: chipRow
-            anchors.centerIn: parent
-            spacing: 8
-            Rectangle {
-                visible: root.hotkeyLabels.diagnostics !== ""
-                implicitWidth: chipKey.implicitWidth + 10
-                implicitHeight: 16
-                radius: 0
-                color: "transparent"
-                border.width: 1
-                border.color: Theme.borderButton
-                UzMono { id: chipKey; anchors.centerIn: parent; text: root.hotkeyLabels.diagnostics; font.pixelSize: 10; color: Theme.textMuted }
-            }
-            UzLabel { text: qsTr("Diagnostics"); font.pixelSize: 12; color: Theme.textMeta }
-        }
-        TapHandler { onTapped: root.diag.open = true }
+    // "+n ▾": the panel tabs that do not fit
+    UzMenu {
+        id: tabsMenu
+        objectName: "panelTabOverflowPopover"
+        menuWidth: 250
+        items: panel.tabPlan.overflow.map(function (e) { return { label: e.name, hint: panel.originMarker(e.origin), name: "tabOverflow_" + e.id, id: e.id } })
+        onChosen: (item) => { root.popover = ""; panel.openTab(item.id) }
+        onClosed: root.popupClosedByPress("tabs")
     }
+
+    // ---- fullscreen furniture ----
 
     // Toolbar: appears when the mouse moves to the top
     Item {
@@ -791,78 +581,57 @@ Rectangle {
             objectName: "fullscreenToolbar"
             visible: root.toolbarShown
             anchors.top: parent.top
-            anchors.topMargin: 18
+            anchors.topMargin: Theme.space2
             anchors.horizontalCenter: parent.horizontalCenter
-            implicitWidth: toolbarRow.implicitWidth + 20
-            implicitHeight: 48
+            implicitWidth: toolbarRow.implicitWidth + 2 * Theme.space2
+            width: Math.min(implicitWidth, parent.width - 2 * Theme.space2)
+            implicitHeight: Theme.row48 + Theme.space1
             radius: 0
-            color: Theme.toolbarBg
+            color: Theme.surface
             border.width: 1
-            border.color: Theme.borderInput
+            border.color: Theme.rule
 
             RowLayout {
                 id: toolbarRow
                 anchors.fill: parent
-                anchors.leftMargin: 14
-                anchors.rightMargin: 6
-                spacing: 12
+                anchors.leftMargin: Theme.space2
+                anchors.rightMargin: Theme.space15
+                spacing: Theme.space15
                 UzLabel {
                     objectName: "fullscreenToolbarTitle"
+                    Layout.maximumWidth: 260
                     text: root.tab === "session" ? (root.session.active ? root.session.title : qsTr("Session")) : root.modeTitle
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                    color: Theme.gameText
+                    elide: Text.ElideRight
+                    font.pixelSize: Theme.roles.itemTitleSm.size
+                    font.weight: Theme.roles.itemTitleSm.weight
                 }
-                Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 22; color: Theme.gameBorder }
+                Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 16; color: Theme.rule }
                 LayoutSwitch {
                     objectName: "toolbarLayoutSwitch"
                     layouts: root.screenLayouts
                     current: root.ctl.screenLayout
                     onPicked: (v) => root.ctl.screenLayout = v
                 }
-                KeyHintButton {
+                UzButton {
                     objectName: "fullscreenPauseButton"
                     visible: root.session.active
+                    size: "sm"
                     enabled: root.session.state === GameSession.Running || root.session.state === GameSession.Paused
                     kind: root.session.paused ? "primary" : "outline"
                     focusPolicy: Qt.NoFocus
-                    text: root.session.paused ? qsTr("▶ Resume") : qsTr("❚❚ Pause")
-                    hint: "Esc"
+                    text: root.session.paused ? qsTr("Resume") : qsTr("Pause")
                     onClicked: root.session.togglePause()
                 }
-                KeyHintButton {
+                UzKbd { visible: root.session.active; keys: "Esc" }
+                UzButton {
                     objectName: "exitFullscreenButton"
+                    size: "sm"
                     focusPolicy: Qt.NoFocus
                     text: qsTr("Leave fullscreen")
-                    hint: root.hotkeyLabels.fullscreen || "F11"
                     onClicked: root.setFullscreen(false)
                 }
+                UzKbd { visible: root.hotkeyLabels.fullscreen !== ""; keys: root.hotkeyLabels.fullscreen || "F11" }
             }
         }
-    }
-    UzLabel {
-        objectName: "fullscreenHint"
-        visible: root.fullscreen && !root.toolbarShown && hintTimer.running
-        z: 20
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 24
-        anchors.horizontalCenter: parent.horizontalCenter
-        text: root.hotkeyLabels.diagnostics !== "" ? qsTr("Toolbar appears when you move the mouse to the top · %1 diagnostics").arg(root.hotkeyLabels.diagnostics)
-                                                   : qsTr("Toolbar appears when you move the mouse to the top")
-        font.pixelSize: 12
-        color: Theme.textDisabled
-    }
-    Rectangle {
-        objectName: "fullscreenToast"
-        visible: root.fullscreen && root.player.saveHistory.message !== ""
-        z: 20
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 56
-        anchors.horizontalCenter: parent.horizontalCenter
-        implicitWidth: toastText.implicitWidth + 24
-        implicitHeight: 32
-        radius: 0
-        color: Theme.toolbarBg
-        UzLabel { id: toastText; anchors.centerIn: parent; text: root.player.saveHistory.message; font.pixelSize: 13; color: Theme.gameText }
     }
 }

@@ -4,252 +4,164 @@ import Uzume.App
 
 // Save conflict on start (design 3d). Modal; "Keep both, decide later" is the default and focused action,
 // Esc = decide later, Tab/Shift+Tab cycle through the actions, Enter/Space trigger the focused one.
-Item {
+// A UzDialog (design-system.md "Dialog", size lg): label, title, text, the two sides, one action per outcome.
+UzDialog {
     id: root
     required property PlayerController player
     readonly property var conflict: player.saveConflict
-    readonly property bool shown: conflict.active === true
 
-    visible: opacity > 0
-    enabled: shown   // while fading out it takes no clicks or keys
-    opacity: shown ? 1 : 0
-    anchors.fill: parent
-    z: 100
-    Behavior on opacity { NumberAnimation { duration: Theme.durPage } }
+    size: "lg"
+    busy: conflict.busy === true
+    label: qsTr("Save conflict · %1").arg(conflict.gameTitle || "")
+    title: qsTr("The server and this device have different saves")
+    text: qsTr("This device kept playing offline while another device secured a new checkpoint. Nothing is overwritten until you decide. Both saves are secured in the history beforehand.")
+    error: conflict.error || ""
 
-    onShownChanged: if (shown) keepButton.forceActiveFocus()
+    // Open while the controller has a conflict; Esc and the close button mean "decide later" (never while it is busy).
+    Binding { target: root; property: "shown"; value: root.conflict.active === true }
+    onClosed: root.player.resolveSaveConflict("later")
+    // The frame keeps the name the tests look for.
+    Component.onCompleted: frame.objectName = "conflictDialog"
+    onShownChanged: if (shown) Qt.callLater(() => keepButton.forceActiveFocus())
 
-    // Dimmed library behind the dialog; swallows clicks.
-    Rectangle {
-        anchors.fill: parent
-        color: Theme.scrim
-    }
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        onWheel: (wheel) => wheel.accepted = true
-    }
-
-    FocusScope {
-        id: scope
-        anchors.fill: parent
-        focus: root.shown
-        Keys.onEscapePressed: if (!root.conflict.busy) root.player.resolveSaveConflict("later")
-
-        Rectangle {
-            id: card
-            objectName: "conflictDialog"
-            anchors.centerIn: parent
-            width: Math.min(760, parent.width - 48)
-            implicitHeight: col.implicitHeight + 64
-            height: Math.min(implicitHeight, parent.height - 32)
-            radius: Theme.radius12
-            color: Theme.bgPanel
-            border.width: 1
-            border.color: Theme.borderInput
-
-            ColumnLayout {
-                id: col
-                anchors.fill: parent
-                anchors.margins: 32
-                spacing: 24
-
+    // The two sides next to each other (one under the other when narrow): open columns on a hairline, no cards.
+    GridLayout {
+        Layout.fillWidth: true
+        columns: width < 440 ? 1 : 2
+        columnSpacing: Theme.space3
+        rowSpacing: Theme.space15
+        Repeater {
+            model: [
+                { objectName: "hubSide", eyebrow: qsTr("On the server"), side: root.conflict.hub },
+                { objectName: "localSide", eyebrow: qsTr("On this device"), side: root.conflict.local }
+            ]
+            delegate: Item {
+                id: sideBlock
+                required property var modelData
+                readonly property var side: modelData.side || ({})
+                objectName: modelData.objectName
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                Layout.alignment: Qt.AlignTop
+                implicitHeight: sideCol.implicitHeight + Theme.space1 + 1
+                Rectangle { width: parent.width; height: 1; color: Theme.rule }
                 ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
-                    Eyebrow {
-                        text: qsTr("▲ Save conflict · %1").arg(root.conflict.gameTitle || "")
-                        color: Theme.warn
+                    id: sideCol
+                    y: Theme.space1 + 1
+                    width: parent.width
+                    spacing: Theme.space05
+                    Eyebrow { Layout.fillWidth: true; text: sideBlock.modelData.eyebrow }
+                    UzLabel {
+                        Layout.fillWidth: true
+                        text: sideBlock.side.title || ""
+                        font.pixelSize: Theme.roles.itemTitle.size
+                        font.weight: Theme.roles.itemTitle.weight
+                        elide: Text.ElideRight
                     }
                     UzLabel {
                         Layout.fillWidth: true
-                        text: qsTr("The server and this device have different saves")
-                        font.pixelSize: Theme.fontDialog
-                        font.weight: Font.DemiBold
-                        wrapMode: Text.WordWrap
+                        text: sideBlock.side.when || ""
+                        color: Theme.ink2
+                        font.pixelSize: Theme.roles.input.size
+                        elide: Text.ElideRight
                     }
-                    UzLabel {
+                    UzMono {
                         Layout.fillWidth: true
-                        text: qsTr("This device kept playing offline while another device secured a new checkpoint. Nothing is overwritten until you decide. Both saves are secured in the history beforehand.")
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontBody
-                        wrapMode: Text.WordWrap
+                        text: sideBlock.side.base || ""
+                        font.pixelSize: Theme.roles.meta11.size
+                        elide: Text.ElideRight
                     }
-                }
-
-                GridLayout {
-                    Layout.fillWidth: true
-                    columns: width < 560 ? 1 : 2
-                    columnSpacing: 12
-                    rowSpacing: 12
-                    Repeater {
-                        model: [
-                            { objectName: "hubSide", eyebrow: qsTr("On the server"), side: root.conflict.hub },
-                            { objectName: "localSide", eyebrow: qsTr("On this device"), side: root.conflict.local }
-                        ]
-                        delegate: Rectangle {
-                            id: sideCard
-                            required property var modelData
-                            readonly property var side: modelData.side || ({})
-                            objectName: modelData.objectName
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            implicitHeight: sideCol.implicitHeight + 32
-                            radius: Theme.radius9
-                            color: Theme.popupBg
-                            border.width: 1
-                            border.color: Theme.borderCard
-                            ColumnLayout {
-                                id: sideCol
-                                anchors.fill: parent
-                                anchors.margins: 16
-                                spacing: 6
-                                Eyebrow { text: sideCard.modelData.eyebrow }
-                                UzLabel {
-                                    Layout.fillWidth: true
-                                    text: sideCard.side.title || ""
-                                    font.pixelSize: Theme.fontSection
-                                    font.weight: Font.Medium
-                                    elide: Text.ElideRight
-                                }
-                                UzLabel {
-                                    Layout.fillWidth: true
-                                    text: sideCard.side.when || ""
-                                    color: Theme.textSecondary
-                                    font.pixelSize: Theme.fontSmall
-                                    elide: Text.ElideRight
-                                }
-                                UzMono {
-                                    Layout.fillWidth: true
-                                    text: sideCard.side.base || ""
-                                    font.pixelSize: Theme.fontMono
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    objectName: "conflictError"
-                    visible: (root.conflict.error || "") !== ""
-                    Layout.fillWidth: true
-                    implicitHeight: errText.implicitHeight + 24
-                    radius: Theme.radius8
-                    color: Theme.errorBg
-                    UzLabel {
-                        id: errText
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        text: root.conflict.error || ""
-                        wrapMode: Text.WordWrap
-                        font.pixelSize: Theme.fontSmall
-                        color: Theme.errorText
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 16
-                        UzButton {
-                            id: hubButton
-                            objectName: "useHubButton"
-                            Layout.preferredWidth: 340
-                            implicitHeight: 46
-                            text: qsTr("Use server version")
-                            enabled: !root.conflict.busy
-                            busyOnClick: true
-                            activeFocusOnTab: true
-                            KeyNavigation.tab: localButton
-                            KeyNavigation.backtab: keepButton
-                            onClicked: root.player.resolveSaveConflict("use_hub")
-                            Keys.onReturnPressed: clicked()
-                            Keys.onEnterPressed: clicked()
-                        }
-                        UzLabel {
-                            Layout.fillWidth: true
-                            text: qsTr("local save stays secured")
-                            color: Theme.textMeta
-                            font.pixelSize: Theme.fontMeta
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 16
-                        UzButton {
-                            id: localButton
-                            objectName: "useLocalButton"
-                            Layout.preferredWidth: 340
-                            implicitHeight: 46
-                            text: qsTr("Adopt local save as new current version")
-                            enabled: !root.conflict.busy
-                            busyOnClick: true
-                            activeFocusOnTab: true
-                            KeyNavigation.tab: keepButton
-                            KeyNavigation.backtab: hubButton
-                            onClicked: root.player.resolveSaveConflict("use_local")
-                            Keys.onReturnPressed: clicked()
-                            Keys.onEnterPressed: clicked()
-                        }
-                        UzLabel {
-                            Layout.fillWidth: true
-                            text: qsTr("becomes the new checkpoint")
-                            color: Theme.textMeta
-                            font.pixelSize: Theme.fontMeta
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 16
-                        UzButton {
-                            id: keepButton
-                            objectName: "keepBothButton"
-                            Layout.preferredWidth: 340
-                            implicitHeight: 46
-                            kind: "primary"
-                            text: qsTr("Keep both, decide later")
-                            enabled: !root.conflict.busy
-                            busyOnClick: true
-                            activeFocusOnTab: true
-                            KeyNavigation.tab: hubButton
-                            KeyNavigation.backtab: localButton
-                            onClicked: root.player.resolveSaveConflict("later")
-                            Keys.onReturnPressed: clicked()
-                            Keys.onEnterPressed: clicked()
-                            // Visible focus ring also for the primary button
-                            Rectangle {
-                                anchors.fill: parent
-                                anchors.margins: -3
-                                radius: 0
-                                color: "transparent"
-                                border.width: 2
-                                border.color: Theme.text
-                                visible: keepButton.activeFocus
-                            }
-                        }
-                        UzLabel {
-                            Layout.fillWidth: true
-                            text: qsTr("default · the game starts with the local save")
-                            color: Theme.textMeta
-                            font.pixelSize: Theme.fontMeta
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-                }
-
-                UzLabel {
-                    Layout.fillWidth: true
-                    text: qsTr("Decide later: the conflict stays visible on the game and on the Saves page in the server.")
-                    color: Theme.textFaint
-                    font.pixelSize: Theme.fontMeta
-                    wrapMode: Text.WordWrap
                 }
             }
+        }
+    }
+
+    // One action per outcome, each with what it does underneath. Tab order: server, local, keep both.
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: Theme.space15
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.space05
+            UzButton {
+                id: hubButton
+                objectName: "useHubButton"
+                Layout.fillWidth: true
+                text: qsTr("Use server version")
+                enabled: !root.conflict.busy
+                busyOnClick: true
+                activeFocusOnTab: true
+                KeyNavigation.tab: localButton
+                KeyNavigation.backtab: keepButton
+                onClicked: root.player.resolveSaveConflict("use_hub")
+                Keys.onReturnPressed: clicked()
+                Keys.onEnterPressed: clicked()
+            }
+            UzLabel {
+                Layout.fillWidth: true
+                text: qsTr("local save stays secured")
+                color: Theme.muted
+                font.pixelSize: Theme.roles.small.size
+                wrapMode: Text.WordWrap
+            }
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.space05
+            UzButton {
+                id: localButton
+                objectName: "useLocalButton"
+                Layout.fillWidth: true
+                text: qsTr("Adopt local save as new current version")
+                enabled: !root.conflict.busy
+                busyOnClick: true
+                activeFocusOnTab: true
+                KeyNavigation.tab: keepButton
+                KeyNavigation.backtab: hubButton
+                onClicked: root.player.resolveSaveConflict("use_local")
+                Keys.onReturnPressed: clicked()
+                Keys.onEnterPressed: clicked()
+            }
+            UzLabel {
+                Layout.fillWidth: true
+                text: qsTr("becomes the new checkpoint")
+                color: Theme.muted
+                font.pixelSize: Theme.roles.small.size
+                wrapMode: Text.WordWrap
+            }
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.space05
+            UzButton {
+                id: keepButton
+                objectName: "keepBothButton"
+                Layout.fillWidth: true
+                kind: "primary"
+                text: qsTr("Keep both, decide later")
+                enabled: !root.conflict.busy
+                busyOnClick: true
+                activeFocusOnTab: true
+                KeyNavigation.tab: hubButton
+                KeyNavigation.backtab: localButton
+                onClicked: root.player.resolveSaveConflict("later")
+                Keys.onReturnPressed: clicked()
+                Keys.onEnterPressed: clicked()
+            }
+            UzLabel {
+                Layout.fillWidth: true
+                text: qsTr("default · the game starts with the local save")
+                color: Theme.muted
+                font.pixelSize: Theme.roles.small.size
+                wrapMode: Text.WordWrap
+            }
+        }
+        UzLabel {
+            Layout.fillWidth: true
+            text: qsTr("Decide later: the conflict stays visible on the game and on the Saves page in the server.")
+            color: Theme.dim
+            font.pixelSize: Theme.roles.small.size
+            wrapMode: Text.WordWrap
         }
     }
 }

@@ -6,7 +6,7 @@ import Uzume.App
 Item {
     id: root
     property string kind: ""
-    property color color: Theme.gameText
+    property color color: Theme.sumi.ink
     implicitWidth: kind === "speed" ? 12 : kind === "caret" ? 8 : kind === "diamond" ? 10 : kind === "play" ? 8 : kind === "pause" ? 8 : 11
     implicitHeight: 14
 

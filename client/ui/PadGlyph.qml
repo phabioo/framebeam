@@ -1,10 +1,11 @@
 import QtQuick
 import Uzume.App
 
-// Controller glyph chip (design "PadGlyph and the D-pad icons", source/pad-glyph.dc.html).
+// Controller glyph chip (design "PadGlyph and the D-pad icons", source/pad-glyph.dc.html), drawn like the key caps of the
+// design system (UzKeyCap / UzGamepadHint): square, 1 px `ink-2` frame, Mono; pressed in the input test fills it with Yamabuki.
 // g: A B X Y LB RB LT RT View Menu | cross circle square triangle L1 R1 L2 R2 Create Options | up down left right;
 // any other text (Select, Start, Shift, Enter, key names) is drawn as text. Round chip for single letters and the four
-// shapes, 25 % radius for words (padding 0 30 % of the size), 20 % for the D-pad (square). Icons are drawn (Canvas),
+// shapes, wider for words (padding 0 30 % of the size). Icons are drawn (Canvas),
 // not font glyphs, so Windows and Linux look identical; the four arrows are one path rotated about the center of the
 // 16 x 16 box, so they share size, weight and optical center. Monochrome only.
 Item {
@@ -13,7 +14,7 @@ Item {
     property int size: 24         // chip height, 16..48
     property bool active: false   // pressed in the input test
     property bool flat: false     // no chip, icon only
-    property bool square: false   // radius 20 % instead of round (D-pad cells)
+    property bool square: false   // D-pad cells (the chip is square either way; kept for the input test model)
 
     readonly property var arrows: ({ "up": 0, "right": 90, "down": 180, "left": 270 })
     readonly property bool isArrow: root.g in root.arrows
@@ -22,10 +23,9 @@ Item {
     readonly property bool round: root.isArrow || root.isShape || root.g.length === 1
     readonly property int iconSize: Math.round(root.size * 0.62)
 
-    // Dark values as designed; the light palette is derived (same roles).
-    readonly property color chipColor: Theme.pressed
-    readonly property color ringColor: Theme.rule
-    readonly property color glyphColor: root.active ? (root.flat ? Theme.accent : Theme.textOnAccent)
+    readonly property color chipColor: "transparent"
+    readonly property color ringColor: Theme.ink2
+    readonly property color glyphColor: root.active ? (root.flat ? Theme.accent : Theme.inkOnAccent)
                                                     : Theme.ink2
 
     implicitHeight: root.size
@@ -38,10 +38,9 @@ Item {
         objectName: "padGlyphChip"
         anchors.fill: parent
         visible: !root.flat
-        radius: 0
         color: root.active ? Theme.accent : root.chipColor
-        border.width: root.active ? 0 : 1
-        border.color: root.ringColor
+        border.width: 1
+        border.color: root.active ? Theme.accent : root.ringColor
         Behavior on color { ColorAnimation { duration: 60 } }
     }
 

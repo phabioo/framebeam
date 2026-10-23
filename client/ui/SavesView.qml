@@ -125,8 +125,8 @@ FocusScope {
         Layout.fillWidth: true
         Layout.minimumWidth: 0
         implicitHeight: sideCol.implicitHeight + 20
-        radius: Theme.radius7
-        color: Theme.bg
+        radius: Theme.radiusNone
+        color: Theme.ground
         ColumnLayout {
             id: sideCol
             anchors.fill: parent
@@ -141,7 +141,7 @@ FocusScope {
                 Layout.minimumWidth: 0
                 elide: Text.ElideRight
                 text: side.info.device || qsTr("unknown device")
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 font.weight: Font.Medium
             }
             UzLabel {
@@ -150,8 +150,8 @@ FocusScope {
                 Layout.minimumWidth: 0
                 elide: Text.ElideRight
                 text: side.info.when || ""
-                color: Theme.textMeta
-                font.pixelSize: Theme.fontMeta
+                color: Theme.muted
+                font.pixelSize: Theme.roles.small.size
             }
             UzMono {
                 objectName: side.objectName + "Size"
@@ -159,8 +159,8 @@ FocusScope {
                 Layout.minimumWidth: 0
                 elide: Text.ElideRight
                 text: (side.info.revisionText ? side.info.revisionText + " · " : "") + (side.info.sizeText || "")
-                color: Theme.text
-                font.pixelSize: Theme.fontMeta
+                color: Theme.ink
+                font.pixelSize: Theme.roles.small.size
             }
         }
     }
@@ -198,9 +198,9 @@ FocusScope {
                     width: parent.width
                     text: "← " + (root.backTitle !== "" ? root.backTitle : (root.game.title || qsTr("Library")))
                     textFormat: Text.PlainText
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     elide: Text.ElideRight
-                    color: backHover.hovered || backButton.activeFocus ? Theme.text : Theme.textMuted
+                    color: backHover.hovered || backButton.activeFocus ? Theme.ink : Theme.muted
                 }
                 HoverHandler { id: backHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: root.back() }
@@ -217,8 +217,8 @@ FocusScope {
                 anchors.rightMargin: 8
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("updated %1").arg(root.hist.lastUpdated)
-                color: Theme.textFaint
-                font.pixelSize: Theme.fontMono
+                color: Theme.dim
+                font.pixelSize: Theme.roles.meta11.size
             }
             Rectangle {
                 id: refresh
@@ -227,10 +227,10 @@ FocusScope {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 28
                 height: 28
-                radius: Theme.radius6
-                color: refreshHover.hovered && enabled ? Theme.surfaceRaised : "transparent"
+                radius: Theme.radiusNone
+                color: refreshHover.hovered && enabled ? Theme.hover : "transparent"
                 border.width: 1
-                border.color: activeFocus ? Theme.accent : Theme.borderInput
+                border.color: activeFocus ? Theme.accent : Theme.rule
                 enabled: !root.hist.loading
                 opacity: enabled ? 1 : 0.6
                 activeFocusOnTab: true
@@ -241,7 +241,7 @@ FocusScope {
                     anchors.centerIn: parent
                     text: "↻"
                     font.pixelSize: 15
-                    color: Theme.textMuted
+                    color: Theme.muted
                     RotationAnimation on rotation { running: root.hist.loading; from: 0; to: 360; duration: 900; loops: Animation.Infinite }
                 }
                 HoverHandler { id: refreshHover; cursorShape: Qt.PointingHandCursor }
@@ -298,7 +298,7 @@ FocusScope {
                             id: linkProbe
                             visible: false
                             text: qsTr("+ New slot")
-                            font.pixelSize: Theme.fontSmall
+                            font.pixelSize: Theme.roles.input.size
                             font.weight: Font.Medium
                         }
                         Repeater {
@@ -308,8 +308,8 @@ FocusScope {
                                 required property var modelData
                                 required property int index
                                 textFormat: Text.StyledText
-                                text: modelData.label + (modelData.count > 0 ? " <font color='" + Theme.textFaint + "'>" + modelData.count + "</font>" : "")
-                                font.pixelSize: Theme.fontSmall
+                                text: modelData.label + (modelData.count > 0 ? " <font color='" + Theme.dim + "'>" + modelData.count + "</font>" : "")
+                                font.pixelSize: Theme.roles.input.size
                                 font.weight: modelData.value === root.hist.slot ? Font.DemiBold : Font.Normal
                                 onImplicitWidthChanged: tabsFitProbe.recalc()
                                 Component.onCompleted: tabsFitProbe.recalc()
@@ -355,10 +355,10 @@ FocusScope {
                                     width: parent.width
                                     elide: Text.ElideRight
                                     textFormat: Text.StyledText
-                                    text: tab.modelData.label + (tab.modelData.count > 0 ? " <font color='" + Theme.textFaint + "'>" + tab.modelData.count + "</font>" : "")
-                                    font.pixelSize: Theme.fontSmall
+                                    text: tab.modelData.label + (tab.modelData.count > 0 ? " <font color='" + Theme.dim + "'>" + tab.modelData.count + "</font>" : "")
+                                    font.pixelSize: Theme.roles.input.size
                                     font.weight: tab.active ? Font.DemiBold : Font.Normal
-                                    color: tab.active ? Theme.text : Theme.textMuted
+                                    color: tab.active ? Theme.ink : Theme.muted
                                 }
                                 Rectangle {
                                     visible: tab.active
@@ -393,10 +393,10 @@ FocusScope {
                         anchors.verticalCenter: parent.verticalCenter
                         height: 30
                         width: Math.min(switcherText.implicitWidth + 36, parent.width)
-                        radius: Theme.radius7
+                        radius: Theme.radiusNone
                         color: Theme.surface
                         border.width: activeFocus || switchMenu.visible ? 1.5 : 1
-                        border.color: activeFocus || switchMenu.visible ? Theme.accent : Theme.borderInput
+                        border.color: activeFocus || switchMenu.visible ? Theme.accent : Theme.rule
                         opacity: tabs.changeable ? 1 : 0.6
                         activeFocusOnTab: true
                         Accessible.role: Accessible.ComboBox
@@ -413,11 +413,11 @@ FocusScope {
                                 for (const o of root.hist.slotOptions) if (o.value === root.hist.slot) count = o.count
                                 return root.hist.slotLabel + (count > 0 ? " · " + count : "")
                             }
-                            font.pixelSize: Theme.fontSmall
+                            font.pixelSize: Theme.roles.input.size
                             font.weight: Font.DemiBold
-                            color: Theme.text
+                            color: Theme.ink
                         }
-                        Text { anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; text: switchMenu.visible ? "▴" : "▾"; font.pixelSize: Theme.fontMono; color: Theme.textFaint }
+                        Text { anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; text: switchMenu.visible ? "▴" : "▾"; font.pixelSize: Theme.roles.meta11.size; color: Theme.dim }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                         TapHandler { enabled: tabs.changeable; onTapped: { switcher.forceActiveFocus(); switchMenu.visible ? switchMenu.close() : switchMenu.open() } }
                         Keys.onPressed: (event) => { if (tabs.changeable && (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Down)) { switchMenu.open(); event.accepted = true } }
@@ -429,7 +429,7 @@ FocusScope {
                             width: Math.max(220, switcher.width)
                             padding: 4
                             closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-                            background: Rectangle { radius: Theme.radius8; color: Theme.popupBg; border.width: 1; border.color: Theme.borderPopup }
+                            background: Rectangle { radius: Theme.radiusNone; color: Theme.surface; border.width: 1; border.color: Theme.rule }
                             // A plain Column (no Layout): the model can change while the popup resizes without touching stale layout items.
                             contentItem: Column {
                                 spacing: 0
@@ -447,21 +447,21 @@ FocusScope {
                                         onClicked: { const slotValue = slotItem.modelData.value; switchMenu.close(); root.hist.selectSlot(slotValue) }
                                         contentItem: Row {
                                             spacing: 4
-                                            Text { width: 16; anchors.verticalCenter: parent.verticalCenter; text: slotItem.modelData.value === root.hist.slot ? "✓" : ""; font.pixelSize: Theme.fontSmall; color: Theme.accentText }
+                                            Text { width: 16; anchors.verticalCenter: parent.verticalCenter; text: slotItem.modelData.value === root.hist.slot ? "✓" : ""; font.pixelSize: Theme.roles.input.size; color: Theme.accentText }
                                             Text {
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 width: slotItem.width - 16 - 4 - 16
                                                 elide: Text.ElideRight
                                                 text: slotItem.modelData.label + (slotItem.modelData.count > 0 ? " · " + slotItem.modelData.count : "")
                                                 textFormat: Text.PlainText
-                                                font.pixelSize: Theme.fontSmall
-                                                color: Theme.text
+                                                font.pixelSize: Theme.roles.input.size
+                                                color: Theme.ink
                                             }
                                         }
-                                        background: Rectangle { radius: Theme.radius6; color: slotItem.highlighted || slotItem.hovered ? Theme.surfaceRaised : "transparent" }
+                                        background: Rectangle { radius: Theme.radiusNone; color: slotItem.highlighted || slotItem.hovered ? Theme.hover : "transparent" }
                                     }
                                 }
-                                Item { width: switchMenu.availableWidth; height: 9; Rectangle { anchors.centerIn: parent; width: parent.width; height: 1; color: Theme.borderSidebar } }
+                                Item { width: switchMenu.availableWidth; height: 9; Rectangle { anchors.centerIn: parent; width: parent.width; height: 1; color: Theme.rule } }
                                 ItemDelegate {
                                     id: newItem
                                     objectName: "slotMenuNew"
@@ -470,7 +470,7 @@ FocusScope {
                                     padding: 0
                                     leftPadding: 24
                                     text: qsTr("+ New slot")
-                                    font.pixelSize: Theme.fontSmall
+                                    font.pixelSize: Theme.roles.input.size
                                     font.weight: Font.Medium
                                     onClicked: { switchMenu.close(); root.newSlotError = ""; root.newSlotOpen = true; Qt.callLater(() => newSlotField.forceActiveFocus()) }
                                     // The Basic ItemDelegate text follows the palette (dark text on the dark popup looked disabled, R-P16).
@@ -478,11 +478,11 @@ FocusScope {
                                         text: newItem.text
                                         textFormat: Text.PlainText
                                         font: newItem.font
-                                        color: Theme.text
+                                        color: Theme.ink
                                         verticalAlignment: Text.AlignVCenter
                                         elide: Text.ElideRight
                                     }
-                                    background: Rectangle { radius: Theme.radius6; color: newItem.highlighted || newItem.hovered ? Theme.surfaceRaised : "transparent" }
+                                    background: Rectangle { radius: Theme.radiusNone; color: newItem.highlighted || newItem.hovered ? Theme.hover : "transparent" }
                                 }
                             }
                         }
@@ -495,7 +495,7 @@ FocusScope {
                         anchors.verticalCenter: parent.verticalCenter
                         kind: "link"
                         implicitHeight: 28
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                         font.weight: Font.Medium
                         text: tabsFitProbe.linkCompact ? "+" : qsTr("+ New slot")
                         Accessible.name: qsTr("New slot")
@@ -506,7 +506,7 @@ FocusScope {
                             if (root.newSlotOpen) newSlotField.forceActiveFocus()
                         }
                     }
-                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.borderSidebar; z: -1 }
+                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule; z: -1 }
                 }
 
                 // New slot (inline)
@@ -534,23 +534,23 @@ FocusScope {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: root.newSlotError
-                        color: Theme.error
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.danger
+                        font.pixelSize: Theme.roles.small.size
                     }
                     UzLabel {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: qsTr("A new slot starts without a save. “%1” is not changed.").arg(root.hist.slotLabel)
-                        color: Theme.textMeta
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.small.size
                     }
                     Flow {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 8
                         layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
-                        UzButton { objectName: "newSlotCreate"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Create slot"); onClicked: root.createSlot() }
-                        UzButton { objectName: "newSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.newSlotOpen = false }
+                        UzButton { objectName: "newSlotCreate"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.roles.input.size; text: qsTr("Create slot"); onClicked: root.createSlot() }
+                        UzButton { objectName: "newSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.roles.input.size; text: qsTr("Cancel"); onClicked: root.newSlotOpen = false }
                     }
                 }
 
@@ -566,7 +566,7 @@ FocusScope {
                         visible: root.hist.slotManageAvailable
                         kind: "link"
                         implicitHeight: 28
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                         font.weight: Font.Medium
                         text: qsTr("Rename slot")
                         enabled: root.hist.slotManageBlockReason === ""
@@ -576,7 +576,7 @@ FocusScope {
                         objectName: "slotDeleteButton"
                         kind: "link"
                         implicitHeight: 28
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                         font.weight: Font.Medium
                         text: qsTr("Delete slot…")
                         enabled: root.hist.slotManageBlockReason === ""
@@ -589,8 +589,8 @@ FocusScope {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: root.hist.slotManageBlockReason
-                    color: Theme.textFaint
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.dim
+                    font.pixelSize: Theme.roles.small.size
                 }
 
                 // Rename slot (inline)
@@ -618,23 +618,23 @@ FocusScope {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: root.renameError
-                        color: Theme.error
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.danger
+                        font.pixelSize: Theme.roles.small.size
                     }
                     UzLabel {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: qsTr("The save and its history keep their content. Your other devices pick up the new name.")
-                        color: Theme.textMeta
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.small.size
                     }
                     Flow {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 8
                         layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
-                        UzButton { objectName: "renameSlotConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Rename slot"); onClicked: root.renameSlot() }
-                        UzButton { objectName: "renameSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.renameOpen = false }
+                        UzButton { objectName: "renameSlotConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.roles.input.size; text: qsTr("Rename slot"); onClicked: root.renameSlot() }
+                        UzButton { objectName: "renameSlotCancel"; implicitHeight: 32; font.pixelSize: Theme.roles.input.size; text: qsTr("Cancel"); onClicked: root.renameOpen = false }
                     }
                 }
 
@@ -645,10 +645,10 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: slotDeleteCol.implicitHeight + 28
-                    radius: Theme.radius9
-                    color: Theme.errorBg
+                    radius: Theme.radiusNone
+                    color: Theme.dangerTint
                     border.width: 1
-                    border.color: Theme.dangerBorder
+                    border.color: Theme.danger
                     ColumnLayout {
                         id: slotDeleteCol
                         anchors.fill: parent
@@ -659,8 +659,8 @@ FocusScope {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Delete slot “%1”?").arg(root.hist.slotDeleteRequest.slotLabel || "")
-                            color: Theme.error
-                            font.pixelSize: Theme.fontBody
+                            color: Theme.danger
+                            font.pixelSize: Theme.roles.body.size
                             font.weight: Font.DemiBold
                         }
                         UzLabel {
@@ -669,8 +669,8 @@ FocusScope {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Latest save: %1").arg(root.join([root.hist.slotDeleteRequest.revisionText, root.hist.slotDeleteRequest.when, root.hist.slotDeleteRequest.device]))
-                            color: Theme.text
-                            font.pixelSize: Theme.fontSmall
+                            color: Theme.ink
+                            font.pixelSize: Theme.roles.input.size
                         }
                         UzLabel {
                             objectName: "slotDeleteNote"
@@ -681,8 +681,8 @@ FocusScope {
                                   : (root.hist.slotDeleteRequest.isMain === true
                                      ? qsTr("The main slot has no save on the server. Its local save is removed. This cannot be undone.")
                                      : qsTr("This slot exists only on this device. Its local save is removed. This cannot be undone."))
-                            color: Theme.textSecondary
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.ink2
+                            font.pixelSize: Theme.roles.small.size
                         }
                         Flow {
                             Layout.fillWidth: true
@@ -693,18 +693,18 @@ FocusScope {
                                 objectName: "slotDeleteConfirm"
                                 height: 32
                                 width: Math.min(slotDeleteOkText.implicitWidth + 24, parent.width)   // never wider than the row, the text elides
-                                radius: Theme.radius6
-                                color: Theme.error
+                                radius: Theme.radiusNone
+                                color: Theme.danger
                                 opacity: slotDeleteOkTap.pressed ? 0.8 : 1
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
                                 Accessible.name: slotDeleteOkText.text
-                                Text { id: slotDeleteOkText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 24); elide: Text.ElideRight; text: qsTr("Delete slot"); font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
+                                Text { id: slotDeleteOkText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 24); elide: Text.ElideRight; text: qsTr("Delete slot"); font.pixelSize: Theme.roles.input.size; font.weight: Font.DemiBold; color: Theme.inkOnAccent }
                                 HoverHandler { cursorShape: Qt.PointingHandCursor }
                                 TapHandler { id: slotDeleteOkTap; onTapped: root.hist.confirmDeleteSlot() }
                                 Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.hist.confirmDeleteSlot(); event.accepted = true } }
                             }
-                            UzButton { objectName: "slotDeleteCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.hist.cancelDeleteSlot() }
+                            UzButton { objectName: "slotDeleteCancel"; implicitHeight: 32; font.pixelSize: Theme.roles.input.size; text: qsTr("Cancel"); onClicked: root.hist.cancelDeleteSlot() }
                         }
                     }
                 }
@@ -716,8 +716,8 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: offlineCol.implicitHeight + 20
-                    radius: Theme.radius8
-                    color: Theme.warnBg
+                    radius: Theme.radiusNone
+                    color: Theme.selected
                     ColumnLayout {
                         id: offlineCol
                         anchors.fill: parent
@@ -730,10 +730,10 @@ FocusScope {
                             text: root.hist.lastSynced !== ""
                                   ? qsTr("Server offline · read-only. Showing the history from the last sync, %1. Restore, snapshots and uploads need the server.").arg(root.hist.lastSynced)
                                   : qsTr("Server offline · read-only. Restore, snapshots and uploads need the server.")
-                            color: Theme.warn
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.accentText
+                            font.pixelSize: Theme.roles.small.size
                         }
-                        UzButton { objectName: "savesTryAgain"; kind: "link"; implicitHeight: 24; font.pixelSize: Theme.fontMeta; text: qsTr("Try again"); onClicked: root.hist.refresh() }
+                        UzButton { objectName: "savesTryAgain"; kind: "link"; implicitHeight: 24; font.pixelSize: Theme.roles.small.size; text: qsTr("Try again"); onClicked: root.hist.refresh() }
                     }
                 }
                 Rectangle {
@@ -742,8 +742,8 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: runningText.implicitHeight + 20
-                    radius: Theme.radius8
-                    color: Theme.accentChipBg
+                    radius: Theme.radiusNone
+                    color: Theme.selected
                     UzLabel {
                         id: runningText
                         anchors.fill: parent
@@ -754,7 +754,7 @@ FocusScope {
                                         : root.inGame ? qsTr("%1 keeps running. Snapshots still work. Restore, upload and slot changes (rename, delete) are possible after the game is closed.").arg(root.game.title || "")
                                                       : qsTr("%1 is running on this device. Restore and upload are possible after the game is closed. Snapshots still work.").arg(root.game.title || "")
                         color: Theme.accentText
-                        font.pixelSize: Theme.fontMeta
+                        font.pixelSize: Theme.roles.small.size
                     }
                 }
                 Rectangle {
@@ -763,10 +763,10 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: conflictCol.implicitHeight + 24
-                    radius: Theme.radius9
-                    color: Theme.accentChipBg
+                    radius: Theme.radiusNone
+                    color: Theme.selected
                     border.width: 1
-                    border.color: Theme.confirmBorder
+                    border.color: Theme.rule
                     ColumnLayout {
                         id: conflictCol
                         anchors.fill: parent
@@ -774,18 +774,18 @@ FocusScope {
                         anchors.leftMargin: 14
                         anchors.rightMargin: 14
                         spacing: 8
-                        Eyebrow { Layout.fillWidth: true; text: qsTr("▲ Save conflict · %1").arg(root.hist.slotLabel); color: Theme.warn }
+                        Eyebrow { Layout.fillWidth: true; text: qsTr("▲ Save conflict · %1").arg(root.hist.slotLabel); color: Theme.accentText }
                         UzLabel {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Restore, upload and new slot are paused for “%1” until the conflict is resolved. Other slots work normally.").arg(root.hist.slotLabel)
-                            color: Theme.textSecondary
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.ink2
+                            font.pixelSize: Theme.roles.small.size
                         }
                         UzButton {
                             objectName: "resolveConflictButton"
                             implicitHeight: 32
-                            font.pixelSize: Theme.fontSmall
+                            font.pixelSize: Theme.roles.input.size
                             text: qsTr("Resolve conflict")
                             enabled: !root.hist.confirmationOpen && !root.hist.busy
                             onClicked: root.hist.openConflict()
@@ -794,8 +794,8 @@ FocusScope {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Compare both versions here and choose one. The game does not start.")
-                            color: Theme.textFaint
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.dim
+                            font.pixelSize: Theme.roles.small.size
                         }
                     }
                 }
@@ -806,16 +806,16 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: resolveCol.implicitHeight + 28
-                    radius: Theme.radius9
-                    color: Theme.accentChipBg
+                    radius: Theme.radiusNone
+                    color: Theme.selected
                     border.width: 1
-                    border.color: Theme.confirmBorder
+                    border.color: Theme.rule
                     ColumnLayout {
                         id: resolveCol
                         anchors.fill: parent
                         anchors.margins: 14
                         spacing: 10
-                        Eyebrow { Layout.fillWidth: true; text: qsTr("▲ Resolve conflict · %1").arg(root.hist.slotLabel); color: Theme.warn }
+                        Eyebrow { Layout.fillWidth: true; text: qsTr("▲ Resolve conflict · %1").arg(root.hist.slotLabel); color: Theme.accentText }
                         RowLayout {
                             objectName: "conflictLoading"
                             visible: root.hist.conflictLoading
@@ -827,8 +827,8 @@ FocusScope {
                                 Layout.minimumWidth: 0
                                 elide: Text.ElideRight
                                 text: qsTr("Loading both versions…")
-                                color: Theme.textSecondary
-                                font.pixelSize: Theme.fontMeta
+                                color: Theme.ink2
+                                font.pixelSize: Theme.roles.small.size
                             }
                         }
                         UzLabel {
@@ -836,8 +836,8 @@ FocusScope {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("This device and the server both changed “%1”. Choose which save becomes the current one. Nothing is deleted.").arg(root.hist.slotLabel)
-                            color: Theme.textSecondary
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.ink2
+                            font.pixelSize: Theme.roles.small.size
                         }
                         ConflictSide {
                             objectName: "conflictLocal"
@@ -858,8 +858,8 @@ FocusScope {
                             text: root.inGame
                                   ? qsTr("“Use the server save” saves this device's copy as a local backup first and restarts the game from the server save. “Keep this device's save” uploads it as the new current version; the game keeps running.")
                                   : qsTr("“Use the server save” saves this device's copy as a local backup first. “Keep this device's save” uploads it as the new current version. The game does not start.")
-                            color: Theme.textSecondary
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.ink2
+                            font.pixelSize: Theme.roles.small.size
                         }
                         Flow {
                             Layout.fillWidth: true
@@ -870,7 +870,7 @@ FocusScope {
                                 objectName: "conflictKeepLocal"
                                 kind: "primary"
                                 implicitHeight: 32
-                                font.pixelSize: Theme.fontSmall
+                                font.pixelSize: Theme.roles.input.size
                                 text: qsTr("Keep this device's save")
                                 enabled: !root.hist.conflictLoading && !root.hist.conflictBusy && (root.hist.conflictInfo.local || ({})).exists === true
                                 onClicked: root.hist.resolveConflict("use_local")
@@ -878,7 +878,7 @@ FocusScope {
                             UzButton {
                                 objectName: "conflictUseHub"
                                 implicitHeight: 32
-                                font.pixelSize: Theme.fontSmall
+                                font.pixelSize: Theme.roles.input.size
                                 text: qsTr("Use the server save")
                                 enabled: !root.hist.conflictLoading && !root.hist.conflictBusy
                                 onClicked: root.hist.resolveConflict("use_hub")
@@ -886,7 +886,7 @@ FocusScope {
                             UzButton {
                                 objectName: "conflictCancel"
                                 implicitHeight: 32
-                                font.pixelSize: Theme.fontSmall
+                                font.pixelSize: Theme.roles.input.size
                                 text: qsTr("Cancel")
                                 enabled: !root.hist.conflictBusy
                                 onClicked: root.hist.closeConflict()
@@ -901,8 +901,8 @@ FocusScope {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: qsTr("Restore and upload are off: %1").arg(root.hist.restoreBlockReason)
-                    color: Theme.textFaint
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.dim
+                    font.pixelSize: Theme.roles.small.size
                 }
 
                 // CURRENT bar
@@ -912,10 +912,10 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: currentCol.implicitHeight + 20
-                    radius: Theme.radius8
+                    radius: Theme.radiusNone
                     color: Theme.surface
                     border.width: 1
-                    border.color: Theme.borderCard
+                    border.color: Theme.rule
                     ColumnLayout {
                         id: currentCol
                         anchors.fill: parent
@@ -938,8 +938,8 @@ FocusScope {
                                 Layout.minimumWidth: 0
                                 elide: Text.ElideRight
                                 text: root.hist.current.revisionText || ""
-                                color: Theme.text
-                                font.pixelSize: Theme.fontSmall
+                                color: Theme.ink
+                                font.pixelSize: Theme.roles.input.size
                                 font.weight: Font.Medium
                             }
                             UzTag {
@@ -960,8 +960,8 @@ FocusScope {
                             Layout.maximumWidth: currentCol.width
                             wrapMode: Text.WordWrap
                             text: root.join([root.hist.current.when, root.hist.current.device, root.hist.current.reasonText])
-                            color: Theme.textMeta
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.muted
+                            font.pixelSize: Theme.roles.small.size
                         }
                         Item {
                             id: detailsToggle
@@ -975,8 +975,8 @@ FocusScope {
                                 id: detailsToggleText
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: root.detailsOpen ? qsTr("File details ▾") : qsTr("File details ▸")
-                                font.pixelSize: Theme.fontMeta
-                                color: Theme.textMuted
+                                font.pixelSize: Theme.roles.small.size
+                                color: Theme.muted
                             }
                             HoverHandler { cursorShape: Qt.PointingHandCursor }
                             TapHandler { onTapped: root.detailsOpen = !root.detailsOpen }
@@ -993,19 +993,19 @@ FocusScope {
                             columns: detailLabelProbe.implicitWidth > parent.width * 0.4 ? 1 : 2
                             columnSpacing: 12
                             rowSpacing: 6
-                            UzLabel { Layout.minimumWidth: 0; text: qsTr("SHA-256"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            UzMono { objectName: "detailSha"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.shaShort || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
-                            UzLabel { Layout.minimumWidth: 0; text: qsTr("Size"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            UzMono { objectName: "detailSize"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.sizeText || ""; color: Theme.text; font.pixelSize: Theme.fontMeta }
-                            UzLabel { Layout.minimumWidth: 0; id: detailLabelProbe; text: qsTr("Local path"); color: Theme.textMeta; font.pixelSize: Theme.fontMeta; Layout.alignment: Qt.AlignTop }
-                            UzMono { objectName: "detailPath"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.localPath || ""; color: Theme.text; font.pixelSize: Theme.fontMeta; wrapMode: Text.WrapAnywhere }
+                            UzLabel { Layout.minimumWidth: 0; text: qsTr("SHA-256"); color: Theme.muted; font.pixelSize: Theme.roles.small.size; Layout.alignment: Qt.AlignTop }
+                            UzMono { objectName: "detailSha"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.shaShort || ""; color: Theme.ink; font.pixelSize: Theme.roles.small.size; wrapMode: Text.WrapAnywhere }
+                            UzLabel { Layout.minimumWidth: 0; text: qsTr("Size"); color: Theme.muted; font.pixelSize: Theme.roles.small.size; Layout.alignment: Qt.AlignTop }
+                            UzMono { objectName: "detailSize"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.sizeText || ""; color: Theme.ink; font.pixelSize: Theme.roles.small.size }
+                            UzLabel { Layout.minimumWidth: 0; id: detailLabelProbe; text: qsTr("Local path"); color: Theme.muted; font.pixelSize: Theme.roles.small.size; Layout.alignment: Qt.AlignTop }
+                            UzMono { objectName: "detailPath"; Layout.fillWidth: true; Layout.minimumWidth: 0; text: root.hist.current.localPath || ""; color: Theme.ink; font.pixelSize: Theme.roles.small.size; wrapMode: Text.WrapAnywhere }
                             Item { visible: parent.columns === 2; Layout.preferredWidth: 1; Layout.preferredHeight: 1 }
                             Flow {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 spacing: 8
-                                UzButton { objectName: "copyHashButton"; implicitHeight: 28; font.pixelSize: Theme.fontMeta; text: qsTr("Copy hash"); onClicked: root.hist.copyText(root.hist.current.sha256 || "") }
-                                UzButton { objectName: "openFolderButton"; implicitHeight: 28; font.pixelSize: Theme.fontMeta; text: qsTr("Open folder"); onClicked: root.hist.openSaveFolder() }
+                                UzButton { objectName: "copyHashButton"; implicitHeight: 28; font.pixelSize: Theme.roles.small.size; text: qsTr("Copy hash"); onClicked: root.hist.copyText(root.hist.current.sha256 || "") }
+                                UzButton { objectName: "openFolderButton"; implicitHeight: 28; font.pixelSize: Theme.roles.small.size; text: qsTr("Open folder"); onClicked: root.hist.openSaveFolder() }
                             }
                         }
                     }
@@ -1018,8 +1018,8 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: msgRow.implicitHeight + 16
-                    radius: Theme.radius8
-                    color: root.hist.messageIsError ? Theme.errorBg : Theme.okBg
+                    radius: Theme.radiusNone
+                    color: root.hist.messageIsError ? Theme.dangerTint : Theme.ground
                     RowLayout {
                         id: msgRow
                         anchors.fill: parent
@@ -1030,8 +1030,8 @@ FocusScope {
                             Layout.minimumWidth: 0
                             wrapMode: Text.WordWrap
                             text: (root.hist.messageIsError ? "" : "✓ ") + root.hist.message
-                            font.pixelSize: Theme.fontMeta
-                            color: root.hist.messageIsError ? Theme.errorText : Theme.ok
+                            font.pixelSize: Theme.roles.small.size
+                            color: root.hist.messageIsError ? Theme.danger : Theme.ok
                         }
                         UzButton { kind: "link"; text: qsTr("Dismiss"); onClicked: root.hist.dismissMessage() }
                     }
@@ -1046,11 +1046,11 @@ FocusScope {
                     id: saveActionsFlow
                     spacing: 8
                     // Wide fonts: the "◆ " mark is dropped when the full label does not fit the column (never elide the label).
-                    TextMetrics { id: snapshotFull; font.pixelSize: Theme.fontSmall; font.weight: Font.Medium; text: qsTr("◆ Create snapshot") }
+                    TextMetrics { id: snapshotFull; font.pixelSize: Theme.roles.input.size; font.weight: Font.Medium; text: qsTr("◆ Create snapshot") }
                     UzButton {
                         objectName: "snapshotButton"
                         implicitHeight: 32
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                         text: snapshotFull.advanceWidth + 32 + 4 <= saveActionsFlow.width ? snapshotFull.text : qsTr("Create snapshot")
                         enabled: root.hist.canSnapshot && root.hist.online
                         onClicked: { root.snapshotOpen = true; Qt.callLater(() => snapshotLabel.forceActiveFocus()) }
@@ -1060,7 +1060,7 @@ FocusScope {
                         visible: root.hist.canUploadFile || !root.hist.online
                         kind: "link"
                         implicitHeight: 32
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                         font.weight: Font.Medium
                         text: root.pathPromptOpen ? qsTr("Choose") : qsTr("Upload save file…")
                         enabled: root.hist.restoreBlockReason === "" && !root.hist.busy && root.hist.online && root.hist.canUploadFile && root.hist.uploadBlockReason === ""
@@ -1073,8 +1073,8 @@ FocusScope {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: root.hist.uploadBlockReason
-                    color: Theme.textFaint
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.dim
+                    font.pixelSize: Theme.roles.small.size
                 }
                 UzField {
                     id: uploadPath
@@ -1095,10 +1095,10 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: snapCol.implicitHeight + 28
-                    radius: Theme.radius9
-                    color: Theme.accentChipBg
+                    radius: Theme.radiusNone
+                    color: Theme.selected
                     border.width: 1
-                    border.color: Theme.confirmBorder
+                    border.color: Theme.rule
                     ColumnLayout {
                         id: snapCol
                         anchors.fill: parent
@@ -1109,7 +1109,7 @@ FocusScope {
                             wrapMode: Text.WordWrap
                             text: root.hist.current.revisionText ? qsTr("◆ Create snapshot of %1").arg(root.hist.current.revisionText) : qsTr("◆ Create snapshot")
                             color: Theme.accentText
-                            font.pixelSize: Theme.fontSmall
+                            font.pixelSize: Theme.roles.input.size
                             font.weight: Font.DemiBold
                         }
                         UzField {
@@ -1128,8 +1128,8 @@ FocusScope {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Label is optional. Snapshots are kept until you delete them.")
-                            color: Theme.textSecondary
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.ink2
+                            font.pixelSize: Theme.roles.small.size
                         }
                         Flow {
                             Layout.fillWidth: true
@@ -1141,7 +1141,7 @@ FocusScope {
                                 objectName: "snapshotCreate"
                                 kind: "primary"
                                 implicitHeight: 30
-                                font.pixelSize: Theme.fontSmall
+                                font.pixelSize: Theme.roles.input.size
                                 text: qsTr("Create snapshot")
                                 enabled: root.hist.canSnapshot
                                 onClicked: {
@@ -1150,7 +1150,7 @@ FocusScope {
                                     root.snapshotOpen = false
                                 }
                             }
-                            UzButton { objectName: "snapshotCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { snapshotLabel.text = ""; root.snapshotOpen = false } }
+                            UzButton { objectName: "snapshotCancel"; implicitHeight: 30; font.pixelSize: Theme.roles.input.size; text: qsTr("Cancel"); onClicked: { snapshotLabel.text = ""; root.snapshotOpen = false } }
                         }
                     }
                 }
@@ -1162,10 +1162,10 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: uploadCol.implicitHeight + 28
-                    radius: Theme.radius9
-                    color: Theme.accentChipBg
+                    radius: Theme.radiusNone
+                    color: Theme.selected
                     border.width: 1
-                    border.color: Theme.confirmBorder
+                    border.color: Theme.rule
                     ColumnLayout {
                         id: uploadCol
                         anchors.fill: parent
@@ -1177,15 +1177,15 @@ FocusScope {
                             wrapMode: Text.WordWrap
                             text: qsTr("Upload as the new current version?")
                             color: Theme.accentText
-                            font.pixelSize: Theme.fontBody
+                            font.pixelSize: Theme.roles.body.size
                             font.weight: Font.DemiBold
                         }
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             implicitHeight: dataGrid.implicitHeight + 20
-                            radius: Theme.radius7
-                            color: Theme.bg
+                            radius: Theme.radiusNone
+                            color: Theme.ground
                             GridLayout {
                                 id: dataGrid
                                 anchors.fill: parent
@@ -1195,18 +1195,18 @@ FocusScope {
                                 columns: 2
                                 columnSpacing: 14
                                 rowSpacing: 6
-                                UzLabel { text: qsTr("File"); color: Theme.textMeta; font.pixelSize: Theme.fontSmall }
-                                UzMono { objectName: "uploadFileName"; Layout.fillWidth: true; text: root.hist.uploadRequest.fileName || ""; color: Theme.text; font.pixelSize: Theme.fontSmall; elide: Text.ElideRight }
-                                UzLabel { text: qsTr("Size"); color: Theme.textMeta; font.pixelSize: Theme.fontSmall }
-                                UzMono { objectName: "uploadSize"; Layout.fillWidth: true; text: root.hist.uploadRequest.sizeText || ""; color: Theme.text; font.pixelSize: Theme.fontSmall; elide: Text.ElideRight }
-                                UzLabel { text: qsTr("Into slot"); color: Theme.textMeta; font.pixelSize: Theme.fontSmall }
+                                UzLabel { text: qsTr("File"); color: Theme.muted; font.pixelSize: Theme.roles.input.size }
+                                UzMono { objectName: "uploadFileName"; Layout.fillWidth: true; text: root.hist.uploadRequest.fileName || ""; color: Theme.ink; font.pixelSize: Theme.roles.input.size; elide: Text.ElideRight }
+                                UzLabel { text: qsTr("Size"); color: Theme.muted; font.pixelSize: Theme.roles.input.size }
+                                UzMono { objectName: "uploadSize"; Layout.fillWidth: true; text: root.hist.uploadRequest.sizeText || ""; color: Theme.ink; font.pixelSize: Theme.roles.input.size; elide: Text.ElideRight }
+                                UzLabel { text: qsTr("Into slot"); color: Theme.muted; font.pixelSize: Theme.roles.input.size }
                                 UzLabel {
                                     objectName: "uploadSlot"
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
                                     text: root.hist.uploadRequest.currentText ? qsTr("%1 · becomes %2").arg(root.hist.slotLabel).arg(root.hist.uploadRequest.nextText || "")
                                                                                : qsTr("%1 · first save").arg(root.hist.slotLabel)
-                                    font.pixelSize: Theme.fontSmall
+                                    font.pixelSize: Theme.roles.input.size
                                 }
                             }
                         }
@@ -1218,16 +1218,16 @@ FocusScope {
                                    ? qsTr("The current version is kept in the history as “Before upload”. A local backup is made first.")
                                    : qsTr("A local backup is made first."))
                                   + (root.live ? "\n" + qsTr("The game restarts from this save.") : "")
-                            color: Theme.textSecondary
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.ink2
+                            font.pixelSize: Theme.roles.small.size
                         }
                         Flow {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             spacing: 8
                             layoutDirection: Qt.RightToLeft
-                            UzButton { objectName: "uploadConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Upload as new current"); onClicked: root.hist.confirmUploadFile() }
-                            UzButton { objectName: "uploadCancel"; implicitHeight: 32; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: root.hist.cancelUploadFile() }
+                            UzButton { objectName: "uploadConfirm"; kind: "primary"; implicitHeight: 32; font.pixelSize: Theme.roles.input.size; text: qsTr("Upload as new current"); onClicked: root.hist.confirmUploadFile() }
+                            UzButton { objectName: "uploadCancel"; implicitHeight: 32; font.pixelSize: Theme.roles.input.size; text: qsTr("Cancel"); onClicked: root.hist.cancelUploadFile() }
                         }
                     }
                 }
@@ -1239,10 +1239,10 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: progCol.implicitHeight + 28
-                    radius: Theme.radius9
-                    color: Theme.accentChipBg
+                    radius: Theme.radiusNone
+                    color: Theme.selected
                     border.width: 1
-                    border.color: Theme.confirmBorder
+                    border.color: Theme.rule
                     ColumnLayout {
                         id: progCol
                         anchors.fill: parent
@@ -1258,7 +1258,7 @@ FocusScope {
                                 elide: Text.ElideRight
                                 text: qsTr("Uploading to “%1”").arg(root.hist.slotLabel)
                                 color: Theme.accentText
-                                font.pixelSize: Theme.fontBody
+                                font.pixelSize: Theme.roles.body.size
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -1266,8 +1266,8 @@ FocusScope {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: qsTr("Play is disabled until the upload finishes.")
-                            color: Theme.textSecondary
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.ink2
+                            font.pixelSize: Theme.roles.small.size
                         }
                     }
                 }
@@ -1279,31 +1279,31 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     implicitHeight: failCol.implicitHeight + 28
-                    radius: Theme.radius9
-                    color: Theme.errorBg
+                    radius: Theme.radiusNone
+                    color: Theme.dangerTint
                     border.width: 1
-                    border.color: Theme.dangerBorder
+                    border.color: Theme.danger
                     ColumnLayout {
                         id: failCol
                         anchors.fill: parent
                         anchors.margins: 14
                         spacing: 8
-                        UzLabel { Layout.fillWidth: true; text: qsTr("✕ Upload failed"); color: Theme.error; font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
+                        UzLabel { Layout.fillWidth: true; text: qsTr("✕ Upload failed"); color: Theme.danger; font.pixelSize: Theme.roles.body.size; font.weight: Font.DemiBold }
                         UzLabel {
                             objectName: "uploadFailedText"
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: root.hist.message
-                            color: Theme.textSecondary
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.ink2
+                            font.pixelSize: Theme.roles.small.size
                         }
                         Flow {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             spacing: 8
                             layoutDirection: Qt.RightToLeft   // right-aligned, wraps under the first button when the column is narrow
-                            UzButton { objectName: "uploadRetry"; kind: "primary"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Try again"); enabled: root.hist.online; onClicked: root.hist.retryUpload() }
-                            UzButton { objectName: "uploadFailedCancel"; implicitHeight: 30; font.pixelSize: Theme.fontSmall; text: qsTr("Cancel"); onClicked: { root.hist.dismissUploadFailure(); root.hist.dismissMessage() } }
+                            UzButton { objectName: "uploadRetry"; kind: "primary"; implicitHeight: 30; font.pixelSize: Theme.roles.input.size; text: qsTr("Try again"); enabled: root.hist.online; onClicked: root.hist.retryUpload() }
+                            UzButton { objectName: "uploadFailedCancel"; implicitHeight: 30; font.pixelSize: Theme.roles.input.size; text: qsTr("Cancel"); onClicked: { root.hist.dismissUploadFailure(); root.hist.dismissMessage() } }
                         }
                     }
                 }
@@ -1314,8 +1314,8 @@ FocusScope {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: qsTr("This server keeps no version history. Update the server to restore versions or create snapshots.")
-                    color: Theme.textMeta
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.small.size
                 }
 
                 // HISTORY
@@ -1351,8 +1351,8 @@ FocusScope {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: qsTr("Loading history from %1…").arg(root.player.hubAddress)
-                    color: Theme.textMeta
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.small.size
                 }
                 ColumnLayout {
                     objectName: "historyEmpty"
@@ -1360,13 +1360,13 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 4
-                    UzLabel { text: qsTr("No saves yet"); font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
+                    UzLabel { text: qsTr("No saves yet"); font.pixelSize: Theme.roles.body.size; font.weight: Font.DemiBold }
                     UzLabel {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: qsTr("The first save appears in slot “%1” after you play.").arg(root.hist.slotLabel)
-                        color: Theme.textMeta
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.small.size
                     }
                 }
                 UzLabel {
@@ -1375,8 +1375,8 @@ FocusScope {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: qsTr("No snapshots yet. A snapshot keeps a version until you delete it.")
-                    color: Theme.textMeta
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.small.size
                 }
 
                 // Timeline

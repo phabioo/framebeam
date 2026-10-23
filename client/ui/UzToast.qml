@@ -3,7 +3,8 @@ import QtQuick.Layouts
 
 // Toast (design-system.md "Toast"): a 44 px notice on `surface` in a 1 px `rule` frame (no shadow): StatusIcon (done / warning
 // / error), message 13, an optional action (accent text, 500), an optional Mono shortcut and a close mark. Bottom left of the
-// stage in game. `action` empty hides the action link; `closable: false` hides the close mark.
+// stage in game. `action` empty hides the action link; `closable: false` hides the close mark. `maxLines` above 1 wraps a long
+// message onto that many lines (the toast grows past 44 px); the owner limits the width.
 Rectangle {
     id: root
     property string kind: "done"        // done | warning | error
@@ -11,10 +12,11 @@ Rectangle {
     property string action: ""
     property string shortcut: ""
     property bool closable: true
+    property int maxLines: 1
     signal actionTriggered()
     signal closeRequested()
 
-    implicitHeight: Theme.row44
+    implicitHeight: Math.max(Theme.row44, toastText.implicitHeight + 2 * Theme.space15)
     implicitWidth: Math.max(240, content.implicitWidth + Theme.space15 + 14)
     radius: 0
     color: Theme.surface
@@ -29,16 +31,19 @@ Rectangle {
         anchors.leftMargin: Theme.space15
         anchors.rightMargin: 14
         spacing: Theme.space15
-        UzStatusIcon { kind: root.kind }
+        UzStatusIcon { kind: root.kind; Layout.alignment: root.maxLines > 1 ? Qt.AlignTop : Qt.AlignVCenter; Layout.topMargin: root.maxLines > 1 ? Theme.space15 : 0 }
         Text {
+            id: toastText
             objectName: "toastText"
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             elide: Text.ElideRight
+            wrapMode: root.maxLines > 1 ? Text.Wrap : Text.NoWrap
+            maximumLineCount: root.maxLines
             text: root.text
             textFormat: Text.PlainText
             font.family: Theme.sans
-            font.pixelSize: Theme.fontSmall
+            font.pixelSize: Theme.roles.small.size
             color: Theme.ink
         }
         Item {
@@ -58,7 +63,7 @@ Rectangle {
                 text: root.action
                 textFormat: Text.PlainText
                 font.family: Theme.sans
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.small.size
                 font.weight: Font.Medium
                 color: Theme.accentText
             }

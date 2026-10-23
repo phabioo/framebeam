@@ -1,5 +1,7 @@
 // UI: sessions in the library, watching, Session panel, multiview, diagnostics (offscreen, FakeHub, no real network).
 // Tests with a running game need the DS core and the homebrew test ROM (QSKIP without UZUME_MELONDS_DS_CORE; ui_sessions_testcore runs them against the Uzume test core).
+#include <functional>
+
 #include <QFile>
 #include <QQmlContext>
 #include <QQmlProperty>
@@ -158,6 +160,21 @@ bool clickMode(Harness& h, const char* modeName) {
   for (int i = 0; i < 4 && h.controller->sessions()->multiviewMode() != want; ++i)
     if (!h.click("modeCycle")) return false;
   return h.controller->sessions()->multiviewMode() == want;
+}
+
+// A function of the header's "..." menu (diagnostics, fullscreen, reset ...): opens the menu and picks the entry.
+bool clickMore(Harness& h, const char* name) {
+  if (!h.click("moreButton")) return false;
+  const QByteArray item = QByteArray("menuItem_") + name;
+  for (int i = 0; i < 60 && (h.item(item.constData()) == nullptr || !h.item(item.constData())->isVisible()); ++i) QTest::qWait(50);
+  return h.click(item.constData());
+}
+
+// A header button, or its entry in the "..." menu when the header is too tight to show it (wide fonts, narrow windows).
+bool clickHeader(Harness& h, const char* button, const char* menuName) {
+  QQuickItem* it = h.item(button);
+  if (it != nullptr && it->isVisible()) return h.click(button);
+  return clickMore(h, menuName);
 }
 
 QString audibleTile(Harness& h, const QStringList& ids) {  // the surfaces with the audio chip
@@ -383,7 +400,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(visibleItem(h, "remoteView") != nullptr);
     QCOMPARE(ctl->selectedSurface(), QStringLiteral("s1"));
     QVERIFY(visibleItem(h, "audioButton_s1") != nullptr);  // the panel of the selected remote tile
-    QCOMPARE(textOf(visibleItem(h, "audioButton_s1")), QStringLiteral("♪ Audio plays from this tile"));
+    QCOMPARE(textOf(visibleItem(h, "audioButton_s1")), QStringLiteral("Audio plays from this tile"));
     QCOMPARE(textOf(h.item("gameTitle")), QStringLiteral("Lena · Harbor Rally"));
     uitest::saveShot(h.window, QStringLiteral("p4-remote-alone"));
 
@@ -406,7 +423,7 @@ class SessionsUiTest : public QObject {
     remote.decoderName = QStringLiteral("h264");
     ctl->setStatsOverride(nullptr, {{QStringLiteral("s1"), remote}});
     QVERIFY(!ctl->diagnostics()->isOpen());
-    QVERIFY(h.click("diagnosticsButton"));  // the one toggle (the overlay replaces the old bottom panel)
+    QVERIFY(clickMore(h, "diagnostics"));  // the one toggle (the overlay replaces the old bottom panel)
     QVERIFY(ctl->diagnostics()->isOpen());
     QCOMPARE(ctl->tab(), QStringLiteral("multiview"));  // not a view of its own
     ctl->refreshDiagnostics();
@@ -428,7 +445,7 @@ class SessionsUiTest : public QObject {
     QCOMPARE(firstParticipant().value(QStringLiteral("pill")).toString(), QStringLiteral("Relayed (TURN)"));
     uitest::saveShot(h.window, QStringLiteral("p4-diagnostics-remote"));
     ctl->setStatsOverride(nullptr, {});
-    QVERIFY(h.click("diagnosticsButton"));
+    QVERIFY(clickMore(h, "diagnostics"));
     QVERIFY(!ctl->diagnostics()->isOpen());
 
     // Hub removes the viewer: closed with a short notice, back to the Library
@@ -535,7 +552,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(h.item("sharePill")->isVisible());
     QCOMPARE(textOf(h.item("sharePill")), QStringLiteral("Shared · 0 watching"));
     QCOMPARE(ctl->viewerCount(), 0);
-    QVERIFY(h.item("tabSession") && h.item("tabMultiview") && h.item("diagnosticsButton") && !anyVisible(h, "tabDiagnostics"));
+    QVERIFY(h.item("tabMultiview") && h.item("moreButton") && !anyVisible(h, "tabDiagnostics"));
     QVERIFY(h.item("visibilitySegment")->isVisible());
     QVERIFY(!h.item("inviteBlock")->isVisible());
     QCOMPARE(textOf(h.item("shareButton")), QStringLiteral("Stop sharing"));
@@ -666,7 +683,7 @@ class SessionsUiTest : public QObject {
 
     // Diagnostics overlay in the Session tab (header button): Emulation and Streaming with the host row
     QVERIFY(!anyVisible(h, "diagnosticsOverlay"));
-    QVERIFY(h.click("diagnosticsButton"));
+    QVERIFY(clickMore(h, "diagnostics"));
     QVERIFY(ctl->diagnostics()->isOpen());
     QQuickTest::qWaitForPolish(h.window);
     QTRY_VERIFY(anyVisible(h, "diagnosticsOverlay"));
@@ -685,7 +702,7 @@ class SessionsUiTest : public QObject {
     QCOMPARE(host.value(QStringLiteral("line2")).toString(), QStringLiteral("Encoder libx264 · H.264 · 2.0 / target 2.5 Mbit/s · 60.0 fps"));
     QVERIFY(ctl->diagnostics()->emulation().value(QStringLiteral("valid")).toBool());
     ctl->setStatsOverride(nullptr, {});
-    QVERIFY(h.click("diagnosticsButton"));
+    QVERIFY(clickMore(h, "diagnostics"));
     QVERIFY(!ctl->diagnostics()->isOpen());
 
     // Stop sharing -> DELETE session, pill back to "Not shared", button back to "Share Session"
@@ -739,7 +756,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(ctl->availableLayouts().isEmpty());
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("pip"));  // default choice, nothing to choose with one surface
     QVERIFY(!h.item("modeSegment")->isVisible());
-    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).width(), areaRect(h).width() - 32) && approxEqual(tileRect(h, QStringLiteral("s1")).height(), areaRect(h).height() - 32));  // padding 16
+    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).width(), areaRect(h).width() - 48) && approxEqual(tileRect(h, QStringLiteral("s1")).height(), areaRect(h).height() - 48));  // padding 24
     QCOMPARE(ctl->audioFocus(), QStringLiteral("s1"));
     QVERIFY(visibleItem(h, "multiviewSessionList") == nullptr);  // the picker never opens on its own
     QVERIFY(h.click("addSessionToggle"));
@@ -758,14 +775,14 @@ class SessionsUiTest : public QObject {
     QVERIFY((h.item("modeSegment")->isVisible() || h.item("modeCycle")->isVisible()) && h.item("modePip") != nullptr && h.item("modeRow") != nullptr && h.item("modeGrid") != nullptr);
     QVERIFY(h.item("multiviewSessionList")->isVisible());  // stays open until the anchor or the outside is clicked
     QVERIFY(h.click("addSessionToggle"));
-    QVERIFY(!h.item("multiviewSessionList")->isVisible());
+    QTRY_VERIFY(!h.item("multiviewSessionList")->isVisible());
     QCOMPARE(hub.count(QStringLiteral("/api/v1/sessions/s2/join")), 1);
     QVERIFY(clickMode(h, "modeRow"));
     QQuickTest::qWaitForPolish(h.window);
     {
       const QRectF a = areaRect(h), t1 = tileRect(h, QStringLiteral("s1")), t2 = tileRect(h, QStringLiteral("s2"));
-      QVERIFY(approxEqual(t1.left(), a.left() + 16) && approxEqual(t1.top(), a.top() + 16) && approxEqual(t1.height(), a.height() - 32));
-      QVERIFY(approxEqual(t1.width() * 2 + 12, a.width() - 32) && approxEqual(t2.width(), t1.width()) && approxEqual(t2.top(), t1.top()) && approxEqual(t2.left(), t1.right() + 12));
+      QVERIFY(approxEqual(t1.left(), a.left() + 24) && approxEqual(t1.top(), a.top() + 24) && approxEqual(t1.height(), a.height() - 48));
+      QVERIFY(approxEqual(t1.width() * 2 + 24, a.width() - 48) && approxEqual(t2.width(), t1.width()) && approxEqual(t2.top(), t1.top()) && approxEqual(t2.left(), t1.right() + 24));
     }
 
     // Three surfaces: Row stays (Grid is disabled below four, no empty slot), the list is reopened with "+ Add"
@@ -779,7 +796,15 @@ class SessionsUiTest : public QObject {
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
     QQuickTest::qWaitForPolish(h.window);
     QVERIFY(h.item("modeGrid") != nullptr && h.item("modeRow") != nullptr);
-    QVERIFY(h.item("modeGrid")->property("off").toBool());  // greyed, does not react
+    {  // greyed: the label says why
+      bool found = false;
+      std::function<void(QQuickItem*)> walk = [&](QQuickItem* it) {
+        if (it->property("text").toString().contains(QStringLiteral("from 4"))) found = true;
+        for (QQuickItem* c : it->childItems()) walk(c);
+      };
+      walk(h.item("modeGrid"));
+      QVERIFY(found);
+    }
 
     // Four surfaces: the limit; "Add" is disabled for every other Session, further adds are refused
     QVERIFY(h.clickWhenReady("multiviewAddButton_s4"));
@@ -796,15 +821,15 @@ class SessionsUiTest : public QObject {
     QCOMPARE(hub.count(QStringLiteral("/api/v1/sessions/s5/join")), 0);
     ctl->dismissMessage();
     QVERIFY(h.click("addSessionToggle"));  // close the picker (click on its anchor)
-    QVERIFY(!h.item("multiviewSessionList")->isVisible());
+    QTRY_VERIFY(!h.item("multiviewSessionList")->isVisible());
     {
       const QRectF a = areaRect(h);
       const QRectF t1 = tileRect(h, QStringLiteral("s1")), t2 = tileRect(h, QStringLiteral("s2")), t3 = tileRect(h, QStringLiteral("s3")), t4 = tileRect(h, QStringLiteral("s4"));
-      QVERIFY(approxEqual(t1.left(), a.left() + 16) && approxEqual(t1.top(), a.top() + 16));
-      QVERIFY(approxEqual(t2.top(), t1.top()) && approxEqual(t2.left(), t1.right() + 12));
-      QVERIFY(approxEqual(t3.left(), t1.left()) && approxEqual(t3.top(), t1.bottom() + 12));
+      QVERIFY(approxEqual(t1.left(), a.left() + 24) && approxEqual(t1.top(), a.top() + 24));
+      QVERIFY(approxEqual(t2.top(), t1.top()) && approxEqual(t2.left(), t1.right() + 24));
+      QVERIFY(approxEqual(t3.left(), t1.left()) && approxEqual(t3.top(), t1.bottom() + 24));
       QVERIFY(approxEqual(t4.left(), t2.left()) && approxEqual(t4.top(), t3.top()));
-      QVERIFY(approxEqual(t4.right(), a.right() - 16) && approxEqual(t4.bottom(), a.bottom() - 16) && approxEqual(t1.width(), t4.width()) && approxEqual(t1.height(), t4.height()));
+      QVERIFY(approxEqual(t4.right(), a.right() - 24) && approxEqual(t4.bottom(), a.bottom() - 24) && approxEqual(t1.width(), t4.width()) && approxEqual(t1.height(), t4.height()));
     }
     uitest::saveShot(h.window, QStringLiteral("p4-d8-grid"));
 
@@ -814,13 +839,13 @@ class SessionsUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     {
       const QRectF a = areaRect(h);
-      QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).width(), a.width() - 32) && approxEqual(tileRect(h, QStringLiteral("s1")).height(), a.height() - 32));
+      QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).width(), a.width() - 48) && approxEqual(tileRect(h, QStringLiteral("s1")).height(), a.height() - 48));
       QRectF above;
       for (const QString& id : {QStringLiteral("s2"), QStringLiteral("s3"), QStringLiteral("s4")}) {
         const QRectF t = tileRect(h, id);
-        QVERIFY2(approxEqual(t.right(), a.right() - 30) && t.width() > 100 && t.left() >= a.left() && t.top() >= a.top(), qPrintable(id));
+        QVERIFY2(approxEqual(t.right(), a.right() - 41) && t.width() > 100 && t.left() >= a.left() && t.top() >= a.top(), qPrintable(id));
         if (id == QLatin1String("s2")) {
-          QVERIFY(approxEqual(t.bottom(), a.bottom() - 30));
+          QVERIFY(approxEqual(t.bottom(), a.bottom() - 41));
         } else {
           QVERIFY2(t.bottom() <= above.top() + 0.5, qPrintable(id));  // stacked upwards without overlap
         }
@@ -836,8 +861,8 @@ class SessionsUiTest : public QObject {
     QCOMPARE(ctl->mainSurface(), QStringLiteral("s3"));
     QCOMPARE(ctl->surfaceOrder(), (QStringList{QStringLiteral("s3"), QStringLiteral("s2"), QStringLiteral("s1"), QStringLiteral("s4")}));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s3")).width(), areaRect(h).width() - 32));
-    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).right(), areaRect(h).right() - 30));
+    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s3")).width(), areaRect(h).width() - 48));
+    QVERIFY(approxEqual(tileRect(h, QStringLiteral("s1")).right(), areaRect(h).right() - 41));
     QVERIFY(h.click("swapButton_s1"));
     QCOMPARE(ctl->surfaceOrder(), (QStringList{QStringLiteral("s1"), QStringLiteral("s2"), QStringLiteral("s3"), QStringLiteral("s4")}));
 
@@ -866,7 +891,11 @@ class SessionsUiTest : public QObject {
     QQuickTest::qWaitForPolish(h.window);
     QCOMPARE(audibleTile(h, {QStringLiteral("s1"), QStringLiteral("s2"), QStringLiteral("s4")}), QStringLiteral("s1"));
     QVERIFY(ctl->canAddSurface());
+    if (visibleItem(h, "multiviewSessionList") == nullptr) QVERIFY(h.click("addSessionToggle"));  // the click on the tile closed the popover
+    QTRY_VERIFY(h.item("multiviewAddButton_s3") != nullptr);
     QVERIFY(h.item("multiviewAddButton_s3")->isEnabled());  // joinable again
+    QVERIFY(h.click("addSessionToggle"));
+    QTRY_VERIFY(visibleItem(h, "multiviewSessionList") == nullptr);
 
     // A Session that ends removes only its own surface
     QVERIFY(selectAndClick(h, ctl, QStringLiteral("s2"), "audioButton_"));
@@ -961,7 +990,7 @@ class SessionsUiTest : public QObject {
 
     // The local game alone: the Session list of the Multiview tab offers every Session of the Hub
     QTRY_COMPARE(ctl->sessions().size(), 1);
-    QVERIFY(h.click("tabMultiview"));
+    QVERIFY(clickHeader(h, "tabMultiview", "multiview"));
     QQuickTest::qWaitForPolish(h.window);
     QCOMPARE(ctl->surfaceCount(), 1);
     QVERIFY(visibleItem(h, "multiviewSessionList") == nullptr);  // the picker does not open by itself, not even with one tile
@@ -1025,7 +1054,7 @@ class SessionsUiTest : public QObject {
     QQuickItem* localView = visibleItem(h, "gameViewMulti");
     {  // PiP tile bottom right (inset 30, clear of the main tile border)
       const QRectF a = areaRect(h), t = tileRect(h, QStringLiteral("s1"));
-      QVERIFY(approxEqual(t.right(), a.right() - 30) && approxEqual(t.bottom(), a.bottom() - 30));
+      QVERIFY(approxEqual(t.right(), a.right() - 41) && approxEqual(t.bottom(), a.bottom() - 41));
     }
     uitest::saveShot(h.window, QStringLiteral("p4-3i-pip"));
 
@@ -1056,14 +1085,14 @@ class SessionsUiTest : public QObject {
     QVERIFY(clickMode(h, "modeRow"));
     QCOMPARE(ctl->multiviewMode(), QStringLiteral("row"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(approxEqual(tileRect(h, QStringLiteral("local")).width() * 2 + 12, areaRect(h).width() - 32));
+    QVERIFY(approxEqual(tileRect(h, QStringLiteral("local")).width() * 2 + 24, areaRect(h).width() - 48));
     QCOMPARE(audibleTile(h, {QStringLiteral("local"), QStringLiteral("s1")}), QStringLiteral("local"));
     ctl->selectSurface(QStringLiteral("local"));
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(!visibleItem(h, "audioButton_local")->isEnabled() && textOf(visibleItem(h, "audioButton_local")) == QStringLiteral("♪ Audio plays from this tile"));
+    QVERIFY(!visibleItem(h, "audioButton_local")->isEnabled() && textOf(visibleItem(h, "audioButton_local")) == QStringLiteral("Audio plays from this tile"));
     ctl->selectSurface(QStringLiteral("s1"));  // the panel follows the selected tile
     QQuickTest::qWaitForPolish(h.window);
-    QVERIFY(visibleItem(h, "audioButton_s1")->isEnabled() && textOf(visibleItem(h, "audioButton_s1")) == QStringLiteral("♪ Audio here"));
+    QVERIFY(visibleItem(h, "audioButton_s1")->isEnabled() && textOf(visibleItem(h, "audioButton_s1")) == QStringLiteral("Audio here"));
     QVERIFY(visibleItem(h, "gameViewMulti") == localView);
     uitest::saveShot(h.window, QStringLiteral("p4-3h-row"));
     QVERIFY(h.click("audioButton_s1"));
@@ -1090,7 +1119,7 @@ class SessionsUiTest : public QObject {
     remote.videoBitrateKbps = 5800;
     remote.packetLossPercent = 0.1;
     ctl->setStatsOverride(&local, {{QStringLiteral("s1"), remote}});
-    QVERIFY(h.click("diagnosticsButton"));  // multiview: the same 340 px overlay, a block per tile
+    QVERIFY(clickMore(h, "diagnostics"));  // multiview: the same 340 px overlay, a block per tile
     QVERIFY(ctl->diagnostics()->isOpen());
     ctl->refreshDiagnostics();
     QQuickTest::qWaitForPolish(h.window);
@@ -1099,15 +1128,19 @@ class SessionsUiTest : public QObject {
     QCOMPARE(ctl->diagnostics()->tiles().size(), 2);
     QVERIFY(ctl->diagnostics()->tiles().at(0).toMap().value(QStringLiteral("local")).toBool());
     QVERIFY(ctl->diagnostics()->tiles().at(1).toMap().value(QStringLiteral("note")).toString().contains(QStringLiteral("Emulation runs on Lena's PC")));
-    QVERIFY(visibleItem(h, "diagTileBlock") != nullptr && visibleItem(h, "diagOnlyYourTile") != nullptr);
+    {  // one row per remote tile says where its emulation runs (the Copy text carries every row)
+      QVariant text;
+      QVERIFY(QMetaObject::invokeMethod(visibleItem(h, "diagnosticsOverlay"), "fullText", Q_RETURN_ARG(QVariant, text)));
+      QVERIFY(text.toString().contains(QStringLiteral("Emulation runs on Lena's PC")));
+    }
     QCOMPARE(ctl->diagnostics()->streaming().size(), 2);  // own session + the watched one
     const QVariantMap remoteHost = ctl->diagnostics()->streaming().at(1).toMap().value(QStringLiteral("participants")).toList().at(0).toMap();
     QCOMPARE(remoteHost.value(QStringLiteral("pill")).toString(), QStringLiteral("Direct"));
     uitest::saveShot(h.window, QStringLiteral("p4-3h-diagnostics"));
     ctl->setStatsOverride(nullptr, {});
-    QVERIFY(h.click("diagnosticsButton"));
+    QVERIFY(clickMore(h, "diagnostics"));
     QVERIFY(!ctl->diagnostics()->isOpen());
-    QVERIFY(h.click("tabMultiview"));
+    QCOMPARE(ctl->tab(), QStringLiteral("multiview"));
 
     // Local game plus three remote Sessions = four surfaces: grid 2 x 2, limit, audio focus without losing the game
     QVERIFY(h.click("addSessionToggle"));
@@ -1123,7 +1156,7 @@ class SessionsUiTest : public QObject {
     QVERIFY(visibleItem(h, "gameViewMulti") == localView);
     {
       const QRectF a = areaRect(h), t1 = tileRect(h, QStringLiteral("local")), t4 = tileRect(h, QStringLiteral("s3"));
-      QVERIFY(approxEqual(t1.left(), a.left() + 16) && approxEqual(t4.right(), a.right() - 16) && approxEqual(t4.bottom(), a.bottom() - 16) && approxEqual(t1.width(), t4.width()));
+      QVERIFY(approxEqual(t1.left(), a.left() + 24) && approxEqual(t4.right(), a.right() - 24) && approxEqual(t4.bottom(), a.bottom() - 24) && approxEqual(t1.width(), t4.width()));
     }
     uitest::saveShot(h.window, QStringLiteral("p4-d8-grid4"));
     ctl->audioHere(QStringLiteral("s3"));
