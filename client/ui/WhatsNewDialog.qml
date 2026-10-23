@@ -133,7 +133,7 @@ UzDialog {
             objectName: "whatsNewOpenUpdates"
             visible: root.admin
             text: qsTr("Open Updates")
-            onClicked: { root.close(); root.player.showSettingsSection("updates") }
+            onClicked: { root.close(); root.player.showSettingsSection("server:updates") }
         },
         UzButton { objectName: "whatsNewDone"; kind: "primary"; text: qsTr("Got it"); onClicked: root.close() }
     ]

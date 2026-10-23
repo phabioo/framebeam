@@ -48,7 +48,7 @@ ColumnLayout {
             text: root.kind === "app_older" ? qsTr("Update Uzume") : qsTr("Update server")
             onClicked: {
                 if (root.kind === "app_older" && root.player.updates.canInstall) root.player.updates.install()
-                else root.player.showSettingsSection("updates")
+                else root.player.showSettingsSection(root.kind === "server_older" ? "server:updates" : "updates")
             }
         }
     }

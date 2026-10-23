@@ -22,6 +22,16 @@ Rectangle {
         { label: qsTr("Reports"), name: "navServerReports", page: "reports" }
     ]
     readonly property var thisPcItems: [{ label: qsTr("Plugins"), name: "navThisPcPlugins", section: "plugins" }]
+    // One list for both groups and a delegate per entry that is only shown or hidden: the Repeater never adds or removes
+    // delegates when the server or the admin rights change. Replacing the delegates of a Repeater in the layout of a screen that
+    // is not shown (every screen has its own AppNav) left deleted items in that layout, and the next layout pass, when the
+    // screen was shown, crashed or never settled (ui_plugins).
+    readonly property var groupItems: root.thisPcItems.concat(root.serverItems)
+    function groupItemShown(entry: var): bool {
+        if (!root.hasServer) return entry.page === undefined
+        return root.player.admin.available && entry.page !== undefined
+    }
+    readonly property bool groupShown: root.hasServer ? root.player.admin.available : true
     readonly property var online: root.hasServer ? root.player.sessions.sessions.filter(function (s) { return !s.invited }) : []
     color: Theme.ground
     implicitWidth: Theme.sidebarWidth
@@ -111,20 +121,20 @@ Rectangle {
             objectName: "navServerHead"
             Layout.fillWidth: true
             Layout.topMargin: root.compact ? 16 : 24
-            visible: groupItems.count > 0
+            visible: root.groupShown
             text: root.hasServer ? qsTr("Server") : qsTr("This PC")
         }
         ColumnLayout {
             Layout.fillWidth: true
             Layout.topMargin: Theme.space1
             spacing: 0
-            visible: groupItems.count > 0
+            visible: root.groupShown
             Repeater {
-                id: groupItems
-                model: root.hasServer ? (root.player.admin.available ? root.serverItems : []) : root.thisPcItems
+                model: root.groupItems
                 delegate: UzNavItem {
                     required property var modelData
                     objectName: modelData.name
+                    visible: root.groupItemShown(modelData)
                     compact: root.compact
                     label: modelData.label
                     active: modelData.page !== undefined && root.player.screen === "server" && root.player.serverPage === modelData.page

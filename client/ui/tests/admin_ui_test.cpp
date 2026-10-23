@@ -88,7 +88,7 @@ class AdminUiTest : public QObject {
       pair(h, hub);
       QVERIFY(!h.controller->admin()->available());
       QVERIFY(h.item("navLibrary") != nullptr);
-      QVERIFY(h.item("navServerStatus") == nullptr);
+      QVERIFY(h.item("navServerStatus") == nullptr || !h.item("navServerStatus")->isVisible());
       h.controller->showServerPage(QStringLiteral("status"));   // an old link
       QCOMPARE(h.controller->screen(), QStringLiteral("server"));
       QTRY_VERIFY(h.item("serverMemberState") != nullptr && h.item("serverMemberState")->isVisible());
@@ -106,7 +106,7 @@ class AdminUiTest : public QObject {
       pair(h, hub);
       QVERIFY(h.controller->isAdmin());
       QVERIFY(!h.controller->admin()->available());
-      QVERIFY(h.item("navServerStatus") == nullptr);
+      QVERIFY(h.item("navServerStatus") == nullptr || !h.item("navServerStatus")->isVisible());
     }
     {   // admin with admin_v1
       FakeHub hub(QStringLiteral("a"));

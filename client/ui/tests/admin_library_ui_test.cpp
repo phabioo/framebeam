@@ -441,6 +441,9 @@ class AdminLibraryUiTest : public QObject {
     QVERIFY(h.click("whatsNewOpenUpdates"));
     QTRY_COMPARE(h.controller->screen(), QStringLiteral("settings"));
     QVERIFY(!h.controller->updates()->whatsNewPending());
+    // An admin lands on the server's Updates page (Server scope), not on the This PC section.
+    QTRY_COMPARE(h.item("settingsScope")->property("current").toString(), QStringLiteral("server"));
+    QTRY_VERIFY(h.item("serverSettingsNav_updates") != nullptr && h.item("serverSettingsNav_updates")->property("selected").toBool());
   }
 
   void versionStatesShowTheRightLineAndAction() {

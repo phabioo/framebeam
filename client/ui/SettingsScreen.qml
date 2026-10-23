@@ -43,6 +43,16 @@ Rectangle {
     Connections {
         target: root.player
         function onSettingsSectionRequested(section: string) {
+            // "server:<page>" opens the Server scope on that page (admins with the admin area); anyone else gets the This PC section.
+            if (section.startsWith("server:")) {
+                const page = section.substring(7)
+                if (root.canSwitchScope && root.player.admin.available && serverPane.pages.some(function (p) { return p.id === page })) {
+                    serverPane.page = page
+                    root.scope = "server"
+                    return
+                }
+                section = page
+            }
             root.scope = "pc"
             Qt.callLater(function () { root.jumpTo(section) })
         }
