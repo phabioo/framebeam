@@ -169,7 +169,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"ListUsers", "GetCorePackage", "GetCorePackageFile", "ListSessions", "PublishSession", "GetSession", "UpdateSession", "EndSession", "InviteSessionUser",
 			"WithdrawSessionInvite", "DeclineSession", "JoinSession", "RemoveSessionViewer", "ListPlugins", "GetPluginFile",
 			"RegisterGame", "DeleteGameRegistration", "CreateUpload", "GetUpload", "PutUploadChunk", "DeleteUpload",
-			"GetAdminStatus", "GetAdminStatusLog", "GetAdminMetrics", "SetAdminMetrics", "CreateAdminMetricsToken",
+			"GetAdminStatus", "GetAdminStatusLog", "GetAdminStorage", "CleanupAdminStorage", "GetAdminMetrics", "SetAdminMetrics", "CreateAdminMetricsToken",
 			"ListAdminBackups", "StartAdminBackup", "GetAdminBackupStatus", "CancelAdminBackup", "GetAdminBackupSettings", "UpdateAdminBackupSettings",
 			"DismissAdminRestoreResult", "DeleteAdminBackup", "RestoreAdminBackup",
 			"CreateReport", "ListAdminReports", "GetAdminReport", "MarkAdminReportSeen", "DeleteAdminReport", "GetAdminReportFile", "GetAdminReportArchive", "ExportAdminUserSaves",

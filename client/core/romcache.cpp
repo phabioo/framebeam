@@ -244,6 +244,28 @@ RomCache::TrimResult RomCache::clear(const QSet<QString>& protectedHashes) const
   return r;
 }
 
+QList<RomCache::Entry> RomCache::unusedSince(qint64 cutoffMs, const QSet<QString>& protectedHashes) const {
+  QList<Entry> out;
+  for (const Entry& e : entries()) {
+    if (e.lastUsedMs < cutoffMs && !protectedHashes.contains(e.sha256) && !QFileInfo::exists(partPath(e.sha256, e.ext))) out.append(e);
+  }
+  return out;
+}
+
+RomCache::TrimResult RomCache::removeUnusedSince(qint64 cutoffMs, const QSet<QString>& protectedHashes) const {
+  TrimResult r;
+  const QList<Entry> victims = unusedSince(cutoffMs, protectedHashes);
+  for (const Entry& e : victims) {
+    if (QFile::remove(e.path)) {
+      QFile::remove(e.path + QStringLiteral(".ok"));
+      r.freedBytes += e.size;
+      ++r.removedFiles;
+    }
+  }
+  r.remainingBytes = totalSize();
+  return r;
+}
+
 bool RomCache::lookup(const QString& sha256, const QString& ext, qint64 expectedSize, QString* pathOut) const {
   if (!isValidSha256(sha256)) {
     return false;

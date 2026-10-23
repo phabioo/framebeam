@@ -46,6 +46,9 @@ func (s *Source) disk() (uint64, uint64, bool) {
 	return sysmetrics.Disk(s.Svc.DataDir())
 }
 
+// DataDisk reads the volume of the data directory (the reader of the admin status).
+func (s *Source) DataDisk() (total, free uint64, ok bool) { return s.disk() }
+
 func (s *Source) errors() *diag.ErrorRing {
 	if s.Errors != nil {
 		return s.Errors

@@ -601,6 +601,63 @@ func (e AdminStatusSessionVisibility) Valid() bool {
 	}
 }
 
+// Defines values for AdminStorageCleanupId.
+const (
+	OldSnapshots    AdminStorageCleanupId = "old_snapshots"
+	UnusedCores     AdminStorageCleanupId = "unused_cores"
+	UploadLeftovers AdminStorageCleanupId = "upload_leftovers"
+)
+
+// Valid indicates whether the value is a known member of the AdminStorageCleanupId enum.
+func (e AdminStorageCleanupId) Valid() bool {
+	switch e {
+	case OldSnapshots:
+		return true
+	case UnusedCores:
+		return true
+	case UploadLeftovers:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminStorageKindId.
+const (
+	Backups     AdminStorageKindId = "backups"
+	Cores       AdminStorageKindId = "cores"
+	Firmware    AdminStorageKindId = "firmware"
+	Games       AdminStorageKindId = "games"
+	Saves       AdminStorageKindId = "saves"
+	Screenshots AdminStorageKindId = "screenshots"
+	Snapshots   AdminStorageKindId = "snapshots"
+	States      AdminStorageKindId = "states"
+)
+
+// Valid indicates whether the value is a known member of the AdminStorageKindId enum.
+func (e AdminStorageKindId) Valid() bool {
+	switch e {
+	case Backups:
+		return true
+	case Cores:
+		return true
+	case Firmware:
+		return true
+	case Games:
+		return true
+	case Saves:
+		return true
+	case Screenshots:
+		return true
+	case Snapshots:
+		return true
+	case States:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminSystemAutoUpdate.
 const (
 	AdminSystemAutoUpdateDefault AdminSystemAutoUpdate = "default"
@@ -2479,6 +2536,84 @@ type AdminStatusSession struct {
 // AdminStatusSessionVisibility defines model for AdminStatusSession.Visibility.
 type AdminStatusSessionVisibility string
 
+// AdminStorage defines model for AdminStorage.
+type AdminStorage struct {
+	// BackupDisk The volume holding the backup folder; absent when no backup folder is set. Sizes are absent where the platform has no reader.
+	BackupDisk *AdminStatusBackupDisk `json:"backup_disk,omitempty"`
+
+	// Cleanup Always all three suggestions, in the order of the enum.
+	Cleanup []AdminStorageCleanup `json:"cleanup"`
+
+	// Disk The volume of the data directory; absent where the platform has no reader.
+	Disk *struct {
+		FreeBytes  int64 `json:"free_bytes"`
+		TotalBytes int64 `json:"total_bytes"`
+	} `json:"disk,omitempty"`
+
+	// Kinds In the fixed order of the enum.
+	Kinds      []AdminStorageKind `json:"kinds"`
+	MeasuredAt time.Time          `json:"measured_at"`
+
+	// Screenshots Screenshot usage per user and game, largest first, at most 20 (may be empty).
+	Screenshots []AdminStorageScreenshotUsage `json:"screenshots"`
+}
+
+// AdminStorageCleanup One clean-up suggestion and what it would free now.
+type AdminStorageCleanup struct {
+	Bytes int64 `json:"bytes"`
+
+	// Count 0 when there is nothing to clean
+	Count int                   `json:"count"`
+	Id    AdminStorageCleanupId `json:"id"`
+}
+
+// AdminStorageCleanupId defines model for AdminStorageCleanupId.
+type AdminStorageCleanupId string
+
+// AdminStorageCleanupRequest defines model for AdminStorageCleanupRequest.
+type AdminStorageCleanupRequest struct {
+	Id AdminStorageCleanupId `json:"id"`
+}
+
+// AdminStorageCleanupResult defines model for AdminStorageCleanupResult.
+type AdminStorageCleanupResult struct {
+	FreedBytes int64                 `json:"freed_bytes"`
+	Id         AdminStorageCleanupId `json:"id"`
+
+	// Removed Versions, upload sessions or core versions removed
+	Removed int `json:"removed"`
+}
+
+// AdminStorageKind defines model for AdminStorageKind.
+type AdminStorageKind struct {
+	Bytes int64 `json:"bytes"`
+
+	// Count Number of files
+	Count int `json:"count"`
+
+	// Id `games` = ROM files, `saves` = blobs of current checkpoints, `snapshots` = history-only blobs (not shared
+	// with a current checkpoint), `states` = save states, `screenshots`, `cores` = core cache, `firmware`,
+	// `backups` = backup files in the backup folder (only present when a backup folder is set).
+	Id AdminStorageKindId `json:"id"`
+}
+
+// AdminStorageKindId `games` = ROM files, `saves` = blobs of current checkpoints, `snapshots` = history-only blobs (not shared
+// with a current checkpoint), `states` = save states, `screenshots`, `cores` = core cache, `firmware`,
+// `backups` = backup files in the backup folder (only present when a backup folder is set).
+type AdminStorageKindId string
+
+// AdminStorageScreenshotUsage defines model for AdminStorageScreenshotUsage.
+type AdminStorageScreenshotUsage struct {
+	Bytes  int64  `json:"bytes"`
+	Count  int    `json:"count"`
+	GameId string `json:"game_id"`
+
+	// GameName The game title; a placeholder when the game was removed
+	GameName string `json:"game_name"`
+	UserId   string `json:"user_id"`
+	UserName string `json:"user_name"`
+}
+
 // AdminSystem defines model for AdminSystem.
 type AdminSystem struct {
 	// AutoUpdate Per-system override of the server default of the automatic core update
@@ -4187,6 +4322,9 @@ type SaveAdminExternalTurnJSONRequestBody = AdminExternalTurnInput
 // SetAdminNetSettingJSONRequestBody defines body for SetAdminNetSetting for application/json ContentType.
 type SetAdminNetSettingJSONRequestBody = AdminNetSettingInput
 
+// CleanupAdminStorageJSONRequestBody defines body for CleanupAdminStorage for application/json ContentType.
+type CleanupAdminStorageJSONRequestBody = AdminStorageCleanupRequest
+
 // UpdateAdminSystemJSONRequestBody defines body for UpdateAdminSystem for application/json ContentType.
 type UpdateAdminSystemJSONRequestBody = AdminSystemUpdate
 
@@ -5022,6 +5160,12 @@ type ServerInterface interface {
 	// Download the recent server log (admin only)
 	// (GET /api/v1/admin/status/log)
 	GetAdminStatusLog(w http.ResponseWriter, r *http.Request)
+	// Storage overview (admin only)
+	// (GET /api/v1/admin/storage)
+	GetAdminStorage(w http.ResponseWriter, r *http.Request)
+	// Run one storage clean-up (admin only)
+	// (POST /api/v1/admin/storage/cleanup)
+	CleanupAdminStorage(w http.ResponseWriter, r *http.Request)
 	// Systems, cores and firmware as the admin sees them (admin)
 	// (GET /api/v1/admin/systems)
 	ListAdminSystems(w http.ResponseWriter, r *http.Request)
@@ -7518,6 +7662,46 @@ func (siw *ServerInterfaceWrapper) GetAdminStatusLog(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAdminStatusLog(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminStorage operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminStorage(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminStorage(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CleanupAdminStorage operation middleware
+func (siw *ServerInterfaceWrapper) CleanupAdminStorage(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CleanupAdminStorage(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11950,6 +12134,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/admin/settings/network/{key}", wrapper.SetAdminNetSetting)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/status", wrapper.GetAdminStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/status/log", wrapper.GetAdminStatusLog)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/storage", wrapper.GetAdminStorage)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/storage/cleanup", wrapper.CleanupAdminStorage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/systems", wrapper.ListAdminSystems)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}", wrapper.UpdateAdminSystem)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/admin/systems/{system_id}/cores/{core_id}", wrapper.RemoveAdminCore)
@@ -17291,6 +17477,147 @@ func (response GetAdminStatusLog403JSONResponse) VisitGetAdminStatusLogResponse(
 type GetAdminStatusLog429JSONResponse struct{ RateLimitedJSONResponse }
 
 func (response GetAdminStatusLog429JSONResponse) VisitGetAdminStatusLogResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStorageRequestObject struct {
+}
+
+type GetAdminStorageResponseObject interface {
+	VisitGetAdminStorageResponse(w http.ResponseWriter) error
+}
+
+type GetAdminStorage200JSONResponse AdminStorage
+
+func (response GetAdminStorage200JSONResponse) VisitGetAdminStorageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStorage401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminStorage401JSONResponse) VisitGetAdminStorageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStorage403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminStorage403JSONResponse) VisitGetAdminStorageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminStorage429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response GetAdminStorage429JSONResponse) VisitGetAdminStorageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CleanupAdminStorageRequestObject struct {
+	Body *CleanupAdminStorageJSONRequestBody
+}
+
+type CleanupAdminStorageResponseObject interface {
+	VisitCleanupAdminStorageResponse(w http.ResponseWriter) error
+}
+
+type CleanupAdminStorage200JSONResponse AdminStorageCleanupResult
+
+func (response CleanupAdminStorage200JSONResponse) VisitCleanupAdminStorageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CleanupAdminStorage400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CleanupAdminStorage400JSONResponse) VisitCleanupAdminStorageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CleanupAdminStorage401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CleanupAdminStorage401JSONResponse) VisitCleanupAdminStorageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CleanupAdminStorage403JSONResponse Error
+
+func (response CleanupAdminStorage403JSONResponse) VisitCleanupAdminStorageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CleanupAdminStorage429JSONResponse struct{ RateLimitedJSONResponse }
+
+func (response CleanupAdminStorage429JSONResponse) VisitCleanupAdminStorageResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -26260,6 +26587,12 @@ type StrictServerInterface interface {
 	// Download the recent server log (admin only)
 	// (GET /api/v1/admin/status/log)
 	GetAdminStatusLog(ctx context.Context, request GetAdminStatusLogRequestObject) (GetAdminStatusLogResponseObject, error)
+	// Storage overview (admin only)
+	// (GET /api/v1/admin/storage)
+	GetAdminStorage(ctx context.Context, request GetAdminStorageRequestObject) (GetAdminStorageResponseObject, error)
+	// Run one storage clean-up (admin only)
+	// (POST /api/v1/admin/storage/cleanup)
+	CleanupAdminStorage(ctx context.Context, request CleanupAdminStorageRequestObject) (CleanupAdminStorageResponseObject, error)
 	// Systems, cores and firmware as the admin sees them (admin)
 	// (GET /api/v1/admin/systems)
 	ListAdminSystems(ctx context.Context, request ListAdminSystemsRequestObject) (ListAdminSystemsResponseObject, error)
@@ -28778,6 +29111,61 @@ func (sh *strictHandler) GetAdminStatusLog(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetAdminStatusLogResponseObject); ok {
 		if err := validResponse.VisitGetAdminStatusLogResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminStorage operation middleware
+func (sh *strictHandler) GetAdminStorage(w http.ResponseWriter, r *http.Request) {
+	var request GetAdminStorageRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminStorage(ctx, request.(GetAdminStorageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminStorage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminStorageResponseObject); ok {
+		if err := validResponse.VisitGetAdminStorageResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CleanupAdminStorage operation middleware
+func (sh *strictHandler) CleanupAdminStorage(w http.ResponseWriter, r *http.Request) {
+	var request CleanupAdminStorageRequestObject
+
+	var body CleanupAdminStorageJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CleanupAdminStorage(ctx, request.(CleanupAdminStorageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CleanupAdminStorage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CleanupAdminStorageResponseObject); ok {
+		if err := validResponse.VisitCleanupAdminStorageResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
