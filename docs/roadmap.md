@@ -64,8 +64,11 @@ Planned, in this order. Each section is the work list; check an item off here an
 
 Decided by Fabio on 2026-10-21 (as 0.18; renumbered on 2026-10-22). The screens are drawn in the Uzume design (library, game page, in-game panel, Settings › This PC); no own design round, and no Hub web parts any more.
 
+Cut into 8 packages on 2026-10-23, one thread and PR each: wave A packages 1 to 4 in parallel, wave B screenshots (after play time, migration and OpenAPI numbers) and screen layouts (after scaling, same display path), wave C storage overview (after screenshots) and per-game overrides (after screen layouts).
+
+- [x] Start and 0.18 leftovers: drop the `web_sessions` table, dead web paths in `action_href`, unused server functions, the "Server web interface" device label, old "Set up a Hub on this PC" wording in the docs (S)
 - [x] Audio stage 1: master volume, mute, hotkeys, "mute in background" (S)
-- [ ] Integer scaling and aspect ratio options; "Continue playing" tile in the Library (S)
+- [x] Integer scaling and aspect ratio options; "Continue playing" tile in the Library (S)
 - [ ] Screenshot hotkey with storage on the server (per game, optionally per run) and a gallery in the app (S-M)
 - [ ] Play time per game, run and user (the server counts from Session and game start events); favorites, collections and recently played (per user on the server, filters in the app) (M)
 - [ ] Storage overview in the app (Settings › This PC › Storage and Server › Storage: ROMs, saves, snapshots, cores, backups, screenshots; clean-up suggestions) (S)

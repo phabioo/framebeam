@@ -17,7 +17,7 @@ Uzume (`client/`, the app) connects to a server, keeps your library and saves in
 
 ## Set up a server on this PC
 
-On the connection screen, "Set up a Hub on this PC" runs a server on the same computer without a pairing code ([ADR 0021](../adr/0021-one-windows-installer.md)):
+On the connection screen, "Set up a server on this PC" runs a server on the same computer without a pairing code ([ADR 0021](../adr/0021-one-windows-installer.md)):
 
 1. If no local server is installed, the app downloads the MSI of its own version, checks size and SHA-256 and runs it elevated (UAC prompt) with the server feature. The app then moves to Program Files; its data is copied once from the old portable folder and never overwritten.
 2. You choose an admin name and password; the app creates the first admin and pairs over localhost. The certificate is trusted automatically only for `127.0.0.1` on the registered port. With an existing local server, "Connect" asks for an admin's credentials instead.

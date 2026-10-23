@@ -25,7 +25,7 @@ func TestNetOverridesStoreAndReset(t *testing.T) {
 		t.Fatalf("%v", ov)
 	}
 	// Other settings are not part of the overrides.
-	svc.SetAppearance(ctx, "dark")
+	svc.SetAllowUserUploads(ctx, true)
 	if ov, _ = svc.NetOverrides(ctx); len(ov) != 3 {
 		t.Fatalf("%v", ov)
 	}

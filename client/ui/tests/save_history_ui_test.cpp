@@ -222,14 +222,14 @@ class SaveHistoryUiTest : public QObject {
     QVERIFY(hist->history().isEmpty());
     QTRY_VERIFY_WITH_TIMEOUT(hub.wsOpen() > 0, 8000);
     hub.addHistory(QStringLiteral("g1"), QStringLiteral("default"), "v", QStringLiteral("session_end"));
-    // Hub web interface: nil device id, unknown reason string -> accepted, history refreshed, no notice (game not running)
+    // server admin: nil device id, unknown reason string -> accepted, history refreshed, no notice (game not running)
     hub.sendWs(QStringLiteral("save_updated"),
                QJsonObject{{QStringLiteral("game_id"), QStringLiteral("g1")},
                            {QStringLiteral("slot"), QStringLiteral("default")},
                            {QStringLiteral("revision"), 2},
                            {QStringLiteral("sha256"), QString(64, QLatin1Char('a'))},
                            {QStringLiteral("device_id"), QStringLiteral("00000000-0000-0000-0000-000000000000")},
-                           {QStringLiteral("device_name"), QStringLiteral("Server web interface")},
+                           {QStringLiteral("device_name"), QStringLiteral("Server admin")},
                            {QStringLiteral("reason"), QStringLiteral("conflict_resolution")}});
     QTRY_COMPARE_WITH_TIMEOUT(hist->history().size(), 1, 8000);
     QVERIFY(hist->notice().isEmpty());

@@ -162,6 +162,43 @@ class InputTest : public QObject {
     QVERIFY(fitFrame(QSizeF(), QSizeF(10, 10), true).isEmpty());
   }
 
+  void fitFrameStrictInteger() {
+    // Strict: whole factor whenever 1x fits, even if the heuristic would fill the space (1280x744 -> 1x of 256x384... = 1).
+    QRectF r = fitFrame(QSizeF(256, 384), QSizeF(1280, 744), true, true);
+    QCOMPARE(r.size(), QSizeF(256, 384));
+    r = fitFrame(QSizeF(256, 192), QSizeF(700, 520), true, true);  // 2.71 -> 2x (heuristic: 2/2.73 < 0.75 -> fractional)
+    QCOMPARE(r.size(), QSizeF(512, 384));
+    QVERIFY(fitFrame(QSizeF(256, 192), QSizeF(700, 520), true, false).width() > 600);
+    // Below 1x: fit.
+    r = fitFrame(QSizeF(256, 384), QSizeF(128, 400), true, true);
+    QCOMPARE(r.size(), QSizeF(128, 192));
+  }
+
+  void fitPictureAspect() {
+    QCOMPARE(aspectModeFromString(QStringLiteral("4:3")), AspectMode::Ratio43);
+    QCOMPARE(aspectModeFromString(QStringLiteral("stretch")), AspectMode::Stretch);
+    QCOMPARE(aspectModeFromString(QStringLiteral("x")), AspectMode::Core);
+    // Stretch fills the whole area, integer scaling ignored.
+    QCOMPARE(fitPicture(QSizeF(256, 192), QSizeF(700, 500), true, true, AspectMode::Stretch), QRectF(0, 0, 700, 500));
+    // 4:3 of a 16:9 frame: same height, width = height * 4/3.
+    const QRectF r = fitPicture(QSizeF(320, 180), QSizeF(960, 540), false, false, AspectMode::Ratio43);
+    QVERIFY(std::abs(r.width() / r.height() - 4.0 / 3.0) < 0.01);
+    QCOMPARE(r.height(), 540.0);
+    // Core keeps the frame shape.
+    const QRectF c = fitPicture(QSizeF(320, 180), QSizeF(960, 540), false, false, AspectMode::Core);
+    QVERIFY(std::abs(c.width() / c.height() - 320.0 / 180.0) < 0.01);
+    // Touch under stretch: the touch screen is the lower half of the full area, mapped linearly.
+    emu::DisplayProfile p;
+    p.layout = QStringLiteral("vertical");
+    p.screens = {{QStringLiteral("top"), 256, 192, false}, {QStringLiteral("bottom"), 256, 192, true}};
+    const QRectF frame = fitPicture(p.frameSize(), QSizeF(800, 600), true, false, AspectMode::Stretch);
+    const auto pt = touchToFrame(p, frame, QPointF(400, 450), false);  // centre of the lower screen
+    QVERIFY(pt.has_value());
+    QVERIFY(std::abs(pt->x() - 0.5) < 0.01);
+    QVERIFY(std::abs(pt->y() - 0.75) < 0.01);
+    QVERIFY(!touchToFrame(p, frame, QPointF(400, 100), false).has_value());  // upper screen
+  }
+
   void touchMapping() {
     const auto p = ndsProfile();
     // Frame 256x384 at 2x, top left at (10, 20).

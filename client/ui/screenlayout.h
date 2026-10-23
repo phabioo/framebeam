@@ -11,6 +11,7 @@
 #include <QStringList>
 #include <optional>
 
+#include "inputmapping.h"
 #include "system_manifest.h"
 
 namespace uzume::ui {
@@ -31,7 +32,10 @@ struct ScreenPlacement {
 
 // Places the screens of `profile` in `area` for `layout`. Screens keep their size ratio; the whole arrangement is scaled
 // like fitFrame() (integer factors when they use the space well). An unknown layout counts as "stacked".
-ScreenPlacement placeScreens(const emu::DisplayProfile& profile, const QString& layout, const QSizeF& area, bool integerScale);
+// strictInteger and aspect are the picture options (see fitFrame / AspectMode): 4:3 draws every screen at 4:3 (same
+// height, width = height * 4/3), Stretch scales the whole arrangement non-uniformly to fill `area`.
+ScreenPlacement placeScreens(const emu::DisplayProfile& profile, const QString& layout, const QSizeF& area, bool integerScale,
+                             bool strictInteger = false, AspectMode aspect = AspectMode::Core);
 
 // Source rectangle of screen `index` inside a frame of size `frame` (the frame may be larger than the profile when
 // the core renders at a higher internal resolution; the screens scale with it).

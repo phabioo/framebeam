@@ -321,7 +321,7 @@ func TestAdminSavesAPI(t *testing.T) {
 	if c := up(1, hexSHA(data)); c != 200 {
 		t.Fatal(c)
 	}
-	if sl, err := s.svc.GetSaveSlot(context.Background(), s.anna.ID, s.game.ID, "renamed"); err != nil || sl.Current.Revision != 2 || sl.Current.DeviceID != hub.WebDeviceID(s.admin.ID) {
+	if sl, err := s.svc.GetSaveSlot(context.Background(), s.anna.ID, s.game.ID, "renamed"); err != nil || sl.Current.Revision != 2 || sl.Current.DeviceID != hub.AdminDeviceID(s.admin.ID) {
 		t.Fatalf("%v %+v", err, sl)
 	}
 	wantStatus(t, s.do("DELETE", rn, nil, opt{token: adm.tok, raw: true}), 400, "")

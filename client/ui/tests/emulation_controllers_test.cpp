@@ -357,7 +357,7 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(emu->lockedCount(), 2);
     QVERIFY(visible(h, "lockedHint"));
     // Category chips: the categories of this scope.
-    QCOMPARE(emu->categories(), (QStringList{QStringLiteral("Audio"), QStringLiteral("System")}));
+    QCOMPARE(emu->categories(), (QStringList{QStringLiteral("Audio"), QStringLiteral("System"), QStringLiteral("Picture")}));  // + Uzume's picture options
     QVERIFY(visible(h, "category_Audio") && visible(h, "category_System"));
     // Nothing changed yet: "Default" in every row, no dot, no "Reset N changed".
     QCOMPARE(text(h, "optionOrigin_melonds_audio_interpolation"), QStringLiteral("Default"));
@@ -733,6 +733,53 @@ class EmulationControllersTest : public QObject {
     emu->settings()->setValue(L::Global, QString(), QStringLiteral("melonds_boot_mode"), QStringLiteral("native"));
     emu->setLevel(QStringLiteral("system"));
     QCOMPARE(emu->launchOverrides(QStringLiteral("nds"), QString()).value(QStringLiteral("melonds_boot_mode")), QStringLiteral("native"));
+  }
+
+  void pictureOptionsPerSystemAndGame() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), fakeProbe(), false);
+    h.controller->showEmulation();
+    EmulationController* emu = h.controller->emulation();
+    const QString integer = QString::fromLatin1(EmulationController::kIntegerScaleKey);
+    const QString aspect = QString::fromLatin1(EmulationController::kAspectRatioKey);
+
+    // Defaults of both options.
+    QCOMPARE(emu->uzumeValue(integer, QStringLiteral("nds"), QString()), QStringLiteral("off"));
+    QCOMPARE(emu->uzumeValue(aspect, QStringLiteral("nds"), QString()), QStringLiteral("core"));
+
+    // A system shows both rows under the category "Picture".
+    QVERIFY(h.click("systemCard_nds"));
+    QCOMPARE(emu->level(), QStringLiteral("system"));
+    QStringList picture;
+    for (const QVariant& g : emu->groups()) {
+      for (const QVariant& o : g.toMap().value(QStringLiteral("options")).toList()) {
+        const QVariantMap m = o.toMap();
+        if (m.value(QStringLiteral("category")).toString() == QStringLiteral("Picture")) {
+          picture.append(m.value(QStringLiteral("key")).toString());
+          QVERIFY(!m.value(QStringLiteral("restart")).toBool());
+        }
+      }
+    }
+    QCOMPARE(picture, (QStringList{integer, aspect}));
+
+    // Stored per system, emitted live, and unknown values are refused.
+    QSignalSpy changed(emu, &EmulationController::uzumeOptionsChanged);
+    emu->setOption(integer, QStringLiteral("on"));
+    emu->setOption(aspect, QStringLiteral("stretch"));
+    emu->setOption(aspect, QStringLiteral("16:9"));
+    QCOMPARE(changed.count(), 2);  // the unknown value is refused
+    QCOMPARE(emu->uzumeValue(integer, QStringLiteral("nds"), QString()), QStringLiteral("on"));
+    QCOMPARE(emu->uzumeValue(aspect, QStringLiteral("nds"), QString()), QStringLiteral("stretch"));
+    QCOMPARE(emu->uzumeValue(integer, QStringLiteral("gba"), QString()), QStringLiteral("off"));  // other systems keep the default
+
+    // A game overrides the system.
+    emu->settings()->setValue(L::Game, QStringLiteral("g1"), aspect, QStringLiteral("4:3"));
+    QCOMPARE(emu->uzumeValue(aspect, QStringLiteral("nds"), QStringLiteral("g1")), QStringLiteral("4:3"));
+    QCOMPARE(emu->uzumeValue(aspect, QStringLiteral("nds"), QStringLiteral("g2")), QStringLiteral("stretch"));
   }
 
   void firmwareStateOnTheCard() {

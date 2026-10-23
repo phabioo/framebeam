@@ -234,6 +234,7 @@ qt_add_qml_module(uzume_ui
     AdminPeople.qml
     AdminAskDialog.qml
     LibraryAdminBar.qml
+    LibraryContinue.qml
     LibraryAdminDetails.qml
     SavesAdminSwitch.qml
     SavesAdminSheet.qml

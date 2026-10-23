@@ -17,7 +17,7 @@ func (e *savesEnv) slotDir(slot string) string {
 func TestRenameSaveSlotMovesEverything(t *testing.T) {
 	e, _ := newComfortEnv(t, nil)
 	e.put(e.devA, 0, []byte("one"), hub.SyncCheckpoint)
-	u, g, web := e.user.ID, e.game.ID, hub.WebDeviceID(e.user.ID)
+	u, g, web := e.user.ID, e.game.ID, hub.AdminDeviceID(e.user.ID)
 	if _, err := e.svc.CreateSaveSlot(ctx, u, g, "default", "run", web); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestRenameSaveSlotMovesEverything(t *testing.T) {
 func TestRenameSaveSlotErrors(t *testing.T) {
 	e, _ := newComfortEnv(t, nil)
 	e.put(e.devA, 0, []byte("one"), hub.SyncCheckpoint)
-	u, g, web := e.user.ID, e.game.ID, hub.WebDeviceID(e.user.ID)
+	u, g, web := e.user.ID, e.game.ID, hub.AdminDeviceID(e.user.ID)
 	for _, n := range []string{"run", "other"} {
 		if _, err := e.svc.CreateSaveSlot(ctx, u, g, "default", n, web); err != nil {
 			t.Fatal(err)
@@ -107,7 +107,7 @@ func TestRenameSaveSlotErrors(t *testing.T) {
 func TestDeleteSaveSlot(t *testing.T) {
 	e, _ := newComfortEnv(t, nil)
 	e.put(e.devA, 0, []byte("one"), hub.SyncCheckpoint)
-	u, g, web := e.user.ID, e.game.ID, hub.WebDeviceID(e.user.ID)
+	u, g, web := e.user.ID, e.game.ID, hub.AdminDeviceID(e.user.ID)
 	if _, err := e.svc.CreateSaveSlot(ctx, u, g, "default", "run", web); err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestDeleteSaveSlot(t *testing.T) {
 func TestSlotChangesBlockedWhileSessionRuns(t *testing.T) {
 	e, _ := newComfortEnv(t, nil)
 	e.put(e.devA, 0, []byte("one"), hub.SyncCheckpoint)
-	u, g, web := e.user.ID, e.game.ID, hub.WebDeviceID(e.user.ID)
+	u, g, web := e.user.ID, e.game.ID, hub.AdminDeviceID(e.user.ID)
 	if _, err := e.svc.CreateSaveSlot(ctx, u, g, "default", "run", web); err != nil {
 		t.Fatal(err)
 	}

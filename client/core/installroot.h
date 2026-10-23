@@ -41,7 +41,7 @@ enum class MsiScope {
   User,           // per-user Player, install root writable: no elevation
   Machine,        // per-machine Player (UAC)
   MachineWithHub, // per-machine Player + Hub feature installed (UAC), INSTALL_HUB=1
-  SetupHub,       // "Set up a Hub on this PC": ALLUSERS=1 INSTALL_HUB=1 NETWORK_SHARING=0 (UAC)
+  SetupHub,       // "Set up a server on this PC": ALLUSERS=1 INSTALL_HUB=1 NETWORK_SHARING=0 (UAC)
   ShareHub,       // "Share with others" (0.18 p10): ALLUSERS=1 INSTALL_HUB=1 + the given properties (HUB_PORT, NETWORK_SHARING, IMPORT_SERVER_DATA) (UAC)
 };
 MsiScope detectMsiScope(bool rootWritable, bool hubInstalled);
@@ -59,7 +59,7 @@ QString copyLauncherToTemp(const QString& installRoot, const QString& tempBase, 
 InstallerCommand msiRelaunchCommand(const QString& launcherCopy, const QString& msiPath, MsiScope scope,
                                     const QString& relaunchExe, const QStringList& relaunchArgs = {},
                                     const QString& sha256 = {}, qint64 size = -1, const QStringList& msiProperties = {});
-// Where the per-machine Player lives after "Set up a Hub on this PC" (<programFiles>\Uzume\App).
+// Where the per-machine Player lives after "Set up a server on this PC" (<programFiles>\Uzume\App).
 QString perMachinePlayerExe(const QString& programFilesDir);
 
 }  // namespace uzume::update

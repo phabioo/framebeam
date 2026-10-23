@@ -2106,7 +2106,7 @@ QString whoText(const SaveUpdate& u) {
   if (!u.deviceName.isEmpty()) {
     return u.deviceName;
   }
-  return u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000") ? QObject::tr("the Server web interface")
+  return u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000") ? QObject::tr("the server admin")
                                                                               : QObject::tr("another device");
 }
 
@@ -2414,7 +2414,7 @@ void SaveSync::handleSlotDeletedElsewhere(const SaveUpdate& u) {
 }
 
 void SaveSync::handleSaveUpdate(const SaveUpdate& u) {
-  // The server reports the nil UUID with device_name "Hub web interface": never "this device".
+  // The server reports the nil UUID with device_name "server admin": never "this device".
   const bool nilDevice = u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000");
   if (!nilDevice && !conn_->deviceId().isEmpty() && u.deviceId == conn_->deviceId()) {
     return;  // our own change

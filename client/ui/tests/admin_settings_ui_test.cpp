@@ -125,7 +125,7 @@ class AdminSettingsUiTest : public QObject {
   static void editAndSave(Harness& h, const QString& value) {
     QTRY_VERIFY(shown(h, "settingsEditDialog"));
     h.item("settingsEditField")->setProperty("text", value);
-    QVERIFY(h.click("settingsEditSave"));
+    QVERIFY(h.clickWhenReady("settingsEditSave"));
   }
 
  private slots:

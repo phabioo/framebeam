@@ -47,17 +47,17 @@ const (
 // MaxSnapshotLabel is the maximum length of a snapshot label in characters.
 const MaxSnapshotLabel = 64
 
-// WebDeviceID is the device ID recorded for save changes made in the app (the admin has no device).
-func WebDeviceID(userID string) string { return webDevicePrefix + userID }
+// AdminDeviceID is the device ID recorded for save changes made in the app (the admin has no device).
+func AdminDeviceID(userID string) string { return adminDevicePrefix + userID }
 
 const (
-	webDevicePrefix = "web:"
-	webDeviceName   = "Server web interface"
+	adminDevicePrefix = "web:"
+	adminDeviceName   = "Server admin"
 )
 
 // deviceNameSQL is the display name of a device column: the device name, the web label or "Deleted device" (the history keeps the ID after a device was deleted).
 func deviceNameSQL(alias, col string) string {
-	return "COALESCE(" + alias + ".name, CASE WHEN " + col + " LIKE 'web:%' THEN '" + webDeviceName + "' ELSE 'Deleted device' END)"
+	return "COALESCE(" + alias + ".name, CASE WHEN " + col + " LIKE 'web:%' THEN '" + adminDeviceName + "' ELSE 'Deleted device' END)"
 }
 
 // Conflict status and resolutions.

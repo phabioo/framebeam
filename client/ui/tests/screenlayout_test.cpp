@@ -36,6 +36,44 @@ class ScreenLayoutTest : public QObject {
     QVERIFY(!isScreenLayout(QStringLiteral("bogus")));
   }
 
+  void pictureOptionsOnTwoScreens() {
+    const emu::DisplayProfile p = threeDsProfile();
+    const QSizeF area(1000, 800);
+    // Core: the 3DS screens keep their different widths.
+    auto pl = placeScreens(p, QStringLiteral("stacked"), area, false);
+    QVERIFY(pl.targets[0].width() > pl.targets[1].width());
+    // 4:3: every screen is 4:3, layout as before (stacked, top above bottom).
+    pl = placeScreens(p, QStringLiteral("stacked"), area, false, false, AspectMode::Ratio43);
+    for (const QRectF& t : pl.targets) QVERIFY(std::abs(t.width() / t.height() - 4.0 / 3.0) < 0.01);
+    QVERIFY(pl.targets[0].bottom() <= pl.targets[1].top() + 0.5);
+    // Stretch: the arrangement fills the whole area (non-uniform).
+    pl = placeScreens(p, QStringLiteral("side"), area, true, true, AspectMode::Stretch);
+    QCOMPARE(pl.content, QRectF(0, 0, 1000, 800));
+    QVERIFY(pl.targets[0].left() >= -0.5);
+    QVERIFY(pl.targets[1].right() <= 1000.5);
+    // Strict integer: 256x384 stack in 600x800 -> 2x, centred.
+    pl = placeScreens(ndsProfile(), QStringLiteral("stacked"), QSizeF(600, 800), true, true);
+    QCOMPARE(pl.content.size(), QSizeF(512, 768));
+    pl = placeScreens(ndsProfile(), QStringLiteral("stacked"), QSizeF(1280, 744), true, true);
+    QCOMPARE(pl.content.size(), QSizeF(256, 384));
+  }
+
+  void touchUnderStretchAndFourThree() {
+    const emu::DisplayProfile p = ndsProfile();
+    for (const AspectMode mode : {AspectMode::Stretch, AspectMode::Ratio43}) {
+      const auto pl = placeScreens(p, QStringLiteral("side"), QSizeF(1024, 600), false, false, mode);
+      // Centre of the touch screen maps to the centre of the lower screen in the frame; corners map to its corners.
+      const auto mid = touchToFrameFor(p, pl, pl.targets[1].center(), false);
+      QVERIFY(mid.has_value());
+      QVERIFY(std::abs(mid->x() - 0.5) < 0.01);
+      QVERIFY(std::abs(mid->y() - 0.75) < 0.01);
+      const auto tl = touchToFrameFor(p, pl, pl.targets[1].topLeft() + QPointF(0.1, 0.1), false);
+      QVERIFY(tl.has_value());
+      QVERIFY(tl->x() < 0.01 && std::abs(tl->y() - 0.5) < 0.01);
+      QVERIFY(!touchToFrameFor(p, pl, pl.targets[0].center(), false).has_value());
+    }
+  }
+
   void stackedKeepsOrder() {
     const auto pl = placeScreens(ndsProfile(), QStringLiteral("stacked"), QSizeF(512, 768), true);
     QCOMPARE(pl.targets.size(), 2);

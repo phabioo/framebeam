@@ -577,20 +577,6 @@ func TestSettingsAndUploadPermission(t *testing.T) {
 	if ok, _ := svc.CanUpload(ctx, user); !ok {
 		t.Fatal("user while on")
 	}
-	if a, _ := svc.Appearance(ctx); a != hub.AppearanceSystem {
-		t.Fatal("default must be system, got", a)
-	}
-	for _, m := range []string{"dark", "system", "light"} {
-		if err := svc.SetAppearance(ctx, m); err != nil {
-			t.Fatal(err)
-		}
-		if a, _ := svc.Appearance(ctx); a != m {
-			t.Fatalf("%s != %s", a, m)
-		}
-	}
-	if err := svc.SetAppearance(ctx, "neon"); !errors.Is(err, hub.ErrBadRequest) {
-		t.Fatal(err)
-	}
 }
 
 func TestProvideFirmwareKeepsOldFileWhenMetadataUpdateFails(t *testing.T) {

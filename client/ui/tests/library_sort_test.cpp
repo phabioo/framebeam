@@ -251,6 +251,36 @@ class LibrarySortTest : public QObject {
     QCOMPARE(m.readyGroupCount(), 1);
   }
 
+  void continueEntriesFollowLastPlayed() {
+    LibraryModel m;
+    const QDate today(2026, 10, 23);
+    const auto at = [](int y, int mo, int d) { return QDateTime(QDate(y, mo, d), QTime(12, 0)).toMSecsSinceEpoch(); };
+    QVERIFY(m.continueEntriesAt(today).isEmpty());
+    fill(m);
+    QVERIFY(m.continueEntriesAt(today).isEmpty());  // never played: no block
+
+    m.setLastPlayed({{QStringLiteral("a3"), at(2026, 10, 16)}, {QStringLiteral("a1"), at(2026, 10, 22)},
+                     {QStringLiteral("a5"), at(2026, 10, 23)}, {QStringLiteral("a2"), at(2026, 10, 1)},
+                     {QStringLiteral("gone"), at(2026, 10, 23) + 1000}});
+    QSignalSpy changed(&m, &LibraryModel::continueChanged);
+    QVariantList e = m.continueEntriesAt(today);
+    QCOMPARE(e.size(), 3);  // 1 + 2, "gone" is not in the library
+    QCOMPARE(e[0].toMap().value(QStringLiteral("gameId")).toString(), QStringLiteral("a5"));
+    QCOMPARE(e[0].toMap().value(QStringLiteral("meta")).toString(), QStringLiteral("GBA"));
+    QCOMPARE(e[1].toMap().value(QStringLiteral("gameId")).toString(), QStringLiteral("a1"));
+    QCOMPARE(e[1].toMap().value(QStringLiteral("dateText")).toString(), QStringLiteral("YESTERDAY"));
+    QCOMPARE(e[2].toMap().value(QStringLiteral("gameId")).toString(), QStringLiteral("a3"));
+    QCOMPARE(e[2].toMap().value(QStringLiteral("dateText")).toString(), QStringLiteral("16 OCT"));
+    QCOMPARE(e[0].toMap().value(QStringLiteral("dateText")).toString(), QStringLiteral("TODAY"));
+
+    // Launching a game moves it to the front.
+    m.noteLastPlayed(QStringLiteral("a3"), at(2026, 10, 23) + 5000);
+    QVERIFY(changed.count() >= 1);
+    e = m.continueEntriesAt(today);
+    QCOMPARE(e[0].toMap().value(QStringLiteral("gameId")).toString(), QStringLiteral("a3"));
+    QCOMPARE(e.size(), 3);
+  }
+
   void groupProxySplitsTheModel() {
     LibraryModel m;
     fill(m);

@@ -139,7 +139,7 @@ class PlayerController : public QObject {
   // Setup assistant (7a): shown over the current screen; showSetupAssistant() is the entry point for the first start
   // and "Run setup again". Admins of a server with the admin pages only.
   Q_PROPERTY(bool setupAssistantOpen READ setupAssistantOpen NOTIFY setupAssistantChanged)
-  // "Set up a Hub on this PC" (connection screen, pairing form, Settings > Hubs)
+  // "Set up a server on this PC" (connection screen, pairing form, Settings > Hubs)
   Q_PROPERTY(uzume::ui::LocalHubController* localHub READ localHub CONSTANT)
   // First start, joining and setting up servers (screen "start"); the people on this PC and the account (0.18 package 7)
   Q_PROPERTY(uzume::ui::OnboardingController* onboarding READ onboarding CONSTANT)
