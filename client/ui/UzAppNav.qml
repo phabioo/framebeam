@@ -6,21 +6,28 @@ import Uzume.App
 // AppNav (frame.md "0-4 A" to "0-4 C" and "0-4 G"): the 232 px navigation of every screen. Lockup, PLAY (Library, Runs,
 // Emulation, Controllers), the SERVER group for admins or THIS PC when there is no server, ONLINE (people with a Session),
 // Settings, the server line and the person. Compact (window below 900 px high): 28 px items, one-line ONLINE rows, no address line.
-// Package 8 (admin area) adds the SERVER destinations that do not exist yet (Status, Users, Systems & cores, Reports).
+// SERVER: Status (with a "!" badge while the server reports a problem), Users (count of waiting devices), Systems & cores,
+// Plugins, Reports (count of New).
 Rectangle {
     id: root
     required property PlayerController player
     readonly property bool compact: height < 900
     readonly property bool hasServer: root.player.hubAddress !== ""
-    // Destinations that exist today. SERVER lists the admin pages as they arrive; until then admins see no SERVER group.
-    readonly property var serverItems: []
+    // SERVER (admins of a server with admin_v1): the pages of the server screen; `page` goes to player.showServerPage().
+    readonly property var serverItems: [
+        { label: qsTr("Status"), name: "navServerStatus", page: "status" },
+        { label: qsTr("Users"), name: "navServerUsers", page: "users" },
+        { label: qsTr("Systems & cores"), name: "navServerSystems", page: "systems" },
+        { label: qsTr("Plugins"), name: "navServerPlugins", page: "plugins" },
+        { label: qsTr("Reports"), name: "navServerReports", page: "reports" }
+    ]
     readonly property var thisPcItems: [{ label: qsTr("Plugins"), name: "navThisPcPlugins", section: "plugins" }]
     // The Repeater below gets every entry once and hides the ones that do not apply. Swapping the model with the connection state
     // would destroy the delegates inside a layout that is hidden at that moment, and Qt 6.4 then crashes in
     // QQuickGridLayoutBase::rearrange on the deleted items.
-    readonly property var groupEntries: serverItems.map(function (e) { return { label: e.label, name: e.name, section: e.section, server: true } })
+    readonly property var groupEntries: serverItems.map(function (e) { return { label: e.label, name: e.name, page: e.page, server: true } })
                                         .concat(thisPcItems.map(function (e) { return { label: e.label, name: e.name, section: e.section, server: false } }))
-    readonly property bool hasGroupItems: root.hasServer ? (root.player.isAdmin && serverItems.length > 0) : thisPcItems.length > 0
+    readonly property bool hasGroupItems: root.hasServer ? (root.player.admin.available && serverItems.length > 0) : thisPcItems.length > 0
     readonly property var online: root.hasServer ? root.player.sessions.sessions.filter(function (s) { return !s.invited }) : []
     color: Theme.ground
     implicitWidth: Theme.sidebarWidth
@@ -105,7 +112,7 @@ Rectangle {
             }
         }
 
-        // SERVER (admins) or THIS PC (no server): only the destinations that exist today.
+        // SERVER (admins of a server with admin_v1) or THIS PC (no server).
         UzNavGroupHead {
             objectName: "navServerHead"
             Layout.fillWidth: true
@@ -123,11 +130,17 @@ Rectangle {
                 model: root.groupEntries
                 delegate: UzNavItem {
                     required property var modelData
-                    visible: modelData.server ? (root.hasServer && root.player.isAdmin) : !root.hasServer
+                    visible: modelData.server ? (root.hasServer && root.player.admin.available) : !root.hasServer
                     objectName: modelData.name
                     compact: root.compact
                     label: modelData.label
-                    onActivated: root.player.showSettingsSection(modelData.section)
+                    active: modelData.page !== undefined && root.player.screen === "server" && root.player.serverPage === modelData.page
+                    warnText: modelData.page === "status" && root.player.admin.statusProblem !== "" ? "!" : ""
+                    warnName: modelData.page === "status" ? "navServerStatusWarn" : ""
+                    badge: modelData.page === "users" ? root.player.admin.pendingDevices : modelData.page === "reports" ? root.player.admin.newReports : 0
+                    badgeName: modelData.page === "users" ? "navServerUsersBadge" : modelData.page === "reports" ? "navServerReportsBadge" : ""
+                    onActivated: modelData.page !== undefined ? root.player.showServerPage(modelData.page)
+                                                              : root.player.showSettingsSection(modelData.section)
                 }
             }
         }

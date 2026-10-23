@@ -51,6 +51,7 @@
 #include "system_manifest.h"
 #include "localhubcontroller.h"
 #include "updatescontroller.h"
+#include "admincontroller.h"
 #include "reportcontroller.h"
 
 namespace uzume::ui {
@@ -60,7 +61,7 @@ class PlayerController : public QObject {
   QML_ELEMENT
   QML_UNCREATABLE("Created in main.cpp")
 
-  // Navigation: "connection" | "pairing" | "library" | "game" | "settings" | "emulation" | "controllers" | "runs"
+  // Navigation: "connection" | "pairing" | "library" | "game" | "settings" | "emulation" | "controllers" | "runs" | "server"
   Q_PROPERTY(QString screen READ screen NOTIFY screenChanged)
 
   // 3a
@@ -123,6 +124,10 @@ class PlayerController : public QObject {
   Q_PROPERTY(uzume::ui::UpdatesController* updates READ updates CONSTANT)
   // "Report a problem" dialog (Settings > Diagnostics, game "⋯" menu)
   Q_PROPERTY(uzume::ui::ReportController* report READ report CONSTANT)
+  // Admin area (0.18 package 8): generic admin requests, "Confirm it's you", server status
+  Q_PROPERTY(uzume::ui::AdminController* admin READ admin CONSTANT)
+  // Page of the "server" screen: status | users | systems | plugins | reports
+  Q_PROPERTY(QString serverPage READ serverPage NOTIFY serverPageChanged)
   // "Set up a Hub on this PC" (connection screen, pairing form, Settings > Hubs)
   Q_PROPERTY(uzume::ui::LocalHubController* localHub READ localHub CONSTANT)
   // Plugins (Settings > Plugins, Plugin console tab of the game panel)
@@ -188,6 +193,8 @@ class PlayerController : public QObject {
   SessionController* sessions() { return sessions_.get(); }
   UpdatesController* updates() { return updates_.get(); }
   ReportController* report() { return report_.get(); }
+  AdminController* admin() { return admin_.get(); }
+  QString serverPage() const { return serverPage_; }
   LocalHubController* localHub() { return localHub_.get(); }
   PluginsController* plugins() { return plugins_.get(); }
   RunsController* runs() { return runs_.get(); }
@@ -315,6 +322,9 @@ class PlayerController : public QObject {
   // view, else asks the window to show the plugin screen sheet (pluginScreenRequested). Plugins have no sidebar entry.
   Q_INVOKABLE void openPluginScreen(const QString& pluginId);
   Q_INVOKABLE void showRuns();  // Runs screen (docs/design/plugins.md 4j-2)
+  // Admin area: screen "server" on a page (status | users | systems | plugins | reports; unknown -> status). Only for
+  // admins of a server with admin_v1 (otherwise the screen shows the member block); reads the server status again.
+  Q_INVOKABLE void showServerPage(const QString& page);
   // "Plugin settings" / "Notice settings…": Settings -> Plugins (pluginId highlights its row; empty = the section only).
   Q_INVOKABLE void showPluginSettings(const QString& pluginId = QString());
   // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.
@@ -344,6 +354,7 @@ class PlayerController : public QObject {
  signals:
   void screenChanged();
   void pluginScreenRequested(const QString& pluginId);
+  void serverPageChanged();
   void settingsSectionRequested(const QString& section);
   // Settings screen: scroll to a section ("plugins") and highlight a plugin row.
   void pluginSettingsRequested(const QString& pluginId);
@@ -428,6 +439,7 @@ class PlayerController : public QObject {
   std::unique_ptr<SessionController> sessions_;
   std::unique_ptr<UpdatesController> updates_;
   std::unique_ptr<ReportController> report_;  // "Report a problem"
+  std::unique_ptr<AdminController> admin_;    // admin area: requests, Confirm it's you, status
   std::unique_ptr<LocalHubController> localHub_;
   std::unique_ptr<PluginsController> plugins_;  // after settings_ and session_: destroyed before them
   std::unique_ptr<RunClient> runClient_;        // after sessions_ (the Hub socket) and plugins_
@@ -460,6 +472,7 @@ class PlayerController : public QObject {
 
   QString screen_ = QStringLiteral("connection");
   QString page_ = QStringLiteral("library");  // page shown while connected: library | settings | emulation | controllers | plugin
+  QString serverPage_ = QStringLiteral("status");
   bool inviteBusy_ = false;
   std::unique_ptr<LocalRomIndex> localRoms_;
   std::unique_ptr<UploadController> uploads_;  // ROM upload state (declared after localRoms_, model_, manifests_)
