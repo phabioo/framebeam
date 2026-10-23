@@ -254,7 +254,7 @@ func TestRunCreateValidation(t *testing.T) {
 	wantStatus(t, post(with("plugins", []any{plugin(pluginA, "9.9.9")}), false), 400, "bad_request") // version not offered
 	wantStatus(t, post(with("plugins", []any{plugin(pluginC, "1.0.0")}), false), 400, "bad_request") // plugin not offered
 	wantStatus(t, post(with("plugins", []any{plugin(pluginA, "1.0.0"), plugin(pluginA, "1.0.0")}), false), 400, "bad_request")
-	wantStatus(t, post(with("plugins", []any{}), true), 400, "bad_request")
+	wantStatus(t, post(with("plugins", []any{}), true), 201, "")                      // runs_v2: a run without plugins is valid
 	wantStatus(t, post(with("game_id", uuid.NewString()), false), 400, "bad_request") // unknown game
 	wantStatus(t, post(with("invite_user_ids", []any{"u_nobody"}), false), 400, "bad_request")
 	wantStatus(t, post(with("name", "   "), false), 400, "bad_request")

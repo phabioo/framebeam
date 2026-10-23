@@ -50,6 +50,7 @@ class RunClient : public QObject {
   ~RunClient() override;
 
   bool supported() const;  // connected and the Hub advertises runs_v1
+  bool supportsPluginless() const;  // runs_v2: the Hub accepts runs with no plugin
   QString myUserId() const;
 
   QList<RunInfo> runs() const;  // newest update first

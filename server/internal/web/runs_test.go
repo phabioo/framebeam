@@ -283,30 +283,17 @@ func TestRunsEmptyAndNav(t *testing.T) {
 	rec := c.get("/runs", nil)
 	status(t, rec, 200)
 	contains(t, rec, "Runs · 0", "No runs yet")
-	// No plugin asks for run.state and there are no runs: no nav item (the route stays).
-	notContains(t, rec, `hx-push-url="true">Runs`, "active</span>")
+	// Runs is always in the nav, with or without plugins and runs.
+	contains(t, rec, `hx-push-url="true">Runs`)
+	notContains(t, rec, "active</span>")
 }
 
-func TestRunsNavShownWithRunStatePluginOrRuns(t *testing.T) {
-	t.Run("run.state plugin", func(t *testing.T) {
-		e := newEnvOpts(t, true, nil, func(o *hub.Options) { o.CoreTrustKeys = hubtest.PluginKeys() })
-		c := e.client()
-		c.login()
-		notContains(t, c.get("/library", nil), `hx-push-url="true">Runs`)
-		st, err := e.svc.StagePluginUpload(bg, bytes.NewReader(hubtest.PluginZip(t, "net.example.rs", "1.0.0", []string{"run.state"}, nil)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := e.svc.OfferStagedPlugin(bg, st.StageID, []string{"run.state"}, ""); err != nil {
-			t.Fatal(err)
-		}
-		contains(t, c.get("/library", nil), `hx-push-url="true">Runs`)
-		contains(t, c.get("/nav-fragment", map[string]string{"HX-Current-URL": "http://hub/runs/abc"}), `href="/runs" class="active"`)
-	})
-	t.Run("existing run", func(t *testing.T) {
-		f := newRunsFixture(t)
-		contains(t, f.c.get("/library", nil), `hx-push-url="true">Runs`)
-	})
+func TestRunsNavAlwaysShown(t *testing.T) {
+	e := newEnv(t, true, nil)
+	c := e.client()
+	c.login()
+	contains(t, c.get("/library", nil), `hx-push-url="true">Runs`)
+	contains(t, c.get("/nav-fragment", map[string]string{"HX-Current-URL": "http://hub/runs/abc"}), `href="/runs" class="active"`)
 }
 
 // The renderer is plain JavaScript without a build step or a JS test setup; these checks pin its safety properties.

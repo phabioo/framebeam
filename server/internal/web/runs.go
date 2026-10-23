@@ -279,7 +279,10 @@ func (s *Server) runDetail(r *http.Request, run hub.Run, titles map[string]strin
 	default:
 		parts = append(parts, "Created by "+nameOf(run.CreatedBy))
 	}
-	parts = append(parts, when(run.UpdatedAt, now).Text, strings.Join(plugins, " & "))
+	parts = append(parts, when(run.UpdatedAt, now).Text)
+	if len(plugins) > 0 {
+		parts = append(parts, strings.Join(plugins, " & "))
+	}
 	if det.Paused {
 		parts = append(parts, "events still visible, no new ones recorded")
 	}

@@ -260,9 +260,8 @@ QString UiDecl::addsText() const {
   if (panel) parts << QStringLiteral("panel tab");
   if (hud) parts << QStringLiteral("HUD");
   if (tile) parts << QStringLiteral("tile strip");
-  if (screen) parts << QStringLiteral("%1 screen").arg(screenTitle);
   if (detail) parts << QStringLiteral("game detail");
-  if (run) parts << QStringLiteral("run view");
+  if (screen || run) parts << QStringLiteral("run tab");
   if (!hotkeys.isEmpty()) parts << QStringLiteral("%1 hotkey%2").arg(hotkeys.size()).arg(hotkeys.size() == 1 ? QString() : QStringLiteral("s"));
   return parts.isEmpty() ? QString() : QStringLiteral("Adds: ") + parts.join(QStringLiteral(" · "));
 }

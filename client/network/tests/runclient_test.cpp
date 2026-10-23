@@ -106,6 +106,41 @@ class RunClientTest : public QObject {
     QVERIFY(client_->helloRuns().isEmpty());
   }
 
+  // runs_v2: a run without plugins; every Run JSON carries save_slot (runSaveSlot when the Hub does not send it).
+  void pluginlessRunAndSaveSlot() {
+    connectHub();
+    startClient();
+    QVERIFY(client_->supported());
+    QVERIFY(!client_->supportsPluginless());  // runs_v1 only
+    QTRY_VERIFY_WITH_TIMEOUT(client_->loaded(), 8000);
+
+    std::optional<RunResult> created;
+    client_->createRun(QStringLiteral("Plain run"), {}, QStringLiteral("00000000-0000-4000-8000-0000000000a1"), {}, QJsonObject(),
+                       [&](const RunResult& r) { created = r; });
+    QTRY_VERIFY_WITH_TIMEOUT(created.has_value(), 8000);
+    QVERIFY(created->ok && created->run);
+    QVERIFY(hub_->lastRunBody.contains(QStringLiteral("plugins")));
+    QVERIFY(hub_->lastRunBody.value("plugins").toArray().isEmpty());  // an empty plugin list, not a missing one
+    QVERIFY(created->run->plugins.isEmpty());
+    QCOMPARE(created->run->saveSlot, runSaveSlot(created->run->runId));
+    QVERIFY(created->run->saveSlot.startsWith(QStringLiteral("run-")));
+
+    // A save_slot sent by the Hub wins; a missing one falls back to run-<8 hex>.
+    QJsonObject o = hub_->runs.value(created->run->runId);
+    o.insert("save_slot", "run-feedbeef");
+    QCOMPARE(parseRun(o)->saveSlot, QStringLiteral("run-feedbeef"));
+    o.remove("save_slot");
+    QCOMPARE(parseRun(o)->saveSlot, runSaveSlot(created->run->runId));
+    QCOMPARE(runToJson(*parseRun(o)).value("save_slot").toString(), runSaveSlot(created->run->runId));
+  }
+
+  void pluginlessFeature() {
+    connectHub({QStringLiteral("saves_v1"), QStringLiteral("runs_v1"), QStringLiteral("runs_v2")});
+    startClient();
+    QVERIFY(client_->supported());
+    QVERIFY(client_->supportsPluginless());
+  }
+
   void listAndRunUpdated() {
     connectHub();
     const QString id = seedRun(2, QStringLiteral("starting"));

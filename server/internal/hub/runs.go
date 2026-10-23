@@ -23,6 +23,28 @@ import (
 // FeatureRunsV1 is the handshake feature flag for the runs REST API and the run_* WSS messages.
 const FeatureRunsV1 = "runs_v1"
 
+// FeatureRunsV2 is the additive handshake feature flag for runs without plugins and the run field save_slot.
+const FeatureRunsV2 = "runs_v2"
+
+// RunSaveSlot is the app's save slot of a run: "run-" plus the first 8 hex characters of the run id (lowercase, the
+// dashes of the uuid ignored). Same rule as runSaveSlot in client/network/runtypes.cpp.
+func RunSaveSlot(runID string) string {
+	var b strings.Builder
+	b.WriteString("run-")
+	n := 0
+	for _, c := range strings.ToLower(runID) {
+		if c == '-' {
+			continue
+		}
+		if n == 8 {
+			break
+		}
+		b.WriteRune(c)
+		n++
+	}
+	return b.String()
+}
+
 // TopicRuns is published when a run changes (the web interface refreshes its Runs page).
 const TopicRuns = "runs"
 
@@ -138,6 +160,7 @@ type Run struct {
 	UpdatedAt    time.Time        `json:"updated_at"`
 	StatusBy     string           `json:"status_by"`
 	Settings     json.RawMessage  `json:"settings"`
+	SaveSlot     string           `json:"save_slot"`
 	Plugins      []RunPlugin      `json:"plugins"`
 	Participants []RunParticipant `json:"participants"`
 	LastSeq      int64            `json:"last_seq"`
@@ -407,6 +430,7 @@ func loadRunsChunked(ctx context.Context, q dbq, ids []string, withState bool, b
 			return internal(err)
 		}
 		r.Archived, r.CreatedAt, r.UpdatedAt, r.Settings = archived != 0, unixTime(created), unixTime(updated), json.RawMessage(settings)
+		r.SaveSlot = RunSaveSlot(r.ID)
 		r.Plugins, r.Participants = []RunPlugin{}, []RunParticipant{}
 		byID[r.ID] = r
 	}
@@ -673,8 +697,8 @@ func (s *Service) CreateRun(ctx context.Context, in CreateRunInput) (_ Run, err 
 	if n := utf8.RuneCountInString(name); n < 1 || n > MaxRunNameLen {
 		return Run{}, badRequest("Name must be 1 to %d characters long", MaxRunNameLen)
 	}
-	if len(in.Plugins) < 1 || len(in.Plugins) > MaxRunPlugins {
-		return Run{}, badRequest("A run needs 1 to %d plugins", MaxRunPlugins)
+	if len(in.Plugins) > MaxRunPlugins {
+		return Run{}, badRequest("A run has at most %d plugins", MaxRunPlugins)
 	}
 	settings, err := objectJSON(in.Settings, MaxRunSettingsBytes, "settings")
 	if err != nil {
@@ -1389,30 +1413,6 @@ func (s *Service) ActiveRunCount(ctx context.Context) (int, error) {
 		return 0, internal(err)
 	}
 	return n, nil
-}
-
-// RunsFeatureVisible reports whether the sidebar shows "Runs": an offered plugin asks for the run.state permission,
-// or the server already holds a run (old runs stay reachable).
-func (s *Service) RunsFeatureVisible(ctx context.Context) (bool, error) {
-	var n int
-	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM runs)`).Scan(&n); err != nil {
-		return false, internal(err)
-	}
-	if n == 1 {
-		return true, nil
-	}
-	ps, err := s.ListPlugins(ctx)
-	if err != nil {
-		return false, err
-	}
-	for _, p := range ps {
-		for _, perm := range p.Permissions() {
-			if perm == "run.state" {
-				return true, nil
-			}
-		}
-	}
-	return false, nil
 }
 
 // ListRunsAdmin returns every run (states left out), most recently changed first.

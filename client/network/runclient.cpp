@@ -80,6 +80,8 @@ bool RunClient::supported() const {
   return conn_ && conn_->state() == HubConnection::State::Connected && conn_->hubHasFeature(QStringLiteral("runs_v1"));
 }
 
+bool RunClient::supportsPluginless() const { return supported() && conn_->hubHasFeature(QStringLiteral("runs_v2")); }
+
 QString RunClient::myUserId() const { return conn_ ? conn_->hubUserId() : QString(); }
 
 void RunClient::onConnectionState(HubConnection::State s) {

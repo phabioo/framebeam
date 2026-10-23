@@ -121,14 +121,14 @@ class UiTest : public QObject {
     QCOMPARE(u.hotkeys.size(), 1);
     QCOMPARE(u.hotkeys[0].id, QStringLiteral("toggle-hud"));
     QCOMPARE(u.hotkeys[0].key, QStringLiteral("Ctrl+H"));
-    QCOMPARE(u.addsText(), QStringLiteral("Adds: panel tab · HUD · tile strip · Runs screen · game detail · 1 hotkey"));
+    QCOMPARE(u.addsText(), QStringLiteral("Adds: panel tab · HUD · tile strip · game detail · run tab · 1 hotkey"));
     QVERIFY(u.declaresSlot("panel") && u.declaresSlot("tile:t1") && !u.declaresSlot("tile:bad id") && !u.declaresSlot("other"));
     // ui.run: the plugin's content in the run detail view
     const ManifestResult rv = parseManifest(manifestJson(QJsonObject{{"run", QJsonObject{{"title", "Run board"}}}, {"detail", true}}));
     QVERIFY2(rv.ok, qPrintable(rv.error));
     QVERIFY(rv.manifest.ui.run && rv.manifest.ui.any() && rv.manifest.ui.declaresSlot("run"));
     QCOMPARE(rv.manifest.ui.runTitle, QStringLiteral("Run board"));
-    QCOMPARE(rv.manifest.ui.addsText(), QStringLiteral("Adds: game detail · run view"));
+    QCOMPARE(rv.manifest.ui.addsText(), QStringLiteral("Adds: game detail · run tab"));
     QVERIFY(!u.declaresSlot("run"));
     const ManifestResult none = parseManifest(manifestJson(QJsonValue(QJsonValue::Undefined)));
     QVERIFY(none.ok);
