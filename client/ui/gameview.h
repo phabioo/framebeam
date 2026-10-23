@@ -20,6 +20,9 @@ class GameView : public QQuickItem {
   QML_ELEMENT
   Q_PROPERTY(uzume::ui::GameSession* session READ session WRITE setSession NOTIFY sessionChanged)
   Q_PROPERTY(bool integerScale READ integerScale WRITE setIntegerScale NOTIFY integerScaleChanged)
+  // Picture options (0.19): strict whole-number scaling and "core" | "4:3" | "stretch".
+  Q_PROPERTY(bool strictInteger READ strictInteger WRITE setStrictInteger NOTIFY pictureOptionsChanged)
+  Q_PROPERTY(QString aspectRatio READ aspectRatio WRITE setAspectRatio NOTIFY pictureOptionsChanged)
   Q_PROPERTY(QRectF frameRect READ frameRect NOTIFY frameRectChanged)
   // In-game screen layout (0.6 D12): "stacked" (as delivered by the core) | "side" | "top"; applies to this game only.
   Q_PROPERTY(QString layout READ layout WRITE setLayout NOTIFY layoutChanged)
@@ -31,6 +34,10 @@ class GameView : public QQuickItem {
   void setSession(GameSession* s);
   bool integerScale() const { return integerScale_; }
   void setIntegerScale(bool on);
+  bool strictInteger() const { return strictInteger_; }
+  void setStrictInteger(bool on);
+  QString aspectRatio() const { return aspectRatio_; }
+  void setAspectRatio(const QString& value);
   QRectF frameRect() const { return frameRect_; }
   QString layout() const { return layout_; }
   void setLayout(const QString& layout);
@@ -43,6 +50,7 @@ class GameView : public QQuickItem {
  signals:
   void sessionChanged();
   void integerScaleChanged();
+  void pictureOptionsChanged();
   void frameRectChanged();
   void layoutChanged();
   void escapePressed();
@@ -73,6 +81,9 @@ class GameView : public QQuickItem {
   QSize lastFrameSize_;  // size of the last non-null frame (the frame size while the session has dropped its image)
   bool frameDirty_ = false;
   bool integerScale_ = true;
+  bool strictInteger_ = false;
+  QString aspectRatio_ = QStringLiteral("core");
+  AspectMode aspect_ = AspectMode::Core;
   bool lastGpu_ = false;   // the node tree was last built from the GPU texture (render thread)
   bool lastDown_ = false;  // the single-node texture was last created for a downscaled draw (filtered + mipmapped)
   bool touching_ = false;

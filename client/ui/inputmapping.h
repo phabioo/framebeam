@@ -9,6 +9,7 @@
 #include <QSizeF>
 #include <QtGlobal>
 #include <optional>
+#include <QString>
 
 #include "system_manifest.h"
 
@@ -47,7 +48,15 @@ class KeyboardJoypad {
 // Rectangle into which a frame of size `frame` fits within `area` (centered, aspect ratio preserved).
 // integerScale: integer factor if at least 1x fits and the space is used well
 // (>= 75 % of the possible factor); otherwise a fractional factor (always drawn nearest-neighbour).
-QRectF fitFrame(const QSizeF& frame, const QSizeF& area, bool integerScale);
+// strictInteger (option "Integer scaling" = On): whole-number factor whenever at least 1x fits (may leave borders),
+// below 1x it falls back to fit.
+QRectF fitFrame(const QSizeF& frame, const QSizeF& area, bool integerScale, bool strictInteger = false);
+
+// Option "Aspect ratio": Core = the system's own shape, 4:3 = each screen drawn at 4:3, Stretch = fills the whole area.
+enum class AspectMode { Core, Ratio43, Stretch };
+AspectMode aspectModeFromString(const QString& value);  // "core" | "4:3" | "stretch"; anything else = Core
+// Rectangle of a whole single-picture frame for the picture options (Stretch fills `area`, 4:3 fits a 4:3 frame).
+QRectF fitPicture(const QSizeF& frame, const QSizeF& area, bool integerScale, bool strictInteger, AspectMode aspect);
 
 // Item position -> normalized position in the whole frame (EmulatorBackend::setPointer).
 // frameRect: where the frame lies in the item. clampToScreen=false: positions outside the touch screen

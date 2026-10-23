@@ -992,6 +992,15 @@ void SessionController::setScreenLayout(const QString& layout) {
   emit viewChanged();
 }
 
+void SessionController::setPictureOptions(bool integerScale, const QString& aspectRatio) {
+  if (integerScale == integerScale_ && aspectRatio == aspectRatio_) {
+    return;
+  }
+  integerScale_ = integerScale;
+  aspectRatio_ = aspectRatio;
+  emit viewChanged();
+}
+
 void SessionController::gameStarted(const QString& gameId, const QString& title) {
   gameId_ = gameId;
   gameTitle_ = title;

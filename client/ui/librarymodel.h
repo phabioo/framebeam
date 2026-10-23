@@ -3,11 +3,13 @@
 
 #include <QAbstractListModel>
 #include <QCollator>
+#include <QDate>
 #include <QSortFilterProxyModel>
 #include <QList>
 #include <QHash>
 #include <QSet>
 #include <QString>
+#include <QVariantList>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 #include <functional>
@@ -48,6 +50,9 @@ class LibraryModel : public QAbstractListModel {
   Q_PROPERTY(QString countText READ countText NOTIFY countChanged)
   // Empty result: {count, title, reason} of the games that match the search but not the chip; {} otherwise.
   Q_PROPERTY(QVariantMap outsideFilter READ outsideFilter NOTIFY countChanged)
+  // "Continue" block (3c-0): [{gameId, title, system, meta, dateText}], the last played game first, then up to two
+  // "RECENT" ones. Only games still in the library; empty while nothing was played (3c-4 state C).
+  Q_PROPERTY(QVariantList continueEntries READ continueEntries NOTIFY continueChanged)
  public:
   enum Roles {
     GameIdRole = Qt::UserRole + 1,
@@ -107,6 +112,10 @@ class LibraryModel : public QAbstractListModel {
   // Last played on this device (Unix ms per game id of the active Hub); never played = missing.
   void setLastPlayed(const QHash<QString, qint64>& byGameId);
   void noteLastPlayed(const QString& gameId, qint64 msecs);
+  QVariantList continueEntries() const { return continueEntriesAt(QDate::currentDate()); }
+  QVariantList continueEntriesAt(const QDate& today) const;
+  // "TODAY" | "YESTERDAY" | "16 OCT" (uppercase, for the Mono meta line).
+  static QString playedDateText(qint64 msecs, const QDate& today);
   // Label for the toolbar count ("Nintendo DS"): set by the PlayerController, empty = none or several systems.
   void setSystemLabel(const QString& label);
   Q_INVOKABLE bool isReady(const QString& gameId) const;
@@ -136,6 +145,7 @@ class LibraryModel : public QAbstractListModel {
   void filterChanged();
   void countChanged();
   void sortChanged();
+  void continueChanged();
 
  private:
   struct Item {

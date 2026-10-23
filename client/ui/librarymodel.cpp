@@ -1,6 +1,7 @@
 #include "librarymodel.h"
 
 #include <QDateTime>
+#include <QPair>
 #include <QLocale>
 #include <algorithm>
 
@@ -362,6 +363,7 @@ void LibraryModel::setLastPlayed(const QHash<QString, qint64>& byGameId) {
     rebuild();
     emit countChanged();
   }
+  emit continueChanged();
 }
 
 void LibraryModel::noteLastPlayed(const QString& gameId, qint64 msecs) {
@@ -370,6 +372,37 @@ void LibraryModel::noteLastPlayed(const QString& gameId, qint64 msecs) {
     rebuild();
     emit countChanged();
   }
+  emit continueChanged();
+}
+
+QString LibraryModel::playedDateText(qint64 msecs, const QDate& today) {
+  const QDate d = QDateTime::fromMSecsSinceEpoch(msecs).date();
+  if (d == today) return tr("TODAY");
+  if (d == today.addDays(-1)) return tr("YESTERDAY");
+  return QStringLiteral("%1 %2").arg(d.day()).arg(QLocale::c().monthName(d.month(), QLocale::ShortFormat).toUpper());
+}
+
+QVariantList LibraryModel::continueEntriesAt(const QDate& today) const {
+  QList<QPair<qint64, const Item*>> played;
+  for (const Item& it : items_) {
+    const qint64 at = lastPlayed_.value(it.game.id, 0);
+    if (at > 0) played.append({at, &it});
+  }
+  std::stable_sort(played.begin(), played.end(), [](const auto& a, const auto& b) {
+    return a.first != b.first ? a.first > b.first : a.second->game.title.localeAwareCompare(b.second->game.title) < 0;
+  });
+  QVariantList out;
+  for (int i = 0; i < played.size() && i < 3; ++i) {
+    const Item& it = *played.at(i).second;
+    const QString sys = it.game.system.toUpper();
+    // The save slot / version is not known to the model: the meta is the system only.
+    out.append(QVariantMap{{QStringLiteral("gameId"), it.game.id},
+                           {QStringLiteral("title"), it.game.title},
+                           {QStringLiteral("system"), sys},
+                           {QStringLiteral("meta"), sys},
+                           {QStringLiteral("dateText"), playedDateText(played.at(i).first, today)}});
+  }
+  return out;
 }
 
 void LibraryModel::setSystemLabel(const QString& label) {
@@ -490,6 +523,7 @@ void LibraryModel::setGames(const QList<GameEntry>& games, const std::function<R
         emit dataChanged(index(0), index(static_cast<int>(visible_.size()) - 1));
       }
       emit countChanged();
+      emit continueChanged();
       return;
     }
   }
@@ -514,6 +548,7 @@ void LibraryModel::setGames(const QList<GameEntry>& games, const std::function<R
   notReadyGroupCount_ = static_cast<int>(visible_.size()) - ready;
   endResetModel();
   emit countChanged();
+  emit continueChanged();
 }
 
 void LibraryModel::clear() { setGames({}, {}); }

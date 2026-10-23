@@ -51,6 +51,20 @@ const QList<EmulationController::FbOption>& EmulationController::uzumeOptions() 
        {{QStringLiteral("false"), QObject::tr("Off")}, {QStringLiteral("true"), QObject::tr("On")}},
        QStringLiteral("true"),
        true},
+      {QString::fromLatin1(kIntegerScaleKey),
+       QObject::tr("Integer scaling"),
+       QObject::tr("Whole-number scaling. Sharp pixels, may leave borders."),
+       {{QStringLiteral("off"), QObject::tr("Off")}, {QStringLiteral("on"), QObject::tr("On")}},
+       QStringLiteral("off"),
+       true,
+       QObject::tr("Picture")},
+      {QString::fromLatin1(kAspectRatioKey),
+       QObject::tr("Aspect ratio"),
+       QObject::tr("Core uses the system's shape (NDS: two 4:3 screens)."),
+       {{QStringLiteral("core"), QObject::tr("Core")}, {QStringLiteral("4:3"), QStringLiteral("4:3")}, {QStringLiteral("stretch"), QObject::tr("Stretch")}},
+       QStringLiteral("core"),
+       true,
+       QObject::tr("Picture")},
   };
   return opts;
 }
@@ -491,7 +505,7 @@ void EmulationController::rebuild() {
       // Defaults: options that do not depend on a system.
       QVariantList fb;
       for (const FbOption& o : uzumeOptions()) {
-        fb.append(row(o.key, o.label, o.description, o.perSystem ? tr("Speed-up") : tr("Display"), o.values, QString(), o.defaultValue, true));
+        fb.append(row(o.key, o.label, o.description, !o.category.isEmpty() ? o.category : o.perSystem ? tr("Speed-up") : tr("Display"), o.values, QString(), o.defaultValue, true));
       }
       groups.append(QVariantMap{{QStringLiteral("id"), QStringLiteral("uzume")},
                                 {QStringLiteral("title"), tr("Uzume")},
@@ -604,7 +618,7 @@ void EmulationController::rebuild() {
         if (!o.perSystem) continue;
         // The screen layout only exists for systems with two screens (DS, 3DS); "Overrides Defaults for DS games."
         if (o.key == QLatin1String(kScreenLayoutKey) && (man == nullptr || man->display.screens.size() < 2)) continue;
-        fb.append(row(o.key, o.label, o.description, QString(), o.values, QString(), o.defaultValue, true));
+        fb.append(row(o.key, o.label, o.description, o.category, o.values, QString(), o.defaultValue, true));
       }
       groups.prepend(QVariantMap{{QStringLiteral("id"), QStringLiteral("uzume")},
                                 {QStringLiteral("title"), tr("Uzume")},

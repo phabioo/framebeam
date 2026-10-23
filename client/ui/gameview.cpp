@@ -85,6 +85,31 @@ void GameView::setIntegerScale(bool on) {
   emit integerScaleChanged();
 }
 
+void GameView::setStrictInteger(bool on) {
+  if (strictInteger_ == on) {
+    return;
+  }
+  strictInteger_ = on;
+  frameDirty_ = true;
+  updateFrameRect();
+  update();
+  emit pictureOptionsChanged();
+}
+
+void GameView::setAspectRatio(const QString& value) {
+  const AspectMode mode = aspectModeFromString(value);
+  const QString next = mode == AspectMode::Ratio43 ? QStringLiteral("4:3") : mode == AspectMode::Stretch ? QStringLiteral("stretch") : QStringLiteral("core");
+  if (aspectRatio_ == next) {
+    return;
+  }
+  aspectRatio_ = next;
+  aspect_ = mode;
+  frameDirty_ = true;
+  updateFrameRect();
+  update();
+  emit pictureOptionsChanged();
+}
+
 void GameView::setLayout(const QString& layout) {
   const QString next = isScreenLayout(layout) ? layout : QString::fromLatin1(kLayoutStacked);
   if (layout_ == next) {
@@ -102,7 +127,8 @@ bool GameView::splitDrawing() const {
   if (!session_ || session_->screenCount() < 2) {
     return false;
   }
-  return layout_ != QLatin1String(kLayoutStacked) || session_->displayProfile().layout != QLatin1String("vertical");
+  return layout_ != QLatin1String(kLayoutStacked) || session_->displayProfile().layout != QLatin1String("vertical") ||
+         aspect_ == AspectMode::Ratio43;
 }
 
 void GameView::onFrame() {
@@ -129,10 +155,10 @@ void GameView::updateFrameRect() {
   }
   QRectF r;
   if (splitDrawing()) {
-    placement_ = placeScreens(session_->displayProfile(), layout_, size(), integerScale_);
+    placement_ = placeScreens(session_->displayProfile(), layout_, size(), integerScale_, strictInteger_, aspect_);
     r = placement_.content;
   } else {
-    r = fitFrame(fs, size(), integerScale_);
+    r = fitPicture(fs, size(), integerScale_, strictInteger_, aspect_);
     placement_ = ScreenPlacement{};
     if (session_) {
       const emu::DisplayProfile& prof = session_->displayProfile();

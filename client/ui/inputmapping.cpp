@@ -62,12 +62,16 @@ void KeyboardJoypad::useStandardMap() {
   recompute();
 }
 
-QRectF fitFrame(const QSizeF& frame, const QSizeF& area, bool integerScale) {
+QRectF fitFrame(const QSizeF& frame, const QSizeF& area, bool integerScale, bool strictInteger) {
   if (frame.width() <= 0 || frame.height() <= 0 || area.width() <= 0 || area.height() <= 0) {
     return {};
   }
   qreal scale = std::min(area.width() / frame.width(), area.height() / frame.height());
-  if (integerScale && scale >= 1.0) {
+  if (strictInteger) {
+    if (scale >= 1.0) {
+      scale = std::floor(scale);
+    }
+  } else if (integerScale && scale >= 1.0) {
     // Integer scale as long as the image still uses the space well (>= 75 % of the possible factor);
     // otherwise, e.g., 1x in a window almost 2x the size would leave a large empty area.
     const qreal whole = std::floor(scale);
@@ -78,6 +82,23 @@ QRectF fitFrame(const QSizeF& frame, const QSizeF& area, bool integerScale) {
   const qreal w = std::round(frame.width() * scale);
   const qreal h = std::round(frame.height() * scale);
   return QRectF(std::round((area.width() - w) / 2.0), std::round((area.height() - h) / 2.0), w, h);
+}
+
+AspectMode aspectModeFromString(const QString& value) {
+  if (value == QLatin1String("4:3")) return AspectMode::Ratio43;
+  if (value == QLatin1String("stretch")) return AspectMode::Stretch;
+  return AspectMode::Core;
+}
+
+QRectF fitPicture(const QSizeF& frame, const QSizeF& area, bool integerScale, bool strictInteger, AspectMode aspect) {
+  if (frame.width() <= 0 || frame.height() <= 0 || area.width() <= 0 || area.height() <= 0) {
+    return {};
+  }
+  if (aspect == AspectMode::Stretch) {
+    return QRectF(0, 0, std::round(area.width()), std::round(area.height()));
+  }
+  const QSizeF shape = aspect == AspectMode::Ratio43 ? QSizeF(frame.height() * 4.0 / 3.0, frame.height()) : frame;
+  return fitFrame(shape, area, integerScale, strictInteger);
 }
 
 std::optional<QPointF> touchToFrame(const emu::DisplayProfile& profile, const QRectF& frameRect, const QPointF& itemPos,

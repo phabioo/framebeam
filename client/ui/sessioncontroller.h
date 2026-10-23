@@ -86,6 +86,9 @@ class SessionController : public QObject {
   Q_PROPERTY(QString selectedSurface READ selectedSurface NOTIFY selectionChanged)
   // In-game screen layout (0.6 D12): "stacked" | "side" | "top"; applies to the running game and the remote pictures, reset
   // to "stacked" when a game starts. Which layouts exist comes from the system (GameSession::screenLayouts).
+  // Picture options of the running game (0.19, Emulation > Picture): effective game > system > global value.
+  Q_PROPERTY(bool integerScale READ integerScale NOTIFY viewChanged)
+  Q_PROPERTY(QString aspectRatio READ aspectRatio NOTIFY viewChanged)
   Q_PROPERTY(QString screenLayout READ screenLayout WRITE setScreenLayout NOTIFY viewChanged)
   // Diagnostics overlay (3t-3y): states, formatted values.
   Q_PROPERTY(uzume::ui::DiagnosticsModel* diagnostics READ diagnostics CONSTANT)
@@ -141,6 +144,9 @@ class SessionController : public QObject {
   qint64 audioFedFrames(const QString& surface) const { return fedFrames_.value(surface); }
   QString screenLayout() const { return screenLayout_; }
   void setScreenLayout(const QString& layout);
+  bool integerScale() const { return integerScale_; }
+  QString aspectRatio() const { return aspectRatio_; }
+  void setPictureOptions(bool integerScale, const QString& aspectRatio);
   DiagnosticsModel* diagnostics() const { return diagnostics_; }
   QString relayHint() const { return relayHint_; }
   // The Player's settings object (owned by the PlayerController): persists the open/closed states of the overlay.
@@ -286,6 +292,8 @@ class SessionController : public QObject {
   QString message_;
   bool messageIsError_ = false;
   QString screenLayout_ = QStringLiteral("stacked");
+  bool integerScale_ = false;
+  QString aspectRatio_ = QStringLiteral("core");
   DiagnosticsModel* diagnostics_ = nullptr;  // owned (parent: this)
   QString relayHint_;
   QVariantMap linkByViewer_;  // viewerId -> {text, tone}
