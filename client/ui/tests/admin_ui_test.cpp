@@ -172,8 +172,12 @@ class AdminUiTest : public QObject {
     QCOMPARE(text(h.item("appsTableCell_1_note")), QStringLiteral("Update offered"));
     QCOMPARE(text(h.item("appsTableCell_0_state")), QStringLiteral("In a Session"));
     // Help column: label from the real server name, last errors inside.
+    // The column shows from 880 px of page width; Windows CI lays the page out narrower than Linux, so check the rule itself.
     QQuickItem* help = h.item("adminHelp");
-    QVERIFY(help != nullptr && help->isVisible());
+    QQuickItem* page = h.item("adminPage");
+    QVERIFY(help != nullptr && page != nullptr);
+    qInfo("admin page width %.0f (window %d)", page->width(), h.window->width());
+    QCOMPARE(help->isVisible(), page->width() >= 880);
     QCOMPARE(help->property("label").toString(), QStringLiteral("UZUME · STATUS · TEST SERVER"));
     uitest::saveShot(h.window, QStringLiteral("admin-status"));
 
