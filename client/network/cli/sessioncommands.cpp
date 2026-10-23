@@ -310,6 +310,7 @@ void SessionCommands::watchTick() {
   const bool good = fin.videoFrames >= 30 && fin.audioFrames > 0 && viewer_->audioPeak() > 0;
   out() << (good ? "WATCH-OK" : "WATCH-FAIL") << " frames=" << fin.videoFrames << " audio_frames=" << fin.audioFrames
         << " audio_peak=" << viewer_->audioPeak() << " size=" << fin.width << "x" << fin.height << "\n";
+  if (!good) out() << "ICE " << viewer_->iceSummary() << "\n";
   out().flush();
   const QString sid = sessionId_, vid = viewerId_;
   viewer_->close();

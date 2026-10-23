@@ -137,7 +137,7 @@ run_round() {
   WATCH_PID=$DEV_PID
   wait "$WATCH_PID"; local rc=$?
   WATCH_PID=""
-  [ "$rc" = "0" ] && grep -q "^WATCH-OK " "$watch" || die "watch (exit $rc)" "$watch" "$watch.err" "$share" "$share.err" "$hublog"
+  [ "$rc" = "0" ] && grep -q "^WATCH-OK " "$watch" || { grep -iE "turn|relay|error" "$hublog" | tail -n 20; die "watch (exit $rc)" "$watch" "$watch.err" "$share" "$share.err" "$hublog" ; }
   ok "device B watched: $(grep '^WATCH-OK ' "$watch" | head -n1)"
   grep -q "^VIEWER-CONNECTED " "$share" && ok "device A: viewer connected over WebRTC" || die "share: no viewer connected" "$share"
   grep -q "^STATS host viewers=1 encoder=[a-z0-9_]* fps=[1-9]" "$share" && ok "device A: encoder running with a viewer ($(grep -m1 '^STATS host viewers=1 encoder=[a-z0-9_]* fps=[1-9]' "$share" | sed 's/^STATS host //'))" \
