@@ -7,16 +7,16 @@ import (
 	"net"
 
 	"github.com/phabioo/uzume/server/internal/config"
-	"github.com/phabioo/uzume/server/internal/web"
+	"github.com/phabioo/uzume/server/internal/serverhost"
 )
 
-// Network settings saved on the web interface win over server.env and flags (ADR 0015). The pieces below build the
-// effective configuration at startup and implement the restart the web interface can request.
+// Network settings saved through the admin API win over server.env and flags (ADR 0015). The pieces below build the
+// effective configuration at startup and implement the restart the app can request through the admin API.
 
-// restartCh carries the restart request from the web interface to runServer.
+// restartCh carries the restart request from the admin API to runServer.
 var restartCh = make(chan struct{}, 1)
 
-// errRestart is returned by runServer after a graceful shutdown that was requested on the web interface.
+// errRestart is returned by runServer after a graceful shutdown that was requested through the admin API.
 var errRestart = errors.New("restart requested")
 
 // requestRestart asks runServer to shut down gracefully and main to re-execute the binary. It never blocks.
@@ -29,18 +29,18 @@ func requestRestart() {
 
 // effectiveConfig applies the saved network settings to a copy of base. A value that cannot be read is skipped
 // (the server.env value stays) and reported as an issue; if the result is contradictory the whole base is used.
-func effectiveConfig(base *config.Config, stored map[string]string, log *slog.Logger) (config.Config, []web.NetIssue) {
+func effectiveConfig(base *config.Config, stored map[string]string, log *slog.Logger) (config.Config, []serverhost.NetIssue) {
 	eff := *base
 	eff.ICEServers = config.CloneICE(base.ICEServers)
-	var issues []web.NetIssue
+	var issues []serverhost.NetIssue
 	for k, err := range eff.ApplyNet(stored) {
 		log.Error("saved network setting ignored", "setting", k, "err", err)
-		issues = append(issues, web.NetIssue{Key: k, Value: stored[k],
+		issues = append(issues, serverhost.NetIssue{Key: k, Value: stored[k],
 			Message: fmt.Sprintf("The saved value of %q could not be read (%v). The value from server.env is used.", config.NetLabel(k), err)})
 	}
 	if err := eff.Validate(); err != nil {
 		log.Error("saved network settings are contradictory; using server.env and flags only", "err", err)
-		issues = append(issues, web.NetIssue{Key: "", Value: "",
+		issues = append(issues, serverhost.NetIssue{Key: "", Value: "",
 			Message: fmt.Sprintf("The saved network settings are contradictory (%v). The server uses the values from server.env until you change them.", err)})
 		eff = *base
 		eff.ICEServers = config.CloneICE(base.ICEServers)
@@ -48,7 +48,7 @@ func effectiveConfig(base *config.Config, stored map[string]string, log *slog.Lo
 	return eff, issues
 }
 
-// hasTURNOverride reports whether a TURN related setting was saved on the web interface.
+// hasTURNOverride reports whether a TURN related setting was saved through the admin API.
 func hasTURNOverride(stored map[string]string) bool {
 	for _, k := range []string{config.NetTURN, config.NetPublicHost, config.NetTURNPort, config.NetRelayPorts, config.NetRelayIP} {
 		if _, ok := stored[k]; ok {
@@ -64,9 +64,9 @@ type listenIssue struct {
 	cause error
 }
 
-func (l *listenIssue) issue(eff config.Config, fallback string) web.NetIssue {
+func (l *listenIssue) issue(eff config.Config, fallback string) serverhost.NetIssue {
 	port := eff.ListenPort()
-	return web.NetIssue{Key: config.NetListenPort, Value: eff.NetValue(config.NetListenPort),
+	return serverhost.NetIssue{Key: config.NetListenPort, Value: eff.NetValue(config.NetListenPort),
 		Message: fmt.Sprintf("Saved port %d could not be used: %v. The server uses %s until you change it.", port, l.cause, fallback)}
 }
 

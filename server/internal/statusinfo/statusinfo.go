@@ -1,4 +1,4 @@
-// Package statusinfo gathers the data of the server health view once, for the web Status page and the admin REST API,
+// Package statusinfo gathers the data of the server health view once, for the app status view and the admin REST API,
 // so both show the same numbers and the same problem list.
 package statusinfo
 

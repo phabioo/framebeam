@@ -13,6 +13,9 @@ Rectangle {
     required property PlayerController player
     readonly property bool compact: height < 900
     readonly property bool hasServer: root.player.hubAddress !== ""
+    // The server of "Play on this PC" is not a server to the person (B-3): THIS PC instead of SERVER, no ONLINE, no server line.
+    readonly property bool thisPcOnly: root.player.localHub.onThisPcOnly
+    readonly property bool serverMode: root.hasServer && !root.thisPcOnly
     // SERVER (admins of a server with admin_v1): the pages of the server screen; `page` goes to player.showServerPage().
     readonly property var serverItems: [
         { label: qsTr("Status"), name: "navServerStatus", page: "status" },
@@ -21,14 +24,15 @@ Rectangle {
         { label: qsTr("Plugins"), name: "navServerPlugins", page: "plugins" },
         { label: qsTr("Reports"), name: "navServerReports", page: "reports" }
     ]
-    readonly property var thisPcItems: [{ label: qsTr("Plugins"), name: "navThisPcPlugins", section: "plugins" }]
+    readonly property var thisPcItems: [{ label: qsTr("Systems & cores"), name: "navThisPcSystems", page: "systems" },
+                                        { label: qsTr("Plugins"), name: "navThisPcPlugins", section: "plugins" }]
     // The Repeater below gets every entry once and hides the ones that do not apply. Swapping the model with the connection state
     // would destroy the delegates inside a layout that is hidden at that moment, and Qt 6.4 then crashes in
     // QQuickGridLayoutBase::rearrange on the deleted items.
     readonly property var groupEntries: serverItems.map(function (e) { return { label: e.label, name: e.name, page: e.page, server: true } })
-                                        .concat(thisPcItems.map(function (e) { return { label: e.label, name: e.name, section: e.section, server: false } }))
-    readonly property bool hasGroupItems: root.hasServer ? (root.player.admin.available && serverItems.length > 0) : thisPcItems.length > 0
-    readonly property var online: root.hasServer ? root.player.sessions.sessions.filter(function (s) { return !s.invited }) : []
+                                        .concat(thisPcItems.map(function (e) { return { label: e.label, name: e.name, page: e.page, section: e.section, server: false } }))
+    readonly property bool hasGroupItems: root.serverMode ? (root.player.admin.available && serverItems.length > 0) : thisPcItems.length > 0
+    readonly property var online: root.serverMode ? root.player.sessions.sessions.filter(function (s) { return !s.invited }) : []
     color: Theme.ground
     implicitWidth: Theme.sidebarWidth
 
@@ -125,7 +129,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.topMargin: root.compact ? 16 : 24
             visible: root.hasGroupItems
-            text: root.hasServer ? qsTr("Server") : qsTr("This PC")
+            text: root.serverMode ? qsTr("Server") : qsTr("This PC")
         }
         ColumnLayout {
             Layout.fillWidth: true
@@ -137,7 +141,9 @@ Rectangle {
                 model: root.groupEntries
                 delegate: UzNavItem {
                     required property var modelData
-                    visible: modelData.server ? (root.hasServer && root.player.admin.available) : !root.hasServer
+                    // Systems & cores of THIS PC is a page of the server on this PC: only while that one answers.
+                    visible: modelData.server ? (root.serverMode && root.player.admin.available)
+                                              : (!root.serverMode && (modelData.page === undefined || (root.hasServer && root.player.admin.available)))
                     objectName: modelData.name
                     compact: root.compact
                     label: modelData.label
@@ -333,10 +339,10 @@ Rectangle {
 
         // Server line: online (ok square + ONLINE, address in Mono) or offline (empty square + OFFLINE); opens Settings > Servers.
         // The page text for offline ("Games on this PC still run...") lives on the screens (hubLinkBanner).
-        Rectangle { Layout.fillWidth: true; Layout.topMargin: Theme.space1; Layout.preferredHeight: 1; color: Theme.rule2; visible: root.hasServer }
+        Rectangle { Layout.fillWidth: true; Layout.topMargin: Theme.space1; Layout.preferredHeight: 1; color: Theme.rule2; visible: root.serverMode }
         Item {
             id: serverLine
-            visible: root.hasServer
+            visible: root.serverMode
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             Layout.topMargin: Theme.space15
@@ -366,7 +372,7 @@ Rectangle {
         }
         UzMono {
             objectName: "hubCardLinkNote"
-            visible: root.hasServer && root.player.hubLink === "connecting"
+            visible: root.serverMode && root.player.hubLink === "connecting"
             Layout.fillWidth: true
             Layout.leftMargin: Theme.navInset
             Layout.rightMargin: Theme.space2

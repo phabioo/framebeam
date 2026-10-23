@@ -1,12 +1,12 @@
 # Server backup and restore
 
-One archive holds everything a Uzume server needs to come back on the same or a new machine. Decisions: [ADR 0029](../adr/0029-operations-and-safety.md) D2. Design of the web page: [design/hub.md](../design/hub.md#6b-backups), decision 26 in [design/decisions.md](../design/decisions.md).
+One archive holds everything a Uzume server needs to come back on the same or a new machine. Decisions: [ADR 0029](../adr/0029-operations-and-safety.md) D2. Design of the former web page (legacy): [design/hub.md](../design/hub.md#6b-backups), decision 26 in [design/decisions.md](../design/decisions.md).
 
 Three ways to use it, all with the same archive:
 
 - **Command line**: `uzume-server backup`, `backup list`, `backup config`, `backup verify`, `restore`.
 - **Admin API**: `/api/v1/admin/backups` (admin device token, see [protocol/openapi](../../protocol/openapi/uzume.yaml)).
-- **Web**: Settings → Backups (status card, schedule, list, restore confirmation). Kept plain; the other two are the main interfaces.
+- **App**: Settings › Server › Backups (status card, schedule, list, restore confirmation).
 
 ## What is inside
 
@@ -85,7 +85,7 @@ The restart replaces the process in place (`exec` on Linux, an in-process restar
 
 Consequences of a restore: everything that changed since the backup is gone (users, devices and runs added later, saves uploaded later, plugin and server settings). Connected apps are disconnected for about a minute and running Sessions end. Web sessions of the admin may be gone; sign in again. ROM files are only replaced when the backup contains ROMs; without them the ROM files now on the server stay. Files of the `config/` group (own TLS certificate and key, `server.env`) are not written back to their old places; they are unpacked to `<data folder>/restored-config/` for you to copy where they belong.
 
-After a web restore the Backups page shows "Restored" with the name of the safety backup, or "Not restored" with the reason. To undo a restore, restore the safety backup.
+After a restore from the app, Settings › Server › Backups shows "Restored" with the name of the safety backup, or "Not restored" with the reason. To undo a restore, restore the safety backup.
 
 Rolling back the server itself is a separate topic: the server refuses a database from a newer version, so to go back to an older server version restore a backup made by that version.
 
@@ -102,7 +102,7 @@ services:
       - /mnt/backup/uzume:/backup     # a second volume or bind mount for the backups
 ```
 
-Then set the folder to `/backup` (`docker compose exec hub uzume-server backup config --folder /backup --schedule daily`, or in Settings → Backups). The container user (uid 65532) needs write access to the host folder. The CLI works the same inside the container; `restore` needs the server stopped, so run it in a one-off container that mounts the same volumes: `docker compose run --rm --no-deps hub restore /backup/<file>` (stop the `hub` service first: `docker compose stop hub`; `reset` works the same way, see [hub-docker.md](hub-docker.md#server-commands-in-docker)). The restore through the web or API needs no restart policy, see above.
+Then set the folder to `/backup` (`docker compose exec hub uzume-server backup config --folder /backup --schedule daily`, or in Settings › Server › Backups). The container user (uid 65532) needs write access to the host folder. The CLI works the same inside the container; `restore` needs the server stopped, so run it in a one-off container that mounts the same volumes: `docker compose run --rm --no-deps hub restore /backup/<file>` (stop the `hub` service first: `docker compose stop hub`; `reset` works the same way, see [hub-docker.md](hub-docker.md#server-commands-in-docker)). The restore through the web or API needs no restart policy, see above.
 
 ## Restore on a new machine
 

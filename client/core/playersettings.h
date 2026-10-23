@@ -95,6 +95,33 @@ class PlayerSettings {
   bool playOnThisPcChosen() const { return playOnThisPc_; }
   bool setPlayOnThisPcChosen(bool chosen);
 
+  // "Play on this PC" / "Share with others" (0.18 package 10, ADR 0030 D6). Mode: "" (none) | "child" (uzume-server runs as a child
+  // process of the app) | "service" (the Windows service). Port: the loopback port of the server. Data dir: empty = the
+  // default <data>/server. Hub id: the server of this PC in the profile list. Never contains a password.
+  QString localServerMode() const { return localServerMode_; }
+  bool setLocalServerMode(const QString& mode);  // "", "child", "service"; anything else is rejected (false)
+  int localServerPort() const { return localServerPort_; }
+  bool setLocalServerPort(int port);  // 0 (none) or 1..65535
+  QString localServerDataDir() const { return localServerDataDir_; }
+  bool setLocalServerDataDir(const QString& dir);
+  QString localServerHubId() const { return localServerHubId_; }
+  bool setLocalServerHubId(const QString& hubId);
+  // The name of the person on this PC (used as the display name of the first admin of the server of this PC); empty = none.
+  QString displayName() const { return displayName_; }
+  bool setDisplayName(const QString& name);
+
+  // "Share with others" started the installer and the app quit: what the next start finishes (or rolls back). join is
+  // "home" | "internet". Empty object = none. Never contains a password.
+  struct PendingShare {
+    int port = 0;
+    QString join;
+    QString dataDir;
+    bool valid() const { return port > 0 && !dataDir.isEmpty(); }
+  };
+  PendingShare pendingShare() const;
+  bool setPendingShare(const PendingShare& p);
+  bool clearPendingShare();
+
   // Plugin UI language (0.17): "auto" (default; 3DS game language or OS language) or an explicit tag such as "en" / "de".
   // Applies when the next game starts. An invalid tag is rejected (false).
   QString pluginLanguage() const { return pluginLanguage_; }
@@ -139,6 +166,11 @@ class PlayerSettings {
   QStringList libraryFolders_;
   bool developerMode_ = false;
   bool playOnThisPc_ = false;
+  QString localServerMode_;
+  int localServerPort_ = 0;
+  QString localServerDataDir_;
+  QString localServerHubId_;
+  QString displayName_;
   QString pluginLanguage_ = QStringLiteral("auto");
   bool pluginHudAllHidden_ = false;
   qint64 romCacheLimit_ = kDefaultRomCacheLimitBytes;

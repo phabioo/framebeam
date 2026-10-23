@@ -15,7 +15,7 @@ UzDialog {
     id: root
     objectName: "confirmDialog"
     property var controller: null
-    readonly property bool needed: root.controller !== null && root.controller.confirmNeeded
+    readonly property bool needed: root.controller !== null && root.controller.confirmNeeded && !root.controller.confirmAutomatic
     readonly property string askState: root.controller !== null ? root.controller.confirmState : ""
     readonly property bool canConfirm: password.text !== "" && root.askState !== "checking" && root.askState !== "locked"
 

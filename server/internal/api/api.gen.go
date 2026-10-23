@@ -831,6 +831,7 @@ const (
 	ErrorCodeAlreadySetUp         ErrorCode = "already_set_up"
 	ErrorCodeBadRequest           ErrorCode = "bad_request"
 	ErrorCodeCapabilityMissing    ErrorCode = "capability_missing"
+	ErrorCodeChildMode            ErrorCode = "child_mode"
 	ErrorCodeConfirmationRequired ErrorCode = "confirmation_required"
 	ErrorCodeConflict             ErrorCode = "conflict"
 	ErrorCodeCoreFileNotAvailable ErrorCode = "core_file_not_available"
@@ -882,6 +883,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeBadRequest:
 		return true
 	case ErrorCodeCapabilityMissing:
+		return true
+	case ErrorCodeChildMode:
 		return true
 	case ErrorCodeConfirmationRequired:
 		return true
@@ -1958,14 +1961,14 @@ type AdminNetSetting struct {
 	// RunningValue The value the running server uses
 	RunningValue string `json:"running_value"`
 
-	// Source `web` = saved with the web interface or API
+	// Source `web` = saved through the admin API
 	Source AdminNetSettingSource `json:"source"`
 
 	// Value The value that applies after a restart (the saved value or else the server.env value)
 	Value string `json:"value"`
 }
 
-// AdminNetSettingSource `web` = saved with the web interface or API
+// AdminNetSettingSource `web` = saved through the admin API
 type AdminNetSettingSource string
 
 // AdminNetSettingInput defines model for AdminNetSettingInput.
@@ -2122,7 +2125,7 @@ type AdminPlugins struct {
 
 // AdminProblem defines model for AdminProblem.
 type AdminProblem struct {
-	// ActionHref Web interface path of the action; informational for apps
+	// ActionHref Informational path of the suggested action (the app maps the label itself)
 	ActionHref *string `json:"action_href,omitempty"`
 
 	// ActionLabel Label of the suggested action, empty when none
@@ -3031,13 +3034,16 @@ type LocalSettingsUpdate struct {
 
 // LocalStatus defines model for LocalStatus.
 type LocalStatus struct {
-	AdminExists bool   `json:"admin_exists"`
-	HubVersion  string `json:"hub_version"`
+	AdminExists bool `json:"admin_exists"`
+
+	// Child true = the server runs as the app's child process (`uzume-server -child`): loopback only whatever the stored setting says, no self-update. Absent = false.
+	Child      *bool  `json:"child,omitempty"`
+	HubVersion string `json:"hub_version"`
 
 	// ImportDir Library import folder
 	ImportDir string `json:"import_dir"`
 
-	// NetworkSharing false = the server listens on loopback only and the built-in TURN relay is off
+	// NetworkSharing false = the server listens on loopback only and the built-in TURN relay is off; always false while `child` is true
 	NetworkSharing bool `json:"network_sharing"`
 }
 
@@ -4870,7 +4876,7 @@ type ServerInterface interface {
 	// Replace the self-generated TLS certificate (admin)
 	// (POST /api/v1/admin/security/renew-cert)
 	RenewAdminCertificate(w http.ResponseWriter, r *http.Request)
-	// Server settings as the Settings pages show them (admin)
+	// Server settings as the Settings screens of the app show them (admin)
 	// (GET /api/v1/admin/settings)
 	GetAdminSettings(w http.ResponseWriter, r *http.Request)
 	// Change general and update settings (admin)
@@ -21623,6 +21629,20 @@ func (response UpdateLocalSettings403JSONResponse) VisitUpdateLocalSettingsRespo
 	return err
 }
 
+type UpdateLocalSettings409JSONResponse Error
+
+func (response UpdateLocalSettings409JSONResponse) VisitUpdateLocalSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type UpdateLocalSettings413JSONResponse struct{ TooLargeJSONResponse }
 
 func (response UpdateLocalSettings413JSONResponse) VisitUpdateLocalSettingsResponse(w http.ResponseWriter) error {
@@ -24922,7 +24942,7 @@ type StrictServerInterface interface {
 	// Replace the self-generated TLS certificate (admin)
 	// (POST /api/v1/admin/security/renew-cert)
 	RenewAdminCertificate(ctx context.Context, request RenewAdminCertificateRequestObject) (RenewAdminCertificateResponseObject, error)
-	// Server settings as the Settings pages show them (admin)
+	// Server settings as the Settings screens of the app show them (admin)
 	// (GET /api/v1/admin/settings)
 	GetAdminSettings(ctx context.Context, request GetAdminSettingsRequestObject) (GetAdminSettingsResponseObject, error)
 	// Change general and update settings (admin)

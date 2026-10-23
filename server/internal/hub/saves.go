@@ -47,7 +47,7 @@ const (
 // MaxSnapshotLabel is the maximum length of a snapshot label in characters.
 const MaxSnapshotLabel = 64
 
-// WebDeviceID is the device ID recorded for save changes made in the web interface (the admin has no device).
+// WebDeviceID is the device ID recorded for save changes made in the app (the admin has no device).
 func WebDeviceID(userID string) string { return webDevicePrefix + userID }
 
 const (
@@ -154,7 +154,7 @@ type SaveSlot struct {
 	OpenConflicts []SaveConflict
 }
 
-// SaveSummary is a list row (API list and web page).
+// SaveSummary is a list row (API list and app page).
 type SaveSummary struct {
 	UserID            string
 	Username          string
@@ -584,7 +584,7 @@ func (s *Service) dropIfUnreferenced(ctx context.Context, userID, gameID, slot, 
 	}
 }
 
-// ListSaveSlots lists slots; userID "" = all users (admin web page). Conflicts first, then newest checkpoint.
+// ListSaveSlots lists slots; userID "" = all users (admin app page). Conflicts first, then newest checkpoint.
 func (s *Service) ListSaveSlots(ctx context.Context, userID string) ([]SaveSummary, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT s.user_id, u.username, s.game_id, COALESCE(g.title, '(removed game)'), s.slot,
 		s.revision, s.sha256, s.size, s.device_id, `+deviceNameSQL("d", "s.device_id")+`, s.created_at, s.reason,
@@ -767,7 +767,7 @@ func (s *Service) ResolveSaveConflict(ctx context.Context, in ResolveInput) (_ S
 	if in.Resolution == ResolveUseLocal {
 		origin, _ := strings.CutPrefix(in.ResolvedBy, "device:")
 		if origin == in.ResolvedBy {
-			origin = "" // resolved in the web interface: all devices of the user are told
+			origin = "" // resolved in the app: all devices of the user are told
 		}
 		s.notifySaveUpdated(u, origin, g, sl, out.Current, PushConflictResolution)
 	}

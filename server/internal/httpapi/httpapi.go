@@ -47,8 +47,8 @@ type Server struct {
 	host    adminhost.Host // process-level facts for the admin settings API (nil in tests that do not need it)
 }
 
-// Register attaches the API routes (including the info endpoint and ROM download) to mux. The web interface
-// registers its routes separately (e.g. "/").
+// Register attaches the API routes (including the info endpoint and ROM download) to mux. The server has no
+// other routes: everything else answers 404.
 func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Option) {
 	if log == nil {
 		log = slog.Default()
@@ -260,7 +260,7 @@ func httpStatus(c hub.Code) int {
 		return http.StatusConflict
 	case hub.CodeTooLarge:
 		return http.StatusRequestEntityTooLarge
-	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
+	case hub.CodeConflict, hub.CodeChildMode, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
 		hub.CodeSessionFull, hub.CodeCapabilityMissing, hub.CodeDisplayNameTaken,
 		hub.CodeSaveSlotExists, hub.CodeSessionRunning, hub.CodeSaveSlotProtected, hub.CodePasswordNotSet, hub.CodeAlreadySetUp:
 		return http.StatusConflict

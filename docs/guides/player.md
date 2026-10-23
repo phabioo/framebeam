@@ -7,19 +7,23 @@ Uzume (`client/`, the app) connects to a server, keeps your library and saves in
 - **Windows:** run the installer from the [GitHub releases](https://github.com/phabioo/uzume/releases): the MSI `uzume-<version>-windows-x64.msi` (CI artifact `uzume-windows-x64-msi`); the portable zip works too. The default is a per-user app install, no admin rights. The installer is unsigned (SmartScreen warning). Neither ships an emulator core: the app downloads the core for a system from the server on first use. Installer details: [packaging.md](packaging.md).
 - **Linux:** builds and runs for development ([development.md](../development.md)). Credentials are kept in memory only, so pair again after a restart.
 
+## Play on this PC and share
+
+"Play on this PC" needs no installer rights: the app starts its own server as a child process on this PC only (loopback), keeps its data in the app's folder and stops it when the app closes. It never shares and has no service. "Share with others" (Windows) asks for admin rights once, installs the server as a service and moves your data (accounts, saves, library) over without overwriting anything; the app keeps your pairing. "Stop sharing" stops and disables the service. Accounts and saves stay and the app keeps running them for you alone. "Share again" turns the service back on. See [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D6.
+
 ## Set up a server on this PC
 
 On the connection screen, "Set up a Hub on this PC" runs a server on the same computer without a pairing code ([ADR 0021](../adr/0021-one-windows-installer.md)):
 
 1. If no local server is installed, the app downloads the MSI of its own version, checks size and SHA-256 and runs it elevated (UAC prompt) with the server feature. The app then moves to Program Files; its data is copied once from the old portable folder and never overwritten.
 2. You choose an admin name and password; the app creates the first admin and pairs over localhost. The certificate is trusted automatically only for `127.0.0.1` on the registered port. With an existing local server, "Connect" asks for an admin's credentials instead.
-3. Standalone mode: network sharing starts off, so the server listens only on this PC. Pick a ROM folder (the server's import folder; the app asks for admin rights once to give the server service read access) and "Rescan folder" in the Library. Switch "Network sharing" on under Settings > servers ("This PC's server") or in the server web settings to let other apps connect. Cores come from the libretro buildbot through this server.
+3. Network sharing starts off, so the server listens only on this PC. Pick a ROM folder (the server's import folder; the app asks for admin rights once to give the server service read access) and "Rescan folder" in the Library. Switch "Network sharing" on under Settings > servers ("This PC's server") or in Settings › Server › Network & sharing to let other apps connect. Cores come from the libretro buildbot through this server.
 
 ## Connect and pair
 
 1. Start the app. On the first start choose "Play on this PC", "Join a server" or "Set up a server". For "Join a server" enter the server address, an invite code (`UZ-XXXX-XXXX`) or paste an invite link (`uzume://join/server.example.com:8443/UZ-XXXX-XXXX#...`; Ctrl+V works on the start screen, clicking a link opens the running app).
 2. The app shows a security code (`K7Q4-9WMP-2HXD`). Compare it with the code on the server's screen or `uzume-server code`, then continue (trust on first use). With an invite link the app checks the certificate fingerprint in the link itself. On a mismatch the app stops and sends no invite, password or setup code. The SHA-256 fingerprint stays available under Details.
-3. Sign in with your user name and password, or use your invite code with a display name (and optionally a password). Without a password, ask an admin to allow the device on the server's Clients page. A server without an admin is set up with its setup code (printed at first start, or `uzume-server setup-code`).
+3. Sign in with your user name and password, or use your invite code with a display name (and optionally a password). Without a password, ask an admin to allow the device under SERVER › Users › Devices. A server without an admin is set up with its setup code (printed at first start, or `uzume-server setup-code`).
 4. Several people can use one PC: the people sheet (Ctrl+Shift+U) switches the user, adds a person or removes one from this PC. An optional 4-digit PIN for this PC protects switching; it stays on this PC, and after 3 wrong PINs the password is needed. "My account" changes name, password and PIN and lists your devices. Forgotten password: an admin resets it; admins use `uzume-server reset-admin` on the server.
 5. Credentials are stored in the Windows Credential Manager under the target `Uzume/<server id>/<device id>` (PIN hashes under `Uzume/pin/<server id>/<device id>`). Known limitation: Linux and macOS builds have no OS credential store yet (planned after 1.0); the device credential is kept in memory only, so after every restart the app signs in again (no secret is written to disk).
 

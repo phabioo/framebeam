@@ -3,56 +3,63 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// 3a: Connect to a hub.
+// 3a: Connect to a server, in the frame of the full-window screens (frame.md 8b/8k). Saved servers, the address field, the
+// server on this PC (starting / failed states of "Play on this PC") and the automatic connection.
 Rectangle {
     id: root
     required property PlayerController player
+    readonly property var local: player.localHub
+    // The server of "Play on this PC" is starting or did not start: the page says so instead of asking for an address.
+    readonly property bool childStarting: local.mode === "child" && (local.childState === "starting" || local.phase === "starting")
+    readonly property bool childFailed: local.mode === "child" && !childStarting && local.childState === "failed"
+    readonly property bool childBlock: childStarting || childFailed
     color: Theme.ground
 
-    Flickable {
-        id: flick
+    StartFrame {
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: column.implicitHeight + 64
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar { }
-
-        ColumnLayout {
-            id: column
-            width: Math.min(520, flick.width - 32)
-            x: (flick.width - width) / 2
-            y: Math.max(32, (flick.height - implicitHeight) / 2)
-            spacing: 28
+        screenLabel: qsTr("Server")
+        openLabel: "UZUME · SERVER"
+        openLines: [qsTr("Your games and saves stay on this PC."), qsTr("Servers are for playing with others.")]
+        contentSpacing: Theme.space3
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 14
-                RowLayout {
-                    Layout.bottomMargin: 10
-                    spacing: 10
-                    UzLockup { }
-                }
-                Eyebrow {
+                spacing: Theme.space2
+                UzSectionLabel {
                     objectName: "connectEyebrow"
+                    Layout.fillWidth: true
+                    number: 1
                     text: root.player.hubs.length === 0 ? qsTr("First start") : qsTr("Connect")
                 }
-                UzLabel {
+                Text {
                     objectName: "connectTitle"
-                    text: qsTr("Welcome to Uzume")
+                    text: root.childBlock ? qsTr("Your server on this PC") : qsTr("Welcome to Uzume")
                     font.pixelSize: Theme.roles.title.size
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.6
                 }
-                UzLabel {
+                Text {
                     objectName: "connectBody"
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: Theme.muted
                     font.pixelSize: Theme.roles.body.size
                     lineHeight: 1.4
-                    text: qsTr("Enter the address of your Uzume server. You find it in the server under Settings → General.")
+                    text: root.childBlock ? qsTr("Games and saves stay on this PC. The server runs while Uzume is open.")
+                                          : qsTr("Enter the address of your Uzume server. You find it in the server under Settings → General.")
                 }
+            }
+
+            // Play on this PC: the server is a child process of the app.
+            UzStateBlock {
+                objectName: "connectChildState"
+                visible: root.childBlock
+                Layout.fillWidth: true
+                kind: root.childFailed ? "error" : "loading"
+                title: root.childFailed ? qsTr("The server on this PC didn't start") : qsTr("Starting the server on this PC…")
+                text: root.childFailed ? root.local.childError : qsTr("This takes a few seconds.")
+                action: root.childFailed ? qsTr("Start again") : ""
+                onActionClicked: root.local.restartChild()
             }
 
             // A positioner with explicit widths, not a layout: a ColumnLayout filled by a Repeater while this screen was not shown
@@ -90,6 +97,7 @@ Rectangle {
             }
 
             ColumnLayout {
+                visible: !root.childBlock
                 Layout.fillWidth: true
                 spacing: 8
                 UzLabel { text: qsTr("Server address"); font.pixelSize: Theme.roles.input.size; font.weight: Font.Medium }
@@ -137,7 +145,7 @@ Rectangle {
                 objectName: "localHubCard"
                 readonly property var local: root.player.localHub
                 readonly property bool installing: local.phase === "installing"
-                visible: local.available
+                visible: local.available && !root.childBlock && local.mode === ""
                 Layout.fillWidth: true
                 implicitHeight: localCol.implicitHeight + 28
                 radius: Theme.radiusNone
@@ -216,6 +224,5 @@ Rectangle {
                     wrapMode: Text.WordWrap
                 }
             }
-        }
     }
 }

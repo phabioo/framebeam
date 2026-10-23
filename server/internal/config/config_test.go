@@ -379,3 +379,15 @@ func TestTrustedProxy(t *testing.T) {
 		t.Fatalf("invalid list must fail: %v", err)
 	}
 }
+
+func TestChildFlag(t *testing.T) {
+	if parse(t, nil).Child {
+		t.Fatal("child must default to off")
+	}
+	if !parse(t, map[string]string{"UZUME_CHILD": "1"}).Child || !parse(t, nil, "-child").Child {
+		t.Fatal("UZUME_CHILD / -child not read")
+	}
+	if parse(t, map[string]string{"UZUME_CHILD": "1"}, "-child=false").Child {
+		t.Fatal("flag must override the environment")
+	}
+}

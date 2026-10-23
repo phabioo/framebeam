@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/phabioo/uzume/server/internal/hub"
 	"github.com/phabioo/uzume/server/internal/hub/hubtest"
@@ -48,18 +47,8 @@ func TestVerifyAndChangePassword(t *testing.T) {
 	if _, err := svc.VerifyPassword(ctx, "anna", ""); !errors.Is(err, hub.ErrInvalidCredentials) {
 		t.Fatal("user without password must not be able to sign in")
 	}
-	tok, ws, err := svc.CreateWebSession(ctx, u.ID)
-	if err != nil || ws.CSRFToken == "" {
-		t.Fatal(err)
-	}
-	if _, err := svc.LookupWebSession(ctx, tok); err != nil {
-		t.Fatal(err)
-	}
 	if err := svc.ChangePassword(ctx, u.ID, "new-password"); err != nil {
 		t.Fatal(err)
-	}
-	if _, err := svc.LookupWebSession(ctx, tok); !errors.Is(err, hub.ErrUnauthorized) {
-		t.Fatal("session still valid after password change")
 	}
 	if _, err := svc.VerifyPassword(ctx, "fabio", "secret-12345"); err == nil {
 		t.Fatal("old password still valid")
@@ -69,19 +58,6 @@ func TestVerifyAndChangePassword(t *testing.T) {
 	}
 	if err := svc.ChangePassword(ctx, plain.ID, "new-password"); !errors.Is(err, hub.ErrNotFound) {
 		t.Fatalf("user without password: %v", err)
-	}
-}
-
-func TestWebSessionExpiry(t *testing.T) {
-	svc, clk := hubtest.New(t, nil)
-	u, _ := svc.CreateAdmin(ctx, "fabio", "secret-12345")
-	tok, _, _ := svc.CreateWebSession(ctx, u.ID)
-	clk.Advance(hub.WebSessionTTL + time.Second)
-	if _, err := svc.LookupWebSession(ctx, tok); !errors.Is(err, hub.ErrUnauthorized) {
-		t.Fatal("expired session valid")
-	}
-	if err := svc.Cleanup(ctx); err != nil {
-		t.Fatal(err)
 	}
 }
 

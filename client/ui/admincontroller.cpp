@@ -108,6 +108,26 @@ int AdminController::request(const QString& method, const QString& path, const Q
   return id;
 }
 
+int AdminController::requireConfirmation() {
+  Pending p;
+  p.id = nextId_++;
+  p.start = [this](const Pending& self) {
+    AdminApi::Result r;
+    if (secondsLeft_ > 0 || self.epoch < epoch_) {
+      r.ok = true;
+      r.status = 200;
+    } else {
+      r.status = 403;
+      r.code = QStringLiteral("confirmation_required");
+    }
+    onResult(self, r);
+  };
+  p.deliver = [this, id = p.id](const AdminApi::Result& r) { emit confirmationAnswered(id, r.ok, r.code); };
+  const int id = p.id;
+  launch(std::move(p));
+  return id;
+}
+
 int AdminController::download(const QString& path, const QString& fileUrlOrPath, const QString& method) {
   Pending p;
   p.id = nextId_++;
@@ -159,8 +179,16 @@ void AdminController::onResult(const Pending& p, const AdminApi::Result& r) {
     parked_.append(p);
     if (!confirmNeeded_) {
       confirmNeeded_ = true;
+      autoTried_ = false;
       confirmMessage_.clear();
-      setConfirmState(lockedSeconds_ > 0 ? QStringLiteral("locked") : QStringLiteral("asking"));
+      confirmState_ = lockedSeconds_ > 0 ? QStringLiteral("locked") : QStringLiteral("asking");
+      const QString pw = (d_.autoConfirmPassword && lockedSeconds_ <= 0) ? d_.autoConfirmPassword() : QString();
+      if (!pw.isEmpty()) {
+        autoTried_ = true;
+        confirm(pw);  // emits confirmChanged once, already in "checking"
+      } else {
+        emit confirmChanged();
+      }
       updateClock();
     }
     return;
@@ -236,6 +264,7 @@ void AdminController::confirm(const QString& password) {
 void AdminController::cancelConfirm() {
   if (!confirmNeeded_ || confirmState_ == QLatin1String("checking")) return;
   confirmNeeded_ = false;
+  autoTried_ = false;
   confirmState_.clear();
   confirmMessage_.clear();
   emit confirmChanged();

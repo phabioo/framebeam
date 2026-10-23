@@ -86,7 +86,7 @@ func (o *Options) logDir() string {
 type Info struct {
 	InfoVersion int       `json:"info_version"`
 	GeneratedAt time.Time `json:"generated_at"`
-	Mode        string    `json:"mode"` // "running" (web interface) or "offline" (CLI, database not read)
+	Mode        string    `json:"mode"` // "running" (app) or "offline" (CLI, database not read)
 	Hub         HubInfo   `json:"hub"`
 	System      SysInfo   `json:"system"`
 	Network     NetInfo   `json:"network"`

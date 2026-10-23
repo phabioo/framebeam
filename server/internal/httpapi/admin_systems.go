@@ -8,7 +8,7 @@ import (
 )
 
 // Admin API for systems, cores and firmware (0.18, `admin_v1`). The handlers call the same hub functions as the
-// Systems & Cores page of the web interface.
+// Systems & Cores screen of the app.
 
 func nz[T any](s []T) []T {
 	if s == nil {

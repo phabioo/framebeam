@@ -27,6 +27,12 @@ func grantFolder(path string) error {
 	if err != nil {
 		return err
 	}
+	return addAllowEntry(path, sid, windows.GENERIC_READ|windows.GENERIC_EXECUTE)
+}
+
+// addAllowEntry adds an inherited allow entry with the given rights for sid to the DACL of the folder. Existing
+// entries stay; the call is idempotent in effect.
+func addAllowEntry(path string, sid *windows.SID, access uint32) error {
 	sd, err := windows.GetNamedSecurityInfo(path, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION)
 	if err != nil {
 		return fmt.Errorf("read permissions of %s: %w", path, err)
@@ -36,7 +42,7 @@ func grantFolder(path string) error {
 		return fmt.Errorf("read permissions of %s: %w", path, err)
 	}
 	entry := windows.EXPLICIT_ACCESS{
-		AccessPermissions: windows.GENERIC_READ | windows.GENERIC_EXECUTE,
+		AccessPermissions: windows.ACCESS_MASK(access),
 		AccessMode:        windows.GRANT_ACCESS,
 		Inheritance:       windows.SUB_CONTAINERS_AND_OBJECTS_INHERIT,
 		Trustee: windows.TRUSTEE{

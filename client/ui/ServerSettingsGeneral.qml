@@ -93,4 +93,30 @@ ColumnLayout {
         buttons: [{ name: "generalSetupOpen", text: qsTr("Open…") }]
         onButtonClicked: root.pane.player.showSetupAssistant()
     }
+    UzSettingsRow {
+        objectName: "generalRunsOnRow"
+        visible: root.pane.player.localHub.mode === "service"
+        Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        resetMode: "none"
+        idKey: "runson"
+        label: qsTr("Runs on")
+        description: qsTr("This PC · Windows service")
+        ctrl: "buttons"
+        buttons: [{ name: "generalRunsOnStatus", text: qsTr("Open Status") }]
+        onButtonClicked: root.pane.player.showServerPage("status")
+    }
+    UzSettingsRow {
+        objectName: "generalStopSharingRow"
+        visible: root.pane.player.localHub.canStopSharing
+        Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        resetMode: "none"
+        idKey: "stopsharing"
+        label: qsTr("Sharing")
+        description: qsTr("Stop sharing and go back to using the server only on this PC.")
+        ctrl: "buttons"
+        buttons: [{ name: "generalStopSharing", text: qsTr("Stop sharing…"), kind: "danger" }]
+        onButtonClicked: root.pane.player.localHub.openShareDialog("stop")
+    }
 }

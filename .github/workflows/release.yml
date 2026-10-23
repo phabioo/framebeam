@@ -178,16 +178,13 @@ jobs:
             --build-arg HUB_VERSION="$VERSION" --build-arg HUB_COMMIT="$COMMIT" \
             -t "$owner/uzume-server:$VERSION" -t "$owner/uzume-server:beta" .
           docker buildx imagetools inspect "$owner/uzume-server:$VERSION"
-      - name: Prune old prereleases (keep the newest 5, no leftover test ones)
+      - name: Prune leftover test prereleases (betas are all kept)
         run: |
           set -euo pipefail
-          # Only prereleases whose tag looks like v<X.Y.Z> or the legacy v<X.Y.Z>-beta.<N> (one pool, newest 5 kept) or the
-          # retired v<X.Y.Z>-test.<N> (none kept); non-prerelease releases and other tags are never touched.
-          # shellcheck disable=SC2016  # $p is a jq variable
-          gh release list --limit 200 --json tagName,isPrerelease,createdAt \
-            --jq '[.[] | select(.isPrerelease)] as $p
-                  | ([$p[] | select(.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(-beta\\.[0-9]+)?$"))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName),
-                    ($p[] | select(.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-test\\.[0-9]+$")) | .tagName)' \
+          # Beta prereleases v<X.Y.Z> and the legacy v<X.Y.Z>-beta.<N> are never deleted (the release notes stay traceable).
+          # Only the retired v<X.Y.Z>-test.<N> prereleases are removed; non-prerelease releases and other tags are never touched.
+          gh release list --limit 200 --json tagName,isPrerelease \
+            --jq '.[] | select(.isPrerelease) | select(.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-test\\.[0-9]+$")) | .tagName' \
             | while read -r old; do
                 [ -n "$old" ] || continue
                 echo "deleting $old"

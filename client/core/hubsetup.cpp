@@ -188,9 +188,10 @@ void HubSetupInstaller::launch(const QString& msiPath, const Artifact& art) {
     fail(tr("The installer could not be started: %1").arg(why));
     return;
   }
-  const InstallerCommand cmd = msiRelaunchCommand(launcher, msiPath, MsiScope::SetupHub,
+  const bool share = !config_.shareProperties.isEmpty();
+  const InstallerCommand cmd = msiRelaunchCommand(launcher, msiPath, share ? MsiScope::ShareHub : MsiScope::SetupHub,
                                                   perMachinePlayerExe(config_.programFilesDir), {QStringLiteral("--setup-local-hub")},
-                                                  art.sha256, art.size);
+                                                  art.sha256, art.size, config_.shareProperties);
   state_ = State::Launching;
   emit changed();
   if (!launcher_(cmd.program, cmd.args)) {

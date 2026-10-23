@@ -59,8 +59,10 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   qRegisterMetaType<uzume::RomStatus>("uzume::RomStatus");
 
   profiles_ = std::make_unique<ProfileStore>(options.dataDir);
-  if (options.memoryCredentials) {
-    credentials_ = std::make_unique<MemoryCredentialStore>();
+  if (options.credentialStore) {
+    credentials_ = options.credentialStore;
+  } else if (options.memoryCredentials) {
+    credentials_ = std::make_shared<MemoryCredentialStore>();
   } else {
     credentials_ = createDefaultCredentialStore();
   }
@@ -209,7 +211,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
                              },
                              [this]() { return diagnosticsInfo(); }});
   admin_ = std::make_unique<AdminController>(
-      AdminController::Deps{conn_.get(), [this]() { return isAdmin(); }, [this]() { return screen_ == QLatin1String("game"); }});
+      AdminController::Deps{conn_.get(), [this]() { return isAdmin(); }, [this]() { return screen_ == QLatin1String("game"); },
+                            [this]() { return localHub_ ? localHub_->autoConfirmPassword() : QString(); }});
   connect(systems_.get(), &HubSystems::stateChanged, this, [this]() {
     if (systems_->state() == HubSystems::State::Ready) {
       fwProblems_.clear();  // fresh registry from the Hub: validation problems are re-evaluated
@@ -459,6 +462,15 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     ld.installer.indexUrl = options.updateIndexUrl;
     ld.installer.currentVersion = updates_->currentVersion();
     ld.installer.installRoot = update::installRootFor(QCoreApplication::applicationDirPath());
+    ld.profiles = profiles_.get();
+    ld.credentials = credentials_.get();
+    ld.settings = settings_.get();
+    ld.connectProfile = [this](const QString& hubId) { connectProfile(hubId); };
+    // Before the server of this PC is stopped for sharing: end the game and upload the saves while it still answers.
+    ld.beforeServerStop = [this]() {
+      endRunningWork();
+      if (saves_) saves_->finalSyncBlocking(true);
+    };
     localHub_ = std::make_unique<LocalHubController>(ld);
     connect(localHub_.get(), &LocalHubController::quitRequested, this, [this]() {
       shutdown();
@@ -477,7 +489,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     od.gameRunning = [this]() { return sessionBusy(); };
     od.endRunningWork = [this]() { endRunningWork(); };
     od.addLibraryFolder = [this](const QString& path) { addLibraryFolder(path); };
-    od.startLocalHub = [this]() { localHub_->start(); };
+    od.startLocalHub = [this]() { localHub_->startChild(); };
     onboarding_ = std::make_unique<OnboardingController>(od);
     AccountsController::Deps ad;
     ad.conn = conn_.get();
@@ -678,6 +690,8 @@ void PlayerController::shutdown() {
   if (saves_) {
     saves_->finalSyncBlocking(true);
   }
+  // The server of "Play on this PC" goes last: the final sync above needs it.
+  if (localHub_) localHub_->stopChild();
 }
 
 // ---------------------------------------------------------------- Cores / Handshake
@@ -909,6 +923,22 @@ bool PlayerController::sessionBusy() const {
 void PlayerController::startup() {
   if (options_.enableUpdates && updates_) {
     updates_->manager()->start();
+  }
+  // "Play on this PC": the server of this PC starts first; it is connected when it is the last server (or none is) so the
+  // person lands in the library without a click. A pending "Share with others" is finished or rolled back here.
+  if (localHub_) {
+    const QString childId = settings_->localServerHubId();
+    const QString last = profiles_->lastHubId();
+    const bool connectChild = !childId.isEmpty() && (last.isEmpty() || last == childId);
+    if (localHub_->resumeAtStartup(connectChild)) {
+      if (!connectChild && profiles_->autoConnect() && !last.isEmpty() && profiles_->profile(last)) connectProfile(last);
+      return;
+    }
+    // "Share with others": the service of this PC is the person's server, connected the same way.
+    if (connectChild && settings_->localServerMode() == QLatin1String("service") && profiles_->profile(childId)) {
+      connectProfile(childId);
+      return;
+    }
   }
   if (!profiles_->autoConnect() || profiles_->lastHubId().isEmpty()) {
     return;

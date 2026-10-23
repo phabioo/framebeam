@@ -27,6 +27,8 @@ type LocalStatus struct {
 	NetworkSharing bool
 	ImportDir      string
 	HubVersion     string
+	// Child: the server runs as the app's child process; NetworkSharing is then always false.
+	Child bool
 }
 
 // LocalDefaults are the values of the flags: they apply while no value is stored.
@@ -61,7 +63,7 @@ func (s *Service) LocalStatus(ctx context.Context) (LocalStatus, error) {
 	s.localMu.Lock()
 	def := s.localDef
 	s.localMu.Unlock()
-	st := LocalStatus{AdminExists: has, NetworkSharing: def.NetworkSharing, ImportDir: def.ImportDir, HubVersion: s.Info().HubVersion}
+	st := LocalStatus{AdminExists: has, NetworkSharing: def.NetworkSharing, ImportDir: def.ImportDir, HubVersion: s.Info().HubVersion, Child: s.child}
 	if v, ok := stored[config.NetSharing]; ok {
 		if b, err := strconv.ParseBool(v); err == nil {
 			st.NetworkSharing = b
@@ -69,6 +71,9 @@ func (s *Service) LocalStatus(ctx context.Context) (LocalStatus, error) {
 	}
 	if v := strings.TrimSpace(stored[config.NetImportDir]); v != "" {
 		st.ImportDir = v
+	}
+	if s.child {
+		st.NetworkSharing = false // the stored value stays untouched; it applies again when the server runs on its own
 	}
 	return st, nil
 }
@@ -85,6 +90,9 @@ func (s *Service) SeedNetworkSharing(ctx context.Context, on bool) error {
 // UpdateLocalSettings stores the given settings. changed reports whether a value differs from before (the caller
 // then restarts the server, because binding and the import folder are read at startup).
 func (s *Service) UpdateLocalSettings(ctx context.Context, sharing *bool, importDir *string) (LocalStatus, bool, error) {
+	if s.child && sharing != nil && *sharing {
+		return LocalStatus{}, false, &Error{Code: CodeChildMode, Message: "child_mode: Network sharing cannot be switched on while the server runs as the app's child process; use Share with others"}
+	}
 	before, err := s.LocalStatus(ctx)
 	if err != nil {
 		return LocalStatus{}, false, err

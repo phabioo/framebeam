@@ -45,7 +45,7 @@ type PairingCreated struct {
 	ExpiresIn time.Duration
 }
 
-// PairingRequest is a request for the pending list in the web interface.
+// PairingRequest is a request for the pending list in the app.
 type PairingRequest struct {
 	ID              string
 	DeviceID        string

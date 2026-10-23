@@ -8,7 +8,7 @@ import (
 	"github.com/phabioo/uzume/server/internal/config"
 )
 
-// Network settings saved on the web interface (Settings > Network). Each value is its own row in the settings
+// Network settings saved in the app (Settings > Network). Each value is its own row in the settings
 // table, "net.<key>", so that "Reset to server.env value" deletes exactly one override. The keys and the meaning of
 // the raw string values belong to internal/config (config.Net*); the service only stores them. The effective
 // configuration is "server.env/flags, then these overrides" and is assembled by cmd/uzume-server at startup.

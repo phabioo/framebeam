@@ -19,6 +19,34 @@ class PlayerSettingsTest : public QObject {
     QVERIFY(!QFile::exists(s.filePath()));  // nothing is written until something changes
   }
 
+  void localServerSettingsPersistAndValidate() {
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QCOMPARE(s.localServerMode(), QString());
+      QVERIFY(!s.setLocalServerMode("bogus"));
+      QVERIFY(s.setLocalServerMode("child"));
+      QVERIFY(s.setLocalServerPort(8765));
+      QVERIFY(!s.setLocalServerPort(70000));
+      QVERIFY(s.setLocalServerDataDir("/x/server"));
+      QVERIFY(s.setLocalServerHubId("hub-1"));
+      QVERIFY(!s.pendingShare().valid());
+      QVERIFY(!s.setPendingShare({}));
+      QVERIFY(s.setPendingShare({8443, "internet", "/x/server"}));
+    }
+    PlayerSettings again(dir.path());
+    QCOMPARE(again.localServerMode(), QStringLiteral("child"));
+    QCOMPARE(again.localServerPort(), 8765);
+    QCOMPARE(again.localServerDataDir(), QStringLiteral("/x/server"));
+    QCOMPARE(again.localServerHubId(), QStringLiteral("hub-1"));
+    QCOMPARE(again.pendingShare().port, 8443);
+    QCOMPARE(again.pendingShare().join, QStringLiteral("internet"));
+    QVERIFY(again.clearPendingShare());
+    QVERIFY(!again.pendingShare().valid());
+    QVERIFY(again.setLocalServerMode(""));
+    QCOMPARE(PlayerSettings(dir.path()).localServerMode(), QString());
+  }
+
   void playOnThisPcChoicePersists() {
     QTemporaryDir dir;
     {

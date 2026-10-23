@@ -75,7 +75,7 @@ func TestListenPortHelpers(t *testing.T) {
 	}
 }
 
-// change applies one setting to a candidate and validates it like the web interface does.
+// change applies one setting to a candidate and validates it like the app does.
 func change(base Config, key, raw string) error {
 	if err := base.SetNet(key, raw); err != nil {
 		return err

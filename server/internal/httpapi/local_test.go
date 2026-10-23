@@ -61,7 +61,7 @@ func TestLocalSetupAndPair(t *testing.T) {
 	if st["admin_exists"] != false || st["hub_version"] == "" {
 		t.Fatalf("%v", st)
 	}
-	// Password rules are those of the web setup.
+	// Password rules are those of the app setup.
 	wantStatus(t, e.do("POST", "/api/v1/local/setup", localBody("admin", "short"), opt{}), 400, "")
 	wantStatus(t, e.do("POST", "/api/v1/local/pair", localBody("admin", "whatever-12345"), opt{}), 401, "")
 
@@ -146,6 +146,51 @@ func TestLocalSettings(t *testing.T) {
 		t.Fatalf("%v restarts=%d", got, restarts)
 	}
 	if st := decode[map[string]any](t, e.do("GET", "/api/v1/local/status", nil, opt{})); st["import_dir"] != dir {
+		t.Fatalf("%v", st)
+	}
+}
+
+func TestLocalSettingsChildMode(t *testing.T) {
+	restarts := 0
+	e := newEnvNoAdmin(t, func(o *hub.Options) { o.Child = true }, WithRestart(func() { restarts++ }))
+	e.remote = "127.0.0.1:5000"
+	e.svc.SetLocalDefaults(hub.LocalDefaults{NetworkSharing: true})
+	if err := e.svc.SeedNetworkSharing(t.Context(), true); err != nil { // stored true, e.g. from the service
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CreateAdmin(t.Context(), "admin", "secret-12345"); err != nil {
+		t.Fatal(err)
+	}
+	devID := uuid.NewString()
+	body := localBody("admin", "secret-12345")
+	body["device_id"] = devID
+	cred := decode[map[string]any](t, e.do("POST", "/api/v1/local/pair", body, opt{}))["device_credential"].(string)
+	tok := decode[struct {
+		AccessToken string `json:"access_token"`
+	}](t, e.accessToken(devID, cred)).AccessToken
+
+	// Effectively off and flagged as child although true is stored.
+	st := decode[map[string]any](t, e.do("GET", "/api/v1/local/status", nil, opt{}))
+	if st["network_sharing"] != false || st["child"] != true {
+		t.Fatalf("%v", st)
+	}
+	rec := e.do("PUT", "/api/v1/local/settings", map[string]any{"network_sharing": true}, opt{token: tok})
+	wantStatus(t, rec, 409, "")
+	if errCode(t, rec) != "child_mode" {
+		t.Fatalf("%s", rec.Body.String())
+	}
+	// Nothing was changed, nothing restarts; off is accepted as no change.
+	rec = e.do("PUT", "/api/v1/local/settings", map[string]any{"network_sharing": false}, opt{token: tok})
+	wantStatus(t, rec, 200, "")
+	if restarts != 0 {
+		t.Fatalf("restarts=%d", restarts)
+	}
+}
+
+func TestLocalStatusNotChild(t *testing.T) {
+	e := newEnvNoAdmin(t, nil)
+	e.remote = "127.0.0.1:5000"
+	if st := decode[map[string]any](t, e.do("GET", "/api/v1/local/status", nil, opt{})); st["child"] != false {
 		t.Fatalf("%v", st)
 	}
 }

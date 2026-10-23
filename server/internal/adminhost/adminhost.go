@@ -1,6 +1,6 @@
 // Package adminhost is the boundary between the admin REST API and the process-level facts of the running server
-// (the configuration it started with, the TURN server, the certificate, the restart hook). The web interface holds
-// those facts and implements Host; the API only calls it, so both use the same validation and apply code.
+// (the configuration it started with, the TURN server, the certificate, the restart hook). The server host
+// (internal/serverhost) holds those facts and implements Host; the API only calls it, so both use the same validation and apply code.
 package adminhost
 
 import (
@@ -25,7 +25,7 @@ var ErrUnsupported = errors.New("not supported by this server")
 type NetState struct {
 	// Base is server.env/flags without saved values, Running what the server started with, Desired both combined.
 	Base, Running, Desired config.Config
-	// Stored are the raw values saved on the web interface / API, by key.
+	// Stored are the raw values saved in the app / API, by key.
 	Stored map[string]string
 	// Pending are the labels of saved settings that need a restart; Issues the saved values that failed at startup.
 	Pending, Issues []string
@@ -51,11 +51,11 @@ type Restart struct {
 	PortChanged bool   // the listen port changes: clients cannot reconnect by themselves
 }
 
-// Host is implemented by the web interface server.
+// Host is implemented by internal/serverhost.
 type Host interface {
 	NetState(ctx context.Context) (NetState, error)
 	// SaveNet validates and stores one network setting and applies it live when it can be. form carries the fields of
-	// the web form: value, or min and max (relay ports), or op and url (STUN servers). hub.ErrNotFound for an unknown
+	// the request: value, or min and max (relay ports), or op and url (STUN servers). hub.ErrNotFound for an unknown
 	// key, *ValidationError for a refused value.
 	SaveNet(ctx context.Context, key string, form url.Values) error
 	// ResetNet deletes the saved value so server.env/flags apply again.

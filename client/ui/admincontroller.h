@@ -42,6 +42,7 @@ class AdminController : public QObject {
   Q_PROPERTY(bool available READ available NOTIFY availableChanged)
   Q_PROPERTY(bool confirmNeeded READ confirmNeeded NOTIFY confirmChanged)
   Q_PROPERTY(QString confirmState READ confirmState NOTIFY confirmChanged)
+  Q_PROPERTY(bool confirmAutomatic READ confirmAutomatic NOTIFY confirmChanged)  // answered by the app itself: no dialog
   Q_PROPERTY(QString confirmError READ confirmError NOTIFY confirmChanged)      // text for the dialog; empty = none
   Q_PROPERTY(int confirmLockedSeconds READ confirmLockedSeconds NOTIFY confirmChanged)
   Q_PROPERTY(QDateTime confirmedUntil READ confirmedUntil NOTIFY confirmChanged)
@@ -58,6 +59,9 @@ class AdminController : public QObject {
     HubConnection* conn = nullptr;
     std::function<bool()> isAdmin;  // handshake user.role == "admin"
     std::function<bool()> inGame;   // a game is shown: no background polling
+    // "Play on this PC": the person has no password. A non-empty answer is the password the server of this PC knows; it
+    // answers "Confirm it's you" without asking (confirmAutomatic is true meanwhile). Empty or unset = ask.
+    std::function<QString()> autoConfirmPassword;
   };
   explicit AdminController(const Deps& deps, QObject* parent = nullptr);
   ~AdminController() override;
@@ -65,6 +69,7 @@ class AdminController : public QObject {
   bool available() const { return available_; }
   bool confirmNeeded() const { return confirmNeeded_; }
   QString confirmState() const { return confirmState_; }
+  bool confirmAutomatic() const { return confirmNeeded_ && autoTried_ && confirmState_ == QLatin1String("checking"); }
   QString confirmError() const;
   int confirmLockedSeconds() const { return lockedSeconds_; }
   QDateTime confirmedUntil() const { return confirmedUntil_; }
@@ -91,6 +96,10 @@ class AdminController : public QObject {
   Q_INVOKABLE QString sha256OfFile(const QString& fileUrlOrPath) const;  // lower-case hex, empty when unreadable
   Q_INVOKABLE qint64 sizeOfFile(const QString& fileUrlOrPath) const;     // -1 when unreadable
 
+  // "Confirm it's you" without an admin call of its own (Stop sharing runs a program, not a request): answers
+  // confirmationAnswered(id, true, "") at once while confirmed, otherwise opens the dialog and answers after it
+  // (false, "confirmation_cancelled" when it is cancelled).
+  Q_INVOKABLE int requireConfirmation();
   Q_INVOKABLE void confirm(const QString& password);
   Q_INVOKABLE void cancelConfirm();
   Q_INVOKABLE void resumeParked();
@@ -105,6 +114,7 @@ class AdminController : public QObject {
   void confirmChanged();
   void statusChanged();
   void countsChanged();
+  void confirmationAnswered(int id, bool ok, const QString& code);
   // data: parsed JSON object / array (QVariantMap / QVariantList), invalid when the answer has no JSON body.
   void replied(int id, bool ok, int status, const QVariant& data, const QString& code, const QString& message);
   void downloadFinished(int id, bool ok, const QString& filePath, const QString& message);
@@ -137,6 +147,7 @@ class AdminController : public QObject {
   int epoch_ = 0;  // counts successful confirmations: a request that started before one is simply sent again
   QList<Pending> parked_;
   bool confirmNeeded_ = false;
+  bool autoTried_ = false;  // the stored password was already tried for this round of parked requests
   QString confirmState_;
   QString confirmMessage_;  // server message for "unset"
   QDateTime confirmedUntil_;

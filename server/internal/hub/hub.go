@@ -1,5 +1,5 @@
 // Package hub is the service layer of the Uzume server (hub identity, users, devices, pairing,
-// tokens, library). The web interface and HTTP API use the same functions.
+// tokens, library). The app and HTTP API use the same functions.
 package hub
 
 import (
@@ -39,7 +39,6 @@ const (
 	// MaxOpenInviteRequests caps pending requests created by invite redemptions (own budget, so anonymous
 	// pairing requests cannot starve invited users and vice versa).
 	MaxOpenInviteRequests = 50
-	WebSessionTTL         = 12 * time.Hour
 	MinPasswordLen        = 12
 )
 
@@ -81,6 +80,9 @@ type Options struct {
 	UpdateRequestDir string
 	// UpdateChannel is the compiled-in default channel: stable, beta or dev (dev = no automatic checks).
 	UpdateChannel string
+	// Child marks the server running as the app's child process: never self-updates, Network sharing cannot be
+	// switched on (CodeChildMode), the local status reports sharing off.
+	Child bool
 	// Executable is the path of the running binary (default os.Executable); updates are installable only when it
 	// is /usr/bin/uzume-server. UpdatePlatform defaults to linux-<GOARCH>. Both are injectable for tests.
 	Executable     string
@@ -130,6 +132,7 @@ type Service struct {
 	bk     backupState
 	rep    reportState
 
+	child       bool       // running as the app's child process (Options.Child)
 	localMu     sync.Mutex // local setup defaults
 	localDef    LocalDefaults
 	redeemMu    sync.Mutex // invite redemption rate limits
@@ -168,6 +171,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 	s.saveKeep = saveRetention{recent: o.SaveKeepRecent, daily: o.SaveKeepDaily, weekly: o.SaveKeepWeekly}
 	s.sess.init(o)
 	s.cores.init(o)
+	s.child = o.Child
 	s.initUpdates(o)
 	s.initPlugins(o)
 	s.initBackup(o)

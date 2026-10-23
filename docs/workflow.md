@@ -9,7 +9,7 @@
 ## What can be verified in the cloud
 
 Verifiable:
-- Server in full: Go server, SQLite, API, WSS signaling, pairing, tokens, TLS, save conflicts, firmware path, web interface; Linux builds x86-64 and ARM64 (cross-compile).
+- Server in full: Go server, SQLite, API, WSS signaling, pairing, tokens, TLS, save conflicts, firmware path, admin API; Linux builds x86-64 and ARM64 (cross-compile).
 - Protocol: OpenAPI, JSON schemas, handshake, contract tests.
 - App core without GUI on Linux (server client, caches, save sync, server profiles, settings hierarchy, manifests).
 - Libretro backend headless with melonDS DS and a homebrew ROM (frame hashes).

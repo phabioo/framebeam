@@ -83,6 +83,9 @@ type Config struct {
 	// TrustedProxy is a comma or space separated list of CIDRs or IPs of reverse proxies in front of the server. Only
 	// requests whose TCP peer is inside it are believed about client IP and scheme (X-Forwarded-For/-Proto, Forwarded).
 	TrustedProxy string
+	// Child runs the server as the app's child process (ADR 0030 D6): loopback only whatever the stored Network sharing
+	// setting says, no TURN, no self-update, ends when stdin closes, restarts in-process.
+	Child bool
 }
 
 // Defaults of the core source (ADR 0020 D1).
@@ -340,6 +343,8 @@ func register(fs *flag.FlagSet, getenv func(string) string, goos string) *Config
 	fs.StringVar(&c.TURNRelayPorts, "turn-relay-ports", env("TURN_RELAY_PORTS", DefaultTURNRelayPorts), "TURN UDP relay port range min-max (UZUME_TURN_RELAY_PORTS)")
 	fs.StringVar(&c.TURNRelayIP, "turn-relay-ip", env("TURN_RELAY_IP", ""), "fixed public IPv4 for relayed addresses instead of resolving -public-host (UZUME_TURN_RELAY_IP)")
 	fs.StringVar(&c.TrustedProxy, "trusted-proxy", env("TRUSTED_PROXY", ""), "CIDRs/IPs of reverse proxies in front of the server whose X-Forwarded-For/-Proto or Forwarded headers are believed; such requests are never local (UZUME_TRUSTED_PROXY)")
+	child, _ := strconv.ParseBool(getenv("UZUME_CHILD"))
+	fs.BoolVar(&c.Child, "child", child, "run as the app's child process: loopback only (the stored Network sharing setting is kept but not used), no self-update, exits when stdin closes, prints UZUME_READY <port> (UZUME_CHILD)")
 	return c
 }
 

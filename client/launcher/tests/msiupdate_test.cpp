@@ -35,6 +35,19 @@ class MsiUpdateTest : public QObject {
     QVERIFY(msiexecParameters(L"a.msi", L"bogus").empty());
     QVERIFY(msiexecParameters(L"C:/u/a b/x.msi", L"machine") == L"/i \"C:\\u\\a b\\x.msi\" /qn /norestart ALLUSERS=1");
   }
+  void shareHubScopePassesWhitelistedProperties() {
+    MsiUpdateRequest r;
+    QVERIFY(parseMsiUpdate({L"l.exe", L"--apply-msi-update", L"--msi-property", L"HUB_PORT=8443", L"--msi-property",
+                            L"IMPORT_SERVER_DATA=C:\\d a\\server", L"C:\\t\\uzume-server-setup-1\\a.msi", L"share-hub", L"C:\\p\\Uzume.exe"},
+                           &r));
+    QCOMPARE(r.properties.size(), size_t(2));
+    QVERIFY(msiexecParameters(r.msi, r.scope, r.properties) ==
+            L"/i \"C:\\t\\uzume-server-setup-1\\a.msi\" /qn /norestart ALLUSERS=1 INSTALL_HUB=1 HUB_PORT=\"8443\" IMPORT_SERVER_DATA=\"C:\\d a\\server\"");
+    QVERIFY(!setupDirToRemove(r).empty());
+    QVERIFY(msiexecParameters(L"a.msi", L"share-hub", {L"EVIL=1"}).empty());
+    QVERIFY(msiexecParameters(L"a.msi", L"share-hub", {L"HUB_PORT=1\" EVIL=1"}).empty());
+    QVERIFY(msiexecParameters(L"a.msi", L"machine", {L"HUB_PORT=1"}) == L"/i \"a.msi\" /qn /norestart ALLUSERS=1");
+  }
   void parsesVerificationOptions() {
     const std::wstring sha(64, L'a');
     MsiUpdateRequest r;
