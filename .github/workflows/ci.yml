@@ -259,7 +259,7 @@ jobs:
           # A fresh named volume is writable by the non-root user: the Hub creates its database and answers on HTTPS.
           docker run -d --name hub-ci -p 8443:8443 -v hub-ci-data:/data uzume-server:ci
           for _ in $(seq 1 30); do
-            curl -ksf -o /dev/null https://127.0.0.1:8443/ && ok=1 && break
+            curl -ksf -o /dev/null https://127.0.0.1:8443/.well-known/uzume && ok=1 && break
             sleep 1
           done
           docker logs hub-ci | tail -n 20

@@ -20,7 +20,7 @@ import (
 	"github.com/phabioo/uzume/server/internal/hub"
 )
 
-// fakeHost stands in for the web interface server (process-level facts).
+// fakeHost stands in for the server host (process-level facts).
 type fakeHost struct {
 	stored    map[string]string
 	importDir string

@@ -12,15 +12,9 @@ func TestReadTimeoutFor(t *testing.T) {
 		method, path string
 		want         time.Duration
 	}{
-		{"GET", "/library", requestReadTimeout},
-		{"POST", "/users/u1/delete", requestReadTimeout},
-		{"POST", "/login", requestReadTimeout},
+		{"GET", "/api/v1/games/g1", requestReadTimeout},
 		{"POST", "/api/v1/handshake", requestReadTimeout},
-		{"GET", "/events", 0},
 		{"GET", "/api/v1/ws", 0},
-		{"POST", "/library/upload", uploadReadTimeout},
-		{"POST", "/saves/u/g/slot1/upload", uploadReadTimeout},
-		{"POST", "/systems/nds/firmware/bios7/upload", uploadReadTimeout},
 		{"POST", "/api/v1/games", uploadReadTimeout},
 		{"PUT", "/api/v1/games/g1/saves/slot1", uploadReadTimeout},
 		{"POST", "/api/v1/games/g1/saves/slot1/upload", uploadReadTimeout},

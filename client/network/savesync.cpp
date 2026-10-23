@@ -705,7 +705,7 @@ void SaveSync::onHubSlot(quint64 gen, const SaveSlotInfo& slot) {
     return;
   }
   if (!a_.st.conflictId.isEmpty()) {
-    a_.st.conflictId.clear();  // resolved elsewhere (e.g. in the Hub web interface)
+    a_.st.conflictId.clear();  // resolved elsewhere (e.g. by an admin through the admin API)
     persist();
   }
   const bool hasFile = QFileInfo(a_.file).isFile();
@@ -1890,7 +1890,7 @@ void SaveSync::loadSlotConflict(const QString& gameId, const QString& slot, cons
     if (!own) {
       out.kind = O::None;
       if (!dir.isEmpty() && !isRunning(gameId, slot) && !dialogOpen_) {
-        // Resolved elsewhere (e.g. in the Hub web interface): drop the local conflict marker; the next start reconciles.
+        // Resolved elsewhere (e.g. by an admin through the admin API): drop the local conflict marker; the next start reconciles.
         SyncState st = SaveStore::loadState(dir);
         if (!st.conflictId.isEmpty()) {
           st.conflictId.clear();
@@ -2006,7 +2006,7 @@ void SaveSync::resolveSlotConflict(const QString& gameId, const QString& slot, R
     }
     const std::optional<SaveConflictInfo> own = ownConflict(*r.slot, a_.st.conflictId);
     if (!own) {
-      // Resolved elsewhere (e.g. in the Hub web interface): drop the local marker so the slot is usable again.
+      // Resolved elsewhere (e.g. by an admin through the admin API): drop the local marker so the slot is usable again.
       if (!a_.st.conflictId.isEmpty()) {
         a_.st.conflictId.clear();
         persist();
@@ -2414,7 +2414,7 @@ void SaveSync::handleSlotDeletedElsewhere(const SaveUpdate& u) {
 }
 
 void SaveSync::handleSaveUpdate(const SaveUpdate& u) {
-  // The Hub web interface reports the nil UUID with device_name "Hub web interface": never "this device".
+  // The server reports the nil UUID with device_name "Hub web interface": never "this device".
   const bool nilDevice = u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000");
   if (!nilDevice && !conn_->deviceId().isEmpty() && u.deviceId == conn_->deviceId()) {
     return;  // our own change

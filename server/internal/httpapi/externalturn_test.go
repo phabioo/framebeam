@@ -87,7 +87,7 @@ func TestExternalTURNInHelloAckJoinAndICEUpdate(t *testing.T) {
 	}
 }
 
-// A list saved in the web interface replaces the flag list for connected apps (ice_update) and new connections
+// A list saved in the app replaces the flag list for connected apps (ice_update) and new connections
 // (hello_ack) without a restart.
 func TestSavedExternalTURNListAppliesWithoutRestart(t *testing.T) {
 	s := newSessEnv(t, func(o *hub.Options) { o.ICEServers = []string{"stun:stun.example.org:3478"} })

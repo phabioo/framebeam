@@ -87,7 +87,7 @@ type ROMFile struct {
 	AddedAt                   time.Time
 }
 
-// MaxROMBytes is the upload limit for ROMs (4 GiB), shared by the web interface and the API.
+// MaxROMBytes is the upload limit for ROMs (4 GiB), shared by the app and the API.
 const MaxROMBytes int64 = 4 << 30
 
 var sha256Re = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -302,7 +302,7 @@ func applyROMs(g *Game, files []ROMFile) {
 	}
 }
 
-// GetGame returns a game by ID (not filtered by visibility; for internal use and the admin web interface).
+// GetGame returns a game by ID (not filtered by visibility; for internal use and the app).
 func (s *Service) GetGame(ctx context.Context, id string) (Game, error) {
 	return s.oneGame(ctx, `id = ?`, id)
 }

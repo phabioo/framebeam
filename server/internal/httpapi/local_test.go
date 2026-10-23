@@ -61,7 +61,7 @@ func TestLocalSetupAndPair(t *testing.T) {
 	if st["admin_exists"] != false || st["hub_version"] == "" {
 		t.Fatalf("%v", st)
 	}
-	// Password rules are those of the web setup.
+	// Password rules are those of the app setup.
 	wantStatus(t, e.do("POST", "/api/v1/local/setup", localBody("admin", "short"), opt{}), 400, "")
 	wantStatus(t, e.do("POST", "/api/v1/local/pair", localBody("admin", "whatever-12345"), opt{}), 401, "")
 

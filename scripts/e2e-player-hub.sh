@@ -69,24 +69,17 @@ HUB_PID=$!
 wait_for 15 curl -fsk "https://$ADDR/.well-known/uzume" || die "hub start" "$TMP/hub.log"
 ok "hub start $ADDR"
 
-# 3. Web interface: login (CSRF), upload a dummy ROM
-JAR="$TMP/jar"
-CURL=(curl -sk -b "$JAR" -c "$JAR")
-csrf=$("${CURL[@]}" "https://$ADDR/login" | sed -n 's/.*name="_csrf" value="\([^"]*\)".*/\1/p' | head -n1)
-[ -n "$csrf" ] || die "web login (CSRF token missing)" "$TMP/hub.log"
-code=$("${CURL[@]}" -o /dev/null -w '%{http_code}' --data-urlencode "_csrf=$csrf" --data-urlencode "username=admin" \
-  --data-urlencode "password=$PW" "https://$ADDR/login")
-[ "$code" = "303" ] || die "web login (HTTP $code)" "$TMP/hub.log"
-page=$("${CURL[@]}" "https://$ADDR/library")
-tok=$(printf '%s' "$page" | sed -n 's/.*"X-CSRF-Token": "\([^"]*\)".*/\1/p' | head -n1)
-[ -n "$tok" ] || die "web login (session CSRF missing)" "$TMP/hub.log"
-ok "web login"
+# 3. Admin API: sign in, upload a dummy ROM
+# shellcheck source=scripts/e2e-admin-api.sh
+. "$ROOT/scripts/e2e-admin-api.sh"
+admin_login "$PW" || die "admin sign-in" "$TMP/hub.log"
+ok "admin sign-in"
 
 head -c 4096 /dev/urandom >"$TMP/e2e-dummy.nds"
 SHA="$(sha256sum "$TMP/e2e-dummy.nds" | cut -d' ' -f1)"
-code=$("${CURL[@]}" -o /dev/null -w '%{http_code}' -F "_csrf=$tok" -F "title=E2E Dummy" -F "file=@$TMP/e2e-dummy.nds" "https://$ADDR/library/upload")
-[ "$code" = "303" ] || die "web upload (HTTP $code)" "$TMP/hub.log"
-ok "web upload dummy ROM sha256=${SHA:0:12}..."
+code=$(upload_game "$TMP/e2e-dummy.nds" "E2E Dummy")
+[ "$code" = "201" ] || die "upload (HTTP $code)" "$TMP/hub.log"
+ok "upload dummy ROM sha256=${SHA:0:12}..."
 
 # 4. Player CLI: pair + games + fetch-rom + wait-revoked, in the background
 PDIR="$TMP/player"
@@ -96,14 +89,9 @@ CLI_PID=$!
 wait_for 20 grep -q "AwaitingApproval" "$TMP/cli.err" || die "cli pair (no pending request)" "$TMP/cli.out" "$TMP/cli.err"
 ok "cli: first contact confirmed, pairing request submitted"
 
-# 5. Allow in the web interface (assign to admin)
-clients=$("${CURL[@]}" "https://$ADDR/clients")
-rid=$(printf '%s' "$clients" | sed -n 's#.*/clients/requests/\([^/"]*\)/allow.*#\1#p' | head -n1)
-uid=$(printf '%s' "$clients" | sed -n 's#.*<option value="\([^"]*\)".*#\1#p' | head -n1)
-[ -n "$rid" ] && [ -n "$uid" ] || die "web: pending request not found" "$TMP/hub.log"
-body=$("${CURL[@]}" -H "X-CSRF-Token: $tok" -H "HX-Request: true" --data-urlencode "user_id=$uid" "https://$ADDR/clients/requests/$rid/allow")
-printf '%s' "$body" | grep -q "Device allowed" || die "web allow" "$TMP/hub.log"
-ok "web: pending request allowed"
+# 5. Allow in the admin API (assign to admin)
+wait_for 10 allow_pending || die "pending pairing request not found or not allowed" "$TMP/hub.log"
+ok "pending request allowed"
 
 # 6. Check CLI result
 wait_for 40 grep -q "READY-FOR-REVOKE" "$TMP/cli.out" || die "cli: flow did not complete" "$TMP/cli.out" "$TMP/cli.err"
@@ -115,13 +103,9 @@ hubfp=$(sed -n 's/.*sha256_fingerprint=\([0-9A-F:]*\).*/\1/p' "$TMP/hub.log" | h
 [ -n "$hubfp" ] && grep -q "$hubfp" "$TMP/cli.out" && ok "fingerprint matches Hub log" || die "fingerprint comparison" "$TMP/cli.out" "$TMP/hub.log"
 ! grep -rq "fbd_\|fba_\|fbp_" "$PDIR" && ok "no tokens in Player files" || die "token in Player file"
 
-# 7. Revoke in the web interface -> CLI (same run) falls back to NeedsPairing
-clients=$("${CURL[@]}" "https://$ADDR/clients")
-did=$(printf '%s' "$clients" | sed -n 's#.*/clients/devices/\([^/"]*\)/revoke.*#\1#p' | head -n1)
-[ -n "$did" ] || die "web: device not found" "$TMP/hub.log"
-body=$("${CURL[@]}" -H "X-CSRF-Token: $tok" -H "HX-Request: true" -X POST "https://$ADDR/clients/devices/$did/revoke")
-printf '%s' "$body" | grep -q "Access revoked" || die "web revoke" "$TMP/hub.log"
-ok "web: access revoked"
+# 7. Revoke in the admin API -> CLI (same run) falls back to NeedsPairing
+revoke_cli_device || die "revoke" "$TMP/hub.log"
+ok "access revoked"
 wait_for 20 grep -q "Revoked:" "$TMP/cli.out" || die "cli: no NeedsPairing after revoke" "$TMP/cli.out" "$TMP/cli.err"
 wait "$CLI_PID"; rc=$?; CLI_PID=""
 [ "$rc" = "0" ] && grep -q "device_revoked" "$TMP/cli.out" && ok "cli: NeedsPairing after revoke (device_revoked)" || die "cli after revoke (exit $rc)" "$TMP/cli.out" "$TMP/cli.err"
@@ -140,8 +124,8 @@ fi
 GID=$(sed -n "s/^E2E Dummy.*$SHA\t\(.*\)$/\1/p" "$TMP/cli.out" | head -n1)
 [ -n "$GID" ] || die "save: game id not in the games output" "$TMP/cli.out"
 
-# pair_run <name> <out-file> <cli args after pair...>: pairs a new device (own data dir), approves it in the web
-# interface and runs the follow-up commands in the same process (credentials are memory-only on Linux).
+# pair_run <name> <out-file> <cli args after pair...>: pairs a new device (own data dir), approves it through the
+# admin API and runs the follow-up commands in the same process (credentials are memory-only on Linux).
 pair_run() {
   local name="$1" out="$2"; shift 2
   QT_QPA_PLATFORM=offscreen "$CLI" pair "https://$ADDR" --accept-fingerprint --data-dir "$TMP/dev-$name" "$@" \
@@ -149,15 +133,7 @@ pair_run() {
   local pid=$!
   CLI_PID=$pid
   wait_for 20 grep -q "AwaitingApproval" "$out.err" || { die "save: device $name did not request pairing" "$out" "$out.err"; }
-  local cl rid u b
-  cl=$("${CURL[@]}" "https://$ADDR/clients")
-  rid=$(printf '%s' "$cl" | sed -n 's#.*/clients/requests/\([^/"]*\)/allow.*#\1#p' | head -n1)
-  # The Hub preselects the request's user (admin for plain pairing); fall back to the first option.
-  u=$(printf '%s' "$cl" | sed -n 's#.*<option value="\([^"]*\)" selected.*#\1#p' | head -n1)
-  [ -n "$u" ] || u=$(printf '%s' "$cl" | sed -n 's#.*<option value="\([^"]*\)".*#\1#p' | head -n1)
-  [ -n "$rid" ] && [ -n "$u" ] || die "save: pending request of $name not found" "$TMP/hub.log"
-  b=$("${CURL[@]}" -H "X-CSRF-Token: $tok" -H "HX-Request: true" --data-urlencode "user_id=$u" "https://$ADDR/clients/requests/$rid/allow")
-  printf '%s' "$b" | grep -q "Device allowed" || die "save: allow $name" "$TMP/hub.log"
+  wait_for 10 allow_pending || die "save: allow $name" "$TMP/hub.log"
   wait "$pid"; PAIR_RC=$?
   CLI_PID=""
 }
@@ -182,13 +158,8 @@ grep -q "^OK revision=2 " "$TMP/save3.out" && cmp -s "$TMP/saveB.bin" "$TMP/pull
 ok "save: second resolve of the same conflict -> STALE (exit 4)"
 
 # 10. Phase 5: onboarding invite (redeem), ROM upload (CLI), firmware state "required but missing". Dummy data only.
-mkinvite() { # mkinvite -> prints the invite code (shown once in the Users page response)
-  local b
-  b=$("${CURL[@]}" -H "X-CSRF-Token: $tok" -H "HX-Request: true" --data-urlencode "expiry=1h" --data-urlencode "authorize=1" "https://$ADDR/users/invites")
-  printf '%s' "$b" | grep -o 'UZ-[0-9A-Z]\{4\}-[0-9A-Z]\{4\}' | head -n1
-}
 INV="$(mkinvite)"
-[ -n "$INV" ] || die "invite: no code in the Users page response" "$TMP/hub.log"
+[ -n "$INV" ] || die "invite: no code in the invite response" "$TMP/hub.log"
 head -c 2048 /dev/urandom >"$TMP/up-user.nds"
 QT_QPA_PLATFORM=offscreen "$CLI" redeem-invite "https://$ADDR" --accept-fingerprint --data-dir "$TMP/dev-inv" \
   --code "$INV" --name "E2E Anna" games game upload "$TMP/up-user.nds" >"$TMP/inv1.out" 2>"$TMP/inv1.err"; rc=$?
@@ -209,9 +180,8 @@ QT_QPA_PLATFORM=offscreen "$CLI" redeem-invite "https://$ADDR" --accept-fingerpr
 head -c 4096 /dev/urandom >"$TMP/cli-up.nds"
 UPSHA="$(sha256sum "$TMP/cli-up.nds" | cut -d' ' -f1)"
 # Firmware mode native for nds: no firmware files were provided, so the required files are missing on the Hub.
-body=$("${CURL[@]}" -o /dev/null -w '%{http_code}' -H "X-CSRF-Token: $tok" -H "HX-Request: true" --data-urlencode "mode=native" \
-  "https://$ADDR/systems/nds/firmware-mode")
-case "$body" in 200|303) ;; *) die "firmware: set mode native (HTTP $body)" "$TMP/hub.log";; esac
+code=$(set_firmware_mode nds native)
+[ "$code" = "200" ] || die "firmware: set mode native (HTTP $code)" "$TMP/hub.log"
 # One admin device for upload + systems (the Hub allows only 5 pairing requests per IP and minute).
 pair_run devU "$TMP/up1.out" games game upload "$TMP/cli-up.nds" --title "CLI Upload" game upload "$TMP/cli-up.nds" systems fetch-core nds fetch-core nds
 UPID=$(sed -n 's/^OK game_id=\([^ ]*\) sha256=.*/\1/p' "$TMP/up1.out" | head -n1)

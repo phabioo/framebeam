@@ -145,7 +145,7 @@ func parseExternalTURN(raw string, n int) (ExternalTURNSpec, error) {
 	return sp, nil
 }
 
-// ValidateExternalTURNName checks the label of an external TURN server (flag and web interface).
+// ValidateExternalTURNName checks the label of an external TURN server (flag and app).
 func ValidateExternalTURNName(v string) error {
 	if v == "" || len(v) > 64 {
 		return errors.New("name must be 1 to 64 characters")
@@ -158,7 +158,7 @@ func ValidateExternalTURNName(v string) error {
 	return nil
 }
 
-// ValidateTURNURL checks one external TURN URL (flag and web interface).
+// ValidateTURNURL checks one external TURN URL (flag and app).
 func ValidateTURNURL(u string) error { return checkTURNURL(u) }
 
 // checkTURNURL accepts turn:/turns: host[:port] with an optional ?transport=udp|tcp.

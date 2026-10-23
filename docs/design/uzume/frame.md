@@ -213,7 +213,7 @@ Boards: [`S8c1`](../source/uzume/S8c1.dc.html) · [`S8c1Kinari`](../source/uzume
 
 - Title "Lena invited you to Lena's server": server name and address (`192.0.2.20:8443`), done line "Security code matches", `Avatar` Lena (momo) "Invited by Lena", meta `VALID UNTIL 29 OCT 2026 · 1 USE`. Primary Continue, secondary Not now.
 - The link carries the server's security code, so there is no code to compare; next is the name step (8b-3).
-- Link format: `uzume://join/<server>/<invite>#<fingerprint>`. Opened by clicking it in a chat or pasting it with Ctrl+V anywhere in the window. A web page for the case where the app is not installed is in Later.
+- Link format: `uzume://join/<server>/<invite>#<fingerprint>`. Opened by clicking it in a chat or pasting it with Ctrl+V anywhere in the window. A web page for the case where the app is not installed is not built (no web pages since 0.18, [ADR 0030](../../adr/0030-one-app-one-server-uzume.md) D2).
 
 ### 8c-2 Invite link · already on a server
 

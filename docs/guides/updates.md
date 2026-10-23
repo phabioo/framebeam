@@ -53,7 +53,7 @@ A portable, Linux or development build lists the same releases with a "View rele
 
 ### Server
 
-Settings → Updates → "Earlier versions" (a plain page, loaded on request), the CLI and the admin API do the same:
+Settings › Server › Updates › "Earlier versions" (loaded on request), the CLI and the admin API do the same:
 
 ```
 uzume-server rollback --list [--json]          the earlier versions and what going back does to the data

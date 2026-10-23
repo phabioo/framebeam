@@ -12,7 +12,7 @@ sudo apt install ./uzume-server_<version>_arm64.deb
 
 The package is `uzume-server`. It installs `/usr/bin/uzume-server`, the units `uzume-server.service`, `uzume-server-update.path` and
 `uzume-server-update.service` (in `/lib/systemd/system`) and is the only install type the server can update itself
-(Settings > Updates). Configure flags (port, admin) in `/etc/uzume/server.env`, which an existing install keeps. Set up the server from the app with the setup code ([First setup](#first-setup)), or create the admin account as described under [Admin account](#admin-account).
+(Settings › Server › Updates). Configure flags (port, admin) in `/etc/uzume/server.env`, which an existing install keeps. Set up the server from the app with the setup code ([First setup](#first-setup)), or create the admin account as described under [Admin account](#admin-account).
 
 Package details:
 

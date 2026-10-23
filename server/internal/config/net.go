@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// Network settings that can be changed on the web interface (Settings > Network). A value saved there wins over
+// Network settings that can be changed in the app (Settings > Network). A value saved there wins over
 // server.env and flags, which only provide the initial value. The server stores each value as a raw string under one of
 // these keys; this file knows how to apply, compare and validate them.
 
@@ -78,7 +78,7 @@ func NetLabel(key string) string {
 	return key
 }
 
-// Port limits for values entered on the web interface. Ports below 1024 need a capability that the systemd unit
+// Port limits for values entered in the app. Ports below 1024 need a capability that the systemd unit
 // only gets through the drop-in of install-server.sh --port.
 const (
 	MinWebPort        = 1024
@@ -254,7 +254,7 @@ func (c *Config) ApplyNet(vals map[string]string) map[string]error {
 // ValidateNet checks the change of one setting that is already applied to c (the candidate configuration). It
 // validates the value itself and the rules that involve it; settings that were not touched are not re-checked, so
 // an unusual value from server.env (for example a privileged listen port) never blocks unrelated changes. The error
-// text is meant for the web interface.
+// text is meant for the app.
 func (c *Config) ValidateNet(key string) error {
 	listen := c.ListenPort()
 	switch key {
@@ -457,7 +457,7 @@ func TestBind(addr string) error {
 	return ln.Close()
 }
 
-// NetError is a validation error whose text is shown to the admin on the web interface as it is.
+// NetError is a validation error whose text is shown to the admin as it is.
 type NetError struct{ Msg string }
 
 func (e *NetError) Error() string { return e.Msg }
@@ -465,7 +465,7 @@ func (e *NetError) Error() string { return e.Msg }
 func netErr(format string, a ...any) error { return &NetError{Msg: fmt.Sprintf(format, a...)} }
 
 // CheckImportDir checks that dir is an absolute path of an existing directory that this process can list. The
-// error text is meant for the web interface and the local API.
+// error text is meant for the app and the local API.
 func CheckImportDir(dir string) error {
 	if !filepath.IsAbs(dir) {
 		return netErr("The import folder must be an absolute path")

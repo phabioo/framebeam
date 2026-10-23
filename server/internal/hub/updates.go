@@ -180,7 +180,7 @@ func (a UpdateAvailable) Warning() string {
 	return fmt.Sprintf("%d app device(s) seen in the last 30 days are too old for this server version and would lose access until they are updated. Automatic install skips this update.", a.BreakingCount)
 }
 
-// UpdateStatus is the state shown on the Settings page.
+// UpdateStatus is the state shown on the Settings screen of the app.
 type UpdateStatus struct {
 	Settings       UpdateSettings
 	CurrentVersion string
@@ -355,7 +355,7 @@ type UpdateCheckReport struct {
 
 // CheckUpdates fetches the signed updates index, selects the newest release and, with automatic install on, stages
 // it and creates the request file (not during an active Session, not when it breaks recent apps, not when a
-// previous attempt for the same version failed). The result is recorded for the Settings page.
+// previous attempt for the same version failed). The result is recorded for the Settings screen of the app.
 func (s *Service) CheckUpdates(ctx context.Context) (_ UpdateCheckReport, err error) {
 	defer s.publishOK(&err, TopicUpdates)
 	s.upd.mu.Lock()
@@ -436,7 +436,7 @@ func (s *Service) stageAndRequest(ctx context.Context, f *updates.Fetched, sel u
 	return *st, nil
 }
 
-// InstallUpdate stages the newest update and requests the root helper (the Settings page "Install update").
+// InstallUpdate stages the newest update and requests the root helper (the Settings screen of the app "Install update").
 // It needs a packaged install. An update that breaks recent apps needs confirmBreaking.
 func (s *Service) InstallUpdate(ctx context.Context, confirmBreaking bool) (_ updates.Staged, err error) {
 	defer s.publishOK(&err, TopicUpdates)

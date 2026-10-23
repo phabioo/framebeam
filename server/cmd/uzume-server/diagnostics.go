@@ -13,7 +13,7 @@ import (
 	"github.com/phabioo/uzume/server/internal/diag"
 )
 
-// runDiagnostics writes the diagnostics bundle to a file without starting the server, for a server whose web interface
+// runDiagnostics writes the diagnostics bundle to a file without starting the server, for a server whose admin API
 // does not come up. It never opens the database (a running server is not disturbed), so the bundle holds the logs and
 // the configuration from server.env/flags only, not counts, cores or apps.
 func runDiagnostics(args []string, out io.Writer) error {

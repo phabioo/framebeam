@@ -9,8 +9,8 @@ import (
 )
 
 // Admin API for the saves of all users (0.18, `admin_v1`). The hub functions are the ones of the member API and of the
-// web interface; the path names the owner. Changes are recorded as made by the web device of the admin
-// (hub.WebDeviceID, like the web interface) and follow the same base revision rules: a stale revision is a 409, nothing is
+// app; the path names the owner. Changes are recorded as made by the web device of the admin
+// (hub.WebDeviceID) and follow the same base revision rules: a stale revision is a 409, nothing is
 // overwritten silently.
 
 func (s *Server) ListAdminSaves(ctx context.Context, req api.ListAdminSavesRequestObject) (api.ListAdminSavesResponseObject, error) {

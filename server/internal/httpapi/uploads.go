@@ -11,7 +11,7 @@ import (
 	"github.com/phabioo/uzume/server/internal/hub"
 )
 
-// UploadGame streams a raw ROM body to disk (same validation and de-duplication as the web upload).
+// UploadGame streams a raw ROM body to disk (same validation and de-duplication as the app upload).
 func (s *Server) UploadGame(ctx context.Context, req api.UploadGameRequestObject) (api.UploadGameResponseObject, error) {
 	p := principal(ctx)
 	can, err := s.svc.CanUpload(ctx, p.User)

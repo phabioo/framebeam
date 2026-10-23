@@ -39,10 +39,10 @@ WORKDIR /data
 USER 65532:65532
 # Everything the server stores (database, saves, firmware, ROM library, certificate, cores, plugins).
 VOLUME ["/data"]
-# Web interface and API (HTTPS, self-signed certificate unless -tls-cert/-tls-key), and the embedded TURN relay when
+# REST API and signaling (HTTPS, self-signed certificate unless -tls-cert/-tls-key), and the embedded TURN relay when
 # -turn is on: control port UDP+TCP and the relay range (-turn-relay-ports, default 49160-49199/udp).
 EXPOSE 8443/tcp 3478/udp 3478/tcp 49160-49199/udp
-# No HEALTHCHECK: the image has no shell or curl and the server has no health command yet; check the web port from outside.
+# No HEALTHCHECK: the image has no shell or curl and the server has no health command yet; check the HTTPS port from outside (GET /.well-known/uzume).
 ENTRYPOINT ["/usr/local/bin/uzume-server"]
 
 FROM base AS hub-prebuilt

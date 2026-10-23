@@ -1,5 +1,5 @@
 // Package hub is the service layer of the Uzume server (hub identity, users, devices, pairing,
-// tokens, library). The web interface and HTTP API use the same functions.
+// tokens, library). The app and HTTP API use the same functions.
 package hub
 
 import (
@@ -39,7 +39,6 @@ const (
 	// MaxOpenInviteRequests caps pending requests created by invite redemptions (own budget, so anonymous
 	// pairing requests cannot starve invited users and vice versa).
 	MaxOpenInviteRequests = 50
-	WebSessionTTL         = 12 * time.Hour
 	MinPasswordLen        = 12
 )
 

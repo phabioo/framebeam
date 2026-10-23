@@ -70,25 +70,20 @@ PY
 [ -x "$CLI" ] || die "CLI not found: $CLI"
 
 (cd "$ROOT/server" && go build -o "$TMP/uzume-server" ./cmd/uzume-server) >"$TMP/build.log" 2>&1 || die "hub build" "$TMP/build.log"
-JAR="" tok="" ADDR=""
-CURL=()
+ADDR=""
+# shellcheck source=scripts/e2e-admin-api.sh
+. "$ROOT/scripts/e2e-admin-api.sh"
 
 # start_device <label> <name> <out> <cli args after pair...>: pairs a new device (own data dir, credentials are
-# memory-only on Linux, so the Session command runs as a follow-up in the same process), approves it in the web
-# interface.
+# memory-only on Linux, so the Session command runs as a follow-up in the same process), approves it through the
+# admin API.
 start_device() {
   local label="$1" name="$2" out="$3"; shift 3
   QT_QPA_PLATFORM=offscreen "$CLI" pair "https://$ADDR" --accept-fingerprint --data-dir "$TMP/dev-$label-$name" "$@" \
     >"$out" 2>"$out.err" &
   DEV_PID=$!
   wait_for 20 grep -q "AwaitingApproval" "$out.err" || die "device $name did not request pairing" "$out" "$out.err"
-  local cl rid u b
-  cl=$("${CURL[@]}" "https://$ADDR/clients")
-  rid=$(printf '%s' "$cl" | sed -n 's#.*/clients/requests/\([^/"]*\)/allow.*#\1#p' | head -n1)
-  u=$(printf '%s' "$cl" | sed -n 's#.*<option value="\([^"]*\)".*#\1#p' | head -n1)
-  [ -n "$rid" ] && [ -n "$u" ] || die "pending request of $name not found" "$TMP/$label.hub.log"
-  b=$("${CURL[@]}" -H "X-CSRF-Token: $tok" -H "HX-Request: true" --data-urlencode "user_id=$u" "https://$ADDR/clients/requests/$rid/allow")
-  printf '%s' "$b" | grep -q "Device allowed" || die "allow $name" "$TMP/$label.hub.log"
+  wait_for 10 allow_pending || die "pending request of $name not found" "$TMP/$label.hub.log"
 }
 
 # run_round <label> <relay: 0|1> [extra Hub flags...]: Hub start, admin, dummy game, share + watch, assertions.
@@ -109,22 +104,13 @@ run_round() {
   wait_for 15 curl -fsk "https://$ADDR/.well-known/uzume" || die "hub start" "$hublog"
   ok "hub build + start $ADDR"
 
-  # 2. Web interface: login (CSRF), upload a dummy game
-  JAR="$TMP/jar-$label"
-  CURL=(curl -sk -b "$JAR" -c "$JAR")
-  local csrf code page
-  csrf=$("${CURL[@]}" "https://$ADDR/login" | sed -n 's/.*name="_csrf" value="\([^"]*\)".*/\1/p' | head -n1)
-  [ -n "$csrf" ] || die "web login (CSRF token missing)" "$hublog"
-  code=$("${CURL[@]}" -o /dev/null -w '%{http_code}' --data-urlencode "_csrf=$csrf" --data-urlencode "username=admin" \
-    --data-urlencode "password=$PW" "https://$ADDR/login")
-  [ "$code" = "303" ] || die "web login (HTTP $code)" "$hublog"
-  page=$("${CURL[@]}" "https://$ADDR/library")
-  tok=$(printf '%s' "$page" | sed -n 's/.*"X-CSRF-Token": "\([^"]*\)".*/\1/p' | head -n1)
-  [ -n "$tok" ] || die "web login (session CSRF missing)" "$hublog"
+  # 2. Admin API: sign in, upload a dummy game
+  local code
+  admin_login "$PW" || die "admin sign-in" "$hublog"
   head -c 4096 /dev/urandom >"$TMP/e2e-dummy.nds"
-  code=$("${CURL[@]}" -o /dev/null -w '%{http_code}' -F "_csrf=$tok" -F "title=E2E Dummy" -F "file=@$TMP/e2e-dummy.nds" "https://$ADDR/library/upload")
-  [ "$code" = "303" ] || die "web upload (HTTP $code)" "$hublog"
-  ok "web login + dummy game uploaded"
+  code=$(upload_game "$TMP/e2e-dummy.nds" "E2E Dummy")
+  [ "$code" = "201" ] || die "upload (HTTP $code)" "$hublog"
+  ok "admin sign-in + dummy game uploaded"
 
   # 3. Device A shares (synthetic frames + 440 Hz tone) for 40 s
   start_device "$label" share "$share" session-share --synthetic --visibility hub_users --seconds 40 ${cliopts[@]+"${cliopts[@]}"}

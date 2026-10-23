@@ -22,11 +22,8 @@ const (
 
 var (
 	apiSaveUploadPath = regexp.MustCompile(`^/api/v1/games/[^/]+/saves/[^/]+/upload$`)
-	webSaveUploadPath = regexp.MustCompile(`^/saves/[^/]+/[^/]+/[^/]+/upload$`)
-	webFirmwareUpload = regexp.MustCompile(`^/systems/[^/]+/firmware/[^/]+/upload$`)
 	// Resumable ROM upload chunks (at most 64 MiB each).
 	apiUploadChunkPath = regexp.MustCompile(`^/api/v1/uploads/[^/]+$`)
-	webUploadChunkPath = regexp.MustCompile(`^/library/uploads/[^/]+/chunk$`)
 )
 
 // readTimeoutFor returns the read deadline for a request: 0 means none (long-lived streams), otherwise the
@@ -34,12 +31,11 @@ var (
 func readTimeoutFor(r *http.Request) time.Duration {
 	p := r.URL.Path
 	switch {
-	case p == "/events" || p == "/api/v1/ws":
-		return 0 // SSE and WebSocket (the connection is hijacked): no read deadline
-	case r.Method == http.MethodPost && (p == "/api/v1/games" || p == "/library/upload" ||
-		apiSaveUploadPath.MatchString(p) || webSaveUploadPath.MatchString(p) || webFirmwareUpload.MatchString(p)):
+	case p == "/api/v1/ws":
+		return 0 // WebSocket (the connection is hijacked): no read deadline
+	case r.Method == http.MethodPost && (p == "/api/v1/games" || apiSaveUploadPath.MatchString(p)):
 		return uploadReadTimeout
-	case (r.Method == http.MethodPut && apiUploadChunkPath.MatchString(p)) || (r.Method == http.MethodPost && webUploadChunkPath.MatchString(p)):
+	case r.Method == http.MethodPut && apiUploadChunkPath.MatchString(p):
 		return uploadChunkReadTimeout
 	case r.Method == http.MethodPut && strings.HasPrefix(p, "/api/v1/games/") && strings.Contains(p, "/saves/"):
 		return uploadReadTimeout

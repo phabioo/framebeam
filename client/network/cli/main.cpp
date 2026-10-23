@@ -303,7 +303,7 @@ class Runner : public QObject {
         }
         break;
       case S::AwaitingApproval:
-        out() << "Waiting for approval in the hub web interface (Allow/Deny) ...\n";
+        out() << "Waiting for approval in the app (Allow/Deny in the server admin) ...\n";
         out().flush();
         break;
       case S::Denied:

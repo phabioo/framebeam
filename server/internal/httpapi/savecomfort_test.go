@@ -163,7 +163,7 @@ func TestSaveUpdatedPush(t *testing.T) {
 	w1.quiet("save_updated")
 	w2.quiet("save_updated")
 
-	// A change made in the web interface goes to every connected device of the user, with the nil device.
+	// A change made in the app goes to every connected device of the user, with the nil device.
 	settleAll()
 	if _, err := s.svc.RestoreSaveVersion(context.Background(), hub.RestoreInput{UserID: s.admin.ID, DeviceID: hub.WebDeviceID(s.admin.ID),
 		GameID: s.game.ID, Slot: "default", Version: 1, ExpectedRevision: 4}); err != nil {
