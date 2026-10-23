@@ -65,7 +65,7 @@ ApplicationWindow {
     StackLayout {
         id: stack
         anchors.fill: parent
-        currentIndex: ["connection", "pairing", "library", "game", "settings", "emulation", "controllers", "plugin", "runs"].indexOf(window.player.screen)
+        currentIndex: ["connection", "pairing", "library", "game", "settings", "emulation", "controllers", "plugin", "runs", "server"].indexOf(window.player.screen)
 
         ConnectionScreen { player: window.player }
         PairingScreen { player: window.player }
@@ -76,11 +76,12 @@ ApplicationWindow {
         ControllersScreen { player: window.player }
         PluginScreen { player: window.player }
         RunsScreen { player: window.player }
+        ServerScreen { player: window.player }
     }
 
     // Hotkeys (frame.md "0-4 G"): Ctrl+1 to 4 Library, Runs, Emulation, Controllers; Ctrl+, Settings. Not in the game view,
     // not before a server is connected.
-    readonly property bool navHotkeys: ["library", "runs", "emulation", "controllers", "settings", "plugin"].indexOf(window.player.screen) >= 0
+    readonly property bool navHotkeys: ["library", "runs", "emulation", "controllers", "settings", "plugin", "server"].indexOf(window.player.screen) >= 0
     Shortcut { sequence: "Ctrl+1"; enabled: window.navHotkeys; onActivated: window.player.showLibrary() }
     Shortcut { sequence: "Ctrl+2"; enabled: window.navHotkeys && window.player.runs.available; onActivated: window.player.showRuns() }
     Shortcut { sequence: "Ctrl+3"; enabled: window.navHotkeys; onActivated: window.player.showEmulation() }
@@ -139,6 +140,7 @@ ApplicationWindow {
     }
 
     ConflictDialog { player: window.player }
+    UzConfirmDialog { controller: window.player.admin }   // "Confirm it's you": opens for any admin request that needs it
     ReportProblemDialog { player: window.player }  // Settings > Diagnostics and the game "⋯" menu open it
 
     // Tooltips (R-P12): the shared tooltip of the attached ToolTip type is restyled once with the theme tokens

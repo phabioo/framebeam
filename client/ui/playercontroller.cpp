@@ -211,6 +211,8 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
                                if (connectionCheck_) connectionCheck_->clearReportMark();
                              },
                              [this]() { return diagnosticsInfo(); }});
+  admin_ = std::make_unique<AdminController>(
+      AdminController::Deps{conn_.get(), [this]() { return isAdmin(); }, [this]() { return screen_ == QLatin1String("game"); }});
   connect(systems_.get(), &HubSystems::stateChanged, this, [this]() {
     if (systems_->state() == HubSystems::State::Ready) {
       fwProblems_.clear();  // fresh registry from the Hub: validation problems are re-evaluated
@@ -897,6 +899,7 @@ void PlayerController::updateScreen() {
     screen_ = next;
     emit screenChanged();
   }
+  if (admin_) admin_->refreshAvailability();  // status polling pauses while a game is shown
 }
 
 void PlayerController::onConnectionState(HubConnection::State s) {
@@ -1229,6 +1232,22 @@ void PlayerController::showEmulation() {
   refreshEmulationPage();
   page_ = QStringLiteral("emulation");
   updateScreen();
+}
+
+void PlayerController::showServerPage(const QString& page) {
+  if (conn_->state() != HubConnection::State::Connected || (gameActive_ && !background_)) {
+    return;
+  }
+  static const QStringList pages{QStringLiteral("status"), QStringLiteral("users"), QStringLiteral("systems"),
+                                 QStringLiteral("plugins"), QStringLiteral("reports")};
+  const QString next = pages.contains(page) ? page : QStringLiteral("status");
+  if (next != serverPage_) {
+    serverPage_ = next;
+    emit serverPageChanged();
+  }
+  page_ = QStringLiteral("server");
+  updateScreen();
+  admin_->refreshStatus();
 }
 
 void PlayerController::showControllers() {
