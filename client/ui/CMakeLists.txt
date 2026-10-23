@@ -198,6 +198,18 @@ qt_add_qml_module(uzume_ui
     UzTableRow.qml
     UzMetric.qml
     AdminPage.qml
+    AdminCall.qml
+    AdminPeople.qml
+    AdminAskDialog.qml
+    LibraryAdminBar.qml
+    LibraryAdminDetails.qml
+    SavesAdminSwitch.qml
+    SavesAdminSheet.qml
+    SavesAdminDetails.qml
+    RunsAdminPanel.qml
+    WhatsNewDialog.qml
+    SetupAssistant.qml
+    ServerProblemLine.qml
     AdminSaveDialog.qml
     ServerScreen.qml
     ServerStatusPage.qml

@@ -269,6 +269,39 @@ Item {
                           root.reload()
                       }) })
     }
+    // Parity with the old web admin: rename a person, add a person directly (with a pairing code), rename a device.
+    function renameUser(u: var) {
+        dialogs.askName({ title: qsTr("Rename %1").arg(u.display_name), text: qsTr("The name others see. The sign-in name stays."),
+                          label: qsTr("Name"), value: u.display_name, action: qsTr("Rename"), max: 32,
+                          run: (value, finish) => root.call("PATCH", "/admin/users/" + encodeURIComponent(u.id), { display_name: value }, (ok, d, code, message) => {
+                              finish(ok, ok ? "" : root.errorText(code, message))
+                              if (ok) root.say(qsTr("%1 is now called %2.").arg(u.display_name).arg(value), "done")
+                              root.reload()
+                          }) })
+    }
+    function addPerson() {
+        dialogs.askName({ title: qsTr("Add a person"), text: qsTr("Creates the person and a one-time pairing code. The first PC that enters the code is paired with them."),
+                          label: qsTr("Name"), value: "", action: qsTr("Add person"), max: 32,
+                          run: (value, finish) => root.call("POST", "/admin/users", { display_name: value }, (ok, data, code, message) => {
+                              finish(ok, ok ? "" : root.errorText(code, message))
+                              if (!ok) return
+                              const pc = data && data.pairing_code ? data.pairing_code : {}
+                              dialogs.showCode({ label: qsTr("Users · Pairing"), title: qsTr("Pairing code for %1").arg(value),
+                                                 text: qsTr("The code works until %1 and is shown only now.").arg(pc.expires_at ? root.timeText(pc.expires_at) : ""),
+                                                 code: pc.code ?? "", note: qsTr("Shown once"), kind: "pairing" })
+                              root.say(qsTr("%1 was added.").arg(value), "done")
+                              root.reload()
+                          }) })
+    }
+    function renameDevice(row: var) {
+        dialogs.askName({ title: qsTr("Rename %1").arg(row.name), text: qsTr("The name shown in the list of devices and in the save history."),
+                          label: qsTr("Name"), value: row.name, action: qsTr("Rename"), max: 100,
+                          run: (value, finish) => root.call("PATCH", "/admin/devices/" + encodeURIComponent(row.id), { name: value }, (ok, d, code, message) => {
+                              finish(ok, ok ? "" : root.errorText(code, message))
+                              if (ok) root.say(qsTr("The device is now called %1.").arg(value), "done")
+                              root.reload()
+                          }) })
+    }
     function removeUser(u: var) {
         dialogs.ask({ title: qsTr("Remove %1?").arg(u.display_name),
                       text: qsTr("%1 is deleted for good, with their devices, saves and save history. Games they added to the library stay. To keep the saves, turn %1 off instead.").arg(u.display_name),
@@ -296,6 +329,12 @@ Item {
         ]
 
         headerActions: [
+            UzButton {
+                objectName: "usersAddPerson"
+                text: qsTr("Add person…")
+                enabled: root.loaded
+                onClicked: root.addPerson()
+            },
             UzButton {
                 objectName: "usersCreateInvite"
                 kind: "primary"

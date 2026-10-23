@@ -27,6 +27,16 @@ Item {
         root.spec = s
         askDialog.open()
     }
+    // Asks for one name (rename a person or a device, add a person): spec { title, text, label, value, action, max, run(value, finish) }.
+    function askName(s: var) {
+        root.nameSpec = s
+        nameDialog.error = ""
+        nameDialog.busy = false
+        nameField.text = s.value ?? ""
+        nameDialog.open()
+        nameField.forceActiveFocus()
+    }
+    property var nameSpec: ({})
     function openInvite() {
         inviteDialog.error = ""
         inviteDialog.busy = false
@@ -121,6 +131,51 @@ Item {
                 text: root.spec.action ?? ""
                 busy: askDialog.busy
                 onClicked: askDialog.run()
+            }
+        ]
+    }
+
+    // ---- one name
+    UzDialog {
+        id: nameDialog
+        objectName: "usersNameDialog"
+        label: qsTr("Users")
+        title: root.nameSpec.title ?? ""
+        text: root.nameSpec.text ?? ""
+        function submit() {
+            const v = nameField.text.trim()
+            if (v === "" || nameDialog.busy) return
+            nameDialog.error = ""
+            nameDialog.busy = true
+            root.nameSpec.run(v, (ok, err) => {
+                nameDialog.busy = false
+                if (ok) nameDialog.close()
+                else nameDialog.error = err
+            })
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.space05
+            UzMono { text: (root.nameSpec.label ?? "").toUpperCase() }
+            UzField {
+                id: nameField
+                objectName: "usersNameField"
+                Layout.fillWidth: true
+                fill: Theme.ground
+                maximumLength: root.nameSpec.max ?? 32
+                Accessible.name: root.nameSpec.label ?? ""
+                onAccepted: nameDialog.submit()
+            }
+        }
+        actions: [
+            UzButton { objectName: "nameCancel"; text: qsTr("Cancel"); enabled: !nameDialog.busy; onClicked: nameDialog.close() },
+            UzButton {
+                objectName: "nameConfirm"
+                kind: "primary"
+                text: root.nameSpec.action ?? ""
+                busy: nameDialog.busy
+                enabled: nameField.text.trim() !== ""
+                onClicked: nameDialog.submit()
             }
         ]
     }

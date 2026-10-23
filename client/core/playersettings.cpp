@@ -30,6 +30,7 @@ constexpr const char* kUpdateAutoKey = "update_auto_install";
 constexpr const char* kUpdateHistoryKey = "update_history";
 constexpr const char* kUpdatePausedKey = "update_paused";
 constexpr const char* kUpdateSkipKey = "update_skip";
+constexpr const char* kWhatsNewKey = "whats_new_version";
 constexpr const char* kDiagOpenKey = "diagnostics_open";
 constexpr const char* kDeveloperModeKey = "developer_mode";
 constexpr const char* kPluginLanguageKey = "plugin_language";
@@ -66,6 +67,7 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
     updateAutoInstall_ = raw_.value(QLatin1String(kUpdateAutoKey)).toBool();
   }
   updateSkip_ = raw_.value(QLatin1String(kUpdateSkipKey)).toString();
+  whatsNewVersion_ = raw_.value(QLatin1String(kWhatsNewKey)).toString();
   diagOpen_ = raw_.value(QLatin1String(kDiagOpenKey)).toBool(false);
   developerMode_ = raw_.value(QLatin1String(kDeveloperModeKey)).toBool(false);
   if (const QString lang = raw_.value(QLatin1String(kPluginLanguageKey)).toString(); isValidPluginLanguage(lang)) pluginLanguage_ = lang;
@@ -168,6 +170,16 @@ bool PlayerSettings::setUpdateSkip(const QString& version) {
     raw_.remove(QLatin1String(kUpdateSkipKey));
   } else {
     raw_.insert(QLatin1String(kUpdateSkipKey), version);
+  }
+  return save();
+}
+
+bool PlayerSettings::setWhatsNewVersion(const QString& version) {
+  whatsNewVersion_ = version;
+  if (version.isEmpty()) {
+    raw_.remove(QLatin1String(kWhatsNewKey));
+  } else {
+    raw_.insert(QLatin1String(kWhatsNewKey), version);
   }
   return save();
 }

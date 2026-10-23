@@ -110,6 +110,8 @@ class UpdateManager : public QObject {
   QString statusText() const { return status_; }
   QString availableVersion() const { return selection_.release.version; }
   QString notesUrl() const { return selection_.release.notesUrl; }
+  // Notes of the running version from the last verified index ("What's new"); empty when the index has none or was not read yet.
+  QString installedNotes() const { return lastIndex_.ok ? releaseNotes(lastIndex_.index, QStringLiteral("player"), config_.currentVersion) : QString(); }
   double progress() const { return progress_; }
   QDateTime lastCheck() const { return lastCheck_; }
   const QString& currentVersion() const { return config_.currentVersion; }

@@ -140,8 +140,10 @@ ApplicationWindow {
     }
 
     ConflictDialog { player: window.player }
-    UzConfirmDialog { controller: window.player.admin }   // "Confirm it's you": opens for any admin request that needs it
+    UzConfirmDialog { controller: window.player.admin; parent: Window.contentItem; z: 200 }   // "Confirm it's you": opens for any admin request that needs it
     ReportProblemDialog { player: window.player }  // Settings > Diagnostics and the game "⋯" menu open it
+    WhatsNewDialog { player: window.player }   // once per new app version (release notes of the signed updates index)
+    SetupAssistant { player: window.player }   // player.showSetupAssistant()
 
     // Tooltips (R-P12): the shared tooltip of the attached ToolTip type is restyled once with the theme tokens
     // (popup surface, popup border, text) instead of the default white box.

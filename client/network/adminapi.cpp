@@ -200,7 +200,7 @@ QPointer<QNetworkReply> AdminApi::download(const QString& path, const QString& t
 }
 
 QPointer<QNetworkReply> AdminApi::upload(const QString& method, const QString& path, const QString& sourceFile,
-                                         const QString& contentType, Done done) {
+                                         const QString& contentType, Done done, const HttpHeaders& headers) {
   if (!methodAllowed(method) || method == QLatin1String("GET")) {
     refuse(std::move(done), QStringLiteral("invalid_method"), tr("Unsupported request method."));
     return {};
@@ -220,7 +220,7 @@ QPointer<QNetworkReply> AdminApi::upload(const QString& method, const QString& p
     refuse(std::move(done), QStringLiteral("file_error"), msg);
     return {};
   }
-  QNetworkReply* reply = conn_->authorizedSendStream(method.toLatin1(), path, file, {},
+  QNetworkReply* reply = conn_->authorizedSendStream(method.toLatin1(), path, file, headers,
                                                      contentType.isEmpty() ? QByteArray("application/octet-stream") : contentType.toLatin1());
   if (reply == nullptr) {
     delete file;

@@ -116,6 +116,11 @@ ColumnLayout {
                 Layout.rightMargin: Theme.space15
                 spacing: Theme.space1
                 UzButton {
+                    objectName: "personRename"
+                    text: qsTr("Rename…")
+                    onClicked: root.page.renameUser(root.u)
+                }
+                UzButton {
                     objectName: "personMakeAdmin"
                     visible: !root.isAdmin
                     text: qsTr("Make admin…")

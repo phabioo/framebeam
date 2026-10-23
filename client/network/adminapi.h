@@ -50,8 +50,9 @@ class AdminApi : public QObject {
   // event loop). The returned reply (null for a refusal) can be aborted; done is then called with a network error.
   QPointer<QNetworkReply> request(const QString& method, const QString& path, const QVariant& body, Done done);
   QPointer<QNetworkReply> download(const QString& path, const QString& targetFile, Done done, const QString& method = QStringLiteral("GET"));
+  // `headers`: extra request headers (the save upload of a person needs X-Uzume-Expected-Revision and X-Uzume-Content-SHA256).
   QPointer<QNetworkReply> upload(const QString& method, const QString& path, const QString& sourceFile,
-                                 const QString& contentType, Done done);
+                                 const QString& contentType, Done done, const HttpHeaders& headers = {});
 
   static Result resultOf(QNetworkReply* reply);
 

@@ -61,6 +61,8 @@ QVariantMap GameDetail::selectedGame() const {
   m.insert(QStringLiteral("systemName"), man ? man->displayName : game->system.toUpper());
   m.insert(QStringLiteral("stateKind"), kind);
   m.insert(QStringLiteral("sha"), game->romSha256);
+  m.insert(QStringLiteral("romFilename"), game->romFilename);  // admin details of the Library
+  m.insert(QStringLiteral("uploadedBy"), game->uploadedBy);
   m.insert(QStringLiteral("sizeText"), tr("%1 (%2 bytes)").arg(LibraryModel::formatSize(game->romSize)).arg(game->romSize));
   m.insert(QStringLiteral("cachePath"), cache_->finalPath(game->romSha256, ext));
   const qint64 total = st.totalBytes > 0 ? st.totalBytes : game->romSize;

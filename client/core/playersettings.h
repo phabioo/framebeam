@@ -46,6 +46,10 @@ class PlayerSettings {
   QString updateSkip() const { return updateSkip_; }
   bool setUpdateSkip(const QString& version);  // empty removes it
 
+  // "What's new" (0.18): the app version whose release notes were shown or dismissed last; empty = never (fresh install).
+  QString whatsNewVersion() const { return whatsNewVersion_; }
+  bool setWhatsNewVersion(const QString& version);  // empty removes it
+
   // Diagnostics overlay (0.6 D5): open/closed state of the overlay and of its two sections, shared by the window,
   // multiview and fullscreen. Defaults: overlay closed, Emulation section open, Streaming section open.
   bool diagnosticsOpen() const { return diagOpen_; }
@@ -121,6 +125,7 @@ class PlayerSettings {
   QString updateChannelDefault_;
   std::optional<bool> updateAutoInstall_;
   QString updateSkip_;
+  QString whatsNewVersion_;
   bool diagOpen_ = false;
   bool diagEmulationOpen_ = true;
   bool diagStreamingOpen_ = true;

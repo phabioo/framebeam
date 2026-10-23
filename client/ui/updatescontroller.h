@@ -55,6 +55,11 @@ class UpdatesController : public QObject {
   Q_PROPERTY(QString skippedVersion READ skippedVersion NOTIFY changed)  // went back from this version; "" = none
   Q_PROPERTY(bool busy READ busy NOTIFY changed)             // a game or Session runs: going back is refused
 
+  // "What's new" (accounts-and-server.md 6a): the notes of the running version from the signed updates index, offered once
+  // after an update. whatsNewPending is true until the dialog is dismissed; the version is then remembered in the local settings.
+  Q_PROPERTY(bool whatsNewPending READ whatsNewPending NOTIFY whatsNewChanged)
+  Q_PROPERTY(QString whatsNewNotes READ whatsNewNotes NOTIFY whatsNewChanged)
+
  public:
   struct Options {
     QString baseDir;
@@ -98,6 +103,8 @@ class UpdatesController : public QObject {
   QString pausedDetail() const;
   QString skippedVersion() const { return manager_.skippedVersion(); }
   bool busy() const { return manager_.busy(); }
+  bool whatsNewPending() const { return whatsNewPending_; }
+  QString whatsNewNotes() const { return whatsNewNotes_; }
 
   Q_INVOKABLE void checkNow() { manager_.checkNow(); }
   Q_INVOKABLE void setChannel(const QString& channel);  // "default" | "stable" | "beta"
@@ -111,15 +118,25 @@ class UpdatesController : public QObject {
   Q_INVOKABLE void resumeUpdates() { manager_.resumeUpdates(); }
   Q_INVOKABLE void updateToSkipped() { manager_.installNow(); }  // "Update to X" (the skip ends)
   Q_INVOKABLE void openRelease(const QString& url);               // https only
+  // Decides whether "What's new" is offered for `notes` (the notes of the running version): never on a fresh install (the
+  // version is only remembered), not when it was shown already, not after going back to an older version, not without notes.
+  // Called once per run when the first verified index arrived; the argument makes it testable.
+  Q_INVOKABLE void applyWhatsNew(const QString& notes);
+  Q_INVOKABLE void dismissWhatsNew();                             // remembers the running version
+  Q_INVOKABLE void rememberWhatsNew(const QString& version);      // tests and "Updates" use it to seed the remembered version
 
  signals:
   void changed();
+  void whatsNewChanged();
   void quitRequested();
 
  private:
   update::UpdateManager manager_;
   PlayerSettings* settings_;
   QString dismissedVersion_;
+  bool whatsNewDecided_ = false;
+  bool whatsNewPending_ = false;
+  QString whatsNewNotes_;
   std::function<QList<QPair<QString, QString>>(const QString&)> pluginNeeds_;
 };
 
