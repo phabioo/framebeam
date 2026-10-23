@@ -208,6 +208,10 @@ QVariantMap RunsController::rowFor(const RunInfo& run) const {
   }
   QString sub = run.plugins.isEmpty() ? tr("No rules") : pluginsText(run);
   if (mine != nullptr && !mine->gameId.isEmpty()) sub += QStringLiteral(" · ") + gameTitle(mine->gameId);
+  QStringList ruleNames;
+  for (const RunPluginRef& p : run.plugins) ruleNames << pluginName(p.pluginId);
+  const QString ruleVersion = run.plugins.size() == 1 ? run.plugins.first().version : QString();
+  const QString game = mine != nullptr && !mine->gameId.isEmpty() ? gameTitle(mine->gameId) : QString();
   QString status = run.status;
   QString text = statusText(run.status);
   QString tone = statusTone(run.status);
@@ -224,7 +228,10 @@ QVariantMap RunsController::rowFor(const RunInfo& run) const {
           {QStringLiteral("subText"), sub},
           {QStringLiteral("timeText"), timeText(run.updatedAt)},
           {QStringLiteral("action"), canOpen ? tr("Open →") : tr("View")},
-          {QStringLiteral("participants"), parts}};
+          {QStringLiteral("participants"), parts},
+          {QStringLiteral("game"), game},
+          {QStringLiteral("rulesName"), ruleNames.join(QStringLiteral(" & "))},
+          {QStringLiteral("rulesVersion"), ruleVersion}};
 }
 
 void RunsController::rebuild() {
@@ -299,6 +306,7 @@ void RunsController::rebuildDetail() {
          {QStringLiteral("tone"), statusTone(run->status)},
          {QStringLiteral("line"), line},
          {QStringLiteral("pluginsText"), run->plugins.isEmpty() ? tr("No rules") : pluginsText(*run)},
+         {QStringLiteral("plain"), run->plugins.isEmpty()},
          {QStringLiteral("saveSlotText"), tr("Run: %1").arg(run->name)},
          {QStringLiteral("canPlay"), joined && !over},
          {QStringLiteral("playLabel"), mine != nullptr && !mine->gameId.isEmpty() ? tr("Play %1").arg(gameTitle(mine->gameId)) : tr("Play run")},

@@ -17,7 +17,7 @@ Rectangle {
     readonly property var local: player.localHub
     readonly property bool localForm: local.phase === "needsSetup" || local.phase === "needsSignIn" || local.phase === "working"
     readonly property bool canChoose: !root.localForm && (root.phase === "needsPairing" || root.phase === "denied" || root.phase === "expired")
-    color: Theme.bg
+    color: Theme.ground
 
     // Esc leaves the step like the Cancel / Back button of the phase (R-P4).
     Shortcut {
@@ -30,55 +30,50 @@ Rectangle {
         }
     }
 
-    StartFrame {
+    Flickable {
+        id: flick
         anchors.fill: parent
-        screenLabel: root.localForm ? qsTr("Server on this PC") : (root.pairAgain ? qsTr("Pair again") : qsTr("Add a server"))
-        openLabel: "UZUME · PAIRING"
-        openLines: [qsTr("Check the certificate."), qsTr("Then the admin of the server approves this device.")]
-        contentMaxWidth: 640
-        contentSpacing: Theme.space2
+        contentWidth: width
+        contentHeight: column.implicitHeight + 64
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { }
+
+        ColumnLayout {
+            id: column
+            width: Math.min(640, flick.width - 32)
+            x: (flick.width - width) / 2
+            y: Math.max(32, (flick.height - implicitHeight) / 2)
+            spacing: 14
 
             ColumnLayout {
-                spacing: Theme.space2
-                Layout.fillWidth: true
-                Layout.bottomMargin: Theme.space1
-                UzSectionLabel {
+                spacing: 6
+                Layout.bottomMargin: 8
+                Eyebrow {
                     objectName: "pairingEyebrow"
                     visible: root.pairAgain
-                    Layout.fillWidth: true
-                    number: 1
-                    text: qsTr("%1 · pairing lost").arg(root.info.hubName || "")
+                    text: qsTr("%1 · pairing lost").arg((root.info.hubName || "").toUpperCase())
                 }
-                Text {
+                UzLabel {
                     objectName: "pairingTitle"
-                    Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                    // A known server that lost its pairing says "Pair again"; a new address is "Add server".
+                    // A known Hub that lost its pairing says "Pair again" (P2); a new address is "Add hub".
                     text: root.localForm ? qsTr("Server on this PC") : (root.pairAgain ? qsTr("Pair again") : qsTr("Add server"))
-                    textFormat: Text.PlainText
-                    font.family: Theme.sans
                     font.pixelSize: Theme.roles.title.size
-                    font.weight: Font.Light
-                    font.letterSpacing: Theme.roles.title.spacing
-                    lineHeight: Theme.roles.title.line
-                    lineHeightMode: Text.FixedHeight
-                    color: Theme.ink
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: -0.6
                 }
-                Text {
+                UzLabel {
                     objectName: "pairingBody"
                     visible: root.pairAgain && !root.localForm
                     Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    font.family: Theme.sans
+                    wrapMode: Text.WordWrap
+                    color: Theme.muted
                     font.pixelSize: Theme.roles.body.size
-                    lineHeight: Theme.roles.body.line
-                    lineHeightMode: Text.FixedHeight
-                    color: Theme.ink2
+                    lineHeight: 1.4
                     text: qsTr("%1 no longer knows this device. Its admin may have revoked it. Pair again to get a new approval; your local saves are kept.")
                               .arg(root.info.hubName || qsTr("The server"))
                 }
-                UzMono { text: root.info.address; color: Theme.muted; font.pixelSize: Theme.fontMono }
+                UzMono { text: root.info.address; color: Theme.muted; font.pixelSize: 13 }
             }
 
             // Step 1: hub found
@@ -91,7 +86,7 @@ Rectangle {
                     visible: root.info.hubKnown
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    color: Theme.textSecondary
+                    color: Theme.ink2
                     text: qsTr("%1 · Uzume server %2 · Protocol v%3 · compatible")
                               .arg(root.info.hubName).arg(root.info.hubVersion).arg(root.info.protocol)
                 }
@@ -111,16 +106,16 @@ Rectangle {
                     objectName: "fingerprintText"
                     Layout.fillWidth: true
                     text: root.info.fingerprint
-                    color: Theme.text
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.ink
+                    font.pixelSize: Theme.roles.small.size
                     lineHeight: 1.35
                 }
                 UzLabel {
                     visible: root.phase === "trust"
                     Layout.fillWidth: true
                     text: qsTr("SHA-256 fingerprint of the server certificate. Compare it with the one shown in the server and trust it only if both match. If the certificate changes later, the connection is blocked.")
-                    color: Theme.textMuted
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.small.size
                     wrapMode: Text.WordWrap
                 }
                 RowLayout {
@@ -145,8 +140,8 @@ Rectangle {
                     Layout.fillWidth: true
                     text: root.info.tls ? qsTr("Saved. If the certificate changes later, the connection is blocked.")
                                         : qsTr("Development only: this server is contacted without TLS, so there is no fingerprint.")
-                    color: Theme.textMuted
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.small.size
                     wrapMode: Text.WordWrap
                 }
             }
@@ -207,8 +202,8 @@ Rectangle {
                     UzLabel {
                         Layout.fillWidth: true
                         text: qsTr("The invite code comes from the server admin and works once. Your user is created on this server with the name above.")
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.small.size
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -226,14 +221,14 @@ Rectangle {
                         spacing: 2
                         UzLabel {
                             text: root.phase === "authenticating" ? qsTr("Signing in…") : qsTr("Waiting for admin approval")
-                            font.pixelSize: Theme.fontBody
+                            font.pixelSize: Theme.roles.body.size
                             font.weight: Font.Medium
                         }
                         UzLabel {
                             visible: root.phase === "awaiting"
                             text: qsTr("The request appears in the server under Clients.")
-                            color: Theme.textMuted
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.muted
+                            font.pixelSize: Theme.roles.small.size
                         }
                     }
                 }
@@ -242,8 +237,8 @@ Rectangle {
                     visible: root.phase === "needsPairing" && !root.inviteMode && !root.localForm
                     Layout.fillWidth: true
                     text: qsTr("This device is not yet approved on the server. The server admin must confirm the request.")
-                    color: Theme.textMuted
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.small.size
                     wrapMode: Text.WordWrap
                 }
                 Rectangle {
@@ -252,14 +247,14 @@ Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: problemText.implicitHeight + 24
                     radius: 0
-                    color: root.phase === "denied" ? Theme.errorBg : Theme.infoBg
+                    color: root.phase === "denied" ? Theme.dangerTint : Theme.ground
                     UzLabel {
                         id: problemText
                         anchors.fill: parent
                         anchors.margins: 12
                         wrapMode: Text.WordWrap
-                        font.pixelSize: Theme.fontSmall
-                        color: root.phase === "denied" ? Theme.errorText : Theme.infoText
+                        font.pixelSize: Theme.roles.input.size
+                        color: root.phase === "denied" ? Theme.danger : Theme.ink2
                         text: root.phase === "denied" ? qsTr("The request was denied by the admin.")
                                                       : qsTr("The request has expired. Please request again.")
                     }
@@ -268,8 +263,8 @@ Rectangle {
                     visible: root.info.error !== "" && approvalStep.stage === "active"
                     Layout.fillWidth: true
                     text: root.info.error
-                    color: Theme.error
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.danger
+                    font.pixelSize: Theme.roles.small.size
                     wrapMode: Text.WordWrap
                 }
 
@@ -280,11 +275,11 @@ Rectangle {
                     rowSpacing: 6
                     Layout.topMargin: 4
                     Eyebrow { text: qsTr("Device name"); Layout.preferredWidth: 130 }
-                    UzMono { text: root.info.deviceName; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight }
+                    UzMono { text: root.info.deviceName; color: Theme.ink; Layout.fillWidth: true; elide: Text.ElideRight }
                     Eyebrow { text: qsTr("Platform"); Layout.preferredWidth: 130 }
-                    UzMono { text: root.info.platform; color: Theme.text; Layout.fillWidth: true }
+                    UzMono { text: root.info.platform; color: Theme.ink; Layout.fillWidth: true }
                     Eyebrow { text: qsTr("Uzume version"); Layout.preferredWidth: 130 }
-                    UzMono { text: root.info.playerVersion; color: Theme.text; Layout.fillWidth: true }
+                    UzMono { text: root.info.playerVersion; color: Theme.ink; Layout.fillWidth: true }
                 }
 
                 RowLayout {
@@ -323,5 +318,6 @@ Rectangle {
                     }
                 }
             }
+        }
     }
 }

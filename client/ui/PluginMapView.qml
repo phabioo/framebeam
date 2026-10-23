@@ -205,7 +205,6 @@ Item {
     // ---- surface
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radius8
         color: Theme.blockColor("mapWater", root.dark)
         border.width: 1
         border.color: Theme.blockColor("cardBorder", root.dark)
@@ -290,7 +289,6 @@ Item {
                 objectName: "pluginMapCluster_" + modelData.area
                 readonly property string markerId: modelData.id
                 dark: root.dark
-                ringRadius: 15
                 implicitHeight: 30
                 implicitWidth: clusterRow.implicitWidth + 20
                 width: implicitWidth
@@ -322,7 +320,7 @@ Item {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         anchors.verticalCenter: parent.verticalCenter
                         text: cm.modelData.n
-                        font.pixelSize: Theme.fontMeta
+                        font.pixelSize: Theme.roles.small.size
                         font.weight: Font.DemiBold
                         color: Theme.blockColor("text", root.dark)
                     }
@@ -348,7 +346,6 @@ Item {
                 readonly property var icons: modelData.icons || []
                 readonly property bool selected: root.selId === markerId
                 dark: root.dark
-                ringRadius: 14
                 implicitHeight: 28
                 implicitWidth: routeRow.implicitWidth + 16
                 width: implicitWidth
@@ -386,7 +383,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: rm.modelData.number === undefined ? "" : String(rm.modelData.number)
                         font.family: Theme.mono
-                        font.pixelSize: Theme.fontMeta
+                        font.pixelSize: Theme.roles.small.size
                         font.weight: Font.DemiBold
                         color: Theme.blockColor("textSecondary", root.dark)
                     }
@@ -396,7 +393,7 @@ Item {
                         visible: rm.icons.length === 0
                         anchors.verticalCenter: parent.verticalCenter
                         text: qsTr("open")
-                        font.pixelSize: Theme.fontMeta
+                        font.pixelSize: Theme.roles.small.size
                         color: Theme.blockColor("accent", root.dark)
                     }
                 }
@@ -412,7 +409,6 @@ Item {
                 readonly property string markerId: String(modelData.p.id)
                 readonly property bool selected: root.selId === markerId
                 dark: root.dark
-                ringRadius: 15
                 implicitWidth: 34
                 implicitHeight: 40
                 width: implicitWidth
@@ -506,7 +502,7 @@ Item {
                             Layout.preferredWidth: 56
                             text: modelData.name || ""
                             elide: Text.ElideRight
-                            font.pixelSize: Theme.fontMeta
+                            font.pixelSize: Theme.roles.small.size
                             font.weight: Font.Medium
                             color: Theme.blockColor("text", root.dark)
                         }
@@ -523,7 +519,7 @@ Item {
                             text: modelData.status || ""
                             wrapMode: Text.WordWrap     // shown in full, not cut off (P47)
                             maximumLineCount: 3
-                            font.pixelSize: Theme.fontMeta
+                            font.pixelSize: Theme.roles.small.size
                             color: Theme.blockColor("textMuted", root.dark)
                         }
                     }
@@ -561,7 +557,6 @@ Item {
                     required property var modelData
                     objectName: modelData.name
                     dark: root.dark
-                    ringRadius: Theme.radius7
                     implicitWidth: 32
                     implicitHeight: 32
                     width: 32
@@ -569,7 +564,6 @@ Item {
                     onActivated: modelData.tip === 1 ? root.zoomIn() : (modelData.tip === 2 ? root.zoomOut() : root.fit())
                     Rectangle {
                         anchors.fill: parent
-                        radius: Theme.radius7
                         color: zb.hovered ? Theme.blockColor("hover", root.dark) : Theme.blockColor("popup", root.dark)
                         border.width: 1
                         border.color: Theme.blockColor("popupBorder", root.dark)
@@ -593,7 +587,6 @@ Item {
             z: 30
             width: legendCol.implicitWidth + 20
             height: legendCol.implicitHeight + 16
-            radius: Theme.radius8
             color: Theme.blockColor("popup", root.dark)
             border.width: 1
             border.color: Theme.blockColor("popupBorder", root.dark)
@@ -605,7 +598,6 @@ Item {
                 PluginFocusable {
                     objectName: "pluginMapLegendToggle"
                     dark: root.dark
-                    ringRadius: Theme.radius4
                     implicitWidth: legendHead.implicitWidth
                     implicitHeight: 18
                     onActivated: root.legendOpen = !root.legendOpen
@@ -613,7 +605,7 @@ Item {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         id: legendHead
                         text: (root.legendOpen ? "▾ " : "▸ ") + qsTr("Legend")
-                        font.pixelSize: Theme.fontMeta
+                        font.pixelSize: Theme.roles.small.size
                         font.weight: Font.DemiBold
                         color: Theme.blockColor("textMuted", root.dark)
                     }
@@ -622,19 +614,19 @@ Item {
                     visible: root.legendOpen
                     spacing: 8
                     Rectangle { width: 8; height: 8; radius: 0; color: Theme.playerColor(1, root.dark) }
-                    Text { textFormat: Text.PlainText; text: qsTr("Caught · dot = owner"); font.pixelSize: Theme.fontMeta; color: Theme.blockColor("textSecondary", root.dark) }
+                    Text { textFormat: Text.PlainText; text: qsTr("Caught · dot = owner"); font.pixelSize: Theme.roles.small.size; color: Theme.blockColor("textSecondary", root.dark) }
                 }
                 RowLayout {
                     visible: root.legendOpen
                     spacing: 8
                     PluginImage { dark: root.dark; size: "s"; imgState: "dead" }
-                    Text { textFormat: Text.PlainText; text: qsTr("Dead"); font.pixelSize: Theme.fontMeta; color: Theme.blockColor("textSecondary", root.dark) }
+                    Text { textFormat: Text.PlainText; text: qsTr("Dead"); font.pixelSize: Theme.roles.small.size; color: Theme.blockColor("textSecondary", root.dark) }
                 }
                 RowLayout {
                     visible: root.legendOpen
                     spacing: 8
                     PluginImage { dark: root.dark; size: "s"; imgState: "missed" }
-                    Text { textFormat: Text.PlainText; text: qsTr("Missed"); font.pixelSize: Theme.fontMeta; color: Theme.blockColor("textSecondary", root.dark) }
+                    Text { textFormat: Text.PlainText; text: qsTr("Missed"); font.pixelSize: Theme.roles.small.size; color: Theme.blockColor("textSecondary", root.dark) }
                 }
             }
         }
@@ -648,7 +640,7 @@ Item {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: qsTr("Map not read yet")
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 font.weight: Font.Medium
                 color: Theme.blockColor("textMuted", root.dark)
             }
@@ -656,7 +648,7 @@ Item {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: qsTr("It appears once the game has loaded it.")
-                font.pixelSize: Theme.fontMeta
+                font.pixelSize: Theme.roles.small.size
                 color: Theme.blockColor("textFaint", root.dark)
             }
         }

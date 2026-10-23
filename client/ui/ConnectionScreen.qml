@@ -13,7 +13,7 @@ Rectangle {
     readonly property bool childStarting: local.mode === "child" && (local.childState === "starting" || local.phase === "starting")
     readonly property bool childFailed: local.mode === "child" && !childStarting && local.childState === "failed"
     readonly property bool childBlock: childStarting || childFailed
-    color: Theme.bg
+    color: Theme.ground
 
     StartFrame {
         anchors.fill: parent
@@ -33,28 +33,18 @@ Rectangle {
                 }
                 Text {
                     objectName: "connectTitle"
-                    Layout.fillWidth: true
-                    wrapMode: Text.Wrap
                     text: root.childBlock ? qsTr("Your server on this PC") : qsTr("Welcome to Uzume")
-                    textFormat: Text.PlainText
-                    font.family: Theme.sans
                     font.pixelSize: Theme.roles.title.size
-                    font.weight: Font.Light
-                    font.letterSpacing: Theme.roles.title.spacing
-                    lineHeight: Theme.roles.title.line
-                    lineHeightMode: Text.FixedHeight
-                    color: Theme.ink
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: -0.6
                 }
                 Text {
                     objectName: "connectBody"
                     Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    font.family: Theme.sans
+                    wrapMode: Text.WordWrap
+                    color: Theme.muted
                     font.pixelSize: Theme.roles.body.size
-                    lineHeight: Theme.roles.body.line
-                    lineHeightMode: Text.FixedHeight
-                    color: Theme.ink2
+                    lineHeight: 1.4
                     text: root.childBlock ? qsTr("Games and saves stay on this PC. The server runs while Uzume is open.")
                                           : qsTr("Enter the address of your Uzume server. You find it in the server under Settings → General.")
                 }
@@ -99,8 +89,8 @@ Rectangle {
                 UzLabel {
                     visible: root.player.hubs.length === 0
                     text: qsTr("No server saved yet.")
-                    color: Theme.textMuted
-                    font.pixelSize: Theme.fontSmall
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.input.size
                     wrapMode: Text.WordWrap
                     width: hubList.width
                 }
@@ -110,7 +100,7 @@ Rectangle {
                 visible: !root.childBlock
                 Layout.fillWidth: true
                 spacing: 8
-                UzLabel { text: qsTr("Server address"); font.pixelSize: Theme.fontSmall; font.weight: Font.Medium }
+                UzLabel { text: qsTr("Server address"); font.pixelSize: Theme.roles.input.size; font.weight: Font.Medium }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
@@ -136,15 +126,15 @@ Rectangle {
                     objectName: "connectHint"
                     visible: root.player.connectionNotice === ""
                     text: qsTr("host:port, without https://")
-                    color: Theme.textMuted
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.small.size
                 }
                 UzLabel {
                     visible: root.player.connectionNotice !== ""
                     Layout.fillWidth: true
                     text: root.player.connectionNotice
-                    color: Theme.error
-                    font.pixelSize: Theme.fontSmall
+                    color: Theme.danger
+                    font.pixelSize: Theme.roles.input.size
                     wrapMode: Text.WordWrap
                 }
             }
@@ -158,7 +148,7 @@ Rectangle {
                 visible: local.available && !root.childBlock && local.mode === ""
                 Layout.fillWidth: true
                 implicitHeight: localCol.implicitHeight + 28
-                radius: 0
+                radius: Theme.radiusNone
                 color: Theme.surface
                 border.width: 1
                 border.color: Theme.rule
@@ -166,20 +156,20 @@ Rectangle {
                     id: localCol
                     anchors.fill: parent
                     anchors.margins: 14
-                    spacing: Theme.space8
+                    spacing: Theme.space1
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: Theme.space12
+                        spacing: Theme.space15
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 2
-                            UzLabel { text: qsTr("Set up a server on this PC"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
+                            UzLabel { text: qsTr("Set up a server on this PC"); font.pixelSize: Theme.roles.itemTitle.size; font.weight: Font.DemiBold }
                             UzLabel {
                                 Layout.fillWidth: true
                                 text: localCard.local.present ? qsTr("Connect to the server on this PC and sign in as its admin.")
                                                               : qsTr("Install the Uzume server on this PC to keep your games and saves here.")
-                                color: Theme.textMuted
-                                font.pixelSize: Theme.fontSmall
+                                color: Theme.muted
+                                font.pixelSize: Theme.roles.input.size
                                 wrapMode: Text.WordWrap
                             }
                         }
@@ -196,8 +186,8 @@ Rectangle {
                         objectName: "localHubInstallText"
                         visible: localCard.installing && localCard.local.installText !== ""
                         text: localCard.local.installText
-                        color: Theme.textSecondary
-                        font.pixelSize: Theme.fontSmall
+                        color: Theme.ink2
+                        font.pixelSize: Theme.roles.input.size
                     }
                     ProgressBar {
                         visible: localCard.installing && value > 0 && value < 1
@@ -209,8 +199,8 @@ Rectangle {
                         visible: localCard.local.phase === "error" && localCard.local.error !== ""
                         Layout.fillWidth: true
                         text: localCard.local.error
-                        color: Theme.error
-                        font.pixelSize: Theme.fontSmall
+                        color: Theme.danger
+                        font.pixelSize: Theme.roles.input.size
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -219,7 +209,7 @@ Rectangle {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 14
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.borderSidebar }
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.rule }
                 UzToggle {
                     id: autoToggle
                     objectName: "autoConnectToggle"

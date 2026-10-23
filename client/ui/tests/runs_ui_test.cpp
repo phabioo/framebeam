@@ -9,6 +9,7 @@
 #include <QtTest>
 
 #include "fakehub.h"
+#include "keyedrowsmodel.h"
 #include "fbplugin_testutil.h"
 #include "runscontroller.h"
 #include "savehistorycontroller.h"
@@ -157,7 +158,7 @@ class RunsUiTest : public QObject {
     QTRY_VERIFY(h.item("runJoinUnverified") != nullptr && h.item("runJoinUnverified")->isVisible());
     QCOMPARE(h.item("runJoinUnverified")->property("text").toString(), runs->unverifiedWarning());
     QVERIFY(runs->unverifiedWarning().startsWith(QStringLiteral("Uzume has not checked this plugin.")));
-    QVERIFY(h.item("runJoinLine")->property("text").toString().startsWith(QStringLiteral("Lena invited you · ")));  // no nested quotes (P26)
+    QVERIFY(h.item("runJoinDialog")->property("text").toString().startsWith(QStringLiteral("Lena invited you · ")));  // no nested quotes (P26)
     QVERIFY(!h.item("runJoinWhy")->isVisible());  // a fitting game exists, so Join is possible (P27)
     shot(h, QStringLiteral("4j-3-join"));
     QVERIFY(!h.item("runJoinConfirm")->isEnabled() || runs->games()->rowCount() == 1);
@@ -170,7 +171,7 @@ class RunsUiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(!pc->manager()->hubCopyDir(spec.id, spec.version, sha).isEmpty(), 8000);
     QTRY_VERIFY_WITH_TIMEOUT(!runs->busy(), 8000);
     QTRY_VERIFY(h.item("runPlay") != nullptr && h.item("runPlay")->isVisible());
-    QCOMPARE(h.item("runDetailName")->property("text").toString(), QStringLiteral("Tide Hardcore"));
+    QCOMPARE(h.item("runDetailHeader")->property("title").toString(), QStringLiteral("Tide Hardcore"));
     QTRY_COMPARE_WITH_TIMEOUT(runs->participants()->rowCount(), 2, 8000);
     QTRY_VERIFY_WITH_TIMEOUT(runs->events()->rowCount() >= 2, 8000);  // run.created + run.joined, written by the Hub
     QVERIFY(h.item("runParticipant_u_lena") != nullptr);
@@ -179,18 +180,18 @@ class RunsUiTest : public QObject {
     QCOMPARE(runs->runTab(), QStringLiteral("board"));
     QVERIFY(runs->runTabs().isEmpty());
     QTRY_VERIFY(h.item("runTabs") != nullptr && h.item("runTabs")->isVisible());
-    QVERIFY(h.item("runTab_board") != nullptr && h.item("runTab_log") != nullptr);
+    QVERIFY(h.item("tab_Board") != nullptr && h.item("tab_Log") != nullptr);
     QVERIFY(h.item("runBoardTab")->isVisible() && !h.item("runLogTab")->isVisible());
     QCOMPARE(h.item("runParticipantSlot")->property("text").toString(), QStringLiteral("Run: Tide Hardcore"));
     QCOMPARE(runs->detail().value("saveSlotText").toString(), QStringLiteral("Run: Tide Hardcore"));
     QCOMPARE(runs->slotDisplayName(runSaveSlot(runId)), QStringLiteral("Run: Tide Hardcore"));
     QCOMPARE(runs->slotDisplayName(QStringLiteral("default")), QString());
     QCOMPARE(runs->slotDisplayName(QStringLiteral("my-own-slot")), QString());
-    QVERIFY(h.click("runTab_log"));
+    QVERIFY(h.click("tab_Log"));
     QTRY_VERIFY(h.item("runLogTab")->isVisible() && !h.item("runBoardTab")->isVisible());
     QCOMPARE(runs->runTab(), QStringLiteral("log"));
     QVERIFY(h.item("runEventsTitle")->isVisible());
-    QVERIFY(h.click("runTab_board"));
+    QVERIFY(h.click("tab_Board"));
     QTRY_VERIFY(h.item("runBoardTab")->isVisible());
 
     // Status: the creator starts the run; any member can pause and resume it.
@@ -248,8 +249,14 @@ class RunsUiTest : public QObject {
 
     // Back to the list: the run sits in the Active group.
     runs->closeRun();
-    QTRY_VERIFY(h.item(("runRow_" + runId).toUtf8().constData()) != nullptr);
+    QTRY_VERIFY(h.item("runTableRow_0") != nullptr);
     QCOMPARE(runs->activeTitle(), QStringLiteral("ACTIVE · 1"));
+    {
+        const auto* am = qobject_cast<KeyedRowsModel*>(runs->active());
+        QVERIFY(am != nullptr);
+        QVERIFY(!am->get(0).value("rulesName").toString().isEmpty());
+        QVERIFY(!am->get(0).value("rulesVersion").toString().isEmpty());
+    }
     shot(h, QStringLiteral("4j-runs-list"));
 
     // Start a run: name, rules (plugin), a player and the own game.
@@ -290,7 +297,8 @@ class RunsUiTest : public QObject {
     QTRY_VERIFY(menuHas(h, "finish"));
     QVERIFY(menuPick(h, "finish"));
     QTRY_VERIFY(popupOpen(h, "runConfirmDialog"));
-    QCOMPARE(h.item("runConfirmTitle")->property("text").toString(), QStringLiteral("Finish this run?"));
+    QCOMPARE(h.item("runConfirmDialog")->property("title").toString(), QStringLiteral("Finish this run?"));
+    shot(h, QStringLiteral("4j-3-confirm"));
     QVERIFY(h.click("runConfirmOk"));
     QTRY_VERIFY_WITH_TIMEOUT(hub.runs.value(runs->openRunId()).value("status").toString() == QLatin1String("finished"), 8000);
     QTRY_VERIFY(h.item("runMenu") == nullptr || !h.item("runMenu")->isVisible() || !menuHas(h, "pause"));
@@ -360,10 +368,11 @@ class RunsUiTest : public QObject {
     QCOMPARE(sec.value("tree").toMap().value("text").toString(), QStringLiteral("view=true Mine read only outside the game"));
     QTRY_COMPARE(runs->runTabs().size(), 1);
     QVERIFY(!h.item("runPluginTab")->isVisible());  // the Board tab is open
-    QVERIFY(h.click(("runTab_plugin_" + spec.id).toUtf8().constData()));
+    QVERIFY(h.click(("tab_" + runs->runTabs().at(0).toMap().value("title").toString()).toUtf8().constData()));
     QCOMPARE(runs->runTab(), "plugin:" + spec.id);
     QTRY_VERIFY(h.item("runPluginTab")->isVisible() && !h.item("runBoardTab")->isVisible());
     QTRY_VERIFY(h.item(("pluginRun_" + spec.id).toUtf8().constData()) != nullptr && h.item(("pluginRun_" + spec.id).toUtf8().constData())->isVisible());
+    shot(h, QStringLiteral("4j-5-plugin-tab"));
     QVERIFY(hub.runStatePuts.isEmpty());
 
     // Rebuilding the same detail does not restart the plugin.
@@ -443,11 +452,12 @@ class RunsUiTest : public QObject {
 
     // Tabs: Board, Log, then the plugin tab, with the badge.
     QTRY_VERIFY(h.item("runTabs") != nullptr && h.item("runTabs")->isVisible());
-    const QVariantList opts = h.item("runTabs")->property("options").toList();
+    const QVariantList opts = h.item("runTabs")->property("items").toList();
     QCOMPARE(opts.size(), 3);
-    QCOMPARE(opts.at(0).toMap().value("label").toString(), QStringLiteral("Board"));
-    QCOMPARE(opts.at(1).toMap().value("label").toString(), QStringLiteral("Log"));
-    QCOMPARE(opts.at(2).toMap().value("label").toString(), QStringLiteral("Pairs  3"));
+    QCOMPARE(opts.at(0).toString(), QStringLiteral("Board"));
+    QCOMPARE(opts.at(1).toString(), QStringLiteral("Log"));
+    QCOMPARE(opts.at(2).toString(), QStringLiteral("Pairs"));
+    QTRY_COMPARE(h.item("tabCountText_Pairs")->property("text").toString(), QStringLiteral("3"));  // the badge sits on the tab
     QCOMPARE(runs->runTab(), QStringLiteral("board"));
 
     // The run view instance is the plugin: fb.ui.open("screen") selects its tab, no sheet.
@@ -465,12 +475,12 @@ class RunsUiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(runs->runTabs().isEmpty(), 8000);
     QCOMPARE(runs->runTab(), QStringLiteral("board"));
     QTRY_VERIFY(h.item("runBoardTab")->isVisible());
-    QTest::qWait(300);  // the tab bar rebuilt its segments
-    QVERIFY(h.click("runTab_log"));
+    QTest::qWait(300);  // the tab bar rebuilt its tabs
+    QVERIFY(h.click("tab_Log"));
     QTRY_COMPARE(runs->runTab(), QStringLiteral("log"));
     QTRY_VERIFY(h.item("runLogTab")->isVisible());
-    QCOMPARE(h.item("runTabs")->property("options").toList().size(), 2);
-    QVERIFY(h.item(("runTab_plugin_" + spec.id).toUtf8().constData()) == nullptr);
+    QCOMPARE(h.item("runTabs")->property("items").toList().size(), 2);
+    QVERIFY(h.item("tab_Pairs") == nullptr);
   }
 
   // Runs are always visible with runs_v1: the entry and the screen exist without a plugin and without a run, with the empty state.
@@ -490,11 +500,12 @@ class RunsUiTest : public QObject {
     QVERIFY(h.click("navRuns"));
     QTRY_COMPARE_WITH_TIMEOUT(h.controller->screen(), QStringLiteral("runs"), 8000);
     QTRY_VERIFY(h.item("runsEmpty") != nullptr && h.item("runsEmpty")->isVisible());
-    QCOMPARE(h.item("runsEmpty")->property("text").toString(), QStringLiteral("No runs yet. A run is a playthrough with its own save slot, for 1-8 people."));
-    QCOMPARE(h.item("runsEmptyStart")->property("text").toString(), QStringLiteral("New run..."));
-    QCOMPARE(h.item("runsStartButton")->property("text").toString(), QStringLiteral("New run..."));
+    QCOMPARE(h.item("runsEmpty")->property("title").toString(), QStringLiteral("No runs yet"));
+    QCOMPARE(h.item("runsEmpty")->property("text").toString(), QStringLiteral("A run is a playthrough with its own save slot, for 1-8 people."));
+    QCOMPARE(h.item("stateBlockAction")->property("text").toString(), QStringLiteral("New run\u2026"));
+    QCOMPARE(h.item("runsStartButton")->property("text").toString(), QStringLiteral("New run\u2026"));
     // No plugin offered and no runs_v2: the dialog says so and a run cannot start.
-    QVERIFY(h.click("runsEmptyStart"));
+    QVERIFY(h.click("stateBlockAction"));
     QTRY_VERIFY(popupOpen(h, "runStartDialog"));
     QTRY_VERIFY(h.item("runPluginsNone") != nullptr && h.item("runPluginsNone")->isVisible());
     QVERIFY(!h.item("runRulesSelect")->isVisible());
@@ -545,10 +556,19 @@ class RunsUiTest : public QObject {
     QVERIFY(hub.lastRunBody.value("plugins").toArray().isEmpty());
     QTRY_VERIFY_WITH_TIMEOUT(!runs->openRunId().isEmpty(), 8000);
     const QString runId = runs->openRunId();
-    QTRY_VERIFY(h.item("runDetailName") != nullptr && h.item("runDetailName")->isVisible());
+    QTRY_VERIFY(h.item("runDetailHeader") != nullptr && h.item("runDetailHeader")->isVisible());
     QCOMPARE(runs->detail().value("pluginsText").toString(), QStringLiteral("No rules"));
+    QVERIFY(runs->detail().value("plain").toBool());
+    QVERIFY(runs->active()->rowCount() > 0);
+    {
+        const auto* am = qobject_cast<KeyedRowsModel*>(runs->active());
+        QVERIFY(am != nullptr);
+        QCOMPARE(am->get(0).value("rulesName").toString(), QString());
+        QCOMPARE(am->get(0).value("rulesVersion").toString(), QString());
+        QVERIFY(!am->get(0).value("game").toString().isEmpty());
+    }
     QVERIFY(runs->runTabs().isEmpty());
-    QVERIFY(h.item("runTab_board") != nullptr && h.item("runTab_log") != nullptr);
+    QVERIFY(h.item("tab_Board") != nullptr && h.item("tab_Log") != nullptr);
     QCOMPARE(h.item("runParticipantSlot")->property("text").toString(), QStringLiteral("Run: Ember Route"));
     QCOMPARE(runs->saveSlotFor(runId), runSaveSlot(runId));
     QCOMPARE(runs->runViewState(), QString());
@@ -881,6 +901,7 @@ class RunsUiTest : public QObject {
     QCOMPARE(h.item("runIncluded_net.test.core")->property("text").toString(), inc.value("text").toString());
     QTRY_VERIFY(h.item("runRulesHeader_net.test.soul") != nullptr && h.item("runRulesHeader_net.test.soul")->isVisible());
     QTRY_VERIFY(h.item("runRule_net.test.soul_rules.dupes_clause") != nullptr && h.item("runRule_net.test.soul_rules.dupes_clause")->isVisible());
+    shot(h, QStringLiteral("4j-runs-start-rules"));
     QVERIFY(h.click("runRule_net.test.soul_rules.dupes_clause"));  // the toggle in the dialog
     QCOMPARE(rulesModel->get(2).value("value").toBool(), false);
     QVERIFY(h.click("runRule_net.test.soul_rules.dupes_clause"));

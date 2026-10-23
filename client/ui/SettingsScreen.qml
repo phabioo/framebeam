@@ -16,6 +16,16 @@ Rectangle {
     // Admins can switch between this PC and the server ("Settings for"); members and users without a server see this PC only.
     readonly property bool canSwitchScope: root.player.isAdmin && root.player.hubAddress !== ""
     property string scope: "pc"   // pc | server
+    readonly property var sectionDefs: [
+        { id: "account", name: qsTr("My account") },
+        { id: "updates", name: qsTr("Updates") },
+        { id: "hubs", name: qsTr("Servers") },
+        { id: "appearance", name: qsTr("Appearance") },
+        { id: "library", name: qsTr("Library folders") },
+        { id: "storage", name: qsTr("Storage") },
+        { id: "plugins", name: qsTr("Plugins") },
+        { id: "diagnostics", name: qsTr("Diagnostics") }
+    ]
     color: Theme.ground
 
     // Open help column (boards 9c-1, 6l-1): only on windows wide enough to keep the rows in their wide layout.
@@ -241,19 +251,12 @@ Rectangle {
                     }
 
                     Repeater {
-                        model: root.scope !== "pc" ? [] : [
-                            { id: "account", name: qsTr("My account") },
-                            { id: "updates", name: qsTr("Updates") },
-                            { id: "hubs", name: qsTr("Servers") },
-                            { id: "appearance", name: qsTr("Appearance") },
-                            { id: "library", name: qsTr("Library folders") },
-                            { id: "storage", name: qsTr("Storage") },
-                            { id: "plugins", name: qsTr("Plugins") },
-                            { id: "diagnostics", name: qsTr("Diagnostics") }
-                        ]
+                        // Count model, delegates by index: a JS array model rebuilt on a scope change loops the layout (Qt 6.4).
+                        model: root.scope !== "pc" ? 0 : root.sectionDefs.length
                         delegate: NavRow {
                             id: sec
-                            required property var modelData
+                            required property int index
+                            readonly property var modelData: root.sectionDefs[sec.index]
                             objectName: "section_" + modelData.id
                             label: sec.modelData.name
                             selected: root.currentSection === modelData.id
@@ -723,14 +726,14 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.leftMargin: Theme.settingsDotSlot
                         Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0
-                        spacing: Theme.space12
+                        spacing: Theme.space15
                         Text {
                             objectName: "settingsThisPcServerName"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             elide: Text.ElideRight
                             color: Theme.ink
-                            font.pixelSize: Theme.fontBody
+                            font.pixelSize: Theme.roles.body.size
                             text: root.player.localHub.onThisPcOnly ? qsTr("On this PC") : qsTr("This PC · shared")
                         }
                         UzButton {

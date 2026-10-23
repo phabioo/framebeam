@@ -130,8 +130,8 @@ Rectangle {
                 Layout.minimumWidth: 0
                 wrapMode: Text.WordWrap
                 text: qsTr("Upload, invites, Online and the Server group appear after Share with others.")
-                font.pixelSize: Theme.fontSmall
-                color: Theme.textMeta
+                font.pixelSize: Theme.roles.small.size
+                color: Theme.muted
             }
 
             // Filter chips with counts ("All · 10"), sort and "Ready first" on the same row; they wrap under the chips in a

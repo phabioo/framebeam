@@ -52,7 +52,9 @@ Rectangle {
     property var tree: ({})
     property bool darkMode: true
     property alias block: block
-    color: darkMode ? "#0b0b0c" : "#f6f5f2"
+    color: Theme.ground
+    // The wrapped design-system blocks read Theme.dark: the page follows the theme like the app does.
+    Binding { target: Theme; property: "dark"; value: page.darkMode }
     width: 760
     height: block.implicitHeight + 32
     PluginBlock {
@@ -259,7 +261,7 @@ class PluginBlocksUiTest : public QObject {
                           "plugin_card", "plugin_btnPlain", "plugin_btnConfirm", "plugin_btnDanger", "plugin_tg", "plugin_sel", "plugin_seg", "plugin_tf",
                           "plugin_tfErr", "pluginListRow_0", "pluginTableRow_0", "pluginLocationStatus", "pluginTab_2", "pluginTextFieldError"})
       QVERIFY2(mustFind(n) != nullptr, n);
-    QCOMPARE(textOf(mustFind("pluginButtonLabel")), QStringLiteral("Go"));
+    QCOMPARE(textOf(mustFind("fbButtonLabel")), QStringLiteral("Go"));
     QCOMPARE(textOf(mustFind("pluginLocationStatus")->childItems().value(0)), QStringLiteral("Encounter now"));
     QList<QQuickItem*> errors;
     Harness::collectVisual(win_->contentItem(), QStringLiteral("pluginTextFieldError"), errors);

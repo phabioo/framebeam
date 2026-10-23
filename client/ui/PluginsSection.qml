@@ -3,7 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// Settings > Plugins (round 3, 4a-3 / 4a-4): installed plugins first (58 px rows: monogram, name, version, origin pill,
+// Settings > This PC > Plugins (board 4i-app-2, round 3 4a-3 / 4a-4): installed plugins first (hairline rows: monogram, name, version, origin pill,
 // one subtitle line, Update, toggle, "›" for the detail sheet), then "Available on <Hub>" with Install. Installing a plugin
 // that needs another one offers both; turning on an unverified plugin or one whose dependency is off asks first.
 // Developer mode and the local folder installs sit behind "Developer settings".
@@ -53,7 +53,7 @@ ColumnLayout {
     property string highlightId: ""            // row shown with an accent border for a moment ("Plugin settings" from a plugin screen)
     Timer { id: highlightTimer; interval: 3000; onTriggered: root.highlightId = "" }
     onHighlightIdChanged: if (highlightId !== "") highlightTimer.restart()
-    spacing: Theme.space12
+    spacing: Theme.space15
 
     Loader {
         id: dialogLoader
@@ -87,20 +87,20 @@ ColumnLayout {
         }
     }
 
-    Eyebrow { text: qsTr("Plugins") }
+    UzSectionLabel { Layout.fillWidth: true; text: qsTr("Plugins") }
     UzLabel {
         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
         Layout.fillWidth: true
         text: qsTr("If a plugin fails it is paused; your game keeps running.")
-        color: Theme.textMuted
-        font.pixelSize: Theme.fontSmall
+        color: Theme.muted
+        font.pixelSize: Theme.roles.input.size
         wrapMode: Text.WordWrap
     }
 
     RowLayout {
         Layout.fillWidth: true
-        Layout.topMargin: 4
-        Eyebrow { objectName: "pluginsInstalledTitle"; Layout.fillWidth: true; text: qsTr("Installed · %1").arg(root.list.length) }
+        Layout.topMargin: Theme.space05
+        UzSectionLabel { objectName: "pluginsInstalledTitle"; Layout.fillWidth: true; text: qsTr("Installed · %1").arg(root.list.length) }
         UzButton {
             textFormat: Text.PlainText
             objectName: "pluginInstallButton"
@@ -116,10 +116,8 @@ ColumnLayout {
         visible: root.list.length > 0
         Layout.fillWidth: true
         implicitHeight: listCol.implicitHeight
-        radius: Theme.radius10
-        color: Theme.surface
-        border.width: 1
-        border.color: Theme.borderCard
+        color: "transparent"
+        Rectangle { width: parent.width; height: 1; color: Theme.rule }
         ColumnLayout {
             id: listCol
             anchors.left: parent.left
@@ -135,13 +133,12 @@ ColumnLayout {
                     required property int index
                     objectName: "pluginRow_" + (modelData.id || "")
                     Layout.fillWidth: true
-                    implicitHeight: Math.max(58, rowLine.implicitHeight + 16 + (problemLabel.visible ? problemLabel.implicitHeight + 4 : 0))
+                    implicitHeight: Math.max(Theme.row48 + Theme.space1, rowLine.implicitHeight + 2 * Theme.space1 + (problemLabel.visible ? problemLabel.implicitHeight + Theme.space05 : 0))
                     Rectangle {
                         objectName: "pluginRowHighlight"
                         visible: root.highlightId === row.modelData.id
                         anchors.fill: parent
                         anchors.margins: 1
-                        radius: Theme.radius8
                         color: "transparent"
                         border.width: 2
                         border.color: Theme.accent
@@ -151,7 +148,7 @@ ColumnLayout {
                         anchors.top: parent.top
                         width: parent.width
                         height: 1
-                        color: Theme.borderRow
+                        color: Theme.rule2
                     }
                     TapHandler {
                         onTapped: point => {
@@ -171,23 +168,22 @@ ColumnLayout {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        anchors.topMargin: 8
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 16
-                        spacing: 12
+                        anchors.topMargin: Theme.space1
+                        anchors.leftMargin: 0
+                        anchors.rightMargin: 0
+                        spacing: Theme.space15
                         Rectangle {
-                            Layout.preferredWidth: 34
-                            Layout.preferredHeight: 34
+                            Layout.preferredWidth: Theme.row32
+                            Layout.preferredHeight: Theme.row32
                             Layout.alignment: Qt.AlignTop
-                            radius: Theme.radius8
-                            color: Theme.neutralPillBg
+                            color: Theme.pressed
                             Text {
                                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                 anchors.centerIn: parent
                                 text: root.monogram(row.modelData.name)
-                                color: Theme.text
-                                font.pixelSize: Theme.fontSmall
-                                font.weight: Font.DemiBold
+                                color: Theme.ink
+                                font.pixelSize: Theme.roles.input.size
+                                font.weight: Font.Medium
                             }
                         }
                         ColumnLayout {
@@ -197,13 +193,13 @@ ColumnLayout {
                             RowLayout {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
-                                spacing: 8
+                                spacing: Theme.space1
                                 UzLabel {
                                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                     objectName: "pluginName"
                                     text: row.modelData.name
-                                    font.pixelSize: Theme.fontBody
-                                    font.weight: Font.DemiBold
+                                    font.pixelSize: Theme.roles.body.size
+                                    font.weight: Font.Medium
                                     elide: Text.ElideRight
                                     Layout.maximumWidth: 260
                                 }
@@ -211,7 +207,7 @@ ColumnLayout {
                                     textFormat: Text.PlainText
                                     objectName: "pluginVersion"
                                     text: row.modelData.version
-                                    color: Theme.textMuted
+                                    color: Theme.muted
                                 }
                                 PluginOriginPill {
                                     objectName: "pluginOrigin"
@@ -246,8 +242,8 @@ ColumnLayout {
                                 objectName: "pluginSubtitle"
                                 Layout.fillWidth: true
                                 text: row.modelData.subtitle
-                                color: Theme.textMuted
-                                font.pixelSize: Theme.fontMeta
+                                color: Theme.muted
+                                font.pixelSize: Theme.roles.small.size
                                 elide: Text.ElideRight
                             }
                         }
@@ -256,7 +252,7 @@ ColumnLayout {
                             objectName: "pluginUpdate"
                             visible: row.modelData.updateVersion !== ""
                             Layout.alignment: Qt.AlignVCenter
-                            implicitHeight: 32
+                            size: "sm"
                             text: qsTr("Update to %1").arg(row.modelData.updateVersion)
                             onClicked: root.ctl.installHubPlugin(row.modelData.id, row.modelData.updateVersion)
                         }
@@ -294,11 +290,11 @@ ColumnLayout {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: rowLine.bottom
-                        anchors.leftMargin: 16 + 34 + 12
-                        anchors.rightMargin: 16
+                        anchors.leftMargin: Theme.row32 + Theme.space15
+                        anchors.rightMargin: 0
                         text: "! " + row.modelData.problemsText
-                        color: Theme.pluginWarn
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.accentText
+                        font.pixelSize: Theme.roles.small.size
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -311,17 +307,16 @@ ColumnLayout {
         objectName: "pluginsEmpty"
         visible: root.list.length === 0
         Layout.fillWidth: true
-        implicitHeight: emptyCol.implicitHeight + 40
-        radius: Theme.radius10
-        color: Theme.surface
-        border.width: 1
-        border.color: Theme.borderCard
+        implicitHeight: emptyCol.implicitHeight + 2 * Theme.space3
+        color: "transparent"
+        Rectangle { width: parent.width; height: 1; color: Theme.rule }
+        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
         ColumnLayout {
             id: emptyCol
             anchors.centerIn: parent
-            width: parent.width - 48
-            spacing: 6
-            UzLabel { textFormat: Text.PlainText; Layout.alignment: Qt.AlignHCenter; text: qsTr("No plugins installed"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
+            width: parent.width - 2 * Theme.space3
+            spacing: Theme.space1
+            UzLabel { textFormat: Text.PlainText; Layout.alignment: Qt.AlignHCenter; text: qsTr("No plugins installed"); font.pixelSize: Theme.roles.itemTitle.size; font.weight: Theme.roles.itemTitle.weight }
             UzLabel {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "pluginsEmptyText"
@@ -336,8 +331,8 @@ ColumnLayout {
                     return qsTr("%1 offers %2. They are listed below under Available on %1.")
                         .arg(root.hubLabel).arg(Theme.plural(n, qsTr("plugin"), qsTr("plugins")))
                 }
-                color: Theme.textMuted
-                font.pixelSize: Theme.fontSmall
+                color: Theme.muted
+                font.pixelSize: Theme.roles.input.size
             }
         }
     }
@@ -346,17 +341,17 @@ ColumnLayout {
     RowLayout {
         visible: root.ctl.hubSupported
         Layout.fillWidth: true
-        Layout.topMargin: 10
-        spacing: 10
-        Eyebrow { objectName: "hubPluginsTitle"; Layout.fillWidth: true; text: qsTr("Available on %1 · %2").arg(root.hubLabel).arg(root.available.length) }
+        Layout.topMargin: Theme.space1
+        spacing: Theme.space15
+        UzSectionLabel { objectName: "hubPluginsTitle"; Layout.fillWidth: true; text: qsTr("Available on %1 · %2").arg(root.hubLabel).arg(root.available.length) }
         UzLabel {
             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             objectName: "hubPluginsStatus"
             text: root.ctl.hubStatus === "loading" ? qsTr("Loading…")
                   : (root.checkedAt !== "" ? qsTr("Checked %1").arg(root.player.whenText(root.checkedAt)) : "")
             visible: text !== ""
-            color: Theme.textMuted
-            font.pixelSize: Theme.fontMeta
+            color: Theme.muted
+            font.pixelSize: Theme.roles.small.size
         }
         UzButton {
             textFormat: Text.PlainText
@@ -371,10 +366,8 @@ ColumnLayout {
         visible: root.ctl.hubSupported
         Layout.fillWidth: true
         implicitHeight: hubCol.implicitHeight
-        radius: Theme.radius10
-        color: Theme.surface
-        border.width: 1
-        border.color: Theme.borderCard
+        color: "transparent"
+        Rectangle { width: parent.width; height: 1; color: Theme.rule }
         ColumnLayout {
             id: hubCol
             anchors.left: parent.left
@@ -384,33 +377,33 @@ ColumnLayout {
                 objectName: "hubPluginsError"
                 visible: root.ctl.hubStatus === "failed"
                 Layout.fillWidth: true
-                Layout.margins: 16
-                spacing: 12
+                Layout.margins: Theme.space2
+                spacing: Theme.space15
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
-                    UzLabel { textFormat: Text.PlainText; text: qsTr("Could not reach %1").arg(root.hubLabel); font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
+                    UzLabel { textFormat: Text.PlainText; text: qsTr("Could not reach %1").arg(root.hubLabel); font.pixelSize: Theme.roles.body.size; font.weight: Font.Medium }
                     UzLabel {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: qsTr("Available plugins could not be loaded. Installed plugins keep working.")
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.small.size
                         wrapMode: Text.WordWrap
                     }
                 }
-                UzButton { textFormat: Text.PlainText; objectName: "hubPluginsRetry"; implicitHeight: 32; text: qsTr("Retry"); onClicked: root.ctl.refreshHubPlugins() }
+                UzButton { textFormat: Text.PlainText; objectName: "hubPluginsRetry"; size: "sm"; text: qsTr("Retry"); onClicked: root.ctl.refreshHubPlugins() }
             }
             UzLabel {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 objectName: "hubPluginsEmpty"
                 visible: root.available.length === 0 && root.ctl.hubStatus === "ready"
                 Layout.fillWidth: true
-                Layout.margins: 16
+                Layout.margins: Theme.space2
                 text: root.ctl.hubPlugins.length === 0 ? qsTr("%1 offers no plugins yet. Its admin chooses what is offered.").arg(root.hubLabel)
                                                        : qsTr("Everything %1 offers is installed.").arg(root.hubLabel)
-                color: Theme.textMuted
-                font.pixelSize: Theme.fontSmall
+                color: Theme.muted
+                font.pixelSize: Theme.roles.input.size
                 wrapMode: Text.WordWrap
             }
             // The full offer list; rows that are installed stay hidden (the list keeps its identity, so the rows are not
@@ -425,32 +418,31 @@ ColumnLayout {
                     objectName: shown ? "hubPluginRow_" + modelData.id : ""
                     visible: shown
                     Layout.fillWidth: true
-                    Layout.preferredHeight: shown ? 58 : 0
-                    implicitHeight: 58
+                    Layout.preferredHeight: shown ? Theme.row48 + Theme.space1 : 0
+                    implicitHeight: Theme.row48 + Theme.space1
                     Rectangle {
                         visible: hrow.index > root.firstAvailableIndex
                         anchors.top: parent.top
                         width: parent.width
                         height: 1
-                        color: Theme.borderRow
+                        color: Theme.rule2
                     }
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 16
-                        spacing: 12
+                        anchors.leftMargin: 0
+                        anchors.rightMargin: 0
+                        spacing: Theme.space15
                         Rectangle {
-                            Layout.preferredWidth: 34
-                            Layout.preferredHeight: 34
-                            radius: Theme.radius8
-                            color: Theme.neutralPillBg
+                            Layout.preferredWidth: Theme.row32
+                            Layout.preferredHeight: Theme.row32
+                            color: Theme.pressed
                             Text {
                                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                 anchors.centerIn: parent
                                 text: root.monogram(hrow.modelData.name)
-                                color: Theme.text
-                                font.pixelSize: Theme.fontSmall
-                                font.weight: Font.DemiBold
+                                color: Theme.ink
+                                font.pixelSize: Theme.roles.input.size
+                                font.weight: Font.Medium
                             }
                         }
                         ColumnLayout {
@@ -459,17 +451,17 @@ ColumnLayout {
                             spacing: 2
                             RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: Theme.space1
                                 UzLabel {
                                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                     objectName: "hubPluginName"
                                     text: hrow.modelData.name
-                                    font.pixelSize: Theme.fontBody
-                                    font.weight: Font.DemiBold
+                                    font.pixelSize: Theme.roles.body.size
+                                    font.weight: Font.Medium
                                     elide: Text.ElideRight
                                     Layout.maximumWidth: 260
                                 }
-                                UzMono { textFormat: Text.PlainText; objectName: "hubPluginVersion"; text: hrow.modelData.version; color: Theme.textMuted }
+                                UzMono { textFormat: Text.PlainText; objectName: "hubPluginVersion"; text: hrow.modelData.version; color: Theme.muted }
                                 PluginOriginPill {
                                     objectName: "hubPluginOrigin"
                                     origin: hrow.modelData.origin
@@ -482,15 +474,15 @@ ColumnLayout {
                                 objectName: "hubPluginPermissions"
                                 Layout.fillWidth: true
                                 text: qsTr("Can: %1").arg(hrow.modelData.permissionsText) + (hrow.modelData.sizeText !== "" ? " · " + hrow.modelData.sizeText : "")
-                                color: Theme.textMuted
-                                font.pixelSize: Theme.fontMeta
+                                color: Theme.muted
+                                font.pixelSize: Theme.roles.small.size
                                 elide: Text.ElideRight
                             }
                         }
                         UzButton {
                             textFormat: Text.PlainText
                             objectName: "hubPluginInstall"
-                            implicitHeight: 32
+                            size: "sm"
                             enabled: hrow.modelData.state === "install"
                             text: hrow.modelData.state === "busy" ? qsTr("Installing…") : qsTr("Install")
                             onClicked: {
@@ -505,36 +497,43 @@ ColumnLayout {
     }
 
     // ---- plugin language
-    UzSettingsRow {
-        objectName: "pluginLanguageRow"
+    ColumnLayout {
         Layout.fillWidth: true
         Layout.minimumWidth: 0
-        resetMode: "none"
-        label: qsTr("Plugin language")
-        description: qsTr("Language of plugin texts. Auto uses the 3DS system language for 3DS games, otherwise the language of this computer. Applies when the next game starts.")
-        descriptionName: "pluginLanguageHint"
-        ctrl: "select"
-        controlName: "pluginLanguageSelect"
-        values: root.ctl.pluginLanguageOptions
-        current: root.ctl.pluginLanguage
-        onValuePicked: value => root.ctl.pluginLanguage = value
+        spacing: 0
+        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.rule2 }
+        UzSettingsRow {
+            objectName: "pluginLanguageRow"
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            resetMode: "none"
+            label: qsTr("Plugin language")
+            description: qsTr("Language of plugin texts. Auto uses the 3DS system language for 3DS games, otherwise the language of this computer. Applies when the next game starts.")
+            descriptionName: "pluginLanguageHint"
+            ctrl: "select"
+            controlName: "pluginLanguageSelect"
+            values: root.ctl.pluginLanguageOptions
+            current: root.ctl.pluginLanguage
+            onValuePicked: value => root.ctl.pluginLanguage = value
+        }
     }
 
     // ---- developer settings
     RowLayout {
         Layout.fillWidth: true
-        Layout.topMargin: 10
+        Layout.topMargin: Theme.space1
         UzLabel {
             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             Layout.fillWidth: true
             text: qsTr("Developer mode and local folders:")
-            color: Theme.textMuted
-            font.pixelSize: Theme.fontSmall
+            color: Theme.muted
+            font.pixelSize: Theme.roles.input.size
         }
         UzButton {
             textFormat: Text.PlainText
             objectName: "pluginDeveloperSettings"
             kind: "link"
+            Layout.minimumWidth: implicitWidth
             text: root.devOpen ? qsTr("Hide developer settings") : qsTr("Developer settings")
             onClicked: root.devOpen = !root.devOpen
         }
@@ -542,7 +541,7 @@ ColumnLayout {
     ColumnLayout {
         visible: root.devOpen
         Layout.fillWidth: true
-        spacing: Theme.space12
+        spacing: Theme.space15
         UzSettingsRow {
             objectName: "pluginDeveloperModeRow"
             Layout.fillWidth: true
@@ -558,11 +557,10 @@ ColumnLayout {
         }
         Flow {
             Layout.fillWidth: true
-            spacing: Theme.space10
+            spacing: Theme.space15
             UzButton {
                 textFormat: Text.PlainText
                 objectName: "pluginInstallFolderButton"
-                implicitHeight: 36
                 text: qsTr("Install from folder…")
                 onClicked: root.openFolderDialog("install")
             }
@@ -570,7 +568,6 @@ ColumnLayout {
                 textFormat: Text.PlainText
                 objectName: "pluginLinkButton"
                 visible: root.ctl.developerMode
-                implicitHeight: 36
                 text: qsTr("Link folder for development…")
                 onClicked: root.openFolderDialog("link")
             }
@@ -579,7 +576,7 @@ ColumnLayout {
     RowLayout {
         visible: root.pathPromptOpen
         Layout.fillWidth: true
-        spacing: Theme.space10
+        spacing: Theme.space15
         UzField {
             id: pathField
             objectName: "pluginFolderPathField"
@@ -591,7 +588,6 @@ ColumnLayout {
             textFormat: Text.PlainText
             id: applyPath
             objectName: "pluginFolderApplyButton"
-            implicitHeight: 44
             text: root.pathMode === "link" ? qsTr("Link folder") : qsTr("Install")
             onClicked: {
                 if (root.pathMode === "link") root.ctl.linkDevFolder(pathField.text)
@@ -607,8 +603,8 @@ ColumnLayout {
         visible: root.ctl.message !== ""
         Layout.fillWidth: true
         text: root.ctl.message
-        color: root.ctl.messageIsError ? Theme.error : Theme.textSecondary
-        font.pixelSize: Theme.fontMeta
+        color: root.ctl.messageIsError ? Theme.danger : Theme.ink2
+        font.pixelSize: Theme.roles.small.size
         wrapMode: Text.WordWrap
     }
 
@@ -632,20 +628,19 @@ ColumnLayout {
         property alias bodyItem: slot.data
         parent: root.overlayParent
         anchors.centerIn: parent
-        width: 400
+        width: Theme.dialog
         modal: true
-        padding: 20
+        padding: Theme.space3
         closePolicy: Popup.CloseOnEscape
         background: Rectangle {
-            radius: Theme.radius12
-            color: Theme.popupBg
+            color: Theme.surface
             border.width: 1
-            border.color: Theme.borderPopup
+            border.color: Theme.rule
         }
         contentItem: ColumnLayout {
             id: slot
             objectName: dlg.contentName
-            spacing: 12
+            spacing: Theme.space15
         }
     }
 
@@ -659,8 +654,8 @@ ColumnLayout {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 Layout.fillWidth: true
                 text: root.confirmInstallPlugin ? qsTr("Install %1?").arg(root.confirmInstallPlugin.name) : ""
-                font.pixelSize: Theme.fontSection
-                font.weight: Font.DemiBold
+                font.pixelSize: Theme.roles.itemTitle.size
+                font.weight: Font.Medium
                 wrapMode: Text.WordWrap
             },
             UzLabel {
@@ -669,21 +664,23 @@ ColumnLayout {
                 text: root.confirmInstallPlugin
                       ? (root.confirmInstallPlugin.origin === "unverified" ? root.confirmInstallPlugin.originText + ". " : "")
                         + qsTr("It can: %1.").arg(root.confirmInstallPlugin.permissionsText) : ""
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSmall
+                color: Theme.ink2
+                font.pixelSize: Theme.roles.input.size
                 wrapMode: Text.WordWrap
             },
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: depRow.implicitHeight + 20
-                radius: Theme.radius8
-                color: Theme.surfaceRaised
+                implicitHeight: depRow.implicitHeight + 2 * Theme.space15
+                color: "transparent"
+                Rectangle { width: parent.width; height: 1; color: Theme.rule2 }
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
                 RowLayout {
                     id: depRow
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 10
-                    Text { textFormat: Text.PlainText; text: "✓"; color: Theme.accentText; font.pixelSize: Theme.fontBody }
+                    anchors.topMargin: Theme.space15
+                    anchors.bottomMargin: Theme.space15
+                    spacing: Theme.space15
+                    Text { textFormat: Text.PlainText; text: "✓"; color: Theme.accentText; font.pixelSize: Theme.roles.body.size }
                     UzLabel {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "pluginInstallDependency"
@@ -695,19 +692,18 @@ ColumnLayout {
                             return qsTr("Also install %1 · needed by %2").arg(d).arg(p.name)
                         }
                         wrapMode: Text.WordWrap
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                     }
                 }
             },
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: Theme.space1
                 Item { Layout.fillWidth: true }
-                UzButton { textFormat: Text.PlainText; objectName: "pluginInstallCancel"; implicitHeight: 34; text: qsTr("Cancel"); onClicked: installDialog.close() }
+                UzButton { textFormat: Text.PlainText; objectName: "pluginInstallCancel";  text: qsTr("Cancel"); onClicked: installDialog.close() }
                 UzButton {
                     textFormat: Text.PlainText
                     objectName: "pluginInstallBoth"
-                    implicitHeight: 34
                     kind: "primary"
                     text: qsTr("Install both")
                     onClicked: {
@@ -730,8 +726,8 @@ ColumnLayout {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 Layout.fillWidth: true
                 text: root.confirmEnablePlugin ? qsTr("Turn on %1?").arg(root.confirmEnablePlugin.name) : ""
-                font.pixelSize: Theme.fontSection
-                font.weight: Font.DemiBold
+                font.pixelSize: Theme.roles.itemTitle.size
+                font.weight: Font.Medium
                 wrapMode: Text.WordWrap
             },
             UzLabel {
@@ -740,8 +736,8 @@ ColumnLayout {
                 visible: root.confirmEnablePlugin !== null && root.confirmEnablePlugin.needsConfirm
                 Layout.fillWidth: true
                 text: qsTr("Uzume has not checked this plugin. Turn it on only if you trust the admin of your server and where the file came from.")
-                color: Theme.pluginWarnText
-                font.pixelSize: Theme.fontSmall
+                color: Theme.ink2
+                font.pixelSize: Theme.roles.input.size
                 wrapMode: Text.WordWrap
             },
             UzLabel {
@@ -749,8 +745,8 @@ ColumnLayout {
                 objectName: "pluginEnablePermissions"
                 Layout.fillWidth: true
                 text: root.confirmEnablePlugin ? qsTr("It will be able to: %1").arg(root.confirmEnablePlugin.permissionsText) : ""
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSmall
+                color: Theme.ink2
+                font.pixelSize: Theme.roles.input.size
                 wrapMode: Text.WordWrap
             },
             UzLabel {
@@ -759,19 +755,18 @@ ColumnLayout {
                 visible: root.confirmEnablePlugin !== null && root.confirmEnablePlugin.depsOff.length > 0
                 Layout.fillWidth: true
                 text: root.confirmEnablePlugin ? qsTr("It needs %1, which is off. Both turn on.").arg(root.confirmEnablePlugin.depsOff.join(", ")) : ""
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSmall
+                color: Theme.ink2
+                font.pixelSize: Theme.roles.input.size
                 wrapMode: Text.WordWrap
             },
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: Theme.space1
                 Item { Layout.fillWidth: true }
-                UzButton { textFormat: Text.PlainText; objectName: "pluginEnableCancel"; implicitHeight: 34; text: qsTr("Cancel"); onClicked: enableDialog.close() }
+                UzButton { textFormat: Text.PlainText; objectName: "pluginEnableCancel";  text: qsTr("Cancel"); onClicked: enableDialog.close() }
                 UzButton {
                     textFormat: Text.PlainText
                     objectName: "pluginEnableConfirmButton"
-                    implicitHeight: 34
                     kind: "primary"
                     text: root.confirmEnablePlugin && root.confirmEnablePlugin.depsOff.length > 0 ? qsTr("Turn on both") : qsTr("Turn on")
                     onClicked: {

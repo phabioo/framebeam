@@ -5,6 +5,8 @@ import Uzume.App
 // Dialogs and the Toast of the Users page (3n-app-2, 3n-app-3, 3m-app-2), one instance over the page:
 //   ask(spec)        { title, text, action, danger, run(finish) }  asks before an action; danger puts the action at the far right.
 //                    run starts the call and reports through finish(ok, errorText); the dialog stays open (busy) until then.
+//                    Optional secondary: { action, run() } adds a button next to Cancel (the Remove dialog: "Download saves...");
+//                    the dialog stays open, and the caller reports progress with askNote("busy" | "done" | "error", text).
 //   openInvite()     "Create an invite": Valid for, trust the first PC.
 //   openMakeAdmin(u) the API needs a password of at least 12 characters for a new admin.
 //   showCode(spec)   { label, title, text, code, note }  a secret shown once in the large invite-code style, with Copy.
@@ -24,8 +26,16 @@ Item {
     function ask(s: var) {
         askDialog.error = ""
         askDialog.busy = false
+        askDialog.secondaryBusy = false
+        askDialog.note = ""
         root.spec = s
         askDialog.open()
+    }
+    // Progress of the secondary action of the open ask dialog: state "busy" (button busy), "done" or "error" (a line under the text).
+    function askNote(state: string, text: string) {
+        askDialog.secondaryBusy = state === "busy"
+        askDialog.note = state === "busy" ? "" : text
+        askDialog.noteKind = state === "error" ? "error" : "done"
     }
     // Asks for one name (rename a person or a device, add a person): spec { title, text, label, value, action, max, run(value, finish) }.
     function askName(s: var) {
@@ -103,6 +113,9 @@ Item {
         label: qsTr("Users")
         title: root.spec.title ?? ""
         text: root.spec.text ?? ""
+        property bool secondaryBusy: false
+        property string note: ""
+        property string noteKind: "done"
         function run() {
             askDialog.error = ""
             askDialog.busy = true
@@ -111,6 +124,24 @@ Item {
                 if (ok) askDialog.close()
                 else askDialog.error = err
             })
+        }
+        // The secondary action sits above Cancel / Remove: three buttons in the row do not fit the 400 px frame with wide fonts.
+        UzButton {
+            objectName: "askSecondary"
+            kind: "ghost"
+            visible: root.spec.secondary !== undefined
+            text: root.spec.secondary ? root.spec.secondary.action : ""
+            enabled: !askDialog.busy && !askDialog.secondaryBusy
+            busy: askDialog.secondaryBusy
+            onClicked: root.spec.secondary.run()
+        }
+        UzStatusIcon {
+            objectName: "askNote"
+            visible: askDialog.note !== ""
+            kind: askDialog.noteKind
+            small: true
+            text: askDialog.note
+            maxWidth: 344
         }
         actions: [
             UzButton { objectName: "askCancel"; text: qsTr("Cancel"); enabled: !askDialog.busy; onClicked: askDialog.close() },

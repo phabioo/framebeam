@@ -70,7 +70,7 @@ ColumnLayout {
                     required property var modelData
                     Layout.fillWidth: true
                     implicitHeight: 36
-                    Text { x: 0; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; textFormat: Text.PlainText; font.pixelSize: Theme.fontSmall; color: Theme.ink }
+                    Text { x: 0; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; textFormat: Text.PlainText; font.pixelSize: Theme.roles.input.size; color: Theme.ink }
                     Text {
                         objectName: modelData.id === "used" ? "storageUsed" : "storageFree"
                         anchors.right: parent.right
@@ -78,7 +78,7 @@ ColumnLayout {
                         text: modelData.value
                         textFormat: Text.PlainText
                         font.family: Theme.mono
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                         color: Theme.ink2
                     }
                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
@@ -88,7 +88,7 @@ ColumnLayout {
                 visible: root.backupDisk !== null && root.backupFraction >= 0
                 Layout.fillWidth: true
                 implicitHeight: 36
-                Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Backup disk"); textFormat: Text.PlainText; font.pixelSize: Theme.fontSmall; color: Theme.ink }
+                Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Backup disk"); textFormat: Text.PlainText; font.pixelSize: Theme.roles.input.size; color: Theme.ink }
                 Text {
                     objectName: "storageBackupDisk"
                     anchors.right: parent.right
@@ -96,7 +96,7 @@ ColumnLayout {
                     text: root.backupDisk && root.backupFraction >= 0 ? qsTr("%1 % · %2 free").arg(Math.round(root.backupFraction * 100)).arg(root.pane.bytesText(root.backupDisk.free_bytes)) : ""
                     textFormat: Text.PlainText
                     font.family: Theme.mono
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     color: Theme.ink2
                 }
                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }

@@ -3,8 +3,9 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// Join a run: pick the game you play in it (the library games that fit the plugins of the run).
-Popup {
+// Join a run: pick the game you play in it (the library games that fit the plugins of the run). A UzDialog lg
+// (design-system.md "Dialog"): label, title, the plugins of the run, the game list, actions.
+UzDialog {
     id: root
     objectName: "runJoinDialog"
     required property RunsController runs
@@ -13,14 +14,10 @@ Popup {
     property string inviteLine: ""
     readonly property bool noGame: root.runs.games.count === 0
 
-    parent: Window.window ? Window.window.contentItem : null
-    anchors.centerIn: parent
-    modal: true
-    dim: true
-    focus: true
-    width: Math.min(460, parent ? parent.width - 32 : 460)
-    padding: 20
-    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+    size: "lg"
+    label: qsTr("Runs · Invite")
+    title: qsTr("Join “%1”?").arg(root.runName)
+    text: root.inviteLine !== "" ? root.inviteLine : qsTr("Which game do you play in this run?")
 
     function openFor(id: string, name: string, line: string) {
         root.runId = id
@@ -31,113 +28,108 @@ Popup {
         root.open()
     }
 
-    // The library or the Hub's plugin list may arrive after the dialog opened: a single fitting game is picked then, too,
+    // The library or the server's plugin list may arrive after the dialog opened: a single fitting game is picked then, too,
     // but never over a choice the user made.
     Connections {
         target: root.runs.games
         function onModelReset() {
-            if (root.opened && picker.selectedId === "" && root.runs.games.count === 1)
+            if (root.shown && picker.selectedId === "" && root.runs.games.count === 1)
                 picker.selectedId = root.runs.games.get(0).id
         }
     }
 
-    background: Rectangle {
-        radius: Theme.radius12
-        color: Theme.popupBg
-        border.width: 1
-        border.color: Theme.borderPopup
-    }
-
-    contentItem: ColumnLayout {
-        spacing: Theme.space12
-        UzLabel {
-            Layout.fillWidth: true
-            text: qsTr("Join \u201C%1\u201D?").arg(root.runName)
-            wrapMode: Text.WordWrap
-            font.pixelSize: Theme.fontCard
-            font.weight: Font.DemiBold
-        }
-        UzLabel {
-            Layout.fillWidth: true
-            objectName: "runJoinLine"
-            text: root.inviteLine !== "" ? root.inviteLine : qsTr("Which game do you play in this run?")
-            color: Theme.textMuted
-            font.pixelSize: Theme.fontSmall
-            wrapMode: Text.WordWrap
-        }
-        Eyebrow { text: qsTr("Plugins of this run") }
+    ColumnLayout {
+        Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        spacing: Theme.space1
+        visible: jpRep.count > 0
+        UzSectionLabel { Layout.fillWidth: true; text: qsTr("Plugins of this run") }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.rule }
         Repeater {
+            id: jpRep
             model: root.runs.joinPlugins
-            delegate: ColumnLayout {
+            delegate: Item {
                 id: jp
                 required property var model
                 objectName: "runJoinPlugin_" + jp.model.id
                 Layout.fillWidth: true
-                spacing: 2
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
+                Layout.minimumWidth: 0
+                implicitHeight: jpCol.implicitHeight + Theme.space15
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
+                ColumnLayout {
+                    id: jpCol
+                    x: Theme.space15
+                    width: parent.width - Theme.space15
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 0
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.space1
+                        UzLabel {
+                            Layout.fillWidth: true
+                            text: jp.model.name + " " + jp.model.version
+                            elide: Text.ElideRight
+                            font.weight: Font.Medium
+                        }
+                        PluginOriginPill {
+                            objectName: "runJoinPluginOrigin"
+                            origin: jp.model.origin
+                            text: jp.model.originText
+                        }
+                    }
                     UzLabel {
                         Layout.fillWidth: true
-                        text: jp.model.name + " " + jp.model.version
-                        elide: Text.ElideRight
-                        font.weight: Font.Medium
+                        text: qsTr("It will be able to: %1").arg(jp.model.permissionsText)
+                        wrapMode: Text.WordWrap
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.small.size
                     }
-                    PluginOriginPill {
-                        objectName: "runJoinPluginOrigin"
-                        origin: jp.model.origin
-                        text: jp.model.originText
-                    }
-                }
-                UzLabel {
-                    Layout.fillWidth: true
-                    text: qsTr("It will be able to: %1").arg(jp.model.permissionsText)
-                    wrapMode: Text.WordWrap
-                    color: Theme.textMuted
-                    font.pixelSize: Theme.fontMeta
                 }
             }
         }
-        UnverifiedNote {
-            objectName: "runJoinUnverified"
-            visible: root.runs.joinUnverified
-            text: root.runs.unverifiedWarning
-            Layout.fillWidth: true
-        }
+    }
+    UnverifiedNote {
+        objectName: "runJoinUnverified"
+        visible: root.runs.joinUnverified
+        text: root.runs.unverifiedWarning
+        Layout.fillWidth: true
+    }
+    ColumnLayout {
+        Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        spacing: Theme.space1
+        UzSectionLabel { Layout.fillWidth: true; text: qsTr("Your game") }
         GamePickList {
             id: picker
             objectName: "runJoinGames"
             Layout.fillWidth: true
             rows: root.runs.games
         }
-        UzLabel {
-            objectName: "runJoinWhy"
-            visible: root.noGame
-            Layout.fillWidth: true
-            text: qsTr("Join is off until you have the game. Ask a server admin to upload it, or add a library folder that contains it.")
-            color: Theme.pluginWarn
-            wrapMode: Text.WordWrap
-            font.pixelSize: Theme.fontSmall
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.space8
-            Item { Layout.fillWidth: true }
-            UzButton {
-                objectName: "runJoinCancel"
-                text: qsTr("Cancel")
-                onClicked: root.close()
-            }
-            UzButton {
-                objectName: "runJoinConfirm"
-                kind: "primary"
-                text: qsTr("Join")
-                enabled: picker.selectedId !== ""
-                onClicked: {
-                    root.runs.joinRun(root.runId, picker.selectedId)
-                    root.close()
-                }
-            }
-        }
     }
+    UzStatusIcon {
+        objectName: "runJoinWhy"
+        visible: root.noGame
+        kind: "warning"
+        small: true
+        text: qsTr("Join is off until you have the game. Ask a server admin to upload it, or add a library folder that contains it.")
+        maxWidth: root.frame.width - 2 * 28 - 22
+    }
+
+    actions: [
+        UzButton {
+            objectName: "runJoinCancel"
+            text: qsTr("Cancel")
+            onClicked: root.close()
+        },
+        UzButton {
+            objectName: "runJoinConfirm"
+            kind: "primary"
+            text: qsTr("Join")
+            enabled: picker.selectedId !== ""
+            onClicked: {
+                root.runs.joinRun(root.runId, picker.selectedId)
+                root.close()
+            }
+        }
+    ]
 }

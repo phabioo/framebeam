@@ -1,10 +1,10 @@
 import QtQuick
 import Uzume.App
 
-// Origin pill of a plugin (docs/design/plugins.md, common rules): "✓ Official" (info tone, signed by Uzume),
-// "Hub upload · unverified" (warning tone, unsigned and offered by the Hub), "Local file" (neutral).
+// Origin tag of a plugin (design-system.md "Tag"): "Hub upload · unverified" (accent, unsigned and offered by the Hub),
+// "Local file" (neutral), "✓ Official" (ok, signed by Uzume; official plugins carry no tag in the lists).
 // origin: official | unverified | local; text comes from the controller (translated).
-Rectangle {
+Item {
     id: root
     property string origin: "local"
     property string text: ""
@@ -13,20 +13,15 @@ Rectangle {
     // Official plugins carry no pill (round 3, sheet 0-2); the type stays for places that need the text (tests, tooltips).
     visible: !official
 
-    implicitHeight: 20
-    implicitWidth: label.implicitWidth + 16
-    radius: Theme.radiusPill
-    color: official ? Theme.infoBg : (unverified ? Theme.pluginWarnBg : Theme.neutralPillBg)
-    border.width: official || unverified ? 1 : 0
-    border.color: official ? Theme.infoBorder : Theme.pluginWarnLine
+    implicitHeight: tag.implicitHeight
+    implicitWidth: tag.implicitWidth
+    width: implicitWidth
+    height: implicitHeight
 
-    Text {
-        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
-        id: label
-        anchors.centerIn: parent
+    UzTag {
+        id: tag
         text: root.text
-        font.pixelSize: Theme.fontMono
-        font.weight: Font.DemiBold
-        color: root.official ? Theme.accentText : (root.unverified ? Theme.pluginWarn : Theme.textMuted)
+        tone: root.official ? "ok" : (root.unverified ? "accent" : "neutral")
+        icon: "none"
     }
 }

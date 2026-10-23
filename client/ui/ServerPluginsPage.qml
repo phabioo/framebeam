@@ -362,7 +362,7 @@ AdminPage {
                           + (root.selected.previous !== "" ? "  " + qsTr("Previous version %1 · %2").arg(root.selected.previous).arg(root.selected.previousDate) : "")
                     textFormat: Text.PlainText
                     font.family: Theme.sans
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     color: Theme.muted
                 }
                 Row {

@@ -9,9 +9,9 @@ Rectangle {
     default property alias content: body.data
 
     implicitHeight: row.implicitHeight + 32
-    radius: 0
+    radius: Theme.radiusNone
     color: Theme.surface
-    border.width: 1
+    border.width: stage === "active" ? 1.5 : 1
     border.color: stage === "active" ? Theme.accent : Theme.rule
     Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
 
@@ -35,7 +35,7 @@ Rectangle {
                 radius: 0
                 color: card.stage === "done" ? Theme.accent : "transparent"
                 border.width: card.stage === "done" ? 0 : 1.5
-                border.color: card.stage === "active" ? Theme.accent : Theme.textDisabled
+                border.color: card.stage === "active" ? Theme.accent : Theme.disabledInk
             }
         }
         ColumnLayout {
@@ -45,9 +45,9 @@ Rectangle {
             UzLabel {
                 Layout.fillWidth: true
                 text: card.title
-                font.pixelSize: Theme.fontSection
+                font.pixelSize: Theme.roles.itemTitle.size
                 font.weight: Font.DemiBold
-                color: card.stage === "pending" ? Theme.textFaint : Theme.text
+                color: card.stage === "pending" ? Theme.dim : Theme.ink
             }
         }
     }

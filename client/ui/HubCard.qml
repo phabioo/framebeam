@@ -20,10 +20,10 @@ Rectangle {
     readonly property string tone: hub.tone
 
     implicitHeight: body.implicitHeight + 32
-    radius: Theme.radius10
+    radius: Theme.radiusNone
     color: Theme.surface
     border.width: hub.isLast && status === "idle" ? 1.5 : 1
-    border.color: hub.isLast && status === "idle" ? Theme.accent : (status === "certChanged" ? Theme.error : Theme.borderCard)
+    border.color: hub.isLast && status === "idle" ? Theme.accent : (status === "certChanged" ? Theme.danger : Theme.rule)
     Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
 
     ColumnLayout {
@@ -41,7 +41,7 @@ Rectangle {
                 objectName: "hubCardName"
                 Layout.fillWidth: true
                 text: card.hub.name
-                font.pixelSize: Theme.fontCard
+                font.pixelSize: Theme.roles.headerTitle.size
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -63,18 +63,18 @@ Rectangle {
             Layout.fillWidth: true
             visible: card.hub.message !== ""
             implicitHeight: msg.implicitHeight + 24
-            radius: Theme.radius8
-            color: card.tone === "warn" ? Theme.infoBg : Theme.toneBg(card.tone)
+            radius: Theme.radiusNone
+            color: card.tone === "warn" ? Theme.ground : Theme.toneBg(card.tone)
             border.width: card.tone === "warn" ? 1 : 0
-            border.color: Theme.infoBorder
+            border.color: Theme.rule
             UzLabel {
                 id: msg
                 anchors.fill: parent
                 anchors.margins: 12
                 text: card.hub.message
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 wrapMode: Text.WordWrap
-                color: card.tone === "error" ? Theme.errorText : (card.tone === "warn" ? Theme.infoText : Theme.text)
+                color: card.tone === "error" ? Theme.danger : (card.tone === "warn" ? Theme.ink2 : Theme.ink)
             }
         }
 
@@ -112,7 +112,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignTop
                 spacing: 4
                 Eyebrow { text: qsTr("Saved (SHA-256)") }
-                UzMono { objectName: "certExpectedFingerprint"; Layout.fillWidth: true; text: card.hub.expectedFingerprint || ""; color: Theme.text; wrapMode: Text.WrapAnywhere }
+                UzMono { objectName: "certExpectedFingerprint"; Layout.fillWidth: true; text: card.hub.expectedFingerprint || ""; color: Theme.ink; wrapMode: Text.WrapAnywhere }
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -120,7 +120,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignTop
                 spacing: 4
                 Eyebrow { text: qsTr("Presented by the server now (SHA-256)") }
-                UzMono { objectName: "certObservedFingerprint"; Layout.fillWidth: true; text: card.hub.observedFingerprint || ""; color: Theme.error; wrapMode: Text.WrapAnywhere }
+                UzMono { objectName: "certObservedFingerprint"; Layout.fillWidth: true; text: card.hub.observedFingerprint || ""; color: Theme.danger; wrapMode: Text.WrapAnywhere }
             }
         }
 
@@ -130,8 +130,8 @@ Rectangle {
             visible: card.status === "certChanged"
             text: qsTr("Open the server's web Settings page and compare its certificate fingerprint with the one presented now. "
                        + "A server renews its certificate automatically before it expires.")
-            font.pixelSize: Theme.fontSmall
-            color: Theme.textMuted
+            font.pixelSize: Theme.roles.input.size
+            color: Theme.muted
             wrapMode: Text.WordWrap
         }
 
@@ -151,9 +151,9 @@ Rectangle {
                     Layout.fillWidth: true
                     text: qsTr("Trust this certificate only if both fingerprints match the server's Settings page. "
                                + "Your saved sign-in is kept and used for the new certificate.")
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     wrapMode: Text.WordWrap
-                    color: Theme.errorText
+                    color: Theme.danger
                 }
                 Flow {
                     Layout.fillWidth: true

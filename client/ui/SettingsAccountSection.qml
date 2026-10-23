@@ -22,7 +22,7 @@ ColumnLayout {
     readonly property string serverName: ac.serverName
     // Rows end where the controls of the SettingsRows end (the reset column stays empty on this page).
     readonly property real endMargin: width >= Theme.settingsNarrowBelow ? Theme.settingsResetWidth : 0
-    spacing: Theme.space14
+    spacing: Theme.space2
 
     function reload() {
         if (!root.canLoad) return
@@ -76,8 +76,8 @@ ColumnLayout {
         Layout.leftMargin: Theme.settingsDotSlot
         Layout.rightMargin: root.endMargin
         wrapMode: Text.WordWrap
-        font.pixelSize: Theme.fontSmall
-        color: Theme.textMuted
+        font.pixelSize: Theme.roles.input.size
+        color: Theme.muted
         text: !root.hasServer ? qsTr("No account needed on this PC. Join or set up a server to have one.")
                               : qsTr("This server is too old for accounts. Update the server first.")
     }
@@ -88,22 +88,22 @@ ColumnLayout {
         visible: root.pcOnly
         Layout.fillWidth: true
         Layout.minimumWidth: 0
-        spacing: Theme.space14
+        spacing: Theme.space2
         UzLabel {
             objectName: "accountPcOnlyNote"
             Layout.fillWidth: true
             Layout.leftMargin: Theme.settingsDotSlot
             Layout.rightMargin: root.endMargin
             wrapMode: Text.WordWrap
-            font.pixelSize: Theme.fontSmall
-            color: Theme.textMuted
+            font.pixelSize: Theme.roles.small.size
+            color: Theme.muted
             text: qsTr("No account needed. Your games and saves stay on this PC.")
         }
         ColumnLayout {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             spacing: 0
-            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.rule2 }
             UzSettingsRow {
                 objectName: "accountPcNameRow"
                 Layout.fillWidth: true
@@ -136,7 +136,7 @@ ColumnLayout {
         visible: root.hasServer && !root.pcOnly
         Layout.fillWidth: true
         Layout.minimumWidth: 0
-        spacing: Theme.space14
+        spacing: Theme.space2
 
         // The person: avatar, name, role · server.
         RowLayout {
@@ -181,8 +181,8 @@ ColumnLayout {
             Layout.leftMargin: Theme.settingsDotSlot
             Layout.rightMargin: root.endMargin
             wrapMode: Text.WordWrap
-            font.pixelSize: Theme.fontSmall
-            color: Theme.textMuted
+            font.pixelSize: Theme.roles.input.size
+            color: Theme.muted
             text: qsTr("Name, password and devices load when the server answers. The PIN for this PC works without it.")
         }
 
@@ -190,7 +190,7 @@ ColumnLayout {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             spacing: 0
-            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.rule2 }
             UzSettingsRow {
                 objectName: "accountNameRow"
                 Layout.fillWidth: true
@@ -274,7 +274,7 @@ ColumnLayout {
                 Layout.leftMargin: Theme.settingsDotSlot
                 Layout.rightMargin: root.endMargin
                 implicitHeight: Math.max(rowLayout.implicitHeight + 24, Theme.row44)
-                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.borderRow }
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
                 RowLayout {
                     id: rowLayout
                     anchors.left: parent.left
@@ -291,7 +291,7 @@ ColumnLayout {
                                 text: deviceRow.modelData.name
                                 textFormat: Text.PlainText
                                 font.family: Theme.sans
-                                font.pixelSize: Theme.fontSmall
+                                font.pixelSize: Theme.roles.input.size
                                 font.weight: Font.Medium
                                 color: Theme.ink
                             }
@@ -301,8 +301,8 @@ ColumnLayout {
                         UzMono {
                             Layout.fillWidth: true
                             elide: Text.ElideRight
-                            font.pixelSize: Theme.fontMono
-                            color: Theme.textFaint
+                            font.pixelSize: Theme.roles.meta11.size
+                            color: Theme.dim
                             text: [deviceRow.modelData.platform, deviceRow.modelData.appVersion,
                                    deviceRow.modelData.lastSeen !== "" ? qsTr("Last seen %1").arg(root.player.whenText(deviceRow.modelData.lastSeen)) : "",
                                    root.signInKindText(deviceRow.modelData.signInKind)].filter(t => t !== "").join(" · ")
@@ -326,8 +326,8 @@ ColumnLayout {
             Layout.leftMargin: Theme.settingsDotSlot
             Layout.rightMargin: root.endMargin
             wrapMode: Text.WordWrap
-            font.pixelSize: Theme.fontSmall
-            color: Theme.textMuted
+            font.pixelSize: Theme.roles.input.size
+            color: Theme.muted
             text: qsTr("Your devices appear here when the server answers.")
         }
     }

@@ -4,7 +4,7 @@ import Uzume.App
 
 // Tile strip of a remote Multiview tile (docs/design/plugins.md 4e): 20 high, shows the first text row of the plugin's tile
 // tree (with the player colour dot of its first avatar and "▾"); a click or A expands it to at most 300 x 120 over the top
-// screen with a header strip ("▴"). Always dark. One strip per tile; the tile "⋯" menu (in MultiviewArea) picks the plugin.
+// screen with a header strip ("▴"). Drawn on the stage with the stage-appropriate `surface` plane. One strip per tile; the tile "⋯" menu (in MultiviewArea) picks the plugin.
 Item {
     id: root
     required property PlayerController player
@@ -46,16 +46,15 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 0
-        color: Theme.gameChip
+        color: Theme.withAlpha(Theme.surface, 0.88)
         border.width: 1
-        border.color: root.expanded ? Theme.gameKeyLine : Qt.rgba(1, 1, 1, 0.08)
+        border.color: root.expanded ? Theme.rule : Theme.rule2
         clip: true
 
         PluginFocusable {
             id: header
             objectName: "tileStripHeader"
-            dark: true
-            ringRadius: 5
+            dark: Theme.dark
             width: parent.width
             height: 20
             onActivated: root.expanded = !root.expanded
@@ -67,47 +66,47 @@ Item {
                 PluginTabIcon {
                     anchors.verticalCenter: parent.verticalCenter
                     size: 14
-                    chipRadius: 3
                     name: root.strip.name || ""
                     icon: root.strip.icon || ""
                 }
                 Rectangle {
                     visible: root.dotColor > 0
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 7; height: 7; radius: 0
-                    color: Theme.playerColor(root.dotColor, true)
+                    width: 8; height: 8
+                    color: Theme.playerColor(root.dotColor, Theme.dark)
                 }
-                UzLabel {
+                Text {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "tileStripText"
                     anchors.verticalCenter: parent.verticalCenter
                     width: Math.min(implicitWidth, Math.max(0, Math.min(300, root.maxWidth) - 56 - (root.dotColor > 0 ? 13 : 0)))
                     elide: Text.ElideRight
                     text: root.headline
-                    font.pixelSize: 11
-                    color: Theme.gameText
+                    font.family: Theme.sans
+                    font.pixelSize: Theme.roles.meta11.size
+                    color: Theme.ink
                 }
             }
-            UzLabel {
+            Text {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 anchors.right: parent.right
                 anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.expanded ? "▴" : "▾"
-                font.pixelSize: 10
-                color: Theme.gameTextMuted
+                font.family: Theme.sans
+                font.pixelSize: Theme.roles.meta.size
+                color: Theme.muted
             }
         }
-        Rectangle {
+        UzTag {
             visible: root.expanded && root.marker !== ""
             anchors.right: parent.right
             anchors.rightMargin: 24
-            y: 3
-            width: markerLabel.implicitWidth + 10
-            height: 14
-            radius: 0
-            color: Theme.gamePluginWarnBg
-            UzLabel { textFormat: Text.PlainText; id: markerLabel; anchors.centerIn: parent; text: root.marker; font.pixelSize: 9; color: Theme.gamePluginWarn }
+            y: 2
+            small: true
+            tone: "accent"
+            icon: "none"
+            text: root.marker
         }
 
         Flickable {
@@ -128,7 +127,7 @@ Item {
                 width: flick.width - 16
                 height: implicitHeight
                 node: root.strip.tree
-                dark: true
+                dark: Theme.dark
                 pluginId: root.pluginId
                 onAction: (a, v) => root.player.plugins.sendAction(root.pluginId, "tile:" + root.tileId, a, v)
             }

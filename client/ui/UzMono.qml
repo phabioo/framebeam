@@ -8,5 +8,5 @@ Label {
     Layout.minimumWidth: 0
     color: Theme.muted
     font.family: Theme.mono
-    font.pixelSize: Theme.fontMeta
+    font.pixelSize: Theme.roles.small.size
 }

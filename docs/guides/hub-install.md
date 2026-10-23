@@ -136,7 +136,7 @@ The `uzume` system user is kept. `status` shows the service state and URL.
 
 The Uzume server does not take over a FrameBeam install ([ADR 0030](../adr/0030-one-app-one-server-uzume.md)). Names, paths and formats changed everywhere, and nothing is migrated:
 
-- **Set up the server fresh.** Install the `uzume-server` package (or run `install-server.sh`) as described above and create the admin account. It uses its own user `uzume`, `/etc/uzume/server.env` and `/var/lib/uzume` and does not read the old `uzume` user, `/etc/uzume` or `/var/lib/uzume`. Remove the old `framebeam-hub` package and its data yourself when you no longer need them.
+- **Set up the server fresh.** Install the `uzume-server` package (or run `install-server.sh`) as described above and create the admin account. It uses its own user `uzume`, `/etc/uzume/server.env` and `/var/lib/uzume` and does not read the old `framebeam` user, `/etc/framebeam` or `/var/lib/framebeam`. The `uzume-server` package conflicts with `framebeam-hub`, so installing it removes the old package (both would use port 8443); the old data in `/var/lib/framebeam` stays until you delete it.
 - **Install the app again.** Run the new MSI. It replaces the old product, but it does not take over the old app data folder: pair the app with the server again (certificate fingerprint, device approval). Users sign in again.
 - **Environment:** only `UZUME_*` variables are read. A `FRAMEBEAM_*` variable is ignored.
 - **Docker:** use `ghcr.io/<owner>/uzume-server`. The image `framebeam-hub` is not updated any more. Start with a new volume.

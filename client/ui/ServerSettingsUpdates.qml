@@ -204,7 +204,7 @@ ColumnLayout {
             visible: root.u.last_check !== undefined
             text: qsTr("Last checked %1").arg(root.pane.dateText(root.u.last_check ?? ""))
             textFormat: Text.PlainText
-            font.pixelSize: Theme.fontMeta
+            font.pixelSize: Theme.roles.small.size
             color: Theme.muted
         }
     }
@@ -322,7 +322,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     textFormat: Text.PlainText
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     color: Theme.ink2
                     text: !root.vsel ? ""
                         : root.vsel.data === "refuse" ? qsTr("Going back isn't safe: %1").arg(root.vsel.reason ?? "")

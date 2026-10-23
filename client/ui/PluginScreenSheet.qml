@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import Uzume.App
 
 // In-game plugin screen (docs/design/plugins.md, "In-game screen sheet"): opened by fb.ui.open("screen"). Covers the body
-// below the GameHeader (play area and side panel; in fullscreen the play area). Always dark. The game keeps running
+// below the GameHeader (play area and side panel; in fullscreen the play area). In the active theme (the game view is dark). The game keeps running
 // underneath. Top bar: "← Back to game", plugin icon, screen title and plugin name, key hint Esc; below it the plugin's
 // "screen" tree (max 1100 wide, centered, scrolling vertically). Esc and Back emit closeRequested().
 Rectangle {
@@ -27,7 +27,7 @@ Rectangle {
     property var tree: ({})
     signal closeRequested()
 
-    color: Theme.gameBg
+    color: Theme.ground
     visible: open
     focus: open
     clip: true
@@ -56,44 +56,39 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: 52
-            color: Theme.gameHeader
-            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.gameBorder }
+            implicitHeight: Theme.header56
+            color: Theme.ground
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule }
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 16
-                spacing: 12
-                GameButton {
+                anchors.leftMargin: Theme.space15
+                anchors.rightMargin: Theme.space2
+                spacing: Theme.space15
+                UzButton {
                     objectName: "pluginScreenBack"
-                    muted: true
-                    look: "flat"
+                    kind: "ghost"
+                    size: "sm"
                     text: root.backText
                     onClicked: root.closeRequested()
                 }
                 PluginTabIcon {
                     size: 24
-                    chipRadius: 6
                     name: root.entry.name || ""
                     icon: root.entry.icon || ""
                 }
-                UzLabel {
+                Text {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "pluginScreenSheetTitle"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     elide: Text.ElideRight
                     text: (root.entry.title || root.entry.name || "") + (root.entry.name && root.entry.title && root.entry.title !== root.entry.name ? "  ·  " + root.entry.name : "")
-                    font.pixelSize: 15
-                    font.weight: Font.DemiBold
-                    color: Theme.gameText
+                    font.family: Theme.sans
+                    font.pixelSize: Theme.roles.headerTitle.size
+                    font.weight: Theme.roles.headerTitle.weight
+                    color: Theme.ink
                 }
-                UzMono {
-                    textFormat: Text.PlainText
-                    text: "Esc"
-                    font.pixelSize: 11
-                    color: Theme.gameMeta
-                }
+                UzKbd { keys: "Esc" }
             }
         }
 
@@ -101,26 +96,27 @@ Rectangle {
             objectName: "pluginScreenSheetPaused"
             Layout.fillWidth: true
             visible: root.paused
-            implicitHeight: bannerRow.implicitHeight + 20
-            color: Theme.gamePluginWarnBg
-            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.gamePluginWarnLine }
+            implicitHeight: bannerRow.implicitHeight + 2 * Theme.space15
+            color: Theme.selected
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.accent }
             RowLayout {
                 id: bannerRow
                 anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 16
-                spacing: 10
-                UzLabel {
+                anchors.leftMargin: Theme.space3
+                anchors.rightMargin: Theme.space2
+                spacing: Theme.space15
+                Text {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     Layout.fillWidth: true
                     text: qsTr("Paused · showing its last state")
                     wrapMode: Text.WordWrap
-                    font.pixelSize: 12
+                    font.family: Theme.sans
+                    font.pixelSize: Theme.roles.small.size
                     font.weight: Font.Medium
-                    color: Theme.gamePluginWarn
+                    color: Theme.accentText
                 }
-                GameButton {
-                    look: "outlined"
+                UzButton {
+                    size: "sm"
                     text: qsTr("Restart plugin")
                     onClicked: root.player.plugins.reloadPlugin(root.pluginId)
                 }
@@ -134,34 +130,50 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
             contentWidth: width
-            contentHeight: block.implicitHeight + 48
+            contentHeight: content.implicitHeight + 2 * Theme.space3
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-            PluginBlock {
-                id: block
-                objectName: "pluginScreenSheetBlock"
-                readonly property real avail: flick.width - 48
+            ColumnLayout {
+                id: content
+                readonly property real avail: flick.width - 2 * Theme.space3
                 width: Math.min(1100, Math.max(0, avail))
-                x: Math.max(24, (flick.width - width) / 2)
-                y: 24
-                height: implicitHeight
-                node: root.tree
-                dark: true
-                pluginId: root.pluginId
-                opacity: root.paused ? 0.45 : 1
-                enabled: !root.paused
-                onAction: (a, v) => root.player.plugins.sendAction(root.pluginId, "screen", a, v)
-            }
-            UzLabel {
-                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
-                x: 24
-                y: 24
-                width: flick.width - 48
-                visible: !root.paused && root.tree.type === undefined
-                text: qsTr("Nothing to show yet.")
-                font.pixelSize: 13
-                color: Theme.gameTextMuted
+                x: Math.max(Theme.space3, (flick.width - width) / 2)
+                y: Theme.space3
+                spacing: Theme.space2
+
+                // Plugin content is marked: Mono "DRAWN BY <PLUGIN>" over a rule.
+                RowLayout {
+                    objectName: "pluginDrawnBy"
+                    Layout.fillWidth: true
+                    spacing: Theme.space15
+                    UzSectionLabel {
+                        Layout.maximumWidth: content.width * 0.7
+                        text: qsTr("Drawn by %1").arg(root.entry.name || root.pluginId)
+                    }
+                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.rule2 }
+                }
+                PluginBlock {
+                    id: block
+                    objectName: "pluginScreenSheetBlock"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: implicitHeight
+                    node: root.tree
+                    dark: Theme.dark
+                    pluginId: root.pluginId
+                    opacity: root.paused ? 0.45 : 1
+                    enabled: !root.paused
+                    onAction: (a, v) => root.player.plugins.sendAction(root.pluginId, "screen", a, v)
+                }
+                Text {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
+                    Layout.fillWidth: true
+                    visible: !root.paused && root.tree.type === undefined
+                    text: qsTr("Nothing to show yet.")
+                    font.family: Theme.sans
+                    font.pixelSize: Theme.roles.input.size
+                    color: Theme.muted
+                }
             }
         }
     }

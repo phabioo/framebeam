@@ -48,7 +48,7 @@ Row {
         textFormat: Text.PlainText
         wrapMode: Text.Wrap
         font.family: Theme.sans
-        font.pixelSize: Theme.fontSmall
+        font.pixelSize: Theme.roles.input.size
         color: root.kind === "error" ? Theme.danger : Theme.ink
     }
 }

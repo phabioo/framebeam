@@ -2,8 +2,9 @@ import QtQuick
 import QtQuick.Layouts
 import Uzume.App
 
-// One notice (docs/design/plugins.md 4g-2): grid 28 | flex | auto, padding 12, radius 10; tone info / important (cyan) or
-// warning (amber); source line 11/500, message 13/1.45, actions 28 high, "⋯" (mute menu) and "×" 22 x 22.
+// One plugin notice, in the look of Toast (design-system.md "Toast": `surface` plane, 1 px `rule` frame, no shadow, StatusIcon,
+// message, accent text actions, close mark) and naming the plugin in a Mono source line. Tone info / important = done icon,
+// warning = warning icon; the "⋯" (mute menu) is missing on host notices.
 Item {
     id: root
     required property var toast                    // PluginsController.toasts entry
@@ -20,57 +21,33 @@ Item {
     height: card.height
     objectName: "toast_" + toast.toastId
 
-    Repeater {  // soft shadow (0 18px 40px rgba(0,0,0,.5)): stacked low-alpha layers
-        model: 3
-        Rectangle {
-            required property int index
-            x: -index * 3
-            y: 10 + index * 2
-            width: card.width + index * 6
-            height: card.height + index * 3
-            radius: 0
-            color: "#14000000"
-            z: -1
-        }
-    }
     Rectangle {
         id: card
         width: parent.width
-        height: grid.implicitHeight + 24
-        radius: 0
-        color: root.warn ? Theme.gamePluginWarnBg : Theme.gameOnBg
+        height: Math.max(Theme.row44, grid.implicitHeight + 2 * Theme.space15)
+        color: Theme.surface
         border.width: 1
-        border.color: root.warn ? Theme.gamePluginWarnLine : Theme.gameOnBorder
+        border.color: Theme.rule
         HoverHandler { id: hover }
 
         RowLayout {
             id: grid
-            x: 12; y: 12
-            width: parent.width - 24
-            spacing: 10
-            Rectangle {
+            x: Theme.space15; y: Theme.space15
+            width: parent.width - 2 * Theme.space15
+            spacing: Theme.space15
+            UzStatusIcon {
                 Layout.alignment: Qt.AlignTop
-                Layout.preferredWidth: 28; Layout.preferredHeight: 28
-                radius: 0
-                color: root.warn ? Theme.gamePluginWarnBg : Theme.gameBadge
-                Text {
-                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
-                    anchors.centerIn: parent
-                    text: root.host ? "◆" : (root.toast.tone === "info" ? "i" : "!")
-                    font.pixelSize: root.host ? 12 : 15
-                    font.weight: Font.Bold
-                    color: root.warn ? Theme.gamePluginWarn : Theme.gameAccent
-                }
+                kind: root.warn ? "warning" : "done"
             }
             ColumnLayout {
                 id: toastCol
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                spacing: 4
+                spacing: Theme.space05
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
-                    UzLabel {
+                    spacing: Theme.space1
+                    Text {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         objectName: "toastSource"
                         Layout.minimumWidth: 0
@@ -78,75 +55,78 @@ Item {
                         text: root.host ? qsTr("%1 · %2").arg(root.toast.pluginName).arg(root.toast.title)
                                         : root.toast.tone === "info" ? root.toast.pluginName
                                         : qsTr("%1 · %2").arg(root.toast.pluginName).arg(root.warn ? qsTr("warning") : qsTr("important"))
-                        font.pixelSize: 11
+                        font.family: Theme.mono
+                        font.pixelSize: Theme.roles.meta.size
+                        font.letterSpacing: Theme.roles.meta.spacing
                         font.weight: Font.Medium
-                        color: root.warn ? Theme.gamePluginWarn : Theme.gameAccent
+                        font.capitalization: Font.AllUppercase
+                        color: root.warn ? Theme.accentText : Theme.dim
                     }
-                    Rectangle {
+                    UzTag {
                         objectName: "toastMarker"
                         visible: root.marker !== ""
-                        Layout.preferredWidth: markerLabel.implicitWidth + 10
-                        Layout.preferredHeight: 15
-                        radius: 0
-                        color: "transparent"
-                        border.width: 1
-                        border.color: root.warn ? Theme.gamePluginWarnLine : Theme.gameKeyLine
-                        UzLabel { textFormat: Text.PlainText; id: markerLabel; anchors.centerIn: parent; text: root.marker; font.pixelSize: 10; color: root.warn ? Theme.gamePluginWarn : Theme.gameTextMuted }
+                        small: true
+                        tone: "accent"
+                        icon: "none"
+                        text: root.marker
                     }
                     Item { Layout.fillWidth: true }
                 }
-                UzLabel {
+                Text {
                     objectName: "toastText"
                     Layout.fillWidth: true
                     visible: text !== ""
                     wrapMode: Text.WordWrap
-                    lineHeight: 1.45
                     textFormat: Text.PlainText
                     text: (!root.host && root.toast.title ? root.toast.title + "\n" : "") + (root.toast.text || "")
-                    font.pixelSize: 13
-                    color: Theme.gameText
+                    font.family: Theme.sans
+                    font.pixelSize: Theme.roles.small.size
+                    color: Theme.ink
                 }
                 // The Flow sits in a plain Item whose width is the column's: a Flow directly in the layout kept the width of an
                 // earlier layout pass and ran past the notice with wide fonts.
                 Item {
-                    Layout.preferredWidth: toastCol.width
-                    Layout.maximumWidth: toastCol.width
+                    Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    Layout.topMargin: 2
                     visible: (root.toast.actions || []).length > 0
                     implicitHeight: actionFlow.implicitHeight
                     Flow {
                         id: actionFlow
                         width: parent.width
-                        spacing: 8
+                        spacing: Theme.space3
                         Repeater {
                             model: root.toast.actions || []
-                            delegate: Rectangle {
+                            delegate: Item {
                                 id: act
                                 required property var modelData
                                 required property int index
                                 objectName: "toastAction_" + modelData.action
-                                width: Math.min(actLabel.implicitWidth + 24, act.parent ? act.parent.width : 100000)   // never wider than the notice (wide fonts)
-                                height: 28
-                                radius: 0
-                                color: act.index === 0 ? (root.warn ? Theme.gamePluginWarn : Theme.gameAccent) : (actHover.hovered ? Theme.gameSegmentOn : "transparent")
-                                border.width: act.index === 0 ? 0 : 1
-                                border.color: Theme.gameKeyLine
+                                width: Math.min(actLabel.implicitWidth, act.parent ? act.parent.width : 100000)   // never wider than the notice (wide fonts)
+                                height: Theme.row28
+                                activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
                                 Accessible.name: modelData.label
-                                UzLabel {
+                                Keys.onPressed: (event) => {
+                                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                                        root.actionPicked(act.modelData); event.accepted = true
+                                    }
+                                }
+                                // The first action is the toast action (accent text, 500); further ones are quieter.
+                                Text {
                                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                                     id: actLabel
-                                    anchors.centerIn: parent
-                                    width: Math.min(implicitWidth, act.width - 24)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: Math.min(implicitWidth, act.width)
                                     elide: Text.ElideRight
                                     text: act.modelData.label
-                                    font.pixelSize: 12
-                                    font.weight: Font.DemiBold
-                                    color: act.index === 0 ? Theme.inkOnAccent : Theme.gameText
+                                    font.family: Theme.sans
+                                    font.pixelSize: Theme.roles.small.size
+                                    font.weight: act.index === 0 ? Font.Medium : Font.Normal
+                                    color: act.index === 0 ? Theme.accentText : (actHover.hovered ? Theme.ink : Theme.muted)
                                 }
                                 HoverHandler { id: actHover; cursorShape: Qt.PointingHandCursor }
                                 TapHandler { onTapped: root.actionPicked(act.modelData) }
+                                UzFocusRing { visible: act.activeFocus; anchors.fill: undefined; y: 4; width: act.width; height: act.height - 8 }
                             }
                         }
                     }
@@ -154,28 +134,39 @@ Item {
             }
             Row {
                 Layout.alignment: Qt.AlignTop
-                spacing: 2
-                Rectangle {
+                spacing: 0
+                Item {
                     id: moreBtn
                     objectName: "toastMore"
                     visible: !root.host
-                    width: 22; height: 22; radius: 0
-                    color: moreHover.hovered ? Theme.gameSegmentOn : "transparent"
+                    width: 24; height: 24
+                    activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Notice menu")
-                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: "⋯"; font.pixelSize: 15; color: Theme.gameTextMuted }
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.menuRequested(moreBtn); event.accepted = true }
+                    }
+                    Rectangle { anchors.fill: parent; color: moreHover.hovered ? Theme.pressed : "transparent" }
+                    UzGlyph { anchors.centerIn: parent; name: "more"; size: 14; color: Theme.dim }
                     HoverHandler { id: moreHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: root.menuRequested(moreBtn) }
+                    UzFocusRing { visible: moreBtn.activeFocus }
                 }
-                Rectangle {
+                Item {
                     objectName: "toastDismiss"
-                    width: 22; height: 22; radius: 0
-                    color: closeHover.hovered ? Theme.gameSegmentOn : "transparent"
+                    id: closeBtn
+                    width: 24; height: 24
+                    activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Dismiss")
-                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: "×"; font.pixelSize: 16; color: Theme.gameTextMuted }
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.dismissRequested(); event.accepted = true }
+                    }
+                    Rectangle { anchors.fill: parent; color: closeHover.hovered ? Theme.pressed : "transparent" }
+                    UzGlyph { anchors.centerIn: parent; name: "cross"; size: 12; color: Theme.dim }
                     HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: root.dismissRequested() }
+                    UzFocusRing { visible: closeBtn.activeFocus }
                 }
             }
         }

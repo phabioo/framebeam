@@ -197,8 +197,8 @@ ColumnLayout {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            font.pixelSize: Theme.fontMeta
-            color: Theme.textMeta
+            font.pixelSize: Theme.roles.small.size
+            color: Theme.muted
             text: qsTr("Server log, settings without secrets, versions, disk and network summary.")
         }
         UzSectionLabel { Layout.fillWidth: true; Layout.topMargin: Theme.space1; text: qsTr("Never included") }
@@ -206,8 +206,8 @@ ColumnLayout {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            font.pixelSize: Theme.fontMeta
-            color: Theme.textMeta
+            font.pixelSize: Theme.roles.small.size
+            color: Theme.muted
             text: qsTr("Passwords, invite codes, saves, chat, game files.")
         }
     }

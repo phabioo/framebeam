@@ -204,7 +204,7 @@ Rectangle {
                             textFormat: Text.PlainText
                             text: root.compact ? person.modelData.who + " · " + person.modelData.game : person.modelData.who
                             font.family: Theme.sans
-                            font.pixelSize: Theme.fontSmall
+                            font.pixelSize: Theme.roles.input.size
                             color: Theme.ink2
                         }
                         Text {
@@ -214,7 +214,7 @@ Rectangle {
                             textFormat: Text.PlainText
                             text: person.modelData.game
                             font.family: Theme.sans
-                            font.pixelSize: Theme.fontMeta
+                            font.pixelSize: Theme.roles.small.size
                             color: Theme.muted
                         }
                     }
@@ -267,7 +267,7 @@ Rectangle {
                         elide: Text.ElideRight
                         text: qsTr("%1 min").arg(nowRunning.minutes)
                         font.pixelSize: 11
-                        color: Theme.textMeta
+                        color: Theme.muted
                     }
                 }
                 UzLabel {
@@ -275,15 +275,15 @@ Rectangle {
                     Layout.fillWidth: true
                     text: nowRunning.game.title || ""
                     elide: Text.ElideRight
-                    font.pixelSize: Theme.fontBody
+                    font.pixelSize: Theme.roles.body.size
                     font.weight: Font.DemiBold
                 }
                 UzLabel {
                     objectName: "nowRunningStatus"
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    font.pixelSize: Theme.fontMeta
-                    color: Theme.infoText
+                    font.pixelSize: Theme.roles.small.size
+                    color: Theme.ink2
                     text: nowRunning.quitting ? qsTr("Saving and syncing…")
                           : root.player.sessions.watching ? qsTr("Paused while you watch %1 · %2").arg(root.player.sessions.watchedWho).arg(root.player.sessions.watchedGame)
                           : qsTr("Paused")
@@ -300,7 +300,7 @@ Rectangle {
                         kind: "primary"
                         implicitHeight: 30
                         implicitWidth: 0
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                         text: qsTr("▶ Resume")
                         onClicked: root.player.resumeGame()
                     }
@@ -310,16 +310,16 @@ Rectangle {
                         implicitWidth: 0
                         Layout.minimumWidth: 0
                         Layout.preferredWidth: quitProbe.implicitWidth + 20
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                         text: qsTr("Quit")
                         background: Rectangle {
-                            radius: Theme.radius6
-                            color: parent.hovered ? Theme.surfaceRaised : "transparent"
+                            radius: Theme.radiusNone
+                            color: parent.hovered ? Theme.hover : "transparent"
                             border.width: 1
-                            border.color: Theme.accentOutline
+                            border.color: Theme.rule
                         }
                         onClicked: root.player.requestQuit()
-                        Text { id: quitProbe; visible: false; text: qsTr("Quit"); font.pixelSize: Theme.fontSmall }
+                        Text { id: quitProbe; visible: false; text: qsTr("Quit"); font.pixelSize: Theme.roles.input.size }
                     }
                 }
             }
@@ -378,7 +378,7 @@ Rectangle {
             Layout.rightMargin: Theme.space2
             text: qsTr("Connecting…")
             color: Theme.muted
-            font.pixelSize: Theme.fontMono
+            font.pixelSize: Theme.roles.meta11.size
             elide: Text.ElideRight
         }
 
@@ -407,7 +407,7 @@ Rectangle {
                     text: (root.player.userName || root.player.deviceName || "?").charAt(0).toUpperCase()
                     textFormat: Text.PlainText
                     font.family: Theme.sans
-                    font.pixelSize: Theme.fontMeta
+                    font.pixelSize: Theme.roles.small.size
                     font.weight: Font.DemiBold
                     color: Theme.ink2
                 }
@@ -422,7 +422,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     text: userBlock.hasUser ? root.player.userName : root.player.deviceName
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     font.weight: Font.Medium
                     elide: Text.ElideRight
                 }
@@ -431,7 +431,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     text: userBlock.hasUser ? root.player.deviceName : qsTr("This device")
-                    font.pixelSize: Theme.fontMeta
+                    font.pixelSize: Theme.roles.small.size
                     color: Theme.dim
                     elide: Text.ElideRight
                 }

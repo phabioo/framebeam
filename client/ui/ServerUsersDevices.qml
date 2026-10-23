@@ -21,7 +21,7 @@ ColumnLayout {
             wrapMode: Text.Wrap
             text: qsTr("Nothing is waiting for approval. A new PC shows up here when it asks to join.")
             font.family: Theme.sans
-            font.pixelSize: Theme.fontSmall
+            font.pixelSize: Theme.roles.input.size
             color: Theme.muted
         }
         Repeater {
@@ -44,7 +44,7 @@ ColumnLayout {
                     text: req.modelData.device_name
                     textFormat: Text.PlainText
                     font.family: Theme.sans
-                    font.pixelSize: Theme.fontBody
+                    font.pixelSize: Theme.roles.body.size
                     font.weight: Font.Medium
                     color: Theme.ink
                 }
@@ -62,7 +62,7 @@ ColumnLayout {
                                               : qsTr("Asks to join. Choose who this PC belongs to. Approve only if you know this PC.")
                     textFormat: Text.PlainText
                     font.family: Theme.sans
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     color: Theme.ink2
                 }
                 Flow {

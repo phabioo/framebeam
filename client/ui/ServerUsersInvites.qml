@@ -27,7 +27,7 @@ ColumnLayout {
         wrapMode: Text.Wrap
         text: qsTr("No invite is open right now.")
         font.family: Theme.sans
-        font.pixelSize: Theme.fontSmall
+        font.pixelSize: Theme.roles.input.size
         color: Theme.muted
     }
     UzTable {

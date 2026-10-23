@@ -72,7 +72,7 @@ ADR 0010 made FrameBeam's own signed GitHub releases the only core source, and t
 
 ### D10 CI and repository
 
-- `.github/workflows/cores.yml` and the signed core index (release `cores-index`) are retired; the existing releases stay untouched so older Hubs keep working.
+- `.github/workflows/cores.yml` and the signed core index (release `cores-index`) are retired; the existing releases stayed untouched so older Hubs kept working. Amendment 2026-10-23: the releases `cores-index` and `core-melonds_ds-1.4.0` were deleted; servers before 0.8 can no longer download cores from them.
 - (superseded, see Update 2026-10-11) `scripts/fetch-melonds-ds.*` stayed as the CI test dependency. CI additionally fetched DeSmuME from the buildbot (`scripts/fetch-buildbot-core.sh`, Linux and Windows) so the core tests run against both profiled cores.
 
 ## Rejected

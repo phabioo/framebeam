@@ -58,7 +58,7 @@ Slider {
             text: control.label
             textFormat: Text.PlainText
             font.family: Theme.sans
-            font.pixelSize: Theme.fontBody
+            font.pixelSize: Theme.roles.body.size
             color: control.enabled ? Theme.ink : Theme.disabledInk
         }
         Item {

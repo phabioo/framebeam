@@ -472,7 +472,7 @@ ColumnLayout {
                     visible: root.st.can_restore === false
                     text: qsTr("This server can't restart itself, so it can't restore from the app.")
                     textFormat: Text.PlainText
-                    font.pixelSize: Theme.fontMeta
+                    font.pixelSize: Theme.roles.small.size
                     color: Theme.muted
                 }
                 RowLayout {

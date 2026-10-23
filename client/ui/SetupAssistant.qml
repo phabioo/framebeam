@@ -286,7 +286,7 @@ FocusScope {
                     ColumnLayout {
                         spacing: Theme.space15
                         Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: 20; font.weight: Font.Medium; color: Theme.ink; text: qsTr("Systems on %1").arg(root.serverName) }
-                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.ink2; text: qsTr("These are the systems the server can run games for. Games are sorted into them by file type.") }
+                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.ink2; text: qsTr("These are the systems the server can run games for. Games are sorted into them by file type.") }
                         Flow {
                             Layout.fillWidth: true
                             spacing: Theme.space1
@@ -301,7 +301,7 @@ FocusScope {
                     ColumnLayout {
                         spacing: Theme.space15
                         Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: 20; font.weight: Font.Medium; color: Theme.ink; text: qsTr("Cores") }
-                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.ink2; text: qsTr("A core runs the games of a system. The server downloads them from the libretro buildbot and keeps them up to date.") }
+                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.ink2; text: qsTr("A core runs the games of a system. The server downloads them from the libretro buildbot and keeps them up to date.") }
                         Repeater {
                             model: root.systems
                             delegate: RowLayout {
@@ -312,7 +312,7 @@ FocusScope {
                                 readonly property var def: (coreRow.modelData.cores ?? []).filter(c => c.default)[0]
                                 Layout.fillWidth: true
                                 spacing: Theme.space2
-                                Text { Layout.preferredWidth: 160; elide: Text.ElideRight; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.ink; text: coreRow.modelData.display_name }
+                                Text { Layout.preferredWidth: 160; elide: Text.ElideRight; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.ink; text: coreRow.modelData.display_name }
                                 UzStatusIcon {
                                     Layout.fillWidth: true
                                     small: true
@@ -337,7 +337,7 @@ FocusScope {
                     ColumnLayout {
                         spacing: Theme.space15
                         Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: 20; font.weight: Font.Medium; color: Theme.ink; text: qsTr("Where are your games?") }
-                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.ink2; text: qsTr("The server reads game files from this folder on its own disk. Files are only read, never changed. You can also add games from the Library.") }
+                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.ink2; text: qsTr("The server reads game files from this folder on its own disk. Files are only read, never changed. You can also add games from the Library.") }
                         UzMono { text: qsTr("Import folder").toUpperCase() }
                         UzField { id: importDir; objectName: "setupImportDir"; Layout.fillWidth: true; mono: true; fill: Theme.ground; Accessible.name: qsTr("Import folder"); onAccepted: root.next() }
                         UzMono { Layout.fillWidth: true; wrapMode: Text.Wrap; text: qsTr("%1 in the Library now").arg(Theme.plural(root.player.library.totalCount, qsTr("game"), qsTr("games"))) }
@@ -347,7 +347,7 @@ FocusScope {
                     ColumnLayout {
                         spacing: Theme.space15
                         Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: 20; font.weight: Font.Medium; color: Theme.ink; text: qsTr("Prepare %1 for the internet").arg(root.serverName) }
-                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.ink2; text: qsTr("Skip this if you only play at home. You can come back from Settings › Server.") }
+                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.ink2; text: qsTr("Skip this if you only play at home. You can come back from Settings › Server.") }
                         UzMono { text: qsTr("Public address").toUpperCase() }
                         UzField { id: publicHost; objectName: "setupPublicHost"; Layout.fillWidth: true; mono: true; fill: Theme.ground; placeholderText: qsTr("server.example.com"); Accessible.name: qsTr("Public address"); onAccepted: root.next() }
                         RowLayout {
@@ -365,7 +365,7 @@ FocusScope {
                     ColumnLayout {
                         spacing: Theme.space15
                         Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: 20; font.weight: Font.Medium; color: Theme.ink; text: qsTr("Back up saves and settings") }
-                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.ink2; text: qsTr("Choose a folder on another disk and when to back up. Nothing changes if you skip this.") }
+                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.ink2; text: qsTr("Choose a folder on another disk and when to back up. Nothing changes if you skip this.") }
                         UzSegmented {
                             objectName: "setupBackupMode"
                             options: [{ value: "off", label: qsTr("Off"), name: "setupBackupMode_off" }, { value: "daily", label: qsTr("Daily"), name: "setupBackupMode_daily" }, { value: "weekly", label: qsTr("Weekly"), name: "setupBackupMode_weekly" }]
@@ -392,7 +392,7 @@ FocusScope {
                     ColumnLayout {
                         spacing: Theme.space15
                         Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: 20; font.weight: Font.Medium; color: Theme.ink; text: qsTr("%1 is ready").arg(root.serverName) }
-                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.ink2; text: qsTr("Here is what was set up. Anything open also shows in Status.") }
+                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.ink2; text: qsTr("Here is what was set up. Anything open also shows in Status.") }
                         Repeater {
                             model: root.step === 5 ? root.summaryRows() : []
                             delegate: RowLayout {
@@ -401,7 +401,7 @@ FocusScope {
                                 objectName: "setupSummary_" + sum.modelData.key
                                 Layout.fillWidth: true
                                 spacing: Theme.space2
-                                Text { Layout.preferredWidth: 150; elide: Text.ElideRight; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.ink; text: sum.modelData.label }
+                                Text { Layout.preferredWidth: 150; elide: Text.ElideRight; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.ink; text: sum.modelData.label }
                                 UzStatusIcon {
                                     objectName: "setupSummaryText_" + sum.modelData.key
                                     Layout.fillWidth: true
@@ -418,7 +418,7 @@ FocusScope {
                                 }
                             }
                         }
-                        Text { Layout.fillWidth: true; Layout.topMargin: Theme.space1; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.ink2; text: qsTr("Next: invite friends from Users › Invites.") }
+                        Text { Layout.fillWidth: true; Layout.topMargin: Theme.space1; wrapMode: Text.Wrap; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.ink2; text: qsTr("Next: invite friends from Users › Invites.") }
                     }
                 }
             }

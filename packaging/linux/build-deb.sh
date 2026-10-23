@@ -92,6 +92,7 @@ Architecture: $ARCH
 Maintainer: Uzume <uzume@users.noreply.github.com>
 Installed-Size: $size_kb
 Depends: systemd
+Conflicts: framebeam-hub
 Homepage: https://github.com/phabioo/uzume
 Description: Uzume server - self-hosted retro gaming library and session server
  Central ROM library, versioned saves and session coordination for Uzume
