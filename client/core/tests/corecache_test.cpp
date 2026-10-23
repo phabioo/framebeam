@@ -221,6 +221,37 @@ class CoreCacheTest : public QObject {
     QCOMPARE(c.prune(core, platform, 2, QStringLiteral("2026.10.09")), 0);
   }
 
+  // Clean-up suggestion "unused cores": every cached version but the newest of each core, except the one a running game has loaded.
+  void staleVersionsKeepTheNewestAndTheOneInUse() {
+    QTemporaryDir dir;
+    CoreCache c(dir.path());
+    const QByteArray lib(512, 'l');
+    CorePackageInfo proto = makePackage(QStringLiteral("1"), lib, QByteArray(8, 'x'));
+    const auto add = [&](const QString& core, const char* v) {
+      CorePackageInfo p = makePackage(QString::fromLatin1(v), lib, QByteArray(8, 'x'));
+      p.coreId = core;
+      QCOMPARE(c.store(p, p.files.at(0), lib), CoreCache::StoreResult::Ok);
+      QVERIFY(c.writePackage(p));
+    };
+    for (const char* v : {"2026.09.01", "2026.09.15", "2026.10.09"}) add(QStringLiteral("melonds_ds"), v);
+    add(QStringLiteral("mgba"), "0.10.0");  // a single version is never stale
+    const QString platform = proto.platform;
+    auto stale = c.staleVersions(platform);
+    QCOMPARE(stale.size(), 2);
+    QVERIFY(stale.at(0).bytes >= lib.size());
+    const auto inUse = [](const QString& core) { return core == QLatin1String("melonds_ds") ? QStringLiteral("2026.09.01") : QString(); };
+    stale = c.staleVersions(platform, inUse);
+    QCOMPARE(stale.size(), 1);
+    QCOMPARE(stale.at(0).version, QStringLiteral("2026.09.15"));
+    const auto r = c.removeStaleVersions(platform, inUse);
+    QCOMPARE(r.removed, 1);
+    QVERIFY(r.freedBytes >= lib.size());
+    QCOMPARE(c.versions(QStringLiteral("melonds_ds"), platform), (QStringList{"2026.10.09", "2026.09.01"}));
+    QCOMPARE(c.versions(QStringLiteral("mgba"), platform), (QStringList{"0.10.0"}));
+    QVERIFY(c.staleVersions(platform, inUse).isEmpty());
+    QVERIFY(CoreCache(QString()).staleVersions(platform).isEmpty());
+  }
+
   void versionsNewestFirst() {
     QTemporaryDir dir;
     CoreCache c(dir.path());

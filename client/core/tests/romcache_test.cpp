@@ -300,6 +300,34 @@ class RomCacheTest : public QObject {
     QCOMPARE(c.entries().size(), 0);
   }
 
+  // Clean-up suggestion "games not played in 60 days": strictly older than the cutoff, never the running game, never a download.
+  void unusedSinceFollowsTheSixtyDayRule() {
+    QTemporaryDir dir;
+    RomCache c(dir.path());
+    constexpr qint64 kDay = 24ll * 60 * 60 * 1000;
+    const qint64 now = 1000 * kDay;
+    const qint64 cutoff = now - RomCache::kUnusedGameDays * kDay;
+    QCOMPARE(RomCache::kUnusedGameDays, 60);
+    const QString old1 = addRom(c, 'a', 1000, now - 61 * kDay);
+    const QString old2 = addRom(c, 'b', 2000, now - 200 * kDay);
+    const QString recent = addRom(c, 'c', 1000, now - 59 * kDay);
+    const QString edge = addRom(c, 'd', 1000, cutoff);  // exactly 60 days: not older
+    const QString running = addRom(c, 'e', 1000, now - 90 * kDay);
+    const QString downloading = addRom(c, 'f', 1000, now - 90 * kDay);
+    writeFile(c.partPath(downloading, QStringLiteral("3ds")), QByteArray(10, 'p'));
+    const auto list = c.unusedSince(cutoff, {running});
+    QCOMPARE(list.size(), 2);
+    QCOMPARE(list.at(0).sha256, old2);  // oldest first
+    QCOMPARE(list.at(1).sha256, old1);
+    const auto r = c.removeUnusedSince(cutoff, {running});
+    QCOMPARE(r.removedFiles, 2);
+    QCOMPARE(r.freedBytes, qint64(3000));
+    QVERIFY(!QFile::exists(c.finalPath(old1, QStringLiteral("3ds"))));
+    QVERIFY(!QFile::exists(c.finalPath(old1, QStringLiteral("3ds")) + QStringLiteral(".ok")));
+    for (const QString& keep : {recent, edge, running, downloading}) QVERIFY(QFile::exists(c.finalPath(keep, QStringLiteral("3ds"))));
+    QVERIFY(c.unusedSince(cutoff, {running}).isEmpty());
+  }
+
   void filesWithoutRecordCountAsUsedAtTheirModificationTime() {
     QTemporaryDir dir;
     RomCache c(dir.path());

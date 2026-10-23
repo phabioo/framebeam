@@ -477,6 +477,92 @@ class AdminSettingsUiTest : public QObject {
     QTRY_VERIFY(!text(h.item("storageUsed")).isEmpty());
     QTRY_VERIFY(shown(h, "storageWarning"));   // the sample status has a backup disk at 92 %
     QVERIFY(h.item("storageRecentRow") != nullptr);
+    // An old server without GET /admin/storage (404): the disk-only view, no clean-up section.
+    QVERIFY(!shown(h, "storageCleanupLabel"));
+    QVERIFY(!shown(h, "storageShotsLabel"));
+  }
+
+  // GET /admin/storage (API 1.38): the five bar kinds, the legend values, the table and the clean-up rows that ask first.
+  void storageShowsTheSplitAndCleansUp() {
+    FakeHub hub(QStringLiteral("a"));
+    adminHub(hub);
+    const QString usage = get(QStringLiteral("/storage"));
+    const QString cleanup = post(QStringLiteral("/storage/cleanup"));
+    hub.adminRoutes[usage] = {200, R"JSON({"measured_at": "2026-10-23T10:00:00Z",
+      "disk": {"total_bytes": 1000000000000, "free_bytes": 400000000000},
+      "backup_disk": {"folder": "/mnt/backup/uzume", "total_bytes": 1000000000000, "free_bytes": 80000000000},
+      "kinds": [{"id": "games", "bytes": 214748364800, "count": 120}, {"id": "saves", "bytes": 1073741824, "count": 900},
+                {"id": "snapshots", "bytes": 1073741824, "count": 400}, {"id": "states", "bytes": 0, "count": 0},
+                {"id": "screenshots", "bytes": 52428800, "count": 30}, {"id": "cores", "bytes": 536870912, "count": 4},
+                {"id": "firmware", "bytes": 536870912, "count": 3}, {"id": "backups", "bytes": 5368709120, "count": 7}],
+      "screenshots": [{"user_id": "u1", "user_name": "Max", "game_id": "g1", "game_name": "Demo Game", "bytes": 31457280, "count": 20},
+                      {"user_id": "u2", "user_name": "Lena", "game_id": "g1", "game_name": "Demo Game", "bytes": 20971520, "count": 10}],
+      "cleanup": [{"id": "old_snapshots", "bytes": 536870912, "count": 120}, {"id": "upload_leftovers", "bytes": 0, "count": 0},
+                  {"id": "unused_cores", "bytes": 268435456, "count": 2}]})JSON"};
+    hub.adminRoutes[cleanup] = {200, R"JSON({"id": "old_snapshots", "freed_bytes": 536870912, "removed": 120})JSON"};
+    hub.confirmRequiredPaths = {QStringLiteral("/api/v1/admin/storage/cleanup")};  // like the admin save-version deletes
+    hub.adminHook = [&hub, cleanup, usage](const QString& key) {
+      if (key == cleanup) {
+        hub.adminRoutes[usage] = {200, R"JSON({"measured_at": "2026-10-23T10:05:00Z", "disk": {"total_bytes": 1000000000000, "free_bytes": 400000000000},
+          "kinds": [{"id": "games", "bytes": 214748364800, "count": 120}], "screenshots": [],
+          "cleanup": [{"id": "unused_cores", "bytes": 268435456, "count": 2}]})JSON"};
+      }
+    };
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    openPage(h, "serverSettingsNav_storage", "settingsStorage");
+    QTRY_VERIFY(shown(h, "storageBar"));
+    QTRY_COMPARE(text(h.item("storageKind_games")), QStringLiteral("200 GB"));
+    QCOMPARE(text(h.item("storageKind_saves")), QStringLiteral("2 GB"));       // saves + snapshots
+    QCOMPARE(text(h.item("storageKind_states")), QStringLiteral("1 KB"));
+    QCOMPARE(text(h.item("storageKind_screenshots")), QStringLiteral("50 MB"));
+    QCOMPARE(text(h.item("storageKind_cores")), QStringLiteral("1 GB"));       // cores + firmware
+    QCOMPARE(text(h.item("storageKind_backups")), QStringLiteral("5 GB"));
+    QVERIFY(!text(h.item("storageFree")).isEmpty());
+    QVERIFY(!text(h.item("storageBackupDisk")).isEmpty());
+    QTRY_VERIFY(shown(h, "storageWarning"));  // backup disk 92 % full
+    QVERIFY(shown(h, "storageShotsLabel"));
+    QTRY_VERIFY(h.item("storageShotsTableRow_0") != nullptr);
+    QVERIFY(h.item("storageShotsTableRow_1") != nullptr);
+    QVERIFY(h.item("storageShotsTableRow_2") == nullptr);
+    // Clean-up rows: the empty suggestion is hidden, old save versions say what stays.
+    QTRY_VERIFY(shown(h, "storageCleanup_old_snapshots"));
+    QVERIFY(shown(h, "storageCleanup_unused_cores"));
+    QVERIFY(h.item("storageCleanup_upload_leftovers") == nullptr || !shown(h, "storageCleanup_upload_leftovers"));
+    QVERIFY(h.clickWhenReady("storageCleanupButton_old_snapshots"));
+    QTRY_VERIFY(shown(h, "storageCleanupConfirm_old_snapshots"));
+    QVERIFY(text(h.item("storageCleanupConfirmText_old_snapshots")).contains(QStringLiteral("Manual snapshots")));
+    QCOMPARE(calls(hub, cleanup), 0);
+    QVERIFY(h.clickWhenReady("storageCleanupCancel_old_snapshots"));
+    QCOMPARE(calls(hub, cleanup), 0);
+    QVERIFY(h.clickWhenReady("storageCleanupButton_old_snapshots"));
+    QVERIFY(h.clickWhenReady("storageCleanupConfirmButton_old_snapshots"));
+    // The server asks "Confirm it's you": the request is parked, the global dialog asks, then the same request goes through.
+    QTRY_VERIFY(h.controller->admin()->confirmNeeded());
+    QTRY_VERIFY(shown(h, "confirmPassword"));
+    h.item("confirmPassword")->setProperty("text", hub.accountPassword);
+    QVERIFY(h.click("confirmSubmit"));
+    QTRY_COMPARE(calls(hub, cleanup), 1);
+    QCOMPARE(bodyOf(hub, cleanup).value("id").toString(), QStringLiteral("old_snapshots"));
+    QTRY_VERIFY(text(h.item("storageCleanupResult")).startsWith(QStringLiteral("Freed 512 MB")));
+    QTRY_VERIFY(h.item("storageCleanup_old_snapshots") == nullptr || !shown(h, "storageCleanup_old_snapshots"));  // read again
+    QVERIFY(shown(h, "storageCleanup_unused_cores"));
+  }
+
+  void storageWithNothingToCleanSaysSo() {
+    FakeHub hub(QStringLiteral("a"));
+    adminHub(hub);
+    hub.adminRoutes[get(QStringLiteral("/storage"))] = {200, R"JSON({"measured_at": "2026-10-23T10:00:00Z", "disk": {"total_bytes": 1000, "free_bytes": 500},
+      "kinds": [], "screenshots": [], "cleanup": [{"id": "old_snapshots", "bytes": 0, "count": 0}]})JSON"};
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    openPage(h, "serverSettingsNav_storage", "settingsStorage");
+    QTRY_VERIFY(shown(h, "storageNothingToClean"));
+    QVERIFY(!shown(h, "storageShotsLabel"));
   }
 
   void withoutAdminV1ThePaneExplainsIt() {

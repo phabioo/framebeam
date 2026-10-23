@@ -11,6 +11,7 @@
 #include <atomic>
 
 #include "controllerprofiles.h"
+#include "corecache.h"
 #include "core_options.h"
 #include "coreprober.h"
 #include "fakehub.h"
@@ -1409,6 +1410,100 @@ class EmulationControllersTest : public QObject {
     QTRY_VERIFY(!visible(h, "romCacheClearConfirm"));
     QVERIFY(text(h, "romCacheClearHint").contains(QStringLiteral("Freed")));
     QCOMPARE(h.controller->romCache().value(QStringLiteral("usedBytes")).toDouble(), 0.0);
+  }
+
+  // Settings > This PC > Storage overview (0.19): measured in a worker, bar and legend, clean-up suggestions that ask first.
+  void storageOverviewMeasuresAndCleansUp() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    RomCache cache(h.controller->profileStore()->romCacheDir());
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const auto add = [&](char fill, qint64 usedMs) {
+      const QByteArray d(4096, fill);
+      const QString sha = uitest::sha256Hex(d);
+      QFile f(cache.partPath(sha, QStringLiteral("3ds")));
+      if (!f.open(QIODevice::WriteOnly)) return QString();
+      f.write(d);
+      f.close();
+      if (cache.verifyAndCommit(sha, QStringLiteral("3ds")) != RomCache::CommitResult::Ok) return QString();
+      cache.touch(sha, QStringLiteral("3ds"), usedMs);
+      return sha;
+    };
+    const qint64 day = 24ll * 60 * 60 * 1000;
+    const QString oldSha = add('a', nowMs - 100 * day);
+    const QString newSha = add('b', nowMs - 2 * day);
+    QVERIFY(!oldSha.isEmpty() && !newSha.isEmpty());
+    // A save on this PC, a waiting screenshot and two cached versions of a core (dummy bytes).
+    const QString base = h.controller->profileStore()->baseDir();
+    QDir().mkpath(base + QStringLiteral("/hubs/h1/users/u1/saves/g1"));
+    QFile save(base + QStringLiteral("/hubs/h1/users/u1/saves/g1/game.sav"));
+    QVERIFY(save.open(QIODevice::WriteOnly));
+    save.write(QByteArray(2048, 's'));
+    save.close();
+    QDir().mkpath(base + QStringLiteral("/screenshots/pending"));
+    QFile shot(base + QStringLiteral("/screenshots/pending/a.png"));
+    QVERIFY(shot.open(QIODevice::WriteOnly));
+    shot.write(QByteArray(1024, 'p'));
+    shot.close();
+    CoreCache cores(h.controller->profileStore()->coreCacheDir());
+    const QByteArray lib(512, 'l');
+    for (const char* v : {"2026.09.01", "2026.10.09"}) {
+      CorePackageInfo p;
+      p.coreId = QStringLiteral("melonds_ds");
+      p.version = QString::fromLatin1(v);
+      p.platform = CoreCache::currentPlatform();
+      p.files.append({QStringLiteral("dummy_libretro.so"), QStringLiteral("library"), lib.size(), uitest::sha256Hex(lib), true});
+      QCOMPARE(cores.store(p, p.files.at(0), lib), CoreCache::StoreResult::Ok);
+      QVERIFY(cores.writePackage(p));
+    }
+
+    h.window->resize(1400, 2400);
+    h.controller->showSettings();
+    QTRY_VERIFY(visible(h, "storageOverview"));
+    QTRY_VERIFY(text(h, "storageDataPath").contains(QStringLiteral("measured")));
+    QCOMPARE(text(h, "localStorageKind_games"), QStringLiteral("8 KB"));
+    QCOMPARE(text(h, "localStorageKind_saves"), QStringLiteral("2 KB"));
+    QCOMPARE(text(h, "localStorageKind_states"), QStringLiteral("0 KB"));
+    QCOMPARE(text(h, "localStorageKind_screenshots"), QStringLiteral("1 KB"));
+    QVERIFY(visible(h, "localStorageBar"));
+    QVERIFY(!text(h, "localStorageFree").isEmpty());
+    QVERIFY(h.item("storageMeasure") != nullptr);
+    // The old rows keep working below the overview.
+    QVERIFY(h.item("romCacheLimitRow") != nullptr);
+    QVERIFY(h.item("romCacheClear") != nullptr);
+
+    // Suggestions: the game not played for 60 days and the older core version; saves are never among them.
+    QTRY_VERIFY(visible(h, "storageCleanup_old_games"));
+    QVERIFY(visible(h, "storageCleanup_unused_cores"));
+    QVERIFY(h.item("storageCleanup_old_saves") == nullptr);
+    QVERIFY(!visible(h, "storageNothingToClean"));
+    // Asking first: nothing is removed until it is confirmed; Cancel removes nothing.
+    QVERIFY(h.click("storageCleanupButton_old_games"));
+    QTRY_VERIFY(visible(h, "storageCleanupConfirm_old_games"));
+    QVERIFY(text(h, "storageCleanupConfirmText_old_games").contains(QStringLiteral("download again")));
+    QVERIFY(QFile::exists(cache.finalPath(oldSha, QStringLiteral("3ds"))));
+    QVERIFY(h.click("storageCleanupCancel_old_games"));
+    QTRY_VERIFY(!visible(h, "storageCleanupConfirm_old_games"));
+    QVERIFY(QFile::exists(cache.finalPath(oldSha, QStringLiteral("3ds"))));
+    QVERIFY(h.click("storageCleanupButton_old_games"));
+    QTRY_VERIFY(visible(h, "storageCleanupConfirm_old_games"));
+    QVERIFY(h.click("storageCleanupConfirmButton_old_games"));
+    QVERIFY(!QFile::exists(cache.finalPath(oldSha, QStringLiteral("3ds"))));
+    QVERIFY(QFile::exists(cache.finalPath(newSha, QStringLiteral("3ds"))));  // played recently
+    QTRY_VERIFY(text(h, "storageCleanupResult").startsWith(QStringLiteral("Freed")));
+    QTRY_VERIFY(!visible(h, "storageCleanup_old_games"));
+    QTRY_COMPARE(text(h, "localStorageKind_games"), QStringLiteral("4 KB"));
+    QVERIFY(QFile::exists(save.fileName()));  // saves stay
+    // Unused cores: the newest version stays.
+    QVERIFY(h.click("storageCleanupButton_unused_cores"));
+    QTRY_VERIFY(visible(h, "storageCleanupConfirm_unused_cores"));
+    QVERIFY(h.click("storageCleanupConfirmButton_unused_cores"));
+    QTRY_COMPARE(cores.versions(QStringLiteral("melonds_ds"), CoreCache::currentPlatform()), (QStringList{"2026.10.09"}));
+    QTRY_VERIFY(!visible(h, "storageCleanup_unused_cores"));
+    QVERIFY(QFile::exists(save.fileName()));
   }
 
   void coreMissingIsShown() {

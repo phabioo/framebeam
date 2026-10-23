@@ -45,6 +45,7 @@ qt_add_qml_module(uzume_ui
     runscontroller.h runscontroller.cpp
     personalcontroller.h personalcontroller.cpp
     screenshotcontroller.h screenshotcontroller.cpp
+    localstoragecontroller.h localstoragecontroller.cpp
     screenshotimageprovider.h screenshotimageprovider.cpp
     connectioncheckcontroller.h connectioncheckcontroller.cpp
     onboardingcontroller.h onboardingcontroller.cpp
@@ -156,6 +157,7 @@ qt_add_qml_module(uzume_ui
     LocalFolderDialog.qml
     LibraryFolderDialog.qml
     LibraryFoldersSection.qml
+    LocalStorageBlock.qml
     PluginFolderDialog.qml
     PluginFileDialog.qml
     PluginOriginPill.qml
@@ -206,6 +208,7 @@ qt_add_qml_module(uzume_ui
     UzHelpColumn.qml
     UzRegisterMarks.qml
     UzSectionLabel.qml
+    UzStorageBar.qml
     UzPageHeader.qml
     UzTabs.qml
     UzVoiceMark.qml

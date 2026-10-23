@@ -364,34 +364,60 @@ func (s *Service) finishUpload(ctx context.Context, u UploadSession, path, sum s
 
 // CleanupUploads removes sessions idle for UploadIdleTTL with their data, and data files without a session.
 func (s *Service) CleanupUploads(ctx context.Context) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT id FROM uploads WHERE updated_at <= ?`, s.Now().Add(-UploadIdleTTL).Unix())
+	_, _, err := s.cleanupUploads(ctx, UploadIdleTTL, true)
+	return err
+}
+
+// idleUploads lists the upload sessions untouched for at least ttl.
+func (s *Service) idleUploads(ctx context.Context, ttl time.Duration) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id FROM uploads WHERE updated_at <= ?`, s.Now().Add(-ttl).Unix())
 	if err != nil {
-		return internal(err)
+		return nil, internal(err)
 	}
+	defer rows.Close()
 	var ids []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return internal(err)
+			return nil, internal(err)
 		}
 		ids = append(ids, id)
 	}
-	rows.Close()
+	return ids, rows.Err()
+}
+
+// cleanupUploads removes the sessions idle for ttl with their data (orphans: also the data files without a session
+// that are a day old) and returns the number of removed sessions and the bytes of the removed data files.
+func (s *Service) cleanupUploads(ctx context.Context, ttl time.Duration, orphans bool) (removed int, freed int64, err error) {
+	ids, err := s.idleUploads(ctx, ttl)
+	if err != nil {
+		return 0, 0, err
+	}
 	for _, id := range ids {
 		if !s.lockUpload(id) {
 			continue
 		}
+		var size int64
+		if p, perr := s.uploadPath(id); perr == nil {
+			if st, serr := os.Stat(p); serr == nil {
+				size = st.Size()
+			}
+		}
 		err := s.dropUpload(ctx, id)
 		s.unlockUpload(id)
 		if err != nil {
-			return err
+			return removed, freed, err
 		}
+		removed++
+		freed += size
+	}
+	if !orphans {
+		return removed, freed, nil
 	}
 	// Orphans: a data file whose session is gone (crash between the steps) and that has not been touched for a day.
 	ents, err := os.ReadDir(s.uploadDir())
 	if err != nil {
-		return nil
+		return removed, freed, nil
 	}
 	for _, e := range ents {
 		info, err := e.Info()
@@ -401,9 +427,11 @@ func (s *Service) CleanupUploads(ctx context.Context) error {
 		var n int
 		if s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM uploads WHERE id = ?`, e.Name()).Scan(&n) == nil && n == 0 {
 			if p, err := s.uploadPath(e.Name()); err == nil {
-				os.Remove(p)
+				if os.Remove(p) == nil {
+					freed += info.Size()
+				}
 			}
 		}
 	}
-	return nil
+	return removed, freed, nil
 }
