@@ -336,6 +336,8 @@ Item {
                     session: root.player.gameSession
                     objectName: "gameViewMulti"
                     layout: root.ctl.screenLayout
+                    strictInteger: root.ctl.integerScale
+                    aspectRatio: root.ctl.aspectRatio
                     Component.onCompleted: root.localReady(this)
                     onEscapePressed: root.escapePressed()
                 }

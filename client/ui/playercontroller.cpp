@@ -612,6 +612,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     sessions_->gameStarted(launchGame_.id, launchGame_.title);
     // Screen layout default of the system (Emulation > Defaults / system), the in-game switch overrides it for this game only.
     sessions_->setScreenLayout(emulation_->uzumeValue(QString::fromLatin1(EmulationController::kScreenLayoutKey), launchGame_.system, launchGame_.id));
+    applyUzumeOptions();  // picture options of the game (gameActive_ is set now)
     // Plugins start asynchronously after the game: they never delay it, failures only show in the console and the log.
     plugins_->gameStarted(launchGame_.system, launchRom_, launchGame_.romSha256, launchGame_.title,
                           plugins_->resolveLanguage(launchGame_.system, emulation_->launchOverrides(launchGame_.system, launchGame_.id)),
@@ -1378,6 +1379,13 @@ void PlayerController::applyUzumeOptions() {
   if (sessions_ && !gameActive_) {
     const QString sys = currentSystemId();
     sessions_->setMultiviewMode(emulation_->uzumeValue(QString::fromLatin1(EmulationController::kMultiviewKey), sys));
+  }
+  // Picture options apply live to the running game (game > system > global).
+  if (sessions_ && gameActive_) {
+    const QString sys = launchGame_.system;
+    sessions_->setPictureOptions(
+        emulation_->uzumeValue(QString::fromLatin1(EmulationController::kIntegerScaleKey), sys, launchGame_.id) == QLatin1String("on"),
+        emulation_->uzumeValue(QString::fromLatin1(EmulationController::kAspectRatioKey), sys, launchGame_.id));
   }
   emit emulationSettingsChanged();
 }

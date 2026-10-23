@@ -95,6 +95,8 @@ class EmulationController : public QObject {
   static constexpr const char* kFullscreenKey = "uzume.fullscreen_on_start";
   static constexpr const char* kMultiviewKey = "uzume.default_multiview";
   static constexpr const char* kScreenLayoutKey = "uzume.screen_layout";  // default DS/3DS screen layout (3e-3)
+  static constexpr const char* kIntegerScaleKey = "uzume.integer_scale";  // 0.19 picture: "off" | "on"
+  static constexpr const char* kAspectRatioKey = "uzume.aspect_ratio";    // 0.19 picture: "core" | "4:3" | "stretch"
   static constexpr const char* kSpeedUpRatioKey = "uzume.speedup_ratio";
   static constexpr const char* kSpeedUpOnStartKey = "uzume.speedup_on_start";
   static constexpr const char* kSpeedUpAudioKey = "uzume.speedup_audio";
@@ -173,6 +175,7 @@ class EmulationController : public QObject {
     QList<emu::CoreOptionValue> values;
     QString defaultValue;
     bool perSystem = false;  // also offered (and stored) per system, not only globally
+    QString category;        // filter chip / category of the row; empty = by perSystem ("Speed-up" / "Display")
   };
   static const QList<FbOption>& uzumeOptions();
   // Effective manifest of the selected system for its effective core (card field "coreId"); the system-only manifest

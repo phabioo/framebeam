@@ -290,6 +290,8 @@ Rectangle {
                         anchors.margins: Theme.space3 + Theme.space05
                         session: root.session
                         layout: root.ctl.screenLayout
+                        strictInteger: root.ctl.integerScale
+                        aspectRatio: root.ctl.aspectRatio
                         focus: true
                         onEscapePressed: root.handleEscape()
 

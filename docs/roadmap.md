@@ -65,7 +65,7 @@ Planned, in this order. Each section is the work list; check an item off here an
 Decided by Fabio on 2026-10-21 (as 0.18; renumbered on 2026-10-22). The screens are drawn in the Uzume design (library, game page, in-game panel, Settings › This PC); no own design round, and no Hub web parts any more.
 
 - [ ] Audio stage 1: master volume, mute, hotkeys, "mute in background" (S)
-- [ ] Integer scaling and aspect ratio options; "Continue playing" tile in the Library (S)
+- [x] Integer scaling and aspect ratio options; "Continue playing" tile in the Library (S)
 - [ ] Screenshot hotkey with storage on the server (per game, optionally per run) and a gallery in the app (S-M)
 - [ ] Play time per game, run and user (the server counts from Session and game start events); favorites, collections and recently played (per user on the server, filters in the app) (M)
 - [ ] Storage overview in the app (Settings › This PC › Storage and Server › Storage: ROMs, saves, snapshots, cores, backups, screenshots; clean-up suggestions) (S)

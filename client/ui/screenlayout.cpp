@@ -18,7 +18,8 @@ bool isScreenLayout(const QString& layout) {
   return layout == QLatin1String(kLayoutStacked) || layout == QLatin1String(kLayoutSide) || layout == QLatin1String(kLayoutTop);
 }
 
-ScreenPlacement placeScreens(const emu::DisplayProfile& profile, const QString& layout, const QSizeF& area, bool integerScale) {
+ScreenPlacement placeScreens(const emu::DisplayProfile& profile, const QString& layout, const QSizeF& area, bool integerScale,
+                             bool strictInteger, AspectMode aspect) {
   ScreenPlacement out;
   const int n = static_cast<int>(profile.screens.size());
   out.targets = QList<QRectF>(n);
@@ -32,14 +33,18 @@ ScreenPlacement placeScreens(const emu::DisplayProfile& profile, const QString& 
   QList<QRectF> logical(n);
   qreal maxW = 0, maxH = 0;
   const int shown = top ? 1 : n;
+  // 4:3: every screen keeps its height and gets the width of a 4:3 screen.
+  auto screenW = [&](int i) -> qreal {
+    return aspect == AspectMode::Ratio43 ? profile.screens.at(i).height * 4.0 / 3.0 : profile.screens.at(i).width;
+  };
   for (int i = 0; i < shown; ++i) {
-    maxW = std::max<qreal>(maxW, profile.screens.at(i).width);
+    maxW = std::max<qreal>(maxW, screenW(i));
     maxH = std::max<qreal>(maxH, profile.screens.at(i).height);
   }
   qreal x = 0, y = 0;
   qreal totalW = 0, totalH = 0;
   for (int i = 0; i < shown; ++i) {
-    const qreal w = profile.screens.at(i).width, h = profile.screens.at(i).height;
+    const qreal w = screenW(i), h = profile.screens.at(i).height;
     const qreal gap = i > 0 ? profile.gap : 0;
     if (side) {
       x += gap;
@@ -59,14 +64,15 @@ ScreenPlacement placeScreens(const emu::DisplayProfile& profile, const QString& 
       totalH = y;
     }
   }
-  const QRectF fit = fitFrame(QSizeF(totalW, totalH), area, integerScale);
+  const QRectF fit = aspect == AspectMode::Stretch ? fitPicture(QSizeF(totalW, totalH), area, integerScale, strictInteger, aspect)
+                                                   : fitFrame(QSizeF(totalW, totalH), area, integerScale, strictInteger);
   if (fit.isEmpty()) {
     return out;
   }
-  const qreal scale = fit.width() / totalW;
+  const qreal scaleX = fit.width() / totalW, scaleY = fit.height() / totalH;
   for (int i = 0; i < shown; ++i) {
     const QRectF& l = logical.at(i);
-    out.targets[i] = QRectF(fit.x() + l.x() * scale, fit.y() + l.y() * scale, l.width() * scale, l.height() * scale);
+    out.targets[i] = QRectF(fit.x() + l.x() * scaleX, fit.y() + l.y() * scaleY, l.width() * scaleX, l.height() * scaleY);
   }
   out.content = fit;
   return out;

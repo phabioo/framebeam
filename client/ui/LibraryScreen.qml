@@ -414,6 +414,12 @@ Rectangle {
                 player: root.player
             }
 
+            // Continue block (3c-0): last played game and up to two recent ones; hidden until something was played.
+            LibraryContinue {
+                Layout.fillWidth: true
+                player: root.player
+            }
+
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
