@@ -11,7 +11,7 @@ ColumnLayout {
     signal action(string action, var value)
 
     Layout.minimumWidth: 0
-    spacing: 2
+    spacing: 0
     Repeater {
         model: root.node.rows || []
         delegate: PluginFocusable {
@@ -23,26 +23,24 @@ ColumnLayout {
             readonly property bool isSelected: modelData.id !== undefined && String(modelData.id) === String(root.node.selected)
             dark: root.dark
             actionable: clickable
-            ringRadius: Theme.radius6
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             clip: true
-            implicitHeight: Math.max(36, content.implicitHeight + 12)
+            implicitHeight: Math.max(Theme.row44, content.implicitHeight + Theme.space15)
             onActivated: root.action(modelData.action, modelData.value)
 
             Rectangle {
                 anchors.fill: parent
-                radius: Theme.radius6
                 color: row.isSelected ? Theme.blockColor("selection", root.dark) : (row.hovered ? Theme.blockColor("hover", root.dark) : "transparent")
-                border.width: row.isSelected ? 1 : 0
-                border.color: Theme.toneLine("info", root.dark)
+                Rectangle { visible: row.isSelected; width: 2; height: parent.height; color: Theme.blockColor("accent", root.dark) }
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.tok("rule2", root.dark) }
             }
             RowLayout {
                 id: content
                 anchors.fill: parent
-                anchors.leftMargin: 10
-                anchors.rightMargin: 10
-                spacing: 10
+                anchors.leftMargin: Theme.space15
+                anchors.rightMargin: Theme.space15
+                spacing: Theme.space15
                 PluginImage {
                     visible: !!row.modelData.image
                     dark: root.dark
@@ -59,8 +57,8 @@ ColumnLayout {
                         Layout.fillWidth: true
                         text: row.modelData.title || ""
                         elide: Text.ElideRight
-                        font.pixelSize: Theme.fontSmall
-                        font.weight: Font.Medium
+                        font.pixelSize: Theme.roles.itemTitleSm.size
+                        font.weight: Theme.roles.itemTitleSm.weight
                         color: Theme.blockColor("text", root.dark)
                     }
                     Text {
@@ -69,7 +67,7 @@ ColumnLayout {
                         Layout.fillWidth: true
                         text: row.modelData.sub || ""
                         elide: Text.ElideRight
-                        font.pixelSize: Theme.fontMeta
+                        font.pixelSize: Theme.roles.small.size
                         color: Theme.blockColor("textMeta", root.dark)
                     }
                 }
@@ -80,14 +78,14 @@ ColumnLayout {
                     elide: Text.ElideRight
                     text: row.modelData.meta || ""
                     font.family: Theme.mono
-                    font.pixelSize: Theme.fontMeta
+                    font.pixelSize: Theme.roles.meta11.size
                     color: row.modelData.tone ? Theme.toneFg(row.modelData.tone, root.dark) : Theme.blockColor("textMuted", root.dark)
                 }
                 Text {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: row.clickable
                     text: "›"
-                    font.pixelSize: Theme.fontCard
+                    font.pixelSize: Theme.roles.headerTitle.size
                     color: Theme.blockColor("textFaint", root.dark)
                 }
             }

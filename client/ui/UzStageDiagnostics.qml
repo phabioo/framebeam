@@ -67,7 +67,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.copied ? qsTr("Copied") : qsTr("Copy")
                     font.family: Theme.sans
-                    font.pixelSize: Theme.fontMeta
+                    font.pixelSize: Theme.roles.small.size
                     font.weight: Font.Medium
                     color: root.copied ? Theme.ink : Theme.accentText
                 }

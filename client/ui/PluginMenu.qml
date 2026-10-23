@@ -1,8 +1,7 @@
 import QtQuick
 import Uzume.App
 
-// Small in-game menu for the plugin surfaces (HUD "⋯", notice "⋯", tile "⋯"; docs/design/plugins.md 4e, 4g-2): surface
-// #1d1e22, border #34353a, 30 high items. Fills its parent as a click-away scrim and places the menu next to
+// Small in-game menu for the plugin surfaces (HUD "⋯", notice "⋯", tile "⋯"; docs/design/plugins.md 4e, 4g-2): `surface` plane, `rule` frame, 32 px items. Fills its parent as a click-away scrim and places the menu next to
 // `anchorItem`, kept inside the parent. Items: {id, text, trailing?, checked?, divider?} or a row of glyph choices
 // {id, text, choices: [{id, glyph, tip}]}; `picked(id)` is emitted with the item id (or the choice id).
 Item {
@@ -41,17 +40,17 @@ Item {
         id: box
         objectName: "pluginMenu"
         width: root.menuWidth
-        height: col.height + 8
+        height: col.height + 2 * Theme.space05
         radius: 0
-        color: Theme.gamePopover
+        color: Theme.surface
         border.width: 1
-        border.color: Theme.gamePopoverBorder
-        x: Math.max(8, Math.min(root.width - width - 8, root.ax + root.aw - width))
-        y: root.above ? Math.max(8, root.ay - height - 6) : Math.min(root.height - height - 8, root.ay + root.ah + 6)
+        border.color: Theme.rule
+        x: Math.max(Theme.space1, Math.min(root.width - width - Theme.space1, root.ax + root.aw - width))
+        y: root.above ? Math.max(Theme.space1, root.ay - height - Theme.space1) : Math.min(root.height - height - Theme.space1, root.ay + root.ah + Theme.space1)
         Column {
             id: col
-            x: 4; y: 4
-            width: parent.width - 8
+            x: Theme.space05; y: Theme.space05
+            width: parent.width - 2 * Theme.space05
             Repeater {
                 model: root.items
                 delegate: Item {
@@ -60,28 +59,28 @@ Item {
                     readonly property bool hasChoices: modelData.choices !== undefined
                     objectName: "pluginMenuItem_" + modelData.id
                     width: col.width
-                    height: 30 + (modelData.divider ? 5 : 0)
+                    height: Theme.row32 + (modelData.divider ? 5 : 0)
                     Rectangle {
                         visible: row.modelData.divider === true
                         x: 4; y: 2
                         width: parent.width - 8; height: 1
-                        color: Theme.gameDivider
+                        color: Theme.rule2
                     }
                     Rectangle {
                         anchors.fill: parent
                         anchors.topMargin: row.modelData.divider ? 5 : 0
                         radius: 0
-                        color: !row.hasChoices && itemHover.hovered ? Theme.gameSegmentOn : "transparent"
+                        color: !row.hasChoices && itemHover.hovered ? Theme.pressed : "transparent"
                         UzLabel {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             anchors.left: parent.left
-                            anchors.leftMargin: 10
+                            anchors.leftMargin: Theme.space15
                             anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - 20 - (row.hasChoices ? choiceRow.width : trailingText.implicitWidth + 8)
+                            width: parent.width - 2 * Theme.space15 - (row.hasChoices ? choiceRow.width : trailingText.implicitWidth + 8)
                             elide: Text.ElideRight
                             text: row.modelData.text
-                            font.pixelSize: 13
-                            color: row.modelData.checked ? Theme.gameText : Theme.gameBadgeText
+                            font.pixelSize: Theme.roles.input.size
+                            color: row.modelData.checked ? Theme.ink : Theme.ink2
                             font.weight: row.modelData.checked ? Font.Medium : Font.Normal
                         }
                         UzMono {
@@ -89,11 +88,11 @@ Item {
                             id: trailingText
                             visible: !row.hasChoices
                             anchors.right: parent.right
-                            anchors.rightMargin: 10
+                            anchors.rightMargin: Theme.space15
                             anchors.verticalCenter: parent.verticalCenter
                             text: row.modelData.trailing || (row.modelData.checked ? "✓" : "")
-                            font.pixelSize: 11
-                            color: row.modelData.checked && !row.modelData.trailing ? Theme.gameAccent : Theme.gameFaint
+                            font.pixelSize: Theme.roles.meta11.size
+                            color: row.modelData.checked && !row.modelData.trailing ? Theme.accentText : Theme.dim
                         }
                         Row {
                             id: choiceRow
@@ -109,10 +108,10 @@ Item {
                                     required property var modelData
                                     objectName: "pluginMenuChoice_" + modelData.id
                                     width: 26; height: 24; radius: 0
-                                    color: choiceHover.hovered ? Theme.gameSegmentOn : "transparent"
+                                    color: choiceHover.hovered ? Theme.pressed : "transparent"
                                     Accessible.role: Accessible.Button
                                     Accessible.name: modelData.tip || modelData.glyph
-                                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: choice.modelData.glyph; font.pixelSize: 14; color: choice.modelData.checked ? Theme.gameAccent : Theme.gameText }
+                                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: choice.modelData.glyph; font.pixelSize: 14; color: choice.modelData.checked ? Theme.accentText : Theme.ink }
                                     HoverHandler { id: choiceHover; cursorShape: Qt.PointingHandCursor }
                                     TapHandler { onTapped: root.picked(choice.modelData.id) }
                                 }

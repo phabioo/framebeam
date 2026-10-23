@@ -16,15 +16,15 @@ ColumnLayout {
     UzLabel {
         Layout.fillWidth: true
         text: root.setup ? qsTr("Create the server admin") : qsTr("Sign in as a server admin")
-        font.pixelSize: Theme.fontBody
+        font.pixelSize: Theme.roles.body.size
         font.weight: Font.Medium
     }
     UzLabel {
         Layout.fillWidth: true
         text: root.setup ? qsTr("This server has no admin yet. The admin manages games, users and settings on the server.")
                          : qsTr("Use the user name and password of an admin of the server on this PC. This PC is approved right away.")
-        color: Theme.textMuted
-        font.pixelSize: Theme.fontMeta
+        color: Theme.muted
+        font.pixelSize: Theme.roles.small.size
         wrapMode: Text.WordWrap
     }
     Eyebrow { text: qsTr("User name"); Layout.topMargin: 4 }
@@ -63,8 +63,8 @@ ColumnLayout {
         visible: root.local.error !== ""
         Layout.fillWidth: true
         text: root.local.error
-        color: Theme.error
-        font.pixelSize: Theme.fontMeta
+        color: Theme.danger
+        font.pixelSize: Theme.roles.small.size
         wrapMode: Text.WordWrap
     }
     UzButton {

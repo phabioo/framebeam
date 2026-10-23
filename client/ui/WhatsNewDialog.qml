@@ -108,7 +108,7 @@ UzDialog {
                                 textFormat: Text.PlainText
                                 text: item.modelData.text
                                 font.family: Theme.sans
-                                font.pixelSize: Theme.fontSmall
+                                font.pixelSize: Theme.roles.input.size
                                 color: Theme.ink
                             }
                             UzTag { visible: item.modelData.tag !== ""; Layout.alignment: Qt.AlignTop; text: root.tagText(item.modelData.tag) }

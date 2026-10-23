@@ -289,7 +289,7 @@ Item {
                             text: cell.row ? cell.row.title : ""
                             textFormat: Text.PlainText
                             font.family: Theme.sans
-                            font.pixelSize: Theme.fontBody
+                            font.pixelSize: Theme.roles.body.size
                             font.weight: cell.row && cell.row.status === "new" ? Font.Medium : Font.Normal
                             color: Theme.ink
                         }
@@ -300,7 +300,7 @@ Item {
                             text: cell.row ? qsTr("Linked: %1").arg(cell.row.event) : ""
                             textFormat: Text.PlainText
                             font.family: Theme.mono
-                            font.pixelSize: Theme.fontMeta
+                            font.pixelSize: Theme.roles.small.size
                             color: Theme.muted
                         }
                     }
@@ -338,7 +338,7 @@ Item {
                         columnSpacing: Theme.space3
                         rowSpacing: Theme.space1
                         Layout.fillWidth: true
-                        Text { text: qsTr("From"); font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.muted }
+                        Text { text: qsTr("From"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted }
                         Text {
                             objectName: "reportFrom"
                             Layout.fillWidth: true
@@ -351,11 +351,11 @@ Item {
                                 if (root.detail.os) parts.push(root.detail.os)
                                 return parts.join(" · ")
                             }
-                            font.family: Theme.sans; font.pixelSize: Theme.fontBody; color: Theme.ink
+                            font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink
                         }
                         Text {
                             visible: linked.visible
-                            text: qsTr("Linked"); font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.muted
+                            text: qsTr("Linked"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted
                         }
                         Text {
                             id: linked
@@ -370,7 +370,7 @@ Item {
                                 return t && !isNaN(t.getTime()) ? qsTr("%1 · %2").arg(root.detail.linked_event_title).arg(Qt.formatTime(t, "HH:mm"))
                                                                 : root.detail.linked_event_title
                             }
-                            font.family: Theme.sans; font.pixelSize: Theme.fontBody; color: Theme.ink
+                            font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink
                         }
                     }
                     Text {
@@ -379,7 +379,7 @@ Item {
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
                         text: root.detail !== null ? "“" + root.detail.description + "”" : ""
-                        font.family: Theme.sans; font.pixelSize: Theme.fontBody; color: Theme.ink2
+                        font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink2
                     }
                     UzSectionLabel {
                         Layout.fillWidth: true
@@ -392,7 +392,7 @@ Item {
                         visible: root.detail !== null && (root.detail.files ?? []).length === 0
                         wrapMode: Text.Wrap
                         text: qsTr("No attachments. Attachments are kept 30 days; the description stays.")
-                        font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.muted
+                        font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted
                     }
                     Repeater {
                         model: root.detail !== null ? (root.detail.files ?? []) : []
@@ -407,7 +407,7 @@ Item {
                                 elide: Text.ElideRight
                                 textFormat: Text.PlainText
                                 text: modelData.name
-                                font.family: Theme.mono; font.pixelSize: Theme.fontMono; color: Theme.ink
+                                font.family: Theme.mono; font.pixelSize: Theme.roles.meta11.size; color: Theme.ink
                             }
                             UzMono { text: root.bytesText(modelData.size) }
                             UzButton {

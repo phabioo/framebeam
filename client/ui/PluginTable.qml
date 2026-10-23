@@ -13,10 +13,10 @@ ColumnLayout {
     spacing: 0
     RowLayout {
         Layout.fillWidth: true
-        Layout.leftMargin: 10
-        Layout.rightMargin: 10
-        Layout.bottomMargin: 6
-        spacing: 8
+        Layout.leftMargin: Theme.space15
+        Layout.rightMargin: Theme.space15
+        Layout.bottomMargin: Theme.space1
+        spacing: Theme.space1
         Repeater {
             model: root.columns
             delegate: Text {
@@ -28,9 +28,10 @@ ColumnLayout {
                 text: String(modelData).toUpperCase()
                 elide: Text.ElideRight
                 font.family: Theme.mono
-                font.pixelSize: Theme.fontMono
-                font.letterSpacing: 0.6
-                color: Theme.blockColor("textMeta", root.dark)
+                font.pixelSize: Theme.roles.tableHeader.size
+                font.weight: Theme.roles.tableHeader.weight
+                font.letterSpacing: Theme.roles.tableHeader.spacing
+                color: Theme.blockColor("textFaint", root.dark)
             }
         }
     }
@@ -43,15 +44,13 @@ ColumnLayout {
             objectName: "pluginTableRow_" + index
             dark: root.dark
             actionable: !!modelData.action
-            ringRadius: Theme.radius6
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             clip: true
-            implicitHeight: 34
+            implicitHeight: Theme.row36
             onActivated: root.action(modelData.action, modelData.value)
             Rectangle {
                 anchors.fill: parent
-                radius: Theme.radius6
                 color: row.hovered ? Theme.blockColor("hover", root.dark) : "transparent"
             }
             Rectangle {
@@ -59,13 +58,13 @@ ColumnLayout {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 height: 1
-                color: Theme.blockColor("cardBorder", root.dark)
+                color: Theme.tok("rule2", root.dark)
             }
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 10
-                anchors.rightMargin: 10
-                spacing: 8
+                anchors.leftMargin: Theme.space15
+                anchors.rightMargin: Theme.space15
+                spacing: Theme.space1
                 Repeater {
                     model: row.modelData.cells || []
                     delegate: Text {
@@ -77,7 +76,7 @@ ColumnLayout {
                         Layout.minimumWidth: 0
                         text: String(modelData)
                         elide: Text.ElideRight
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                         color: index === 0 ? Theme.blockColor("text", root.dark) : Theme.blockColor("textSecondary", root.dark)
                     }
                 }

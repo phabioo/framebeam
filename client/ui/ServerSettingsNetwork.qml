@@ -391,10 +391,10 @@ ColumnLayout {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            font.pixelSize: Theme.fontMeta
+            font.pixelSize: Theme.roles.small.size
             lineHeight: 18
             lineHeightMode: Text.FixedHeight
-            color: Theme.textMeta
+            color: Theme.muted
             text: qsTr("Your own coturn server or a TURN provider, for apps that can't connect directly. Secrets are write-only: the server never shows them again.")
                   + (root.ext.source === "web" ? " " + qsTr("This list is saved here and replaces the server flags.") : " " + qsTr("Showing the list from the server flags. Saving a change stores it here."))
                   + (root.ext.active !== true && root.extCount > 0 ? " " + qsTr("Not handed to apps while sharing over the internet is off.") : "")

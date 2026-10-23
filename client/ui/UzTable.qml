@@ -150,7 +150,7 @@ FocusScope {
                 text: root.emptyText
                 textFormat: Text.PlainText
                 font.family: Theme.sans
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 color: Theme.muted
             }
             Item { id: emptyBox; y: emptyLabel.height; width: parent.width }

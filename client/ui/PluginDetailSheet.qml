@@ -38,9 +38,9 @@ Popup {
     }
 
     background: Rectangle {
-        color: Theme.popupBg
+        color: Theme.surface
         border.width: 1
-        border.color: Theme.borderPopup
+        border.color: Theme.rule
     }
 
     contentItem: Flickable {
@@ -48,14 +48,14 @@ Popup {
         objectName: "pluginDetailSheet"
         clip: true
         contentWidth: width
-        contentHeight: col.implicitHeight + 40
+        contentHeight: col.implicitHeight + 2 * Theme.space3
         boundsBehavior: Flickable.StopAtBounds
         ColumnLayout {
             id: col
-            x: 24
-            y: 20
-            width: flick.width - 48
-            spacing: 14
+            x: Theme.space3
+            y: Theme.space2
+            width: flick.width - 2 * Theme.space3
+            spacing: Theme.space15
 
             RowLayout {
                 Layout.fillWidth: true
@@ -85,19 +85,19 @@ Popup {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 14
+                spacing: Theme.space15
                 Rectangle {
-                    Layout.preferredWidth: 44
-                    Layout.preferredHeight: 44
-                    radius: Theme.radius10
-                    color: Theme.neutralPillBg
+                    Layout.preferredWidth: Theme.row44
+                    Layout.preferredHeight: Theme.row44
+                    color: Theme.pressed
                     Text {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         anchors.centerIn: parent
                         text: root.info ? root.monogram(root.info.name) : ""
-                        color: Theme.text
-                        font.pixelSize: Theme.fontBody
-                        font.weight: Font.DemiBold
+                        color: Theme.ink
+                        font.family: Theme.mono
+                        font.pixelSize: Theme.roles.body.size
+                        font.weight: Font.Medium
                     }
                 }
                 ColumnLayout {
@@ -108,8 +108,8 @@ Popup {
                         objectName: "pluginDetailName"
                         Layout.fillWidth: true
                         text: root.info ? root.info.name : ""
-                        font.pixelSize: Theme.fontSection
-                        font.weight: Font.DemiBold
+                        font.pixelSize: Theme.roles.headerTitle.size
+                        font.weight: Theme.roles.headerTitle.weight
                         elide: Text.ElideRight
                     }
                     UzLabel {
@@ -123,8 +123,8 @@ Popup {
                             if (root.info.hubCopy && root.hubName !== "") parts.push(qsTr("from %1").arg(root.hubName))
                             return parts.join(" · ")
                         }
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.small.size
                         elide: Text.ElideRight
                     }
                 }
@@ -133,16 +133,16 @@ Popup {
             // On / off: the one primary control.
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: onRow.implicitHeight + 28
-                radius: Theme.radius10
-                color: Theme.surface
-                border.width: 1
-                border.color: Theme.borderCard
+                implicitHeight: onRow.implicitHeight + 2 * Theme.space15
+                color: "transparent"
+                Rectangle { width: parent.width; height: 1; color: Theme.rule }
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
                 RowLayout {
                     id: onRow
                     anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 12
+                    anchors.topMargin: Theme.space15
+                    anchors.bottomMargin: Theme.space15
+                    spacing: Theme.space15
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
@@ -150,8 +150,8 @@ Popup {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                             objectName: "pluginDetailState"
                             text: root.info && root.info.enabled ? qsTr("On") : qsTr("Off")
-                            font.pixelSize: Theme.fontBody
-                            font.weight: Font.DemiBold
+                            font.pixelSize: Theme.roles.itemTitle.size
+                            font.weight: Theme.roles.itemTitle.weight
                         }
                         UzLabel {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
@@ -165,8 +165,8 @@ Popup {
                             }
                             visible: text !== ""
                             wrapMode: Text.WordWrap
-                            color: root.info && root.info.problemsText !== "" ? Theme.pluginWarn : Theme.textMuted
-                            font.pixelSize: Theme.fontMeta
+                            color: root.info && root.info.problemsText !== "" ? Theme.accentText : Theme.muted
+                            font.pixelSize: Theme.roles.small.size
                         }
                     }
                     UzToggle {
@@ -194,16 +194,12 @@ Popup {
             Rectangle {
                 visible: root.info && root.info.origin !== "official"
                 Layout.fillWidth: true
-                implicitHeight: originRow.implicitHeight + 24
-                radius: Theme.radius10
-                color: root.info && root.info.origin === "unverified" ? Theme.pluginWarnBg : Theme.surface
-                border.width: 1
-                border.color: root.info && root.info.origin === "unverified" ? Theme.pluginWarnLine : Theme.borderCard
+                implicitHeight: originRow.implicitHeight
+                color: "transparent"
                 RowLayout {
                     id: originRow
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 10
+                    spacing: Theme.space15
                     PluginOriginPill {
                         objectName: "pluginDetailOrigin"
                         origin: root.info ? root.info.origin : "local"
@@ -216,16 +212,16 @@ Popup {
                               ? qsTr("Not checked by Uzume. Turn it on only if you trust the admin of your server.")
                               : qsTr("Loaded from a file on this device. It is not checked by Uzume.")
                         wrapMode: Text.WordWrap
-                        color: Theme.pluginWarnText
-                        font.pixelSize: Theme.fontMeta
+                        color: Theme.ink2
+                        font.pixelSize: Theme.roles.small.size
                     }
                 }
             }
 
-            Eyebrow { text: qsTr("Permissions"); Layout.topMargin: 4 }
+            Eyebrow { text: qsTr("Permissions"); Layout.topMargin: Theme.space05 }
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Theme.space05
                 Repeater {
                     model: root.info ? root.info.permissionList : []
                     delegate: UzLabel {
@@ -234,7 +230,7 @@ Popup {
                         objectName: "pluginDetailPermission"
                         Layout.fillWidth: true
                         text: "• " + modelData
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -242,15 +238,15 @@ Popup {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: !root.info || root.info.permissionList.length === 0
                     text: qsTr("No special permissions")
-                    color: Theme.textMuted
-                    font.pixelSize: Theme.fontSmall
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.input.size
                 }
             }
 
             Eyebrow {
                 visible: root.info && (root.info.needsLines.length > 0 || root.info.adds !== "")
                 text: qsTr("Relations")
-                Layout.topMargin: 4
+                Layout.topMargin: Theme.space05
             }
             Repeater {
                 model: root.info ? root.info.needsLines : []
@@ -259,7 +255,7 @@ Popup {
                     required property string modelData
                     Layout.fillWidth: true
                     text: modelData
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     wrapMode: Text.WordWrap
                 }
             }
@@ -269,8 +265,8 @@ Popup {
                 visible: root.info && root.info.adds !== ""
                 Layout.fillWidth: true
                 text: root.info ? root.info.adds : ""
-                color: Theme.textMuted
-                font.pixelSize: Theme.fontSmall
+                color: Theme.muted
+                font.pixelSize: Theme.roles.input.size
                 wrapMode: Text.WordWrap
             }
 
@@ -279,7 +275,7 @@ Popup {
                 textFormat: Text.PlainText
                 objectName: "pluginDetailOpen"
                 visible: root.info && root.info.hasScreen === true
-                implicitHeight: 32
+                size: "sm"
                 enabled: root.info && root.info.enabled && !root.info.hasProblems
                 text: qsTr("Open")
                 onClicked: {
@@ -294,23 +290,22 @@ Popup {
                 objectName: "pluginUninstallPanel"
                 visible: root.confirmUninstall
                 Layout.fillWidth: true
-                implicitHeight: unCol.implicitHeight + 24
-                radius: Theme.radius10
+                implicitHeight: unCol.implicitHeight + 2 * Theme.space15
                 color: Theme.surface
                 border.width: 1
-                border.color: Theme.borderCard
+                border.color: Theme.rule
                 ColumnLayout {
                     id: unCol
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 10
+                    anchors.margins: Theme.space15
+                    spacing: Theme.space15
                     UzLabel {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         Layout.fillWidth: true
                         text: root.info && root.info.devLinked ? qsTr("Remove the link? The folder itself is kept.")
                                                                : qsTr("Remove this plugin from this device? Run data stays on the server.")
                         wrapMode: Text.WordWrap
-                        font.pixelSize: Theme.fontSmall
+                        font.pixelSize: Theme.roles.input.size
                     }
                     RowLayout {
                         Layout.fillWidth: true
@@ -318,14 +313,14 @@ Popup {
                         UzButton {
                             textFormat: Text.PlainText
                             objectName: "pluginUninstallCancel"
-                            implicitHeight: 32
+                            size: "sm"
                             text: qsTr("Cancel")
                             onClicked: root.confirmUninstall = false
                         }
                         UzButton {
                             textFormat: Text.PlainText
                             objectName: "pluginUninstallConfirm"
-                            implicitHeight: 32
+                            size: "sm"
                             kind: "primary"
                             text: qsTr("Uninstall")
                             onClicked: {
@@ -342,20 +337,20 @@ Popup {
             RowLayout {
                 visible: root.info !== null && root.info.updateVersion !== ""
                 Layout.fillWidth: true
-                Layout.topMargin: 6
-                spacing: 8
+                Layout.topMargin: Theme.space1
+                spacing: Theme.space1
                 UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     Layout.fillWidth: true
                     text: root.info && root.info.updateVersion !== "" ? qsTr("Update to %1 is available").arg(root.info.updateVersion) : ""
-                    color: Theme.textMuted
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.small.size
                 }
                 UzButton {
                     textFormat: Text.PlainText
                     objectName: "pluginDetailUpdate"
                     visible: root.info && root.info.updateVersion !== ""
-                    implicitHeight: 32
+                    size: "sm"
                     text: root.info ? qsTr("Update to %1").arg(root.info.updateVersion) : ""
                     onClicked: root.ctl.installHubPlugin(root.pluginId, root.info.updateVersion)
                 }

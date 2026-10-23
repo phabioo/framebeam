@@ -22,7 +22,7 @@ Button {
             anchors.verticalCenter: parent.verticalCenter
             text: control.open ? qsTr("Less") : qsTr("More")
             font.family: Theme.sans
-            font.pixelSize: Theme.fontSmall
+            font.pixelSize: Theme.roles.input.size
             font.weight: Font.Medium
             color: Theme.ink
         }

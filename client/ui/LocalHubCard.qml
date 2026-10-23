@@ -12,10 +12,10 @@ Rectangle {
     visible: local.onThisPc
     Layout.fillWidth: true
     implicitHeight: visible ? col.implicitHeight + 28 : 0
-    radius: Theme.radius10
+    radius: Theme.radiusNone
     color: Theme.surface
     border.width: 1
-    border.color: Theme.borderCard
+    border.color: Theme.rule
 
     property bool pathPromptOpen: false
     Loader {
@@ -37,9 +37,9 @@ Rectangle {
         id: col
         anchors.fill: parent
         anchors.margins: 14
-        spacing: Theme.space10
+        spacing: Theme.space15
 
-        UzLabel { text: qsTr("This PC's server"); font.pixelSize: Theme.fontSection; font.weight: Font.DemiBold }
+        UzLabel { text: qsTr("This PC's server"); font.pixelSize: Theme.roles.itemTitle.size; font.weight: Font.DemiBold }
 
         UzToggle {
             objectName: "localNetworkSharingToggle"
@@ -52,21 +52,21 @@ Rectangle {
         UzLabel {
             Layout.fillWidth: true
             text: qsTr("Off: only this PC can reach the server. On: other devices in your network can connect too (Windows may ask to allow it in the firewall).")
-            color: Theme.textMuted
-            font.pixelSize: Theme.fontMeta
+            color: Theme.muted
+            font.pixelSize: Theme.roles.small.size
             wrapMode: Text.WordWrap
         }
 
         Eyebrow { text: qsTr("ROM folder"); Layout.topMargin: 4 }
         RowLayout {
             Layout.fillWidth: true
-            spacing: Theme.space10
+            spacing: Theme.space15
             UzMono {
                 objectName: "localImportDir"
                 Layout.fillWidth: true
                 text: root.local.importDir !== "" ? root.local.importDir : qsTr("No folder chosen")
                 elide: Text.ElideMiddle
-                color: root.local.importDir !== "" ? Theme.text : Theme.textMuted
+                color: root.local.importDir !== "" ? Theme.ink : Theme.muted
             }
             UzButton {
                 objectName: "localChooseFolderButton"
@@ -80,7 +80,7 @@ Rectangle {
         RowLayout {
             visible: root.pathPromptOpen
             Layout.fillWidth: true
-            spacing: Theme.space10
+            spacing: Theme.space15
             UzField {
                 id: pathField
                 objectName: "localFolderPathField"
@@ -101,8 +101,8 @@ Rectangle {
             visible: root.local.settingsNotice !== ""
             Layout.fillWidth: true
             text: root.local.settingsNotice
-            color: Theme.textSecondary
-            font.pixelSize: Theme.fontMeta
+            color: Theme.ink2
+            font.pixelSize: Theme.roles.small.size
             wrapMode: Text.WordWrap
         }
         UzLabel {
@@ -110,8 +110,8 @@ Rectangle {
             visible: root.local.settingsError !== ""
             Layout.fillWidth: true
             text: root.local.settingsError
-            color: Theme.error
-            font.pixelSize: Theme.fontMeta
+            color: Theme.danger
+            font.pixelSize: Theme.roles.small.size
             wrapMode: Text.WordWrap
         }
         UzButton {

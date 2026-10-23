@@ -28,15 +28,14 @@ Item {
     readonly property color surfaceTok: Theme.surface
     readonly property color dangerTok: Theme.danger
     readonly property color inkOnAccentTok: Theme.inkOnAccent
-    readonly property int radiusSum: Theme.radius4 + Theme.radius5 + Theme.radius6 + Theme.radius7 + Theme.radius8 + Theme.radius9
-                                     + Theme.radius10 + Theme.radius11 + Theme.radius12 + Theme.radius16 + Theme.radiusPill + Theme.radiusNone
+    readonly property int radiusSum: Theme.radiusNone
     readonly property string monoFamily: Theme.mono
     readonly property string sansFamily: Theme.sans
     readonly property bool plexLoaded: Theme.fontsLoaded
     readonly property color person1: Theme.playerColor(1, true)
     readonly property int playerCount: Theme.playerColors.length
     readonly property color warnTone: Theme.toneFg("warning", true)
-    readonly property color bgWarn: Theme.pluginWarnBg
+    readonly property color bgWarn: Theme.selected
     property int tabsPicked: 0
     property string lastTab: ""
 

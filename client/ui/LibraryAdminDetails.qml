@@ -108,7 +108,7 @@ Item {
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
                 font.family: Theme.sans
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 color: Theme.ink
                 text: people.nameOf(root.game.uploadedBy ?? "", root.game.uploadedBy ?? "")
             }
@@ -133,7 +133,7 @@ Item {
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
                 font.family: Theme.sans
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 color: Theme.ink
                 text: root.savesText
             }

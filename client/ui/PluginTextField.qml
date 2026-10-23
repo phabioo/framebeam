@@ -2,7 +2,8 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// textfield block: mono input; Enter emits action(action, text). `error` draws the danger line and the message below.
+// textfield block: mono input (UzField, design-system.md "TextField"); Enter emits action(action, text). `error` draws the
+// danger frame and the message below.
 ColumnLayout {
     id: root
     property var node: ({})
@@ -10,30 +11,16 @@ ColumnLayout {
     property string pluginId: ""
     signal action(string action, var value)
 
-    spacing: 4
-    TextField {
+    spacing: Theme.space05
+    UzField {
         id: field
         objectName: "pluginTextFieldInput"
         Layout.fillWidth: true
-        implicitHeight: 36
         text: root.node.text || ""
         placeholderText: root.node.placeholder || ""
-        leftPadding: 12
-        rightPadding: 12
-        font.family: Theme.mono
-        font.pixelSize: Theme.fontSmall
-        color: Theme.blockColor("text", root.dark)
-        placeholderTextColor: Theme.blockColor("textFaint", root.dark)
-        selectionColor: Theme.blockColor("accent", root.dark)
-        selectedTextColor: Theme.blockColor("textOnAccent", root.dark)
-        verticalAlignment: TextInput.AlignVCenter
+        mono: true
+        invalid: !!root.node.error
         onAccepted: root.action(root.node.action || "", text)
-        background: Rectangle {
-            radius: Theme.radius7
-            color: Theme.blockColor("card", root.dark)
-            border.width: root.node.error || field.activeFocus ? 2 : 1
-            border.color: root.node.error ? Theme.toneFg("danger", root.dark) : (field.activeFocus ? Theme.blockColor("accent", root.dark) : Theme.blockColor("border", root.dark))
-        }
     }
     Text {
         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
@@ -42,7 +29,7 @@ ColumnLayout {
         Layout.fillWidth: true
         text: root.node.error || ""
         wrapMode: Text.WordWrap
-        font.pixelSize: Theme.fontMeta
-        color: Theme.toneFg("danger", root.dark)
+        font.pixelSize: Theme.roles.small.size
+        color: Theme.danger
     }
 }

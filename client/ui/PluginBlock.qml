@@ -156,7 +156,7 @@ Item {
         id: tabsC
         ColumnLayout {
             id: tabs
-            spacing: 12
+            spacing: Theme.space15
             property int localSel: 0
             readonly property int nodeSel: root.node.selected || 1
             readonly property int sel: Math.max(1, Math.min(root.kids.length, localSel > 0 ? localSel : nodeSel))
@@ -177,7 +177,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 implicitWidth: tabRow.implicitWidth
-                implicitHeight: 32
+                implicitHeight: Theme.row36
                 clip: true
                 contentWidth: tabRow.implicitWidth
                 contentHeight: height
@@ -191,6 +191,7 @@ Item {
                 }
                 onWidthChanged: Qt.callLater(ensureVisible)
                 Component.onCompleted: Qt.callLater(ensureVisible)
+                Rectangle { y: parent.height - 1; width: Math.max(parent.width, parent.contentWidth); height: 1; color: Theme.blockColor("border", root.dark) }
                 WheelHandler {
                     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                     onWheel: (e) => {
@@ -200,7 +201,7 @@ Item {
                 }
             Row {
                 id: tabRow
-                spacing: 4
+                spacing: Theme.space05
                 Repeater {
                     id: tabRepeater
                     model: root.node.tabs || []
@@ -211,16 +212,14 @@ Item {
                         objectName: "pluginTab_" + (index + 1)
                         readonly property bool active: tabs.sel === index + 1
                         dark: root.dark
-                        ringRadius: Theme.radius6
-                        implicitHeight: 32
-                        implicitWidth: tabLabel.implicitWidth + 24
+                        implicitHeight: Theme.row36
+                        implicitWidth: tabLabel.implicitWidth + 2 * Theme.space15
                         width: implicitWidth
                         height: implicitHeight
                         onActivated: tabs.select(index + 1)
                         onActiveFocusChanged: if (activeFocus) tabStrip.ensureVisible(index + 1)
                         Rectangle {
                             anchors.fill: parent
-                            radius: Theme.radius6
                             color: tab.hovered && !tab.active ? Theme.blockColor("hover", root.dark) : "transparent"
                         }
                         Text {
@@ -228,15 +227,15 @@ Item {
                             id: tabLabel
                             anchors.centerIn: parent
                             text: String(tab.modelData)
-                            font.pixelSize: Theme.fontSmall
-                            font.weight: tab.active ? Font.DemiBold : Font.Medium
-                            color: tab.active ? Theme.blockColor("text", root.dark) : Theme.blockColor("textMuted", root.dark)
+                            font.pixelSize: Theme.roles.input.size
+                            font.weight: tab.active ? Font.Medium : Font.Normal
+                            color: tab.active ? Theme.blockColor("text", root.dark) : (tab.hovered ? Theme.blockColor("textSecondary", root.dark) : Theme.blockColor("textMuted", root.dark))
                         }
                         Rectangle {
                             visible: tab.active
                             anchors.bottom: parent.bottom
                             anchors.horizontalCenter: parent.horizontalCenter
-                            width: parent.width - 16
+                            width: parent.width - Theme.space2
                             height: 2
                             color: Theme.blockColor("accent", root.dark)
                         }
@@ -281,7 +280,7 @@ Item {
             ColumnLayout {
                 id: inner
                 width: flick.width
-                spacing: 8
+                spacing: Theme.space1
                 Repeater {
                     model: root.kids.length
                     delegate: PluginChild {
@@ -306,22 +305,20 @@ Item {
             readonly property bool hasHeader: !!(root.node.eyebrow || root.node.title || root.node.link_label)
             dark: root.dark
             actionable: !!root.node.action
-            ringRadius: Theme.radius8
-            implicitWidth: cardCol.implicitWidth + 24
-            implicitHeight: cardCol.implicitHeight + 24
+            implicitWidth: cardCol.implicitWidth + 2 * Theme.space15
+            implicitHeight: cardCol.implicitHeight + 2 * Theme.space15
             onActivated: root.action(root.node.action, root.node.value)
             Rectangle {
                 anchors.fill: parent
-                radius: Theme.radius8
-                color: card.hovered ? Theme.blockColor("hover", root.dark) : Theme.blockColor("card", root.dark)
+                color: card.hovered ? Theme.blockColor("hover", root.dark) : "transparent"
                 border.width: 1
                 border.color: Theme.blockColor("cardBorder", root.dark)
             }
             ColumnLayout {
                 id: cardCol
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
+                anchors.margins: Theme.space15
+                spacing: Theme.space1
                 RowLayout {
                     visible: card.hasHeader
                     Layout.fillWidth: true
@@ -333,10 +330,11 @@ Item {
                             visible: !!root.node.eyebrow
                             text: root.node.eyebrow || ""
                             font.family: Theme.mono
-                            font.pixelSize: Theme.fontMono
+                            font.pixelSize: Theme.roles.sectionLabel.size
+                            font.weight: Theme.roles.sectionLabel.weight
                             font.capitalization: Font.AllUppercase
-                            font.letterSpacing: 0.6
-                            color: Theme.blockColor("textMeta", root.dark)
+                            font.letterSpacing: Theme.roles.sectionLabel.spacing
+                            color: Theme.blockColor("textFaint", root.dark)
                         }
                         Text {
                             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
@@ -344,8 +342,8 @@ Item {
                             Layout.fillWidth: true
                             text: root.node.title || ""
                             elide: Text.ElideRight
-                            font.pixelSize: 15
-                            font.weight: Font.DemiBold
+                            font.pixelSize: Theme.roles.itemTitle.size
+                            font.weight: Theme.roles.itemTitle.weight
                             color: Theme.blockColor("text", root.dark)
                         }
                     }
@@ -353,8 +351,8 @@ Item {
                         textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                         visible: !!root.node.link_label
                         text: (root.node.link_label || "") + " ›"
-                        font.pixelSize: Theme.fontMeta
-                        color: Theme.blockColor("accent", root.dark)
+                        font.pixelSize: Theme.roles.small.size
+                        color: Theme.tok("accentText", root.dark)
                     }
                 }
                 Repeater {
@@ -375,7 +373,7 @@ Item {
     Component {
         id: sectionC
         ColumnLayout {
-            spacing: 8
+            spacing: Theme.space1
             RowLayout {
                 Layout.fillWidth: true
                 Text {
@@ -384,16 +382,16 @@ Item {
                     text: root.node.title || ""
                     elide: Text.ElideRight
                     font.family: Theme.mono
-                    font.pixelSize: Theme.fontMono
+                    font.pixelSize: Theme.roles.sectionLabel.size
+                    font.weight: Theme.roles.sectionLabel.weight
                     font.capitalization: Font.AllUppercase
-                    font.letterSpacing: 0.6
-                    color: Theme.blockColor("textMeta", root.dark)
+                    font.letterSpacing: Theme.roles.sectionLabel.spacing
+                    color: Theme.blockColor("textFaint", root.dark)
                 }
                 PluginFocusable {
                     visible: !!root.node.link_label
                     dark: root.dark
                     actionable: !!root.node.action
-                    ringRadius: Theme.radius4
                     implicitWidth: linkText.implicitWidth + 8
                     implicitHeight: 22
                     onActivated: root.action(root.node.action, root.node.value)
@@ -402,8 +400,8 @@ Item {
                         id: linkText
                         anchors.centerIn: parent
                         text: (root.node.link_label || "") + " ›"
-                        font.pixelSize: Theme.fontMeta
-                        color: Theme.blockColor("accent", root.dark)
+                        font.pixelSize: Theme.roles.small.size
+                        color: Theme.tok("accentText", root.dark)
                     }
                 }
             }
@@ -429,23 +427,22 @@ Item {
             readonly property string tone: status === "open" || status === "encounter" ? "info" : (status === "caught" ? "ok" : "neutral")
             readonly property string statusText: status === "open" ? qsTr("Open") : status === "encounter" ? qsTr("Encounter now")
                                                 : status === "caught" ? qsTr("Caught") : status === "missed" ? qsTr("Missed") : qsTr("No route")
-            implicitWidth: locCol.implicitWidth + 24
-            implicitHeight: locCol.implicitHeight + 24
+            implicitWidth: locCol.implicitWidth + 2 * Theme.space15
+            implicitHeight: locCol.implicitHeight + 2 * Theme.space15
             Rectangle {
                 anchors.fill: parent
-                radius: Theme.radius8
-                color: Theme.blockColor("card", root.dark)
+                color: "transparent"
                 border.width: 1
                 border.color: loc.tone === "neutral" ? Theme.blockColor("cardBorder", root.dark) : Theme.toneLine(loc.tone, root.dark)
             }
             ColumnLayout {
                 id: locCol
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
+                anchors.margins: Theme.space15
+                spacing: Theme.space1
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
+                    spacing: Theme.space15
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
@@ -454,8 +451,8 @@ Item {
                             Layout.fillWidth: true
                             text: root.node.title || ""
                             elide: Text.ElideRight
-                            font.pixelSize: 15
-                            font.weight: Font.DemiBold
+                            font.pixelSize: Theme.roles.itemTitle.size
+                            font.weight: Theme.roles.itemTitle.weight
                             color: Theme.blockColor("text", root.dark)
                         }
                         Text {
@@ -464,24 +461,22 @@ Item {
                             Layout.fillWidth: true
                             text: root.node.sub || ""
                             elide: Text.ElideRight
-                            font.pixelSize: Theme.fontMeta
+                            font.pixelSize: Theme.roles.small.size
                             color: Theme.blockColor("textMeta", root.dark)
                         }
                     }
-                    Rectangle {
+                    // Status tag (design-system.md "Tag"): "Encounter now" is the accent plane, "Caught" ok, the rest neutral.
+                    Item {
                         objectName: "pluginLocationStatus"
-                        implicitWidth: statusLabel.implicitWidth + 18
-                        implicitHeight: 22
-                        radius: 0
-                        color: Theme.toneBgFor(loc.tone, root.dark)
-                        Text {
-                            textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
-                            id: statusLabel
-                            anchors.centerIn: parent
+                        implicitWidth: statusTag.implicitWidth
+                        implicitHeight: statusTag.implicitHeight
+                        Layout.maximumWidth: Math.max(60, locCol.width / 2)
+                        UzTag {
+                            id: statusTag
+                            width: Math.min(implicitWidth, Math.max(60, locCol.width / 2))
                             text: loc.statusText
-                            font.pixelSize: Theme.fontMeta
-                            font.weight: Font.DemiBold
-                            color: Theme.toneFg(loc.tone, root.dark)
+                            tone: loc.status === "encounter" ? "accent" : (loc.status === "caught" ? "ok" : "neutral")
+                            variant: loc.status === "encounter" ? "plane" : "outline"
                         }
                     }
                 }
@@ -503,17 +498,17 @@ Item {
     Component {
         id: emptyC
         ColumnLayout {
-            spacing: 6
+            spacing: Theme.space1
             readonly property bool isError: root.node.tone === "danger"
-            Item { Layout.preferredHeight: 6 }
+            Item { Layout.preferredHeight: Theme.space1 }
             Text {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
                 text: root.node.title || ""
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
+                font.pixelSize: Theme.roles.itemTitle.size
+                font.weight: Theme.roles.itemTitle.weight
                 color: isError ? Theme.toneFg("danger", root.dark) : Theme.blockColor("text", root.dark)
             }
             Text {
@@ -523,18 +518,18 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
                 text: root.node.text || ""
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 color: Theme.blockColor("textMuted", root.dark)
             }
             PluginButton {
                 visible: !!root.node.action_label
                 Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: 6
+                Layout.topMargin: Theme.space1
                 dark: root.dark
                 node: ({label: root.node.action_label || "", variant: isError ? "secondary" : "primary", action: root.node.action || ""})
                 onAction: (a, v) => root.action(a, v)
             }
-            Item { Layout.preferredHeight: 6 }
+            Item { Layout.preferredHeight: Theme.space1 }
         }
     }
 
@@ -545,16 +540,22 @@ Item {
             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             readonly property string st: root.node.style || "body"
             readonly property bool wraps: root.node.wrap !== false
+            // Styles map onto the type roles: title = header-title, heading = item-title, body = input, meta = small,
+            // eyebrow = section-label (Mono, uppercase), value = Mono 11.
+            readonly property var role: st === "title" ? Theme.roles.headerTitle : st === "heading" ? Theme.roles.itemTitle
+                : st === "meta" ? Theme.roles.small : st === "eyebrow" ? Theme.roles.sectionLabel
+                : st === "value" ? Theme.roles.meta11 : Theme.roles.input
             text: root.node.text || ""
             wrapMode: wraps ? Text.Wrap : Text.NoWrap
             elide: wraps ? Text.ElideNone : Text.ElideRight
-            font.pixelSize: st === "title" ? 17 : st === "heading" ? 15 : st === "meta" ? 12 : st === "eyebrow" ? 11 : 13
-            font.weight: st === "title" || st === "heading" ? Font.DemiBold : (st === "value" ? Font.Medium : Font.Normal)
-            font.family: st === "eyebrow" || st === "value" ? Theme.mono : Qt.application.font.family
+            font.pixelSize: role.size
+            font.weight: st === "value" ? Font.Medium : role.weight
+            font.family: st === "eyebrow" || st === "value" ? Theme.mono : Theme.sans
             font.capitalization: st === "eyebrow" ? Font.AllUppercase : Font.MixedCase
-            font.letterSpacing: st === "eyebrow" ? 0.6 : 0
+            font.letterSpacing: st === "eyebrow" ? role.spacing : 0
             color: root.node.tone ? Theme.toneFg(root.node.tone, root.dark)
-                   : (st === "meta" || st === "eyebrow") ? Theme.blockColor("textMeta", root.dark)
+                   : st === "eyebrow" ? Theme.blockColor("textFaint", root.dark)
+                   : st === "meta" ? Theme.blockColor("textMeta", root.dark)
                    : st === "body" ? Theme.blockColor("textSecondary", root.dark) : Theme.blockColor("text", root.dark)
         }
     }
@@ -566,69 +567,49 @@ Item {
             readonly property bool picked: root.node.selected === true
             dark: root.dark
             actionable: !!root.node.action
-            ringRadius: 14
-            implicitHeight: 28
-            implicitWidth: chipLabel.implicitWidth + 24
+            implicitHeight: Theme.row28
+            implicitWidth: chipLabel.implicitWidth + 2 * Theme.space15
             onActivated: root.action(root.node.action, root.node.value)
+            // Same look as FilterChip: rule frame, the picked chip is a Yamabuki plane; a tone only colours frame and text.
             Rectangle {
                 anchors.fill: parent
-                radius: 0
-                color: chip.picked ? Theme.blockColor("text", root.dark) : (chip.hovered ? Theme.blockColor("hover", root.dark) : "transparent")
-                border.width: chip.picked ? 0 : 1
-                border.color: chip.tone === "neutral" ? Theme.blockColor("border", root.dark) : Theme.toneLine(chip.tone, root.dark)
+                color: chip.picked ? Theme.blockColor("accent", root.dark) : (chip.hovered ? Theme.blockColor("hover", root.dark) : "transparent")
+                border.width: 1
+                border.color: chip.picked ? Theme.blockColor("accent", root.dark)
+                              : (chip.tone === "neutral" ? Theme.blockColor("border", root.dark) : Theme.toneLine(chip.tone, root.dark))
             }
             Text {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 id: chipLabel
                 anchors.centerIn: parent
                 text: root.node.text || ""
-                font.pixelSize: Theme.fontMeta
+                font.pixelSize: Theme.roles.small.size
                 font.weight: chip.picked ? Font.Medium : Font.Normal
-                color: chip.picked ? Theme.blockColor("surface", root.dark)
-                       : (chip.tone === "neutral" ? Theme.blockColor("textSecondary", root.dark) : Theme.toneFg(chip.tone, root.dark))
+                color: chip.picked ? Theme.blockColor("textOnAccent", root.dark)
+                       : (chip.tone === "neutral" ? Theme.blockColor("text", root.dark) : Theme.toneFg(chip.tone, root.dark))
             }
         }
     }
     Component {
         id: badgeC
-        Rectangle {
-            implicitHeight: 20
-            implicitWidth: badgeLabel.implicitWidth + 16
-            radius: 0
-            color: Theme.toneBgFor(root.node.tone || "neutral", root.dark)
-            Text {
-                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
-                id: badgeLabel
-                anchors.centerIn: parent
-                text: root.node.text || ""
-                font.pixelSize: Theme.fontMono
-                font.weight: Font.DemiBold
-                color: Theme.toneFg(root.node.tone || "neutral", root.dark)
-            }
+        UzTag {
+            text: root.node.text || ""
+            tone: ({warning: "accent", danger: "danger", ok: "ok"})[root.node.tone || "neutral"] || "neutral"
+            icon: "none"
         }
     }
     Component {
         id: avatarC
-        Rectangle {
-            readonly property int px: root.node.size === "s" ? 20 : (root.node.size === "l" ? 32 : 26)
-            implicitWidth: px
-            implicitHeight: px
-            radius: 0
-            color: Theme.playerColor(root.node.color || 1, root.dark)
-            Text {
-                textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
-                anchors.centerIn: parent
-                text: (root.node.initial || "").substring(0, 1).toUpperCase()
-                font.pixelSize: Math.round(parent.px * 0.46)
-                font.weight: Font.DemiBold
-                color: Theme.tok("ground", root.dark)
-            }
+        UzAvatar {
+            name: (root.node.initial || "").substring(0, 1)
+            person: root.node.color || 1
+            size: root.node.size === "s" ? 20 : (root.node.size === "l" ? 40 : 28)
         }
     }
     Component {
         id: imageC
         RowLayout {
-            spacing: 8
+            spacing: Theme.space1
             PluginImage {
                 node: root.node
                 dark: root.dark
@@ -641,7 +622,7 @@ Item {
                 Layout.minimumWidth: 0
                 text: root.node.label || ""
                 elide: Text.ElideRight
-                font.pixelSize: Theme.fontMeta
+                font.pixelSize: Theme.roles.small.size
                 color: Theme.blockColor("textMuted", root.dark)
             }
         }
@@ -650,28 +631,27 @@ Item {
         id: barC
         ColumnLayout {
             readonly property real v: Math.max(0, Math.min(1, root.node.value || 0))
-            readonly property string tone: root.node.tone || (v > 0.5 ? "ok" : (v >= 0.2 ? "warning" : "danger"))
-            spacing: 4
+            // A thin Progress (Yamabuki fill); only an explicit tone, or a nearly empty bar, changes the colour.
+            readonly property string tone: root.node.tone || (v < 0.2 ? "danger" : "")
+            spacing: Theme.space05
             Text {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 visible: !!root.node.label
                 text: root.node.label || ""
-                font.pixelSize: Theme.fontMeta
+                font.pixelSize: Theme.roles.small.size
                 color: Theme.blockColor("textMuted", root.dark)
             }
             Rectangle {
                 objectName: "pluginBarTrack"
                 Layout.fillWidth: true
                 implicitWidth: 80
-                implicitHeight: 4
-                radius: 0
+                implicitHeight: 2
                 color: Theme.blockColor("track", root.dark)
                 Rectangle {
                     objectName: "pluginBarFill"
                     width: parent.width * parent.parent.v
                     height: parent.height
-                    radius: 0
-                    color: Theme.toneFg(parent.parent.tone, root.dark)
+                    color: parent.parent.tone === "" ? Theme.blockColor("accent", root.dark) : Theme.toneFg(parent.parent.tone, root.dark)
                 }
             }
         }
@@ -682,27 +662,25 @@ Item {
             id: stat
             dark: root.dark
             actionable: !!root.node.action
-            ringRadius: Theme.radius6
-            implicitHeight: 32
-            implicitWidth: statLabel.implicitWidth + statValue.implicitWidth + 40
+            implicitHeight: Theme.row32
+            implicitWidth: statLabel.implicitWidth + statValue.implicitWidth + 5 * Theme.space1
             onActivated: root.action(root.node.action, root.node.value)
             Rectangle {
                 anchors.fill: parent
-                radius: Theme.radius6
                 color: stat.hovered ? Theme.blockColor("hover", root.dark) : "transparent"
             }
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                spacing: 10
+                anchors.leftMargin: Theme.space1
+                anchors.rightMargin: Theme.space1
+                spacing: Theme.space15
                 Text {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     id: statLabel
                     Layout.fillWidth: true
                     text: root.node.label || ""
                     elide: Text.ElideRight
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     color: Theme.blockColor("textMuted", root.dark)
                 }
                 Text {
@@ -710,7 +688,7 @@ Item {
                     id: statValue
                     text: root.node.value === undefined ? "" : String(root.node.value)
                     font.family: Theme.mono
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.meta11.size
                     font.weight: Font.Medium
                     color: Theme.blockColor("text", root.dark)
                 }
@@ -718,7 +696,7 @@ Item {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: !!root.node.action
                     text: "›"
-                    font.pixelSize: Theme.fontCard
+                    font.pixelSize: Theme.roles.headerTitle.size
                     color: Theme.blockColor("textFaint", root.dark)
                 }
             }

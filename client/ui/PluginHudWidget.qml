@@ -1,8 +1,8 @@
 import QtQuick
 import Uzume.App
 
-// One HUD widget (docs/design/plugins.md 4e): always dark, surface rgba(17,18,20,.82), border rgba(255,255,255,.08),
-// radius 8, padding 6 10, at most 240 wide. It takes no input: hover (or focus) only brightens it and shows the "⋯"
+// One HUD widget (board 5b-2, "HUD widget"): drawn on the stage, so it keeps a stage-appropriate look: `surface` plane, 1 px
+// `rule` frame (`ink-2` when lit), padding 8 12, at most 240 wide, square. It takes no input: hover (or focus) only brightens it and shows the "⋯"
 // menu button and, for non-official plugins, the "Unverified" / "Local" marker.
 Item {
     id: root
@@ -11,7 +11,7 @@ Item {
     readonly property bool lit: hover.containsMouse || menuButton.hovered
     signal menuRequested(Item anchor)
 
-    readonly property real maxInner: 240 - 20
+    readonly property real maxInner: 240 - 2 * Theme.space15
     readonly property bool rightSide: entry && entry.corner === "bottom-right"
     readonly property bool topSide: entry && entry.corner === "top-left"
     width: bg.width
@@ -20,23 +20,22 @@ Item {
 
     Rectangle {
         id: bg
-        width: Math.min(240, row.width + 20)
-        height: row.height + 12
-        radius: 0
-        color: root.lit ? Theme.withAlpha(Theme.sumi.ground, 0.96) : Theme.withAlpha(Theme.sumi.ground, 0.82)
+        width: Math.min(240, row.width + 2 * Theme.space15)
+        height: row.height + 2 * Theme.space1
+        color: Theme.surface
         border.width: 1
-        border.color: root.lit ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.08)
-        Behavior on color { ColorAnimation { duration: 80 } }
+        border.color: root.lit ? Theme.ink2 : Theme.rule
+        Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
 
         Row {
             id: row
-            x: 10
-            y: 6
-            spacing: 6
+            x: Theme.space15
+            y: Theme.space1
+            spacing: Theme.space1
             PluginTabIcon {
                 anchors.verticalCenter: parent.verticalCenter
                 size: 16
-                chipRadius: 4
+               
                 name: root.entry ? (root.entry.name || "") : ""
                 icon: root.entry ? (root.entry.icon || "") : ""
             }
@@ -44,10 +43,10 @@ Item {
                 id: block
                 objectName: "hudBlock"
                 anchors.verticalCenter: parent.verticalCenter
-                width: Math.min(implicitWidth, root.maxInner - 22)
+                width: Math.min(implicitWidth, root.maxInner - 16 - Theme.space1)
                 height: implicitHeight
                 node: root.entry ? root.entry.tree : ({})
-                dark: true
+                dark: Theme.dark
                 pluginId: root.entry ? root.entry.pluginId : ""
             }
         }
@@ -67,27 +66,26 @@ Item {
             // Beside the widget (P45), never over its text: left of it in the right-hand corner, else right of it
             x: root.rightSide ? -width - 4 : parent.width + 4
             anchors.verticalCenter: parent.verticalCenter
-            width: 22; height: 22; radius: 0
-            color: btnHover.hovered ? Theme.gameSegmentOn : Theme.withAlpha(Theme.sumi.ground, 0.9)
+            width: 24; height: 24
+            color: btnHover.hovered ? Theme.pressed : Theme.surface
+            border.width: 1
+            border.color: Theme.rule
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Widget menu")
-            Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: "⋯"; font.pixelSize: 15; color: Theme.gameText }
+            UzGlyph { anchors.centerIn: parent; name: "more"; size: 14; color: Theme.ink2 }
             HoverHandler { id: btnHover; cursorShape: Qt.PointingHandCursor }
             TapHandler { onTapped: root.menuRequested(menuButton) }
         }
     }
-    Rectangle {
+    UzTag {
         objectName: "hudMarker"
+        small: true
+        tone: "accent"
+        icon: "none"
+        text: root.marker
         visible: root.lit && root.marker !== ""
         // "Unverified" / "Local": above the widget, below it in the top corner so it is never cut off by the play area edge
         x: bg.x
         y: root.topSide ? bg.height + 3 : -height - 3
-        width: markerText.implicitWidth + 12
-        height: 16
-        radius: 0
-        color: Theme.gamePluginWarnBg
-        border.width: 1
-        border.color: Theme.gamePluginWarnLine
-        UzLabel { textFormat: Text.PlainText; id: markerText; anchors.centerIn: parent; text: root.marker; font.pixelSize: 10; font.weight: Font.Medium; color: Theme.gamePluginWarn }
     }
 }

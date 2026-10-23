@@ -3,31 +3,29 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// The games a participant may bring into a run (RunsController.games). One is selected (radio).
-Rectangle {
+// The games a participant may bring into a run (RunsController.games): hairline radio rows under a `rule` line, one selected.
+// The list scrolls inside a fixed height when there are many games.
+Item {
     id: root
     required property var rows           // RunsController.games
     property string selectedId: ""
-    implicitHeight: Math.min(176, Math.max(52, listCol.implicitHeight + 8))
-    radius: Theme.radius8
-    color: Theme.surface
-    border.width: 1
-    border.color: Theme.borderInput
+    implicitHeight: root.rows.count === 0 ? Theme.row44 * 2 : Math.min(Theme.row44 * 4 + 8, listCol.implicitHeight + 1)
     clip: true
 
+    Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.rule }
     UzLabel {
         anchors.centerIn: parent
         visible: root.rows.count === 0
-        width: parent.width - 24
+        width: parent.width - 2 * Theme.space15
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.WordWrap
         text: qsTr("No game in your library fits this run.")
-        color: Theme.textMuted
-        font.pixelSize: Theme.fontSmall
+        color: Theme.muted
+        font.pixelSize: Theme.roles.input.size
     }
     Flickable {
         anchors.fill: parent
-        anchors.margins: 4
+        anchors.topMargin: 1
         contentWidth: width
         contentHeight: listCol.implicitHeight
         boundsBehavior: Flickable.StopAtBounds
@@ -35,7 +33,7 @@ Rectangle {
         ColumnLayout {
             id: listCol
             width: parent.width
-            spacing: 2
+            spacing: 0
             Repeater {
                 model: root.rows
                 delegate: RunCheckRow {

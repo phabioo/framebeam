@@ -24,7 +24,7 @@ Rectangle {
         default: return null
         }
     }
-    color: Theme.bg
+    color: Theme.ground
 
     Component { id: statusPage; ServerStatusPage { player: root.player } }
     Component { id: usersPage; ServerUsersPage { player: root.player } }

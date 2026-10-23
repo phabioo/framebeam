@@ -53,7 +53,7 @@ ColumnLayout {
                         text: cell.row ? cell.row.person : ""
                         textFormat: Text.PlainText
                         font.family: Theme.sans
-                        font.pixelSize: Theme.fontBody
+                        font.pixelSize: Theme.roles.body.size
                         color: Theme.ink
                     }
                     Text {
@@ -62,7 +62,7 @@ ColumnLayout {
                         text: cell.row ? cell.row.since : ""
                         textFormat: Text.PlainText
                         font.family: Theme.mono
-                        font.pixelSize: Theme.fontMeta
+                        font.pixelSize: Theme.roles.small.size
                         color: Theme.muted
                     }
                 }
@@ -83,20 +83,20 @@ ColumnLayout {
                 columns: 2
                 columnSpacing: Theme.space3
                 rowSpacing: Theme.space1
-                Text { text: qsTr("Role"); font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.muted }
-                Text { objectName: "detailRole"; text: root.isAdmin ? qsTr("Admin") : qsTr("Member"); font.family: Theme.sans; font.pixelSize: Theme.fontBody; color: Theme.ink }
-                Text { text: qsTr("Last seen"); font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.muted }
+                Text { text: qsTr("Role"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted }
+                Text { objectName: "detailRole"; text: root.isAdmin ? qsTr("Admin") : qsTr("Member"); font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink }
+                Text { text: qsTr("Last seen"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted }
                 Text {
                     objectName: "detailLastSeen"
                     text: root.u === null ? "" : root.u.last_seen_at ? root.page.agoText(root.u.last_seen_at) : qsTr("Never")
-                    font.family: Theme.sans; font.pixelSize: Theme.fontBody; color: Theme.ink
+                    font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink
                 }
-                Text { text: qsTr("Joined"); font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.muted }
+                Text { text: qsTr("Joined"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted }
                 Text {
                     text: root.u === null ? "" : root.page.dateText(root.u.created_at)
-                    font.family: Theme.sans; font.pixelSize: Theme.fontBody; color: Theme.ink
+                    font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink
                 }
-                Text { text: qsTr("Devices"); font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.muted }
+                Text { text: qsTr("Devices"); font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.muted }
                 Text {
                     objectName: "detailDevices"
                     Layout.fillWidth: true
@@ -107,7 +107,7 @@ ColumnLayout {
                         return names.length > 0 ? names.join(", ") : qsTr("None")
                     }
                     textFormat: Text.PlainText
-                    font.family: Theme.sans; font.pixelSize: Theme.fontBody; color: Theme.ink
+                    font.family: Theme.sans; font.pixelSize: Theme.roles.body.size; color: Theme.ink
                 }
             }
             Flow {

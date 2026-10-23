@@ -9,6 +9,6 @@ Label {
     textFormat: Text.PlainText  // names and titles from peers, plugins and the server are never markup
     color: Theme.ink
     font.family: Theme.sans
-    font.pixelSize: Theme.fontBody
+    font.pixelSize: Theme.roles.body.size
     // Qt Basic Label has no background color of its own; text wraps when needed.
 }

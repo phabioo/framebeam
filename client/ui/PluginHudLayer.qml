@@ -32,7 +32,7 @@ Item {
     PluginHudStack {
         id: topLeft
         objectName: "hudStack_top-left"
-        x: 16; y: 16
+        x: Theme.space2; y: Theme.space2
         visible: root.hudShown
         plugins: root.plugins
         widgets: root.cornerLists["top-left"]
@@ -41,7 +41,7 @@ Item {
     PluginHudStack {
         id: bottomLeft
         objectName: "hudStack_bottom-left"
-        x: 16; y: root.height - 16 - height
+        x: Theme.space2; y: root.height - Theme.space2 - height
         visible: root.hudShown
         upwards: true
         plugins: root.plugins
@@ -51,7 +51,7 @@ Item {
     PluginHudStack {
         id: bottomRight
         objectName: "hudStack_bottom-right"
-        x: root.width - 16 - width; y: root.height - 16 - height
+        x: root.width - Theme.space2 - width; y: root.height - Theme.space2 - height
         visible: root.hudShown
         upwards: true
         plugins: root.plugins
@@ -72,20 +72,19 @@ Item {
         visible: !root.hudShown || root.hiddenWidgets.length > 0
         anchors.horizontalCenter: parent.horizontalCenter
         y: root.height - 62 - height     // above the bottom edge of the game, not on it (3h-3, P45)
-        width: restoreLabel.implicitWidth + 24
-        height: 28
-        radius: 0
-        color: Theme.gameHover
+        width: restoreLabel.implicitWidth + 2 * Theme.space15
+        height: Theme.row28
+        color: Theme.surface
         border.width: 1
-        border.color: Theme.gamePopoverBorder
-        opacity: restoreHover.hovered || (menu.open && menu.anchorItem === restorePill) ? 1 : 0.6
+        border.color: Theme.rule
+        opacity: restoreHover.hovered || (menu.open && menu.anchorItem === restorePill) ? 1 : 0.7
         UzLabel {
             textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
             id: restoreLabel
             anchors.centerIn: parent
             text: (!root.hudShown ? qsTr("HUD hidden") : (root.hiddenWidgets.length === 1 ? qsTr("1 widget hidden") : qsTr("%1 widgets hidden").arg(root.hiddenWidgets.length))) + " · " + qsTr("Show")
-            font.pixelSize: 12
-            color: Theme.gameBadgeText
+            font.pixelSize: Theme.roles.small.size
+            color: Theme.ink2
         }
         HoverHandler { id: restoreHover; cursorShape: Qt.PointingHandCursor }
         TapHandler { onTapped: root.openRestoreMenu(restorePill) }
@@ -101,12 +100,13 @@ Item {
         objectName: "hudHiddenHint"
         visible: hintTimer.running
         anchors.horizontalCenter: parent.horizontalCenter
-        y: 16
-        width: hintLabel.implicitWidth + 24
-        height: 28
-        radius: 0
-        color: Theme.withAlpha(Theme.sumi.ground, 0.85)
-        UzLabel { textFormat: Text.PlainText; id: hintLabel; anchors.centerIn: parent; text: qsTr("HUD hidden · F4 to show"); font.pixelSize: 12; color: Theme.gameBadgeText }
+        y: Theme.space2
+        width: hintLabel.implicitWidth + 2 * Theme.space15
+        height: Theme.row28
+        color: Theme.surface
+        border.width: 1
+        border.color: Theme.rule
+        UzLabel { textFormat: Text.PlainText; id: hintLabel; anchors.centerIn: parent; text: qsTr("HUD hidden · F4 to show"); font.pixelSize: Theme.roles.small.size; color: Theme.ink2 }
     }
 
     // ---- notices
@@ -134,24 +134,25 @@ Item {
         id: toastStack
         objectName: "toastStack"
         width: 390
-        spacing: 8
-        x: root.width - 16 - width
-        y: root.height - (bottomRight.height > 0 && bottomRight.visible ? bottomRight.height + 8 : 0) - 16 - height
+        spacing: Theme.space1
+        x: root.width - Theme.space2 - width
+        y: root.height - (bottomRight.height > 0 && bottomRight.visible ? bottomRight.height + Theme.space1 : 0) - Theme.space2 - height
         Rectangle {
             objectName: "toastPill"
             visible: root.hiddenToasts > 0
             anchors.right: parent.right
-            width: pillLabel.implicitWidth + 24
-            height: 24
-            radius: 0
-            color: Theme.withAlpha(Theme.sumi.ground, 0.85)
+            width: pillLabel.implicitWidth + 2 * Theme.space15
+            height: Theme.row28
+            color: Theme.surface
+            border.width: 1
+            border.color: Theme.rule
             UzLabel {
                 textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                 id: pillLabel
                 anchors.centerIn: parent
                 text: root.hiddenToasts === 1 ? qsTr("+1 earlier notice") : qsTr("+%1 earlier notices").arg(root.hiddenToasts)
-                font.pixelSize: 12
-                color: Theme.gameBadgeText
+                font.pixelSize: Theme.roles.small.size
+                color: Theme.ink2
             }
         }
         Repeater {

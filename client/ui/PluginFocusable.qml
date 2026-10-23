@@ -1,13 +1,11 @@
 import QtQuick
 
 // Focus and activation shell of the interactive plugin blocks: Tab stop, Enter / Space / click activate, the standard
-// focus ring (2 px gap in the block surface, 2 px accent) only for keyboard or controller focus, never after a click.
+// focus ring of the design system (UzFocusRing) only for keyboard or controller focus, never after a click.
 Item {
     id: root
     property bool dark: true
     property bool actionable: true
-    property int ringRadius: 0
-    property color ringGap: Theme.blockColor("surface", dark)
     readonly property bool hovered: hover.hovered && actionable
     readonly property bool pressed: tap.pressed && actionable
     readonly property bool ring: activeFocus && keyboardFocus
@@ -22,26 +20,7 @@ Item {
 
     Item { id: holder; anchors.fill: parent }
 
-    Rectangle {
-        visible: root.ring
-        z: 100
-        anchors.fill: parent
-        anchors.margins: -2
-        radius: root.ringRadius + 2
-        color: "transparent"
-        border.width: 2
-        border.color: root.ringGap
-    }
-    Rectangle {
-        visible: root.ring
-        z: 101
-        anchors.fill: parent
-        anchors.margins: -4
-        radius: root.ringRadius + 4
-        color: "transparent"
-        border.width: 2
-        border.color: Theme.blockColor("accent", root.dark)
-    }
+    UzFocusRing { visible: root.ring; z: 100 }
 
     HoverHandler { id: hover; enabled: root.actionable; cursorShape: Qt.PointingHandCursor }
     TapHandler {

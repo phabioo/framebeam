@@ -59,7 +59,7 @@ Rectangle {
             text: root.text
             textFormat: Text.PlainText
             font.family: Theme.sans
-            font.pixelSize: Theme.fontMeta
+            font.pixelSize: Theme.roles.small.size
             lineHeight: 18
             lineHeightMode: Text.FixedHeight
             color: Theme.muted
