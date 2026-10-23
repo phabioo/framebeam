@@ -7,7 +7,7 @@ import Uzume.App
 // server through `player.admin`. Members (and admins of a server without `admin_v1`) see a short block with a way back.
 //
 // Adding a page: write `Server<Name>Page.qml` on AdminPage, add a Component for it below and a branch in `pageComponent`;
-// until then the page shows the "Arrives in the next update" block. Pages are created only while shown.
+// `showServerPage` turns unknown names into "status". Pages are created only while shown.
 Rectangle {
     id: root
     objectName: "serverScreen"
@@ -19,6 +19,8 @@ Rectangle {
         case "status": return statusPage
         case "users": return usersPage
         case "reports": return reportsPage
+        case "systems": return systemsPage
+        case "plugins": return pluginsPage
         default: return null
         }
     }
@@ -27,6 +29,8 @@ Rectangle {
     Component { id: statusPage; ServerStatusPage { player: root.player } }
     Component { id: usersPage; ServerUsersPage { player: root.player } }
     Component { id: reportsPage; ServerReportsPage { player: root.player } }
+    Component { id: systemsPage; ServerSystemsPage { player: root.player } }
+    Component { id: pluginsPage; ServerPluginsPage { player: root.player } }
 
     RowLayout {
         anchors.fill: parent
@@ -48,22 +52,6 @@ Rectangle {
                 anchors.fill: parent
                 active: root.admin.available && root.player.screen === "server" && root.pageComponent !== null
                 sourceComponent: root.pageComponent
-            }
-
-            // A page that does not exist yet.
-            Item {
-                objectName: "serverPlaceholder"
-                anchors.fill: parent
-                visible: root.admin.available && root.pageComponent === null
-                UzStateBlock {
-                    anchors.centerIn: parent
-                    width: Math.min(parent.width - 2 * Theme.space7, 480)
-                    kind: "empty"
-                    title: qsTr("Arrives in the next update")
-                    text: qsTr("This page of the server is not in the app yet.")
-                    action: qsTr("Back to Status")
-                    onActionClicked: root.player.showServerPage("status")
-                }
             }
 
             // Members and admins of a server without the admin pages.
