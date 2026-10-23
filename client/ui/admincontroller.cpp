@@ -1,8 +1,10 @@
 #include "admincontroller.h"
 
+#include <QJSValue>
 #include <QTimer>
 #include <QVariantList>
 #include <algorithm>
+#include <memory>
 
 namespace uzume::ui {
 
@@ -43,6 +45,10 @@ void AdminController::refreshAvailability() {
       status_.clear();
       statusProblem_.clear();
       emit statusChanged();
+      if (pendingDevices_ != 0 || newReports_ != 0) {
+        pendingDevices_ = newReports_ = 0;
+        emit countsChanged();
+      }
     }
     emit availableChanged();
   }
@@ -61,6 +67,7 @@ void AdminController::onConnectionState() {
     secondsLeft_ = lockedSeconds_ = 0;
     ++statusGeneration_;  // an answer of the old server is dropped
     statusInFlight_ = false;
+    countsInFlight_ = false;
     updateClock();
     emit confirmChanged();
   }
@@ -84,7 +91,9 @@ void AdminController::launch(Pending p) {
   start(p);
 }
 
-int AdminController::request(const QString& method, const QString& path, const QVariant& body) {
+int AdminController::request(const QString& method, const QString& path, const QVariant& bodyIn) {
+  // A JS object from QML may arrive wrapped in a QJSValue: turn it into plain QVariant data (maps and lists).
+  const QVariant body = bodyIn.metaType() == QMetaType::fromType<QJSValue>() ? bodyIn.value<QJSValue>().toVariant() : bodyIn;
   Pending p;
   p.id = nextId_++;
   p.start = [this, method, path, body](const Pending& self) {
@@ -304,6 +313,37 @@ void AdminController::refreshStatus() {
     if (gen != statusGeneration_) return;  // another server meanwhile
     statusInFlight_ = false;
     applyStatus(r);
+  });
+  refreshCounts();
+}
+
+QString AdminController::thisDeviceId() const { return d_.conn ? d_.conn->deviceId() : QString(); }
+
+void AdminController::refreshCounts() {
+  if (!available_ || countsInFlight_) return;
+  countsInFlight_ = true;
+  const int gen = statusGeneration_;
+  auto pending = std::make_shared<int>(2);
+  auto apply = [this, gen, pending](int* target, int value) {
+    if (gen != statusGeneration_) return;
+    if (value >= 0 && *target != value) {
+      *target = value;
+      emit countsChanged();
+    }
+    if (--*pending == 0) countsInFlight_ = false;
+  };
+  api_.request(QStringLiteral("GET"), QStringLiteral("/admin/pairing-requests"), QVariant(), [this, apply](const AdminApi::Result& r) {
+    int n = -1;
+    if (r.ok && r.data.typeId() == QMetaType::QVariantMap) n = static_cast<int>(r.data.toMap().value(QStringLiteral("requests")).toList().size());
+    apply(&pendingDevices_, n);
+  });
+  api_.request(QStringLiteral("GET"), QStringLiteral("/admin/reports?status=new"), QVariant(), [this, apply](const AdminApi::Result& r) {
+    int n = -1;
+    if (r.ok && r.data.typeId() == QMetaType::QVariantMap) {
+      const QVariantMap m = r.data.toMap();
+      n = m.contains(QStringLiteral("count_new")) ? m.value(QStringLiteral("count_new")).toInt() : 0;
+    }
+    apply(&newReports_, n);
   });
 }
 

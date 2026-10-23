@@ -12,6 +12,8 @@
 //   resumeParked() replays them when another component already confirmed. confirmSecondsLeft counts the time left.
 // - Status: /admin/status is read when the server screen opens and every 60 s while `available` and no game is shown.
 //   statusProblem is the title of the most urgent problem ("" = none) and feeds the badge on Status in AppNav.
+// - Counts for the badges of AppNav: pendingDevices (waiting pairing requests, Users) and newReports (Reports). They are read
+//   with the status poll; pages call refreshCounts() after they changed something. thisDeviceId() names this PC's device.
 //
 // confirmState: "" | "asking" | "checking" | "wrong" | "locked" | "unreachable" | "unset"
 // statusState:  "idle" | "loading" | "ready" | "unreachable" | "forbidden"
@@ -48,6 +50,8 @@ class AdminController : public QObject {
   Q_PROPERTY(QString statusState READ statusState NOTIFY statusChanged)
   Q_PROPERTY(QVariantMap status READ status NOTIFY statusChanged)  // last AdminStatus (empty until read)
   Q_PROPERTY(QString statusProblem READ statusProblem NOTIFY statusChanged)
+  Q_PROPERTY(int pendingDevices READ pendingDevices NOTIFY countsChanged)
+  Q_PROPERTY(int newReports READ newReports NOTIFY countsChanged)
 
  public:
   struct Deps {
@@ -69,6 +73,8 @@ class AdminController : public QObject {
   QString statusState() const { return statusState_; }
   QVariantMap status() const { return status_; }
   QString statusProblem() const { return statusProblem_; }
+  int pendingDevices() const { return pendingDevices_; }
+  int newReports() const { return newReports_; }
 
   AdminApi* api() { return &api_; }
 
@@ -87,11 +93,14 @@ class AdminController : public QObject {
   Q_INVOKABLE void endConfirmation();  // DELETE /account/confirm
 
   Q_INVOKABLE void refreshStatus();
+  Q_INVOKABLE void refreshCounts();
+  Q_INVOKABLE QString thisDeviceId() const;
 
  signals:
   void availableChanged();
   void confirmChanged();
   void statusChanged();
+  void countsChanged();
   // data: parsed JSON object / array (QVariantMap / QVariantList), invalid when the answer has no JSON body.
   void replied(int id, bool ok, int status, const QVariant& data, const QString& code, const QString& message);
   void downloadFinished(int id, bool ok, const QString& filePath, const QString& message);
@@ -137,6 +146,9 @@ class AdminController : public QObject {
   QString statusProblem_;
   bool statusInFlight_ = false;
   int statusGeneration_ = 0;
+  int pendingDevices_ = 0;
+  int newReports_ = 0;
+  bool countsInFlight_ = false;
 };
 
 }  // namespace uzume::ui
