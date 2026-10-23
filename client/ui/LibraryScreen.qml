@@ -7,7 +7,7 @@ import Uzume.App
 Rectangle {
     id: root
     required property PlayerController player
-    color: Theme.bg
+    color: Theme.ground
 
     // "Upload ROM": native file dialog (UploadFileDialog.qml, QtQuick.Dialogs) when the module is installed,
     // otherwise a path field. The dialog is its own file so that windeployqt sees the import.
@@ -50,11 +50,19 @@ Rectangle {
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            anchors.topMargin: 28
-            anchors.bottomMargin: 28
-            anchors.leftMargin: 32
-            width: Math.max(0, Math.min(parent.width - 64, Theme.gridMaxWidth))
-            spacing: 16
+            anchors.topMargin: Theme.space4
+            anchors.bottomMargin: Theme.space3
+            anchors.leftMargin: Theme.space4
+            width: Math.max(0, Math.min(parent.width - 2 * Theme.space4, Theme.gridMaxWidth))
+            spacing: Theme.space2
+
+            UzSectionLabel {
+                objectName: "librarySectionLabel"
+                Layout.fillWidth: true
+                number: 1
+                text: qsTr("Library")
+                meta: root.player.library.totalCount > 0 ? Theme.plural(root.player.library.totalCount, qsTr("game"), qsTr("games")) : ""
+            }
 
             // Header (3c-6): title, search and "Upload ROM" in one row while they fit, plain anchors (no RowLayout:
             // "Upload ROM" appears when the handshake reports uploads, usually after the first layout; anchors follow
@@ -67,10 +75,10 @@ Rectangle {
                 Layout.minimumWidth: 0
                 readonly property bool uploadShown: root.player.canUpload
                 readonly property int searchMin: 140
-                readonly property real buttonSpace: uploadShown ? uploadButton.implicitWidth + Theme.space12 : 0
-                readonly property bool wrapped: width < libraryTitle.implicitWidth + Theme.space16 + searchMin + buttonSpace
-                readonly property real rowH: Math.max(36, libraryTitle.implicitHeight)
-                implicitHeight: wrapped ? rowH + Theme.space8 + 36 : rowH
+                readonly property real buttonSpace: uploadShown ? uploadButton.implicitWidth + Theme.space15 : 0
+                readonly property bool wrapped: width < libraryTitle.implicitWidth + Theme.space2 + searchMin + buttonSpace
+                readonly property real rowH: Math.max(Theme.row36, libraryTitle.implicitHeight)
+                implicitHeight: wrapped ? rowH + Theme.space1 + Theme.row36 : rowH
                 UzLabel {
                     id: libraryTitle
                     objectName: "libraryTitle"
@@ -79,18 +87,19 @@ Rectangle {
                     width: Math.max(0, Math.min(implicitWidth, header.width - header.buttonSpace))
                     elide: Text.ElideRight
                     text: qsTr("Library")
-                    font.pixelSize: Theme.fontPage
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: -0.4
+                    font.pixelSize: Theme.roles.title.size
+                    font.weight: Font.Light
+                    font.letterSpacing: Theme.roles.title.spacing
                 }
                 UzButton {
                     id: uploadButton
                     objectName: "uploadButton"
                     visible: header.uploadShown
                     anchors.right: parent.right
-                    y: (header.rowH - 36) / 2
+                    y: (header.rowH - Theme.row36) / 2
                     enabled: !root.player.upload.active
-                    implicitHeight: 36
+                    kind: "primary"
+                    implicitHeight: Theme.row36
                     text: qsTr("Upload ROM")
                     onClicked: root.openUploadDialog()
                 }
@@ -98,15 +107,13 @@ Rectangle {
                     id: search
                     objectName: "searchField"
                     x: header.wrapped ? 0 : header.width - header.buttonSpace - width
-                    y: header.wrapped ? header.rowH + Theme.space8 : (header.rowH - 36) / 2
+                    y: header.wrapped ? header.rowH + Theme.space1 : (header.rowH - 36) / 2
                     // 220 at 1280, 280 on a wide window; shrinks to the room the title and button leave; full width
                     // when wrapped onto its own line.
                     width: header.wrapped ? header.width
                                           : Math.max(header.searchMin, Math.min(header.width >= 1400 ? 280 : 220,
-                                                header.width - libraryTitle.implicitWidth - Theme.space16 - header.buttonSpace))
-                    implicitHeight: 36
-                    font.family: Qt.application.font.family
-                    font.pixelSize: Theme.fontSmall
+                                                header.width - libraryTitle.implicitWidth - Theme.space2 - header.buttonSpace))
+                    implicitHeight: Theme.row36
                     placeholderText: qsTr("Search…")
                     onTextChanged: root.player.library.filterText = text
                 }
@@ -126,17 +133,17 @@ Rectangle {
                         const c = chipRow.children[i]
                         if (c.visible && c.implicitWidth > 0) { w += c.implicitWidth; ++n }
                     }
-                    return w + Math.max(0, n - 1) * Theme.space8
+                    return w + Math.max(0, n - 1) * Theme.space1
                 }
                 // Sort + "Ready first" side by side; in a narrow toolbar they wrap into two lines when they do not fit
-                readonly property real controlsNatural: sortControl.implicitWidth + controls.spacing + readyFirst.width
+                readonly property real controlsNatural: sortControl.implicitWidth + controls.spacing + readyFirst.implicitWidth
                 readonly property bool narrow: width < chipsNatural + controlsNatural + 24
-                implicitHeight: narrow ? chipRow.height + 8 + controls.height : Math.max(32, chipRow.height)
+                implicitHeight: narrow ? chipRow.height + Theme.space1 + controls.height : Math.max(Theme.row36, chipRow.height)
                 Flow {
                     id: chipRow
                     objectName: "filterChips"
                     width: toolbar.width
-                    spacing: Theme.space8
+                    spacing: Theme.space1
                     Repeater {
                         model: [
                             { name: "filterAll", value: "all", label: qsTr("All") },
@@ -157,63 +164,25 @@ Rectangle {
                 Flow {
                     id: controls
                     width: toolbar.narrow ? toolbar.width : toolbar.controlsNatural
-                    spacing: 16
-                    y: toolbar.narrow ? chipRow.height + 8 : 0
+                    spacing: Theme.space2
+                    y: toolbar.narrow ? chipRow.height + Theme.space1 : 0
                     x: toolbar.narrow ? 0 : toolbar.width - width
                     SortControl {
                         id: sortControl
                         current: root.player.library.sortKey
                         onPicked: (key) => root.player.library.sortKey = key
                     }
-                    Item {
+                    UzToggle {
                         id: readyFirst
                         objectName: "readyFirstToggle"
-                        readonly property bool on: root.player.library.readyFirst
+                        text: qsTr("Ready first")
+                        height: Theme.row36
+                        checked: root.player.library.readyFirst
                         enabled: root.player.library.readyFirstApplicable
                         opacity: enabled ? 1 : 0.45
-                        width: rfRow.implicitWidth
-                        height: 32
-                        activeFocusOnTab: true
-                        Accessible.role: Accessible.CheckBox
-                        Accessible.name: qsTr("Ready first")
-                        Accessible.checked: on
-                        Row {
-                            id: rfRow
-                            spacing: 8
-                            anchors.verticalCenter: parent.verticalCenter
-                            Rectangle {
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 32
-                                height: 18
-                                radius: 0
-                                color: readyFirst.on ? Theme.accent : Theme.borderInput
-                                border.width: readyFirst.activeFocus ? 1.5 : 0
-                                border.color: Theme.accent
-                                Behavior on color { ColorAnimation { duration: Theme.durFast } }
-                                Rectangle {
-                                    x: readyFirst.on ? 16 : 2
-                                    y: 2
-                                    width: 14
-                                    height: 14
-                                    radius: 0
-                                    color: readyFirst.on ? Theme.textOnAccent : Theme.text
-                                    Behavior on x { NumberAnimation { duration: Theme.durFast; easing.type: Easing.OutCubic } }
-                                }
-                            }
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: qsTr("Ready first")
-                                font.pixelSize: Theme.fontSmall
-                                color: Theme.textSecondary
-                            }
-                        }
-                        TapHandler { onTapped: { readyFirst.forceActiveFocus(); root.player.library.readyFirst = !root.player.library.readyFirst } }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                        Keys.onPressed: (event) => {
-                            if (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                                root.player.library.readyFirst = !root.player.library.readyFirst
-                                event.accepted = true
-                            }
+                        onToggled: {
+                            root.player.library.readyFirst = checked
+                            checked = Qt.binding(() => root.player.library.readyFirst)
                         }
                     }
                 }
@@ -227,8 +196,8 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 Layout.preferredHeight: visible ? implicitHeight : 0
-                color: Theme.textMeta
-                font.pixelSize: Theme.fontSmall
+                color: Theme.muted
+                font.pixelSize: Theme.roles.input.size
                 elide: Text.ElideRight
                 text: root.player.library.countText
             }
@@ -244,25 +213,24 @@ Rectangle {
                     readonly property bool info: modelData.tone === "info"
                     readonly property bool dismissible: modelData.code === "core_download"
                     Layout.fillWidth: true
-                    implicitHeight: warnRow.implicitHeight + 20
+                    implicitHeight: warnRow.implicitHeight + 2 * Theme.space1 + 4
                     radius: 0
-                    color: warn.info ? Theme.infoBg : Theme.warnBg
-                    border.width: 1
-                    border.color: warn.info ? Theme.infoBorder : Theme.accentBorder
+                    color: warn.info ? Theme.ground : Theme.selected
+                    Rectangle { width: 2; height: parent.height; color: warn.info ? Theme.rule : Theme.accent }
                     RowLayout {
                         id: warnRow
                         anchors.fill: parent
-                        anchors.margins: 10
-                        anchors.leftMargin: 14
-                        spacing: Theme.space12
+                        anchors.margins: Theme.space1
+                        anchors.leftMargin: Theme.space15
+                        spacing: Theme.space15
                         UzLabel {
                             id: warnText
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             wrapMode: Text.WordWrap
                             text: warn.modelData.text
-                            color: warn.info ? Theme.infoText : Theme.warn
-                            font.pixelSize: Theme.fontSmall
+                            color: warn.info ? Theme.ink2 : Theme.accentText
+                            font.pixelSize: Theme.roles.input.size
                         }
                         UzButton {
                             objectName: "coreWarningDismiss"
@@ -279,19 +247,19 @@ Rectangle {
                 objectName: "uploadPathPrompt"
                 Layout.fillWidth: true
                 visible: root.pathPromptOpen && root.player.canUpload
-                spacing: 10
+                spacing: Theme.space1
                 UzField {
                     id: uploadPath
                     objectName: "uploadPathField"
                     Layout.fillWidth: true
-                    implicitHeight: 34
+                    implicitHeight: Theme.row36
                     placeholderText: qsTr("Path of the ROM file to upload")
                     onAccepted: uploadPathButton.clicked()
                 }
                 UzButton {
                     id: uploadPathButton
                     objectName: "uploadPathButton"
-                    implicitHeight: 34
+                    implicitHeight: Theme.row36
                     text: qsTr("Upload")
                     enabled: uploadPath.text.trim() !== "" && !root.player.upload.active
                     onClicked: { root.player.uploadRom(uploadPath.text.trim()); root.pathPromptOpen = false }
@@ -302,29 +270,30 @@ Rectangle {
                 objectName: "uploadStatus"
                 Layout.fillWidth: true
                 visible: root.player.upload.active || root.player.upload.message !== ""
-                implicitHeight: 34
+                implicitHeight: Theme.row36
                 radius: 0
-                color: root.player.upload.isError ? Theme.errorBg : Theme.surfaceRaised
+                color: root.player.upload.isError ? Theme.dangerTint : Theme.hover
+                Rectangle { width: 2; height: parent.height; color: root.player.upload.isError ? Theme.danger : Theme.rule }
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 8
-                    spacing: 10
+                    anchors.leftMargin: Theme.space15
+                    anchors.rightMargin: Theme.space1
+                    spacing: Theme.space1
                     UzLabel {
                         Layout.fillWidth: true
                         text: root.player.upload.active
                               ? qsTr("Uploading %1 · %2 %").arg(root.player.upload.fileName).arg(Math.round(root.player.upload.progress * 100))
                               : root.player.upload.message
-                        color: root.player.upload.isError ? Theme.errorText : Theme.text
-                        font.pixelSize: Theme.fontSmall
+                        color: root.player.upload.isError ? Theme.danger : Theme.ink
+                        font.pixelSize: Theme.roles.input.size
                         elide: Text.ElideRight
                     }
                     Rectangle {
                         visible: root.player.upload.active
                         Layout.preferredWidth: 120
-                        Layout.preferredHeight: 4
+                        Layout.preferredHeight: 2
                         radius: 0
-                        color: Theme.borderInput
+                        color: Theme.rule
                         Rectangle {
                             width: parent.width * root.player.upload.progress
                             height: parent.height
@@ -346,21 +315,22 @@ Rectangle {
                 objectName: "stopSaveError"
                 Layout.fillWidth: true
                 visible: root.player.stopSaveError !== ""
-                implicitHeight: stopSaveText.implicitHeight + 20
+                implicitHeight: stopSaveText.implicitHeight + 2 * Theme.space1 + 4
                 radius: 0
-                color: Theme.errorBg
+                color: Theme.dangerTint
+                Rectangle { width: 2; height: parent.height; color: Theme.danger }
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 10
-                    anchors.leftMargin: 12
-                    spacing: 10
+                    anchors.margins: Theme.space1
+                    anchors.leftMargin: Theme.space15
+                    spacing: Theme.space1
                     UzLabel {
                         id: stopSaveText
                         Layout.fillWidth: true
                         text: root.player.stopSaveError
                         wrapMode: Text.WordWrap
-                        color: Theme.errorText
-                        font.pixelSize: Theme.fontSmall
+                        color: Theme.danger
+                        font.pixelSize: Theme.roles.input.size
                     }
                     UzButton { objectName: "stopSaveErrorDismiss"; kind: "link"; text: qsTr("Dismiss"); onClicked: root.player.dismissStopSaveError() }
                 }
@@ -370,19 +340,20 @@ Rectangle {
                 objectName: "hubLinkBanner"
                 Layout.fillWidth: true
                 visible: root.player.sessions.available && root.player.hubLink !== "online"
-                implicitHeight: 34
+                implicitHeight: Theme.row36
                 radius: 0
-                // Lost link: amber (needs your attention, tokens.md "Status"); connecting: the accent info tone.
+                // Lost link or connecting: the accent (attention) tone.
                 readonly property bool lost: root.player.hubLink === "offline"
-                color: lost ? Theme.pluginWarnBg : Theme.warnBg
+                color: Theme.selected
+                Rectangle { width: 2; height: parent.height; color: Theme.accent }
                 UzLabel {
                     anchors.fill: parent
-                    anchors.leftMargin: 12
+                    anchors.leftMargin: Theme.space15
                     verticalAlignment: Text.AlignVCenter
                     text: root.player.hubLink === "connecting" ? qsTr("Connecting to the server for Sessions…")
                           : qsTr("▲ Server connection for Sessions lost · reconnecting…")
-                    color: parent.lost ? Theme.pluginWarn : Theme.warn
-                    font.pixelSize: Theme.fontSmall
+                    color: Theme.accentText
+                    font.pixelSize: Theme.roles.input.size
                     elide: Text.ElideRight
                 }
             }
@@ -391,18 +362,19 @@ Rectangle {
                 objectName: "sessionMessage"
                 Layout.fillWidth: true
                 visible: root.player.sessions.message !== ""
-                implicitHeight: 34
+                implicitHeight: Theme.row36
                 radius: 0
-                color: root.player.sessions.messageIsError ? Theme.errorBg : Theme.surfaceRaised
+                color: root.player.sessions.messageIsError ? Theme.dangerTint : Theme.hover
+                Rectangle { width: 2; height: parent.height; color: root.player.sessions.messageIsError ? Theme.danger : Theme.rule }
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 8
+                    anchors.leftMargin: Theme.space15
+                    anchors.rightMargin: Theme.space1
                     UzLabel {
                         Layout.fillWidth: true
                         text: root.player.sessions.message
-                        color: root.player.sessions.messageIsError ? Theme.errorText : Theme.text
-                        font.pixelSize: Theme.fontSmall
+                        color: root.player.sessions.messageIsError ? Theme.danger : Theme.ink
+                        font.pixelSize: Theme.roles.input.size
                         elide: Text.ElideRight
                     }
                     UzButton { kind: "link"; text: qsTr("Dismiss"); onClicked: root.player.sessions.dismissMessage() }
@@ -418,31 +390,74 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                // Ready first: two grids (ready group, rest) with a divider between them; otherwise one grid with every game.
+                // Table header (board S3c0 "TableHead"): Mono table-header role over the column widths of GameTile
+                // (system 56, status 192, added 104; 12 px side padding, 16 px gap).
+                Item {
+                    id: tableHead
+                    objectName: "tableHead"
+                    visible: gridScroll.visible
+                    x: gridColumn.x
+                    width: gridColumn.width
+                    height: visible ? Theme.row36 : 0
+                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.space15
+                        anchors.rightMargin: Theme.space15
+                        spacing: Theme.space2
+                        Repeater {
+                            model: [
+                                { text: qsTr("Game"), w: -1 },
+                                { text: qsTr("System"), w: 56 },
+                                { text: qsTr("Status"), w: 192 },
+                                { text: qsTr("Added"), w: gridScroll.dated ? 104 : 0 }
+                            ]
+                            delegate: Text {
+                                required property var modelData
+                                visible: modelData.w !== 0
+                                Layout.fillWidth: modelData.w < 0
+                                Layout.preferredWidth: modelData.w < 0 ? 1 : modelData.w
+                                Layout.minimumWidth: 0
+                                elide: Text.ElideRight
+                                text: modelData.text
+                                textFormat: Text.PlainText
+                                font.family: Theme.mono
+                                font.pixelSize: Theme.roles.tableHeader.size
+                                font.weight: Theme.roles.tableHeader.weight
+                                font.letterSpacing: Theme.roles.tableHeader.spacing
+                                font.capitalization: Font.AllUppercase
+                                color: Theme.dim
+                            }
+                        }
+                    }
+                }
+
+                // Ready first: two tables (ready group, rest) with a divider between them; otherwise one table with every game.
                 Flickable {
                     id: gridScroll
                     objectName: "gameScroll"
                     anchors.fill: parent
+                    anchors.topMargin: tableHead.height
                     visible: root.player.libraryState === "ready" && root.player.library.count > 0
                     clip: true
                     contentWidth: width
-                    contentHeight: gridColumn.implicitHeight + 8
+                    contentHeight: gridColumn.implicitHeight + Theme.space1
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { }
 
-                    // The grid stops at Theme.gridMaxWidth (1680), left-aligned; the detail column keeps its width.
+                    // The table stops at Theme.gridMaxWidth (1680), left-aligned; the detail column keeps its width. One column of
+                    // 44 px rows: the GameGrid is a one-column grid here, so the virtualization of large libraries stays.
                     readonly property int gridW: Math.min(Theme.gridMaxWidth, width - 4)
-                    readonly property int columns: Math.max(2, Math.floor(gridW / 170))
-                    readonly property int cellW: Math.floor(gridW / columns)
+                    readonly property int cellW: gridW
                     readonly property bool dated: root.player.library.sortKey === "added_desc" || root.player.library.sortKey === "added_asc"
-                    readonly property int cellH: cellW + 62 + 10 + (dated ? 16 : 0)
+                    readonly property int cellH: Theme.row44
 
                     Column {
                         id: gridColumn
-                        x: 4
-                        y: 4
+                        x: 0
+                        y: 0
                         width: Math.min(Theme.gridMaxWidth, gridScroll.width - 4)
-                        spacing: 6
+                        spacing: 0
 
                         GameGrid {
                             id: grid
@@ -464,13 +479,15 @@ Rectangle {
                             visible: root.player.library.grouped
                             width: parent.width
                             height: visible ? implicitHeight : 0
-                            spacing: 12
+                            spacing: Theme.space15
                             Eyebrow {
                                 Layout.minimumWidth: 0
+                                Layout.topMargin: Theme.space2
+                                Layout.leftMargin: Theme.space15
                                 text: qsTr("NOT READY · %1 · same sort").arg(root.player.library.notReadyGroupCount)
-                                color: Theme.textFaint
+                                color: Theme.dim
                             }
-                            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.borderCard }
+                            Rectangle { Layout.fillWidth: true; Layout.topMargin: Theme.space2; Layout.preferredHeight: 1; color: Theme.rule }
                         }
 
                         GameGrid {
@@ -494,31 +511,27 @@ Rectangle {
                 ColumnLayout {
                     anchors.centerIn: parent
                     width: Math.min(parent.width, 420)
-                    spacing: 12
+                    spacing: Theme.space15
                     visible: !gridScroll.visible
-                    UzSpinner {
-                        Layout.alignment: Qt.AlignHCenter
-                        visible: root.player.libraryState === "loading"
-                        size: 22
-                    }
-                    UzLabel {
+                    // Empty, loading and error states: UzStateBlock (ensō); the title is the message.
+                    UzStateBlock {
                         objectName: "libraryEmptyText"
                         Layout.fillWidth: true
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.WordWrap
-                        color: root.player.libraryState === "error" ? Theme.error : Theme.textMuted
-                        font.pixelSize: Theme.fontBody
+                        kind: root.player.libraryState === "loading" ? "loading"
+                              : root.player.libraryState === "error" ? "error" : "empty"
                         readonly property string needle: root.player.library.filterText.trim()
                         readonly property string chip: root.player.library.filter
-                        text: root.player.libraryState === "loading" ? qsTr("Loading Library…")
-                              : root.player.libraryState === "error" ? qsTr("Could not load Library: %1").arg(root.player.libraryError)
-                              : root.player.library.totalCount === 0 ? qsTr("No games yet.")
-                              : needle !== "" ? (chip === "ready" ? qsTr("No ready games match “%1”").arg(needle)
-                                                 : chip === "attention" ? qsTr("No games needing attention match “%1”").arg(needle)
-                                                 : chip === "download" ? qsTr("No games not downloaded match “%1”").arg(needle)
-                                                 : qsTr("No games match “%1”").arg(needle))
-                              : chip === "attention" ? qsTr("Nothing needs attention.")
-                              : qsTr("No results.")
+                        title: root.player.libraryState === "loading" ? qsTr("Loading Library…")
+                               : root.player.libraryState === "error" ? qsTr("Could not load Library: %1").arg(root.player.libraryError)
+                               : root.player.library.totalCount === 0 ? qsTr("No games yet.")
+                               : needle !== "" ? (chip === "ready" ? qsTr("No ready games match “%1”").arg(needle)
+                                                  : chip === "attention" ? qsTr("No games needing attention match “%1”").arg(needle)
+                                                  : chip === "download" ? qsTr("No games not downloaded match “%1”").arg(needle)
+                                                  : qsTr("No games match “%1”").arg(needle))
+                               : chip === "attention" ? qsTr("Nothing needs attention.")
+                               : qsTr("No results.")
+                        action: root.player.libraryState === "error" ? qsTr("Reload") : ""
+                        onActionClicked: root.player.reloadLibrary()
                     }
                     UzLabel {
                         objectName: "libraryEmptyHint"
@@ -526,8 +539,8 @@ Rectangle {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
-                        color: Theme.textFaint
-                        font.pixelSize: Theme.fontSmall
+                        color: Theme.dim
+                        font.pixelSize: Theme.roles.small.size
                         text: root.player.library.outsideFilter.count === undefined ? ""
                               : root.player.library.outsideFilter.count === 1
                                 ? qsTr("1 match outside this filter: %1 (%2).").arg(root.player.library.outsideFilter.title).arg(root.player.library.outsideFilter.reason)
@@ -537,7 +550,7 @@ Rectangle {
                     RowLayout {
                         Layout.alignment: Qt.AlignHCenter
                         visible: root.player.libraryState === "ready" && root.player.library.totalCount > 0
-                        spacing: 10
+                        spacing: Theme.space1
                         UzButton {
                             objectName: "emptyClearSearch"
                             visible: root.player.library.filterText.trim() !== ""
@@ -550,13 +563,6 @@ Rectangle {
                             text: qsTr("Show in All")
                             onClicked: root.player.library.filter = "all"
                         }
-                    }
-                    UzButton {
-                        Layout.alignment: Qt.AlignHCenter
-                        visible: root.player.libraryState === "error"
-                        busyOnClick: true
-                        text: qsTr("Reload")
-                        onClicked: root.player.reloadLibrary()
                     }
                 }
             }

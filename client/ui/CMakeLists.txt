@@ -84,18 +84,12 @@ qt_add_qml_module(uzume_ui
     GameHeader.qml
     GameButton.qml
     GameIcon.qml
-    GameSegment.qml
     SharePill.qml
     AnchoredPopover.qml
     PopoverItem.qml
     SessionPicker.qml
     MultiviewArea.qml
     TileStateCard.qml
-    Sparkline.qml
-    DiagSection.qml
-    DiagRow.qml
-    DiagParticipants.qml
-    DiagFooter.qml
     DiagnosticsOverlay.qml
     LayoutSwitch.qml
     KeyHintButton.qml

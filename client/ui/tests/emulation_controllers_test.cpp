@@ -159,6 +159,7 @@ struct VirtualPad {
     id = 0;
   }
   void button(int b, bool down) { SDL_SetJoystickVirtualButton(js, b, down); }
+  void axis(int a, int v) { SDL_SetJoystickVirtualAxis(js, a, static_cast<Sint16>(v)); }   // axes: leftx lefty rightx righty lefttrigger righttrigger
 };
 }  // namespace
 
@@ -339,7 +340,7 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(text(h, "systemCore_nds"), QStringLiteral("melonDS DS · 1.4.0"));
     QCOMPARE(text(h, "systemReady_nds"), QStringLiteral("Ready · included in Uzume"));
     QCOMPARE(text(h, "systemFirmware_nds"), QStringLiteral("Built-in BIOS"));
-    QCOMPARE(text(h, "emulationTitle"), QStringLiteral("Nintendo DS · melonDS DS 1.4.0"));
+    QCOMPARE(text(h, "emulationTitle"), QStringLiteral("Nintendo DS"));
     QVERIFY(!emu->defaultsSelected());
 
     // The system shows the core's visible, non-locked options; nothing else, and no Uzume options (those are Defaults).
@@ -382,7 +383,7 @@ class EmulationControllersTest : public QObject {
     QVERIFY(visible(h, "changedDot_melonds_audio_interpolation"));
     QVERIFY(visible(h, "optionReset_melonds_audio_interpolation"));
     QCOMPARE(emu->changedCount(), 1);
-    QCOMPARE(text(h, "resetAllChanged"), QStringLiteral("Reset 1 changed"));
+    QCOMPARE(text(h, "resetAllChanged"), QStringLiteral("Reset all to default"));
     QCOMPARE(text(h, "systemChanged_nds"), QStringLiteral("1 changed"));
     QCOMPARE(emu->launchOverrides(QStringLiteral("nds"), QStringLiteral("g1")).value(QStringLiteral("melonds_audio_interpolation")),
              QStringLiteral("cosine"));
@@ -611,7 +612,7 @@ class EmulationControllersTest : public QObject {
       // Hub card and update card are indented 14 to the label edge and stay inside the column.
       QQuickItem* card = h.item("updateCard");
       QVERIFY(card != nullptr);
-      QVERIFY(sceneRect(card).left() >= col.left() + 36 + 14 - 0.5);
+      QVERIFY(sceneRect(card).left() >= col.left() + 48 + 14 - 0.5);
       QVERIFY(sceneRect(card).right() <= col.right() + 0.5);
       QQuickItem* themeRow = h.item("themeRow");
       QQuickItem* channelRow = h.item("updateChannelRow");
@@ -1075,7 +1076,7 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(h.controller->screen(), QStringLiteral("controllers"));
     QCOMPARE(c->devices().size(), 2);  // Keyboard, Mouse
     QCOMPARE(c->selectedDevice(), QStringLiteral("keyboard"));
-    QCOMPARE(text(h, "profilesLocalFooter"), QStringLiteral("Saved on this device only"));
+    QCOMPARE(text(h, "profilesLocalFooter"), QStringLiteral("Mapping is saved per controller on this PC."));
     QCOMPARE(c->rows().size(), 12);  // the rows of the default (first) system, nds: the 12 DS inputs; no ZL/ZR, no circle pad / C-stick aliases (P33)
     QVERIFY(inputRow(h, QStringLiteral("zl")).isEmpty() && inputRow(h, QStringLiteral("lup")).isEmpty() && inputRow(h, QStringLiteral("cup")).isEmpty());
     QVERIFY(!c->supportsLid());  // no LID row: the nds profiles have no lid input
@@ -1218,10 +1219,10 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(text(h, "hotkeyText_diagnostics"), QStringLiteral("F3"));
     QCOMPARE(text(h, "hotkeyText_snapshot"), QStringLiteral("F5"));
     QCOMPARE(text(h, "hotkeyText_escape"), QStringLiteral("Esc"));
-    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+Y"));  // Uzume hotkeys get gamepad defaults (P36)
+    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+B"));  // Uzume hotkeys get gamepad defaults (P36, design 9b-1)
     QCOMPARE(text(h, "hotkeyPadText_diagnostics"), QStringLiteral("Select+R3"));
     QCOMPARE(text(h, "hotkeyPadText_snapshot"), QStringLiteral("Select+LB"));
-    QCOMPARE(text(h, "hotkeyPadText_speedup"), QStringLiteral("Select+RB"));
+    QCOMPARE(text(h, "hotkeyPadText_speedup"), QStringLiteral("Select+RT"));
     QCOMPARE(text(h, "padModifierText"), QStringLiteral("Select"));
     QVERIFY(visible(h, "hotkeyPadField_escape"));  // fixed, read-only field (no capture)
     QVERIFY(!visible(h, "resetChanged"));
@@ -1272,8 +1273,8 @@ class EmulationControllersTest : public QObject {
       while (flick && !flick->inherits("QQuickFlickable")) flick = flick->parentItem();
       QVERIFY(flick != nullptr);
       const QRectF column = flick->mapRectToScene(QRectF(0, 0, flick->width(), flick->height()));
-      QVERIFY2(h.item("hotkeysInfo")->width() <= column.width() - 56 + 0.5,
-               qPrintable(QStringLiteral("hotkeysInfo wider than the content column (%1)\n%2").arg(column.width() - 56).arg(hotkeysLayoutDump(h))));
+      QVERIFY2(h.item("hotkeysInfo")->width() <= column.width() - 96 + 0.5,
+               qPrintable(QStringLiteral("hotkeysInfo wider than the content column (%1)\n%2").arg(column.width() - 96).arg(hotkeysLayoutDump(h))));
       for (const char* name : {"hotkeyField_fullscreen", "hotkeyField_snapshot", "hotkeyField_escape", "hotkeyReset_fullscreen",
                                "hotkeyReset_snapshot", "hotkeyConflict_snapshot", "hotkeyText_snapshot"}) {
         QQuickItem* it = h.item(name);
@@ -1396,25 +1397,25 @@ class EmulationControllersTest : public QObject {
     pad.button(Start, false);
     poll();
     QCOMPARE(text(h, "padModifierText"), QStringLiteral("Start"));
-    QCOMPARE(text(h, "hotkeyPadText_speedup"), QStringLiteral("Start+RB"));
+    QCOMPARE(text(h, "hotkeyPadText_speedup"), QStringLiteral("Start+RT"));
     QVERIFY(visible(h, "padModifierReset"));
     QVERIFY(h.click("padModifierReset"));
     QCOMPARE(text(h, "padModifierText"), QStringLiteral("Select"));
 
-    // In play: the combo fires once, RB never reaches the core, Select still does; the hint follows the last input.
+    // In play: the combo fires once, RT never reaches the core, Select still does; the hint follows the last input.
     QSignalSpy fired(c, &ControllersController::padHotkeyTriggered);
     c->noteKeyboardInput();
     QCOMPARE(c->hotkeyHints().value(QStringLiteral("speedup")).toString(), QStringLiteral("Space"));
     pad.button(Back, true);
     poll();
-    pad.button(RB, true);
+    pad.axis(5, 30000);   // right trigger
     poll();
     poll();
     QCOMPARE(fired.count(), 1);
     QCOMPARE(fired.first().first().toString(), QStringLiteral("speedup"));
     QCOMPARE(s->joypadMask(), 1u << 2);  // Select only
-    QCOMPARE(c->hotkeyHints().value(QStringLiteral("speedup")).toString(), QStringLiteral("Select+RB"));
-    pad.button(RB, false);
+    QCOMPARE(c->hotkeyHints().value(QStringLiteral("speedup")).toString(), QStringLiteral("Select+RT"));
+    pad.axis(5, 0);
     pad.button(Back, false);
     poll();
     QCOMPARE(s->joypadMask(), 0u);
@@ -1424,7 +1425,7 @@ class EmulationControllersTest : public QObject {
     // Reset all brings back keyboard keys and gamepad buttons.
     QVERIFY(h.click("resetChanged"));
     QCOMPARE(c->hotkeysChangedCount(), 0);
-    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+Y"));
+    QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+B"));
   }
 
   // Leftover: picking a system chip moves the mapping table, the labels and the input test together.

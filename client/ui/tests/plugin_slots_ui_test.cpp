@@ -169,9 +169,9 @@ class PluginSlotsUiTest : public QObject {
     QFont f = QGuiApplication::font();
     f.setPixelSize(13);
     const QFontMetricsF fm(f);
-    qreal w = 2.0 * (labeled.size() + icons - 1) + 36.0 * icons;
-    for (const QString& n : labeled) w += (n == QStringLiteral("Game") ? 0 : 24) + std::ceil(fm.horizontalAdvance(n)) + 18;
-    return w + 4 <= h_.item("panelTabBar")->width() - 24;   // 4 px slack for rounding
+    qreal w = 22.0 * (labeled.size() + icons - 1) + 28.0 * icons;   // tab gap 22, icon-only tab 28 (GamePanel.qml)
+    for (const QString& n : labeled) w += std::ceil(fm.horizontalAdvance(n)) + (n == QStringLiteral("Session") ? 0 : 10);   // 10 px for the unread dot
+    return w + 4 <= h_.item("panelTabBar")->width() - 48;   // 4 px slack for rounding, 24 px padding on both sides
   }
   int visibleCount(const char* name) {
     int n = 0;
@@ -384,9 +384,9 @@ class PluginSlotsUiTest : public QObject {
   }
 
   void panelTabsFitAndOverflow() {
-    // No plugin tabs: no tab bar.
+    // No plugin tabs: the Session tab alone, no overflow.
     QVERIFY(pc()->panelTabs().isEmpty() && !pc()->consoleAvailable());
-    QTRY_VERIFY(!h_.item("panelTabBar")->isVisible());
+    QTRY_VERIFY(visibleCount("panelTabLabel") <= 1 && !h_.item("panelTabOverflow")->isVisible());  // the Session tab alone
 
     // One plugin tab: labels for both; the panel content is the plugin's tree.
     QVariantMap trees{{"net.test.a|panel", json(R"({"type":"column","gap":8,"children":[
@@ -398,7 +398,7 @@ class PluginSlotsUiTest : public QObject {
     QTRY_VERIFY(h_.item("panelTab_plugin:net.test.a") != nullptr);
     QVERIFY(h_.item("panelTab_game")->isVisible());
     QVERIFY(h_.item("panelTab_plugin:net.test.a")->isVisible());
-    if (tabsFit({"Game", "SoulLink"}, 0)) QCOMPARE(visibleCount("panelTabLabel"), 2);
+    if (tabsFit({"Session", "SoulLink"}, 0)) QCOMPARE(visibleCount("panelTabLabel"), 2);
     QCOMPARE(visibleCount("tabDot"), 1);  // news dot
     QVERIFY(h_.click("panelTab_plugin:net.test.a"));
     QTRY_VERIFY(h_.item("gamePanelPlugin")->isVisible());
@@ -419,14 +419,14 @@ class PluginSlotsUiTest : public QObject {
                                                     tabEntry("net.test.c", "Party Editor")}},
                         {"trees", trees}});
     QTRY_COMPARE(visibleCount("panelTabLabel"), 2);  // Game + the open SoulLink tab
-    if (tabsFit({"Game", "SoulLink"}, 2)) QVERIFY(!h_.item("panelTabOverflow")->isVisible());
+    if (tabsFit({"Session", "SoulLink"}, 2)) QVERIFY(!h_.item("panelTabOverflow")->isVisible());
     QTRY_VERIFY(h_.item("panelTabOverflow")->isVisible() || (h_.item("panelTab_plugin:net.test.c") != nullptr && h_.item("panelTab_plugin:net.test.c")->isVisible()));
     if (h_.item("panelTab_plugin:net.test.c") != nullptr && h_.item("panelTab_plugin:net.test.c")->isVisible()) {
       QVERIFY(h_.click("panelTab_plugin:net.test.c"));
     } else {   // a very wide font moved it into the "+n" popover
       QVERIFY(h_.click("panelTabOverflow"));
-      QTRY_VERIFY(h_.item("panelTabOverflowItem_plugin:net.test.c") != nullptr && h_.item("panelTabOverflowItem_plugin:net.test.c")->isVisible());
-      QVERIFY(h_.click("panelTabOverflowItem_plugin:net.test.c"));
+      QTRY_VERIFY(h_.item("menuItem_tabOverflow_plugin:net.test.c") != nullptr && h_.item("menuItem_tabOverflow_plugin:net.test.c")->isVisible());
+      QVERIFY(h_.click("menuItem_tabOverflow_plugin:net.test.c"));
     }
     QTRY_COMPARE(visibleCount("panelTabLabel"), 2);  // Game + Party Editor now
     shot(QStringLiteral("slots-panel-4-tabs"));
@@ -450,7 +450,7 @@ class PluginSlotsUiTest : public QObject {
     }();
     QCOMPARE(overflowText, QStringLiteral("+%1 ▾").arg(9 - shownPlugins));
     QVERIFY(h_.click("panelTabOverflow"));
-    const QString lastId = QStringLiteral("panelTabOverflowItem_plugin:net.test.p8");
+    const QString lastId = QStringLiteral("menuItem_tabOverflow_plugin:net.test.p8");
     QTRY_VERIFY(h_.item(qPrintable(lastId)) != nullptr && h_.item(qPrintable(lastId))->isVisible());
     shot(QStringLiteral("slots-panel-overflow-1280"));
     QVERIFY(h_.click(qPrintable(lastId)));
@@ -483,7 +483,7 @@ class PluginSlotsUiTest : public QObject {
     pc()->setPreviewUi({{"panelTabs", QVariantList{tabEntry("net.test.a", "SoulLink")}}, {"trees", trees}});
     QTRY_VERIFY(!h_.item("gamePanelPlugin")->isVisible());
     pc()->setPreviewUi({});
-    QTRY_VERIFY(!h_.item("panelTabBar")->isVisible());
+    QTRY_VERIFY(visibleCount("panelTabLabel") <= 1 && !h_.item("panelTabOverflow")->isVisible());  // the Session tab alone
   }
 
   void hudCornersMaxAndMenu() {
@@ -703,12 +703,12 @@ class PluginSlotsUiTest : public QObject {
     QVERIFY(h_.items("tileStrip_s3").isEmpty() || !h_.item("tileStrip_s3")->isVisible());
     QVERIFY(h_.items("tileStrip_local").isEmpty());  // never on the own tile
     QCOMPARE(h_.item("tileStrip_s1")->height(), 20.0);
-    // Top left inside the tile (12 px from its edge), above the info row with the key badge: the two never overlap.
+    // Top left inside the tile (17 px from its edge: frame + 16), above the info row with the key badge: the two never overlap.
     QQuickItem* badge = h_.item("keyBadge_s1");
     QQuickItem* st = h_.item("tileStrip_s1");
     QQuickItem* tl = h_.item("surfaceTile_s1");
     QVERIFY(tl != nullptr);
-    QCOMPARE(qRound(st->mapToScene(QPointF(0, 0)).x() - tl->mapToScene(QPointF(0, 0)).x()), 12);
+    QCOMPARE(qRound(st->mapToScene(QPointF(0, 0)).x() - tl->mapToScene(QPointF(0, 0)).x()), 17);
     QVERIFY(st->mapToScene(QPointF(0, 0)).y() + st->height() <= badge->mapToScene(QPointF(0, 0)).y());
     // Collapsed: the first text row of the tree.
     QCOMPARE(visibleItem("tileStripText") != nullptr, true);

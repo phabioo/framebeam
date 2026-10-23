@@ -585,12 +585,12 @@ class ControllersGlyphsTest : public QObject {
       const QRectF t = sceneRect(tile);
       QVERIFY(t.left() >= g.left() - 0.5 && t.right() <= g.right() + 0.5 && t.top() >= g.top() - 0.5 && t.bottom() <= g.bottom() + 0.5);
     }
-    // Wide column: the selects sit beside the title.
+    // Wide column: the selects row sits below the title and the tabs (board 9a-1).
     h.window->resize(1600, 900);
     QTest::qWait(100);
     QQuickItem* selects = h.item("headerSelects");
     QQuickItem* title = h.item("controllersTitle");
-    QVERIFY(sceneRect(selects).top() < sceneRect(title).bottom());
+    QVERIFY(sceneRect(selects).top() >= sceneRect(title).bottom());
     uitest::saveShot(h.window, QStringLiteral("5-controllers-glyphs"));
   }
 };

@@ -194,7 +194,7 @@ QVariantMap DiagnosticsModel::emulationMap(const EmulationDiagnostics& d) {
   m.insert(QStringLiteral("audio"), audio);
   m.insert(QStringLiteral("audioSub"), audioSub);
 
-  // Sparkline: total and emulation time of the last 5 s, reference = the core's frame time
+  // Sparkline data: total and emulation time of the last 5 s, reference = the core's frame time
   QVariantMap spark;
   spark.insert(QStringLiteral("total"), toList(d.totalHistory));
   spark.insert(QStringLiteral("emu"), toList(d.emuHistory));

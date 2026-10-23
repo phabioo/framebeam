@@ -2,7 +2,10 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// Tile in the game grid (3c): square cover with system label and monogram, title, status line with symbol.
+// Row of the game table (3c, board S3c0 "TableRow"): 44 px, hairline `rule-2` below, columns title (with the local / paused
+// tags) | system | status | added (only with a date sort). Hover = `hover` plane; selected = 2 px Yamabuki marker at the left,
+// `selected` tint and title weight 500. The column widths are shared with the table header in LibraryScreen (tableSystemW,
+// tableStatusW, tableAddedW); the title column takes the rest and elides.
 Item {
     id: tile
     objectName: "gameTile_" + gameId
@@ -14,154 +17,108 @@ Item {
     required property string tileText
     required property string tileTone
     required property real progress
-    required property bool onHub          // false: local-only game (file stays on a Player), shows the "Local" pill
-    required property bool localFile      // starts from a local file of a library folder; with onHub: "Local · on Hub"
+    required property bool onHub          // false: local-only game (file stays on a Player), shows the "Local" tag
+    required property bool localFile      // starts from a local file of a library folder; with onHub: "Local · on server"
     required property string addedText   // "DD.MM.YYYY" from the Hub; shown as "Added ..." with a date sort
     property bool showAdded: false
     property bool selected: false
-    property bool running: false   // game paused in the background (3c-5: marker on the cover, status line)
+    property bool running: false   // game paused in the background (3c-5: tag in the title cell, status line)
 
     signal clicked()
 
-    implicitHeight: cover.height + 62 + (showAdded ? 16 : 0)
+    implicitHeight: Theme.row44
 
-    Rectangle {
-        id: cover
-        width: parent.width - 18
-        height: width
-        radius: Theme.radius8
-        color: Theme.tile
-        clip: true
-        scale: hover.hovered ? 1.015 : 1
-        Behavior on scale { NumberAnimation { duration: Theme.durFast; easing.type: Easing.OutCubic } }
-
-        Repeater {
-            model: 6
-            delegate: Rectangle {
-                required property int index
-                width: cover.width * 2
-                height: 10
-                rotation: -30
-                x: -cover.width / 2
-                y: index * (cover.height / 3.2) - 10
-                color: Theme.tileStripe
-                opacity: 0.55
-            }
-        }
-        UzMono {
-            x: 12
-            y: 10
-            text: tile.system
-            font.pixelSize: Theme.fontMono
-            color: Theme.textTile
-        }
-        UzLabel {
-            anchors.left: parent.left
-            anchors.bottom: parent.bottom
-            anchors.margins: 12
-            text: tile.monogram
-            font.pixelSize: 36
-            font.weight: Font.DemiBold
-            font.letterSpacing: -0.7
-            color: Theme.monogram
-        }
-        // Running marker (3c-5): pill "Paused" top right of the cover, two 2 x 8 bars as the pause icon.
-        Rectangle {
-            objectName: "tileRunningPill"
-            visible: tile.running
-            anchors.top: parent.top
-            anchors.right: parent.right
-            anchors.margins: 10
-            height: 22
-            width: Math.min(parent.width - 20, pillRow.implicitWidth + 16)
-            radius: Theme.radiusPill
-            color: Theme.accentChipBg
-            Row {
-                id: pillRow
-                anchors.centerIn: parent
-                spacing: 6
-                Row {
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 2
-                    Rectangle { width: 2; height: 8; color: Theme.accent }
-                    Rectangle { width: 2; height: 8; color: Theme.accent }
-                }
-                Text {
-                    text: qsTr("Paused")
-                    anchors.verticalCenter: parent.verticalCenter
-                    font.pixelSize: Theme.fontMono
-                    font.weight: Font.DemiBold
-                    color: Theme.accentText
-                }
-            }
-        }
-        // "Local" pill (0.12): the game's file is not stored on the Hub.
-        Rectangle {
-            objectName: "tileLocalPill"
-            visible: !tile.onHub || tile.localFile
-            // Top right (below the running pill when both show), never over the monogram at the bottom left (R-P22).
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.rightMargin: 10
-            anchors.topMargin: tile.running ? 38 : 10
-            height: 22
-            width: Math.min(parent.width - 20, localText.implicitWidth + 16)
-            radius: Theme.radiusPill
-            color: tile.onHub ? Theme.accentChipBg : Theme.neutralPillBg
-            Text {
-                id: localText
-                anchors.centerIn: parent
-                text: tile.onHub ? qsTr("Local · on server") : qsTr("Local")
-                font.pixelSize: Theme.fontMono
-                font.weight: Font.DemiBold
-                color: tile.onHub ? Theme.accentText : Theme.textMuted
-            }
-        }
-        Rectangle {
-            visible: tile.stateKind === "downloading"
-            anchors.left: parent.left
-            anchors.bottom: parent.bottom
-            height: 4
-            width: parent.width * Math.max(0, Math.min(1, tile.progress))
-            color: Theme.accent
-            Behavior on width { NumberAnimation { duration: Theme.durFast } }
-        }
+    Rectangle {   // hover / selected plane
+        anchors.fill: parent
+        color: tile.selected ? Theme.selected : (hover.hovered ? Theme.hover : "transparent")
     }
-    // Selection: accent border 2 px, offset -3, radius 8 (outside the cover).
+    Rectangle {   // hairline
+        anchors.bottom: parent.bottom
+        width: parent.width
+        height: 1
+        color: Theme.rule2
+    }
+    Rectangle {   // selection marker (marker-start)
+        visible: tile.selected
+        width: 2
+        height: parent.height
+        color: Theme.accent
+    }
+    // Download progress as a 2 px strip on the hairline.
     Rectangle {
-        anchors.fill: cover
-        anchors.margins: -3
-        radius: Theme.radius10
-        color: "transparent"
-        border.width: 2
-        border.color: Theme.accent
-        opacity: tile.selected ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
+        visible: tile.stateKind === "downloading"
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        height: 2
+        width: parent.width * Math.max(0, Math.min(1, tile.progress))
+        color: Theme.accent
+        Behavior on width { NumberAnimation { duration: Theme.durFast } }
     }
 
-    ColumnLayout {
-        anchors.top: cover.bottom
-        anchors.topMargin: 10
-        anchors.left: cover.left
-        anchors.right: cover.right
-        spacing: 3
-        UzLabel {
+    RowLayout {
+        anchors.fill: parent
+        anchors.leftMargin: Theme.space15
+        anchors.rightMargin: Theme.space15
+        spacing: Theme.space2
+
+        Item {   // title cell: the title, then the tags; a long title shrinks and elides, the tags keep their room
+            id: titleCell
             Layout.fillWidth: true
-            text: tile.title
-            font.weight: Font.Medium
-            elide: Text.ElideRight
-            HoverHandler { id: titleHover }
-            ToolTip.visible: titleHover.hovered && truncated
-            ToolTip.text: text
-            ToolTip.delay: 400
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 1
+            Layout.preferredHeight: parent.height
+            readonly property real tagsWidth: tags.width + (tags.width > 0 ? Theme.space1 : 0)
+            UzLabel {
+                id: titleText
+                objectName: "tileTitle"
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.max(0, Math.min(implicitWidth, titleCell.width - titleCell.tagsWidth))
+                text: tile.title
+                font.weight: tile.selected ? Font.Medium : Font.Normal
+                elide: Text.ElideRight
+                HoverHandler { id: titleHover }
+                ToolTip.visible: titleHover.hovered && truncated
+                ToolTip.text: text
+                ToolTip.delay: 400
+            }
+            Row {
+                id: tags
+                anchors.left: titleText.right
+                anchors.leftMargin: tags.width > 0 ? Theme.space1 : 0
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Theme.space1
+                UzTag {
+                    objectName: "tileRunningPill"
+                    visible: tile.running
+                    small: true
+                    tone: "warn"
+                    text: qsTr("Paused")
+                }
+                UzTag {
+                    objectName: "tileLocalPill"
+                    visible: !tile.onHub || tile.localFile
+                    small: true
+                    tone: "neutral"
+                    text: tile.onHub ? qsTr("Local · on server") : qsTr("Local")
+                }
+            }
+        }
+        Item {   // system cell
+            Layout.preferredWidth: 56
+            Layout.preferredHeight: parent.height
+            UzSystemChip {
+                anchors.verticalCenter: parent.verticalCenter
+                system: tile.system
+                visible: tile.system !== ""
+            }
         }
         UzLabel {
             objectName: "tileStatus"
-            Layout.fillWidth: true
+            Layout.preferredWidth: 192
             text: tile.running ? qsTr("❚❚ Running · paused") : tile.tileText
-            font.pixelSize: Theme.fontMeta
+            font.pixelSize: Theme.roles.small.size
             font.weight: Font.Medium
-            color: tile.running ? Theme.accentText : tile.tileTone === "neutral" ? Theme.textMuted : Theme.toneColor(tile.tileTone)
+            color: tile.running ? Theme.accentText : tile.tileTone === "neutral" ? Theme.muted : Theme.toneColor(tile.tileTone)
             elide: Text.ElideRight
             HoverHandler { id: statusHover }
             ToolTip.visible: statusHover.hovered && truncated
@@ -171,15 +128,20 @@ Item {
         UzLabel {
             objectName: "tileAdded"
             visible: tile.showAdded && tile.addedText !== ""
-            Layout.fillWidth: true
+            Layout.preferredWidth: 104
             text: qsTr("Added %1").arg(tile.addedText)
-            font.pixelSize: Theme.fontMeta
-            color: Theme.textFaint
+            font.family: Theme.mono
+            font.pixelSize: Theme.roles.meta11.size
+            color: Theme.dim
             elide: Text.ElideRight
+        }
+        Item {   // keeps the added column's room when a row has no date, so the columns line up
+            visible: tile.showAdded && tile.addedText === ""
+            Layout.preferredWidth: 104
         }
     }
 
-    // Keyboard (R-P4): Tab reaches the tile, Enter/Space selects it; the focus ring is drawn around the cover.
+    // Keyboard (R-P4): Tab reaches the row, Enter/Space selects it.
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
     Accessible.name: tile.title + ", " + tile.tileText
@@ -190,15 +152,10 @@ Item {
             event.accepted = true
         }
     }
-    Rectangle {
+    UzFocusRing {
         objectName: "tileFocusRing"
         visible: tile.activeFocus
-        anchors.fill: cover
-        anchors.margins: -5
-        radius: Theme.radius10 + 2
-        color: "transparent"
-        border.width: 2
-        border.color: Theme.text
+        inset: true
     }
     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
     TapHandler {

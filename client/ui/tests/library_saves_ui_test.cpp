@@ -107,6 +107,11 @@ class LibrarySavesUiTest : public QObject {
     QVERIFY(QMetaObject::invokeMethod(pane, "openSaves", Q_ARG(QVariant, QVariant(false))));
     QTRY_VERIFY_WITH_TIMEOUT(h.item("savesView") != nullptr && h.item("savesView")->isVisible(), 4000);
   }
+  // UzStateBlock (empty state): the message is its title.
+  static QString titleOf(Harness& h, const char* name) {
+    QQuickItem* it = h.item(name);
+    return it != nullptr ? it->property("title").toString() : QString();
+  }
   static QString textOf(Harness& h, const char* name) {
     QQuickItem* it = h.item(name);
     return it != nullptr ? it->property("text").toString() : QString();
@@ -268,7 +273,7 @@ class LibrarySavesUiTest : public QObject {
     QVERIFY(h.click("filterDownload"));  // g2, g5
     QVERIFY(h.item("searchField")->setProperty("text", QStringLiteral("moon")));
     QTRY_VERIFY(shown(h, "libraryEmptyText"));
-    QCOMPARE(textOf(h, "libraryEmptyText"), QStringLiteral("No games not downloaded match “moon”"));
+    QCOMPARE(titleOf(h, "libraryEmptyText"), QStringLiteral("No games not downloaded match “moon”"));
     QCOMPARE(textOf(h, "libraryEmptyHint"), QStringLiteral("1 match outside this filter: Moon Courier (ready)."));
     QCOMPARE(textOf(h, "libraryCount"), QStringLiteral("0 of 2 games not downloaded"));
     QVERIFY(shown(h, "emptyClearSearch") && shown(h, "emptyShowAll"));
@@ -278,7 +283,7 @@ class LibrarySavesUiTest : public QObject {
     QTRY_COMPARE(lib->filter(), QStringLiteral("all"));
     QTRY_COMPARE(lib->rowCount(), 1);
     QVERIFY(h.item("searchField")->setProperty("text", QStringLiteral("zzz")));
-    QTRY_COMPARE(textOf(h, "libraryEmptyText"), QStringLiteral("No games match “zzz”"));
+    QTRY_COMPARE(titleOf(h, "libraryEmptyText"), QStringLiteral("No games match “zzz”"));
     QVERIFY(h.click("emptyClearSearch"));
     QTRY_COMPARE(lib->rowCount(), 5);
     QVERIFY(h.item("searchField")->property("text").toString().isEmpty());
@@ -1080,11 +1085,11 @@ class LibrarySavesUiTest : public QObject {
       QTRY_VERIFY(shown(h, "saveSummary"));
       widen(wide);
       {
-        // The header text must stay inside the column's content area (28 px margin), not just inside the column.
+        // The header text must stay inside the column's content area (24 px margin), not just inside the column.
         const QRectF cr = sceneRect(column(h));
         for (const char* n : {"detailTitle", "detailSystem", "detailPill"}) {
           const QRectF r = sceneRect(h.item(n));
-          QVERIFY2(r.right() <= cr.right() - 28 + 0.5, qPrintable(QStringLiteral("'%1' crosses the content margin (%2 > %3):%4").arg(QLatin1String(n)).arg(r.right()).arg(cr.right() - 28).arg(chainOf(h.item(n)))));
+          QVERIFY2(r.right() <= cr.right() - 24 + 0.5, qPrintable(QStringLiteral("'%1' crosses the content margin (%2 > %3):%4").arg(QLatin1String(n)).arg(r.right()).arg(cr.right() - 24).arg(chainOf(h.item(n)))));
         }
       }
       checkInColumn(h, {"detailPane", "detailTitle", "detailPill", "detailSystem", "detailRowValue", "saveSummary", "saveCurrentRow", "saveSlotName",

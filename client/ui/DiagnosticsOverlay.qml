@@ -1,182 +1,70 @@
 import QtQuick
-import QtQuick.Layouts
 import Uzume.App
 
-// Diagnostics overlay (3t-2, 3x-2; fullscreen 3y): 340 wide, two collapsible sections. Emulation of the local game (core,
-// renderer, resolution, fps, frame time with sparkline, audio, fallback hint) and Streaming per participant. In the
-// Multiview (`multi`) Emulation shows your tile only and Streaming one block per tile Session, with the tile badges.
-// Fullscreen shows the same sections (3y). Opened and closed by one toggle (header button, F3); section state is global
-// (ADR 0014 D5, kept by the model). Positioned by the game screen: top right of the play area, 16 px from the edges.
-Rectangle {
+// Diagnostics block of the stage (board 3g-6): F3 opens the UzStageDiagnostics block in the top right corner of the stage,
+// fed from the DiagnosticsModel: the emulation of your game (core, renderer, resolution, FPS, frame time, audio) and one row per
+// person of a Session (connection, role). Positioned by the game screen. "Copy" puts the whole text on the clipboard, including
+// the encoder / decoder and link lines and the fallback hint that do not fit the block. In the Multiview only your tile is
+// emulated on this device, so the emulation rows are the same.
+UzStageDiagnostics {
     id: root
-    required property DiagnosticsModel model
-    property string hotkey: ""
-    property bool fullscreen: false
-    property bool docked: false       // a tab of the side panel (3h-3): no own background, fills the panel width
-    property bool multi: false
-    property var tileBadges: ({})
-    readonly property var emu: model.emulation
-    readonly property var localTile: {
-        var t = model.tiles
-        for (var i = 0; i < t.length; ++i) if (t[i].local === true) return t[i]
-        return null
-    }
     objectName: "diagnosticsOverlay"
+    required property DiagnosticsModel model
+    property bool multi: false
+    readonly property var emu: model.emulation
+    readonly property var groups: model.streaming
 
-    width: 340
-    implicitHeight: col.implicitHeight + (docked ? 0 : 28)
-    radius: 0
-    color: docked ? "transparent" : Theme.gameOverlayBg
-    border.width: docked ? 0 : 1
-    border.color: Theme.gameDivider
-
-    ColumnLayout {
-        id: col
-        anchors.fill: parent
-        anchors.margins: root.docked ? 0 : 14
-        spacing: 12
-
-        DiagSection {
-            objectName: "diagEmulationSection"
-            Layout.fillWidth: true
-            title: qsTr("EMULATION")
-            summary: root.multi && root.localTile ? root.model.tilesSummary : root.model.emulationSummary
-            expanded: root.model.emulationOpen
-            onToggled: root.model.toggleEmulation()
-
-            UzLabel {
-                objectName: "diagNoGame"
-                visible: root.emu.valid !== true
-                text: qsTr("No game running")
-                font.pixelSize: 12
-                color: Theme.gameFaint
-            }
-            // Fallback hint: OpenGL requested but software runs (D10)
-            Rectangle {
-                objectName: "diagFallbackHint"
-                Layout.fillWidth: true
-                visible: root.emu.fallback === true && !root.multi
-                implicitHeight: hintRow.implicitHeight + 18
-                radius: 0
-                color: Theme.infoBg
-                border.width: 1
-                border.color: Theme.infoBorder
-                RowLayout {
-                    id: hintRow
-                    anchors.fill: parent
-                    anchors.margins: 9
-                    anchors.leftMargin: 10
-                    anchors.rightMargin: 10
-                    spacing: 8
-                    UzLabel { text: "ⓘ"; font.pixelSize: 12; color: Theme.gameAccent; Layout.alignment: Qt.AlignTop }
-                    UzLabel {
-                        objectName: "diagFallbackText"
-                        Layout.fillWidth: true
-                        text: root.emu.fallbackText || ""
-                        wrapMode: Text.WordWrap
-                        font.pixelSize: 12
-                        color: Theme.infoText
-                    }
-                }
-            }
-            ColumnLayout {
-                Layout.fillWidth: true
-                visible: root.emu.valid === true && !root.multi
-                spacing: 8
-                DiagRow { Layout.fillWidth: true; label: qsTr("Core"); value: root.emu.core || ""; valueName: "diagCore" }
-                DiagRow {
-                    Layout.fillWidth: true
-                    label: qsTr("Renderer")
-                    value: root.emu.renderer || ""
-                    sub: root.emu.rendererSub || ""
-                    pill: root.emu.fallback === true ? qsTr("Fallback") : ""
-                    valueName: "diagRenderer"
-                    subName: "diagRendererSub"
-                }
-                DiagRow { Layout.fillWidth: true; label: qsTr("Resolution"); value: root.emu.resolution || ""; sub: root.emu.resolutionSub || ""; valueName: "diagResolution"; subName: "diagResolutionSub" }
-                DiagRow { Layout.fillWidth: true; label: qsTr("FPS"); value: root.emu.fps || ""; valueName: "diagFps" }
-                DiagRow { Layout.fillWidth: true; label: qsTr("Frame"); value: root.emu.frame || ""; valueName: "diagFrame" }
-                Sparkline {
-                    objectName: "diagSparkline"
-                    Layout.leftMargin: 86
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 60
-                    Layout.preferredWidth: 236
-                    Layout.preferredHeight: 48
-                    total: root.emu.spark ? root.emu.spark.total : []
-                    emu: root.emu.spark ? root.emu.spark.emu : []
-                    targetMs: root.emu.spark ? root.emu.spark.targetMs : 16.7
-                }
-                DiagRow { Layout.fillWidth: true; label: qsTr("Audio"); value: root.emu.audio || ""; sub: root.emu.audioSub || ""; valueName: "diagAudio"; subName: "diagAudioSub" }
-            }
-            // Multiview: your tile only
-            ColumnLayout {
-                objectName: "diagTileBlock"
-                Layout.fillWidth: true
-                visible: root.multi && root.localTile !== null
-                spacing: 4
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    Rectangle {
-                        Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 0
-                        color: Theme.gameBadge
-                        UzMono { anchors.centerIn: parent; text: String(root.localTile ? root.localTile.index : ""); font.pixelSize: 11; color: Theme.gameBadgeText }
-                    }
-                    UzLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: root.localTile ? root.localTile.title : ""; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.gameText }
-                }
-                UzMono {
-                    objectName: "diagTileLine1"
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    wrapMode: Text.WordWrap
-                    font.pixelSize: 11
-                    color: Theme.gameBadgeText
-                    visible: root.localTile !== null && root.localTile.emulation.valid === true
-                    text: root.localTile && root.localTile.emulation.lines ? root.localTile.emulation.lines[2] + " · " + root.localTile.emulation.lines[3] : ""
-                }
-                UzMono {
-                    objectName: "diagTileLine2"
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    wrapMode: Text.WordWrap
-                    font.pixelSize: 11
-                    color: Theme.gameMeta
-                    visible: root.localTile !== null && root.localTile.emulation.valid === true
-                    text: root.localTile && root.localTile.emulation.lines ? root.localTile.emulation.lines[1] + " · " + root.localTile.emulation.lines[4] : ""
-                }
-            }
-            UzLabel {
-                objectName: "diagOnlyYourTile"
-                Layout.fillWidth: true
-                visible: root.multi
-                wrapMode: Text.WordWrap
-                text: qsTr("Only your tile is emulated on this device.")
-                font.pixelSize: 11
-                color: Theme.gameFaint
+    // [[label, value], [label, value, "warn"]]
+    readonly property var modelRows: {
+        const r = []
+        const e = root.emu
+        if (e.valid === true) {
+            r.push([qsTr("Core"), e.core || ""])
+            r.push([qsTr("Renderer"), (e.renderer || "") + (e.fallback === true ? " · " + qsTr("fallback") : ""), e.fallback === true ? "warn" : undefined])
+            r.push([qsTr("Resolution"), (e.resolution || "") + (e.resolutionSub ? " · " + e.resolutionSub : "")])
+            r.push([qsTr("FPS"), e.fps || ""])
+            r.push([qsTr("Frame"), e.frame || ""])
+            r.push([qsTr("Audio"), (e.audio || "") + (e.audioSub ? " · " + e.audioSub : "")])
+        } else {
+            r.push([qsTr("Game"), qsTr("No game running")])
+        }
+        if (root.multi) {   // remote tiles are not emulated here: one row each says where the emulation runs
+            const ts = root.model.tiles || []
+            for (let t = 0; t < ts.length; ++t)
+                if (ts[t].local !== true && ts[t].note) r.push([qsTr("Tile %1").arg(ts[t].index), ts[t].note])
+        }
+        if (root.groups.length === 0) {
+            r.push([qsTr("Stream"), qsTr("No session")])
+        } else {
+            for (let g = 0; g < root.groups.length; ++g) {
+                const ps = root.groups[g].participants || []
+                for (let p = 0; p < ps.length; ++p)
+                    r.push([ps[p].name, (ps[p].role ? ps[p].role + " · " : "") + ps[p].pill, ps[p].tone === "warn" ? "warn" : undefined])
             }
         }
+        return r
+    }
+    rows: modelRows
 
-        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.gameBorder }
-        DiagSection {
-            objectName: "diagStreamingSection"
-            Layout.fillWidth: true
-            title: qsTr("STREAMING")
-            summary: root.model.streamingSummary
-            expanded: root.model.streamingOpen
-            onToggled: root.model.toggleStreaming()
-            DiagParticipants { Layout.fillWidth: true; groups: root.model.streaming; grouped: root.multi; badges: root.tileBadges }
+    // The full text for "Copy"
+    function fullText() {
+        const lines = [root.title]
+        for (const r of root.modelRows) lines.push(r[0] + ": " + r[1])
+        if (root.emu.valid === true && root.emu.fallback === true && root.emu.fallbackText) lines.push(root.emu.fallbackText)
+        for (const g of root.groups) {
+            for (const p of (g.participants || [])) {
+                lines.push(p.name + " (" + p.role + ") · " + p.pill)
+                if (p.line2) lines.push("  " + p.line2)
+                if (p.line3) lines.push("  " + p.line3)
+            }
         }
-
-        UzLabel {
-            objectName: "diagDockedNote"
-            Layout.fillWidth: true
-            visible: root.docked
-            wrapMode: Text.WordWrap
-            text: qsTr("Docked as a panel tab so it never covers the game or remote tiles.")
-            font.pixelSize: 11
-            color: Theme.gameFaint
-        }
-        DiagFooter { Layout.fillWidth: true; hotkey: root.hotkey; onHideRequested: root.model.open = false }
+        return lines.join("\n")
+    }
+    TextEdit { id: clip; visible: false }
+    onCopyRequested: {
+        clip.text = root.fullText()
+        clip.selectAll()
+        clip.copy()
+        clip.text = ""
     }
 }
