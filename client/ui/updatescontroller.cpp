@@ -6,6 +6,7 @@
 #include <QLocale>
 #include <QUrl>
 
+#include "semver.h"
 #include "version.h"
 
 namespace uzume::ui {
@@ -31,6 +32,12 @@ UpdateManager::Config makeConfig(const UpdatesController::Options& o) {
 UpdatesController::UpdatesController(const Options& options, PlayerSettings* settings, QObject* parent)
     : QObject(parent), manager_(makeConfig(options), settings), settings_(settings) {
   connect(&manager_, &UpdateManager::changed, this, &UpdatesController::changed);
+  connect(&manager_, &UpdateManager::changed, this, [this]() {
+    if (!whatsNewDecided_ && manager_.rollbackListLoaded()) {
+      whatsNewDecided_ = true;
+      applyWhatsNew(manager_.installedNotes());
+    }
+  });
   connect(&manager_, &UpdateManager::quitRequested, this, &UpdatesController::quitRequested);
 }
 
@@ -235,5 +242,29 @@ void UpdatesController::dismissBanner() {
   dismissedVersion_ = manager_.availableVersion();
   emit changed();
 }
+
+void UpdatesController::applyWhatsNew(const QString& notes) {
+  const QString cur = manager_.currentVersion();
+  if (cur.isEmpty()) return;
+  const QString last = settings_->whatsNewVersion();
+  if (last == cur) return;
+  const std::optional<int> order = last.isEmpty() ? std::nullopt : update::compareVersions(last, cur);
+  if (last.isEmpty() || (order.has_value() && *order > 0) || notes.trimmed().isEmpty()) {
+    settings_->setWhatsNewVersion(cur);  // fresh install, went back, or nothing to say: nothing to show for this version
+    return;
+  }
+  whatsNewNotes_ = notes;
+  whatsNewPending_ = true;
+  emit whatsNewChanged();
+}
+
+void UpdatesController::dismissWhatsNew() {
+  settings_->setWhatsNewVersion(manager_.currentVersion());
+  if (!whatsNewPending_) return;
+  whatsNewPending_ = false;
+  emit whatsNewChanged();
+}
+
+void UpdatesController::rememberWhatsNew(const QString& version) { settings_->setWhatsNewVersion(version); }
 
 }  // namespace uzume::ui

@@ -191,6 +191,18 @@ qt_add_qml_module(uzume_ui
     UzTableRow.qml
     UzMetric.qml
     AdminPage.qml
+    AdminCall.qml
+    AdminPeople.qml
+    AdminAskDialog.qml
+    LibraryAdminBar.qml
+    LibraryAdminDetails.qml
+    SavesAdminSwitch.qml
+    SavesAdminSheet.qml
+    SavesAdminDetails.qml
+    RunsAdminPanel.qml
+    WhatsNewDialog.qml
+    SetupAssistant.qml
+    ServerProblemLine.qml
     AdminSaveDialog.qml
     ServerScreen.qml
     ServerStatusPage.qml
@@ -203,6 +215,14 @@ qt_add_qml_module(uzume_ui
     ServerSystemsPage.qml
     ServerSystemsFileDialog.qml
     ServerPluginsPage.qml
+    ServerSettingsPane.qml
+    ServerSettingsGeneral.qml
+    ServerSettingsNetwork.qml
+    ServerSettingsSignIn.qml
+    ServerSettingsUpdates.qml
+    ServerSettingsBackups.qml
+    ServerSettingsStorage.qml
+    ServerSettingsDiagnostics.qml
   RESOURCES
     fonts/IBMPlexSans-Light.ttf
     fonts/IBMPlexSans-Regular.ttf

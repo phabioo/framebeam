@@ -556,6 +556,14 @@ Rectangle {
                     }
                     }
                 }
+
+                // Admins: every run of every person with the actions the state allows (package 8, RunsAdminPanel).
+                RunsAdminPanel {
+                    Layout.fillWidth: true
+                    visible: root.player.admin.available
+                    player: root.player
+                    runId: root.runs.openRunId
+                }
             }
         }
     }

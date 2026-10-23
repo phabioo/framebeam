@@ -96,6 +96,16 @@ Rectangle {
     Connections {
         target: root.player
         function onSettingsSectionRequested(section: string) {
+            // "server:<page>" opens the Server scope on that page (admins with the admin area); anyone else gets the This PC section.
+            if (section.startsWith("server:")) {
+                const page = section.substring(7)
+                if (root.canSwitchScope && root.player.admin.available && serverPane.pages.some(function (p) { return p.id === page })) {
+                    serverPane.page = page
+                    root.scope = "server"
+                    return
+                }
+                section = page
+            }
             root.scope = "pc"
             Qt.callLater(function () { root.jumpTo(section) })
         }
@@ -265,6 +275,12 @@ Rectangle {
                             }
                         }
                     }
+
+                    // Settings for: Server (admins): the seven server pages of ServerSettingsPane.
+                    Repeater {
+                        model: root.scope === "server" ? serverPane.pages : []
+                        delegate: serverPane.navDelegate
+                    }
                 }
             }
         }
@@ -317,15 +333,11 @@ Rectangle {
                         lineHeightMode: Text.FixedHeight
                     }
                 }
-                // The server-wide settings arrive with the admin area; nothing of them exists in the app yet.
-                UzStateBlock {
-                    objectName: "settingsServerEmpty"
+                // Server settings (3q-app-1 to 3q-app-7): the pages are chosen in the second column, shown here.
+                ServerSettingsPane {
+                    id: serverPane
                     visible: root.scope === "server"
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: 520
-                    kind: "empty"
-                    title: qsTr("Nothing to set here yet")
-                    text: qsTr("Server settings arrive with the admin area.")
+                    player: root.player
                 }
 
                 // ------------------------------------------------------------------ UPDATES

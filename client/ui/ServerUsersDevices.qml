@@ -111,7 +111,7 @@ ColumnLayout {
                 { key: "device", title: qsTr("Device"), fill: 1.4 },
                 { key: "app", title: qsTr("App"), width: 90, mono: true },
                 { key: "seen", title: qsTr("Last seen"), width: 100, mono: true },
-                { key: "action", title: "", width: 110, align: "right", custom: true }
+                { key: "action", title: "", width: 200, align: "right", custom: true }
             ]
             rows: root.page.deviceRows
             cellDelegate: Component {
@@ -120,14 +120,25 @@ ColumnLayout {
                     property var row: null
                     property var column: null
                     implicitHeight: 32
-                    UzButton {
-                        objectName: "signOutDevice_" + (cell.row ? cell.row.id : "")
+                    Row {
                         anchors.right: parent.right
-                        visible: cell.row !== null && cell.row.trusted === true
-                        size: "sm"
-                        kind: "ghost"
-                        text: qsTr("Sign out")
-                        onClicked: root.page.signOutDevice(cell.row)
+                        spacing: Theme.space05
+                        UzButton {
+                            objectName: "renameDevice_" + (cell.row ? cell.row.id : "")
+                            visible: cell.row !== null && cell.row.trusted === true
+                            size: "sm"
+                            kind: "ghost"
+                            text: qsTr("Rename…")
+                            onClicked: root.page.renameDevice(cell.row)
+                        }
+                        UzButton {
+                            objectName: "signOutDevice_" + (cell.row ? cell.row.id : "")
+                            visible: cell.row !== null && cell.row.trusted === true
+                            size: "sm"
+                            kind: "ghost"
+                            text: qsTr("Sign out")
+                            onClicked: root.page.signOutDevice(cell.row)
+                        }
                     }
                 }
             }

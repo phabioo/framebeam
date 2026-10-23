@@ -283,6 +283,7 @@ void FakeHub::handleAdmin(QSslSocket* sock, const FakeRequest& req) {
   ++adminCalls[callKey];
   lastAdminBody = req.body;
   adminBodies[callKey] = req.body;
+  if (adminHook) adminHook(callKey);
   if (adminRoutes.contains(callKey)) {
     const AdminRoute& route = adminRoutes[callKey];
     respond(sock, route.status, route.body);
@@ -379,9 +380,24 @@ bool FakeHub::handleDirectory(QSslSocket* sock, const FakeRequest& req, const QS
   const QString action = seg.value(2);
 
   if (kind == QLatin1String("users")) {
+    if (action == QLatin1String("games")) return false;   // a person's saves (/admin/users/{id}/games/...) use adminRoutes
     if (seg.size() == 1 && m == "GET") {
       count();
       respond(sock, 200, json({{QStringLiteral("users"), dirUsers}}));
+      return true;
+    }
+    if (seg.size() == 1 && m == "POST") {   // add a person directly: the person and a one-time pairing code
+      count();
+      const QString dn = body.value(QStringLiteral("display_name")).toString().trimmed();
+      if (dn.isEmpty()) { err(400, QStringLiteral("bad_request"), QStringLiteral("Name is required")); return true; }
+      const QJsonObject nu{{QStringLiteral("id"), QStringLiteral("u_new")}, {QStringLiteral("username"), dn.toLower()},
+                           {QStringLiteral("display_name"), dn}, {QStringLiteral("role"), QStringLiteral("user")},
+                           {QStringLiteral("disabled"), false}, {QStringLiteral("created_at"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
+                           {QStringLiteral("devices"), 0}};
+      dirUsers.append(nu);
+      respond(sock, 201, json({{QStringLiteral("user"), nu},
+                               {QStringLiteral("pairing_code"), QJsonObject{{QStringLiteral("code"), QStringLiteral("UZ-NEW1-2345")},
+                                                                             {QStringLiteral("expires_at"), QDateTime::currentDateTimeUtc().addDays(1).toString(Qt::ISODate)}}}}));
       return true;
     }
     const int i = find(dirUsers, QStringLiteral("id"), id);
@@ -393,7 +409,10 @@ bool FakeHub::handleDirectory(QSslSocket* sock, const FakeRequest& req, const QS
     const QJsonObject u = dirUsers.at(i).toObject();
     const bool isAdmin = u.value(QStringLiteral("role")).toString() == QLatin1String("admin");
     count();
-    if (m == "DELETE" && seg.size() == 2) {
+    if (m == "PATCH" && seg.size() == 2) {   // rename
+      edit(dirUsers, i, QStringLiteral("display_name"), body.value(QStringLiteral("display_name")).toString());
+      respond(sock, 200, json(dirUsers.at(i).toObject()));
+    } else if (m == "DELETE" && seg.size() == 2) {
       if (isAdmin) { err(403, QStringLiteral("forbidden"), QStringLiteral("Admins cannot be deleted")); return true; }
       dirUsers.removeAt(i);
       respond(sock, 204, {});
@@ -436,6 +455,11 @@ bool FakeHub::handleDirectory(QSslSocket* sock, const FakeRequest& req, const QS
     }
     const int i = find(dirDevices, QStringLiteral("id"), id);
     if (i < 0) { err(404, QStringLiteral("not_found"), QStringLiteral("Unknown device")); return true; }
+    if (m == "PATCH" && seg.size() == 2) {   // rename
+      edit(dirDevices, i, QStringLiteral("name"), body.value(QStringLiteral("name")).toString());
+      respond(sock, 200, json(dirDevices.at(i).toObject()));
+      return true;
+    }
     if (action == QLatin1String("revoke")) {
       edit(dirDevices, i, QStringLiteral("status"), QStringLiteral("revoked"));
       edit(dirDevices, i, QStringLiteral("online"), false);

@@ -3,6 +3,7 @@
 // In-process fake Uzume server for tests (HTTPS with a test certificate from tests/testdata, or HTTP).
 // Test code only; tokens/credentials are dummy values.
 
+#include <functional>
 #include <QByteArray>
 #include <QElapsedTimer>
 #include <QHash>
@@ -179,6 +180,9 @@ class FakeHub : public QTcpServer {
   };
   QMap<QString, AdminRoute> adminRoutes;
   QMap<QString, QByteArray> adminBodies;
+  // Called with the call key after the request was counted and before the answer is chosen: a test changes `adminRoutes` here to make a
+  // route stateful (a backup that starts, then runs, then is done).
+  std::function<void(const QString&)> adminHook;
   static QJsonObject sampleAdminStatus();
 
   // Users, devices, invites, pairing requests and reports (admin pages Users and Reports): with `adminDirectory` the routes below

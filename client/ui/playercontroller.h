@@ -128,6 +128,13 @@ class PlayerController : public QObject {
   Q_PROPERTY(uzume::ui::AdminController* admin READ admin CONSTANT)
   // Page of the "server" screen: status | users | systems | plugins | reports
   Q_PROPERTY(QString serverPage READ serverPage NOTIFY serverPageChanged)
+  // Versions (accounts-and-server.md 8k-2): the server's version from the handshake and how it relates to this app:
+  // "same" | "server_older" | "app_older" | "unknown" (a version that is not SemVer, or no connection).
+  Q_PROPERTY(QString hubVersion READ hubVersion NOTIFY hubChanged)
+  Q_PROPERTY(QString versionRelation READ versionRelation NOTIFY hubChanged)
+  // Setup assistant (7a): shown over the current screen; showSetupAssistant() is the entry point for the first start
+  // and "Run setup again". Admins of a server with the admin pages only.
+  Q_PROPERTY(bool setupAssistantOpen READ setupAssistantOpen NOTIFY setupAssistantChanged)
   // "Set up a Hub on this PC" (connection screen, pairing form, Settings > Hubs)
   Q_PROPERTY(uzume::ui::LocalHubController* localHub READ localHub CONSTANT)
   // Plugins (Settings > Plugins, Plugin console tab of the game panel)
@@ -204,6 +211,9 @@ class PlayerController : public QObject {
   QString deviceName() const;
   QString userName() const;
   bool isAdmin() const;
+  QString hubVersion() const;
+  QString versionRelation() const;
+  bool setupAssistantOpen() const { return setupAssistantOpen_; }
   QString playerVersion() const;
   QString platformText() const;
   // A game or a watched Session is running (updates are never applied then).
@@ -325,6 +335,8 @@ class PlayerController : public QObject {
   // Admin area: screen "server" on a page (status | users | systems | plugins | reports; unknown -> status). Only for
   // admins of a server with admin_v1 (otherwise the screen shows the member block); reads the server status again.
   Q_INVOKABLE void showServerPage(const QString& page);
+  Q_INVOKABLE void showSetupAssistant();
+  Q_INVOKABLE void hideSetupAssistant();
   // "Plugin settings" / "Notice settings…": Settings -> Plugins (pluginId highlights its row; empty = the section only).
   Q_INVOKABLE void showPluginSettings(const QString& pluginId = QString());
   // "Upload ROM": source = local path or file:// URL (from the file dialog). Streamed; progress in upload.
@@ -355,6 +367,7 @@ class PlayerController : public QObject {
   void screenChanged();
   void pluginScreenRequested(const QString& pluginId);
   void serverPageChanged();
+  void setupAssistantChanged();
   void settingsSectionRequested(const QString& section);
   // Settings screen: scroll to a section ("plugins") and highlight a plugin row.
   void pluginSettingsRequested(const QString& pluginId);
@@ -473,6 +486,7 @@ class PlayerController : public QObject {
   QString screen_ = QStringLiteral("connection");
   QString page_ = QStringLiteral("library");  // page shown while connected: library | settings | emulation | controllers | plugin
   QString serverPage_ = QStringLiteral("status");
+  bool setupAssistantOpen_ = false;
   bool inviteBusy_ = false;
   std::unique_ptr<LocalRomIndex> localRoms_;
   std::unique_ptr<UploadController> uploads_;  // ROM upload state (declared after localRoms_, model_, manifests_)

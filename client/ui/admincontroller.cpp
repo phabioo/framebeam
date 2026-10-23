@@ -1,5 +1,8 @@
 #include "admincontroller.h"
 
+#include <QCryptographicHash>
+#include <QFile>
+#include <QFileInfo>
 #include <QJSValue>
 #include <QTimer>
 #include <QVariantList>
@@ -105,12 +108,12 @@ int AdminController::request(const QString& method, const QString& path, const Q
   return id;
 }
 
-int AdminController::download(const QString& path, const QString& fileUrlOrPath) {
+int AdminController::download(const QString& path, const QString& fileUrlOrPath, const QString& method) {
   Pending p;
   p.id = nextId_++;
   const QString file = AdminApi::localPath(fileUrlOrPath);
-  p.start = [this, path, file](const Pending& self) {
-    api_.download(path, file, [this, self](const AdminApi::Result& r) { onResult(self, r); });
+  p.start = [this, path, file, method](const Pending& self) {
+    api_.download(path, file, [this, self](const AdminApi::Result& r) { onResult(self, r); }, method);
   };
   p.deliver = [this, id = p.id](const AdminApi::Result& r) { emit downloadFinished(id, r.ok, r.filePath, r.message); };
   const int id = p.id;
@@ -118,17 +121,33 @@ int AdminController::download(const QString& path, const QString& fileUrlOrPath)
   return id;
 }
 
-int AdminController::upload(const QString& method, const QString& path, const QString& fileUrlOrPath, const QString& contentType) {
+int AdminController::upload(const QString& method, const QString& path, const QString& fileUrlOrPath, const QString& contentType,
+                            const QVariantMap& headerMap) {
   Pending p;
   p.id = nextId_++;
   const QString file = AdminApi::localPath(fileUrlOrPath);
-  p.start = [this, method, path, file, contentType](const Pending& self) {
-    api_.upload(method, path, file, contentType, [this, self](const AdminApi::Result& r) { onResult(self, r); });
+  HttpHeaders headers;
+  for (auto it = headerMap.cbegin(); it != headerMap.cend(); ++it) headers.append({it.key().toLatin1(), it.value().toString().toLatin1()});
+  p.start = [this, method, path, file, contentType, headers](const Pending& self) {
+    api_.upload(method, path, file, contentType, [this, self](const AdminApi::Result& r) { onResult(self, r); }, headers);
   };
   p.deliver = [this, id = p.id](const AdminApi::Result& r) { emit replied(id, r.ok, r.status, r.data, r.code, r.message); };
   const int id = p.id;
   launch(std::move(p));
   return id;
+}
+
+QString AdminController::sha256OfFile(const QString& fileUrlOrPath) const {
+  QFile f(AdminApi::localPath(fileUrlOrPath));
+  if (!f.open(QIODevice::ReadOnly)) return {};
+  QCryptographicHash h(QCryptographicHash::Sha256);
+  if (!h.addData(&f)) return {};
+  return QString::fromLatin1(h.result().toHex());
+}
+
+qint64 AdminController::sizeOfFile(const QString& fileUrlOrPath) const {
+  const QFileInfo fi(AdminApi::localPath(fileUrlOrPath));
+  return fi.isFile() ? fi.size() : -1;
 }
 
 void AdminController::onResult(const Pending& p, const AdminApi::Result& r) {
