@@ -588,6 +588,11 @@ void SessionViewer::sendRxReport(double videoKbps, double decodedFps) {
   }
 }
 
+QString SessionViewer::iceSummary() const {
+  return QStringLiteral("state=%1 gathering=%2 local=%3 remote=%4")
+      .arg(pcState_.isEmpty() ? QStringLiteral("new") : pcState_, ice_.gatheringComplete ? QStringLiteral("complete") : QStringLiteral("pending"), ice_.local.text(), ice_.remote.text());
+}
+
 SessionStats SessionViewer::stats() const {
   SessionStats s = stats_;
   s.active = connected_;

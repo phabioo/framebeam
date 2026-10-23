@@ -28,7 +28,7 @@ func newHost(t *testing.T, mod func(*Config)) (*Server, *hub.Service, *int) {
 	t.Helper()
 	svc, _, _ := hubtest.OpenIn(t, t.TempDir(), nil)
 	restarts := new(int)
-	cfg := Config{Listen: ":8443", Net: NetConfig{Base: baseNet(), Running: baseNet(), RequestRestart: func() { *restarts++ }}}
+	cfg := Config{Listen: ":8443", Net: NetConfig{Base: baseNet(), Running: baseNet(), RequestRestart: func() { *restarts++ }, TestBind: fakeBind()}}
 	if mod != nil {
 		mod(&cfg)
 	}
@@ -37,14 +37,19 @@ func newHost(t *testing.T, mod func(*Config)) (*Server, *hub.Service, *int) {
 
 func val(v string) url.Values { return url.Values{"value": {v}} }
 
-func freePort(t *testing.T) int {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
+// testPort is a listen port for tests; with fakeBind it needs no real socket, so the OS cannot interfere.
+const testPort = 28443
+
+// fakeBind is a deterministic test bind: every address works except those ending in ":<busy port>".
+func fakeBind(busy ...int) func(string) error {
+	return func(addr string) error {
+		for _, p := range busy {
+			if strings.HasSuffix(addr, ":"+strconv.Itoa(p)) {
+				return errors.New("address already in use")
+			}
+		}
+		return nil
 	}
-	defer ln.Close()
-	return ln.Addr().(*net.TCPAddr).Port
 }
 
 func isValidation(err error) bool {
@@ -79,7 +84,7 @@ func TestNetSavePrecedenceResetAndPending(t *testing.T) {
 		t.Fatalf("pending after reset: %v", st.Pending)
 	}
 	// A listen port that can be bound keeps the host part and is pending.
-	p := freePort(t)
+	p := testPort
 	if err := h.SaveNet(bg, config.NetListenPort, val(strconv.Itoa(p))); err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +109,8 @@ func TestNetSaveValidation(t *testing.T) {
 			t.Errorf("%s=%s: %v", c.key, c.v, err)
 		}
 	}
-	// A listen port that is in use is refused.
+	// A listen port that is in use is refused (the real bind check, on a port this test holds).
+	h, _, _ = newHost(t, func(c *Config) { c.Net.TestBind = nil })
 	busy, err := net.Listen("tcp", ":0") // wildcard like the test bind
 	if err != nil {
 		t.Fatal(err)
@@ -185,14 +191,9 @@ func TestNetResetValidatesResult(t *testing.T) {
 	}
 
 	// A base listen port that is occupied now cannot be restored.
-	busy, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer busy.Close()
-	bp := busy.Addr().(*net.TCPAddr).Port
-	h2, svc2, _ := newHost(t, func(c *Config) { c.Net.Base.Listen = "127.0.0.1:" + strconv.Itoa(bp) })
-	if err := h2.SaveNet(bg, config.NetListenPort, val(strconv.Itoa(freePort(t)))); err != nil {
+	const bp = testPort + 1
+	h2, svc2, _ := newHost(t, func(c *Config) { c.Net.Base.Listen = "127.0.0.1:" + strconv.Itoa(bp); c.Net.TestBind = fakeBind(bp) })
+	if err := h2.SaveNet(bg, config.NetListenPort, val(strconv.Itoa(testPort))); err != nil {
 		t.Fatal(err)
 	}
 	err = h2.ResetNet(bg, config.NetListenPort)
@@ -224,7 +225,7 @@ func TestNetStartupIssues(t *testing.T) {
 		t.Fatalf("%v", st.Pending)
 	}
 	// Changing the value clears the issue and makes the change pending again.
-	if err := h.SaveNet(bg, config.NetListenPort, val(strconv.Itoa(freePort(t)))); err != nil {
+	if err := h.SaveNet(bg, config.NetListenPort, val(strconv.Itoa(testPort))); err != nil {
 		t.Fatal(err)
 	}
 	st, _ = h.NetState(bg)
@@ -246,7 +247,7 @@ func TestPrepareRestart(t *testing.T) {
 	if *restarts != 1 {
 		t.Fatalf("restarts: %d", *restarts)
 	}
-	p := freePort(t)
+	p := testPort
 	if err := h.SaveNet(bg, config.NetListenPort, val(strconv.Itoa(p))); err != nil {
 		t.Fatal(err)
 	}

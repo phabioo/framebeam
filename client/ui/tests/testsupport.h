@@ -302,6 +302,31 @@ struct Harness {
     }
     return out;
   }
+  // True if `it` is covered by an open UzDialog: a visible "dialogScrim" swallows clicks unless the target lives inside that
+  // dialog (descendant of the scrim's parent) or is stacked above it (compare paint order below the common ancestor, e.g. a
+  // popup parented to the window contentItem with a higher z).
+  bool coveredByDialog(QQuickItem* it) const {
+    QList<QQuickItem*> scrims = items("dialogScrim");
+    for (QQuickItem* scrim : std::as_const(scrims)) {
+      if (!scrim->isVisible() || scrim == it) continue;
+      QQuickItem* dlg = scrim->parentItem();
+      if (dlg != nullptr && (dlg == it || dlg->isAncestorOf(it))) continue;
+      QQuickItem* common = scrim->parentItem();
+      while (common != nullptr && !common->isAncestorOf(it)) common = common->parentItem();
+      if (common == nullptr) continue;
+      QQuickItem* bs = scrim;
+      while (bs->parentItem() != common) bs = bs->parentItem();
+      QQuickItem* bt = it;
+      while (bt->parentItem() != common) bt = bt->parentItem();
+      const QList<QQuickItem*> order = common->childItems();
+      QList<QQuickItem*> paint;
+      for (QQuickItem* c : order) paint.append(c);
+      std::stable_sort(paint.begin(), paint.end(), [](QQuickItem* a, QQuickItem* b) { return a->z() < b->z(); });
+      if (paint.indexOf(bt) < paint.indexOf(bs)) return true;
+    }
+    return false;
+  }
+
   // Click for a control that appears as the result of an earlier click or state change (a popover opened by the previous
   // click instantiates its content one event-loop turn later): waits until an item of that name is visible and enabled, then
   // clicks. click() alone fails at once when the item is not there yet, which under load made tests flaky.
@@ -310,7 +335,7 @@ struct Harness {
         [&]() {
           QQuickTest::qWaitForPolish(window);
           for (QQuickItem* c : items(objectName)) {
-            if (c->isVisible() && c->isEnabled()) return true;
+            if (c->isVisible() && c->isEnabled() && !coveredByDialog(c)) return true;
           }
           return false;
         },
@@ -333,6 +358,11 @@ struct Harness {
       }
     }
     if (it == nullptr) {
+      return false;
+    }
+    if (coveredByDialog(it)) {
+      qWarning("[uitest] click on '%s' lost: covered by an open dialog (its dialogScrim swallows the click); wait for the dialog to close",
+               objectName);
       return false;
     }
     // Scroll every Flickable ancestor so that the item is inside its viewport (a panel whose content grew, or

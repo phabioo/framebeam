@@ -30,6 +30,7 @@ if(BUILD_TESTING)
   # Generator for the homebrew test ROM (plain C++, also runs on Windows CI).
   add_executable(uzume_make_test_rom tools/make_test_rom.cpp)
   uzume_warnings(uzume_make_test_rom)
+  uzume_vcpkg_runtime(uzume_make_test_rom)
 
   # The test ROM is generated only in the build directory, never in the repo.
   set(FB_TEST_ROM ${CMAKE_CURRENT_BINARY_DIR}/uzume_test.nds)

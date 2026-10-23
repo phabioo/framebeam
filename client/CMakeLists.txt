@@ -52,6 +52,58 @@ function(uzume_warnings target)
   endif()
 endfunction()
 
+# vcpkg runtime DLLs next to the executables (Windows, vcpkg toolchain).
+# vcpkg's own mechanism (VCPKG_APPLOCAL_DEPS) attaches a POST_BUILD "z-applocal" step to EVERY add_executable. With
+# ~100 test executables plus the app/CLI/tools, Ninja runs many of them in parallel, several of which write the same
+# DLLs into the same output directory, and one fails with "The process cannot access the file because it is being
+# used by another process". So the per-executable step is switched off for the whole client tree (a normal variable
+# shadows the cache option; the toolchain reads it at add_executable time) and replaced by uzume_vcpkg_runtime():
+# exactly ONE copy target per output directory (copy_if_different + stamp), which every executable in that directory
+# depends on. Executables stay where they are (on Windows all in the top build dir; CI reruns tests from their directory and takes the app DLLs from the
+# app directory, with vcpkg_installed/<triplet>/bin as the fallback). No-op off Windows/vcpkg.
+set(UZUME_VCPKG_DLLS "")
+if(WIN32 AND VCPKG_APPLOCAL_DEPS AND DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+  set(_uzume_vcpkg_bin "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND IS_DIRECTORY "${_uzume_vcpkg_bin}/debug/bin")
+    string(APPEND _uzume_vcpkg_bin "/debug/bin")
+  else()
+    string(APPEND _uzume_vcpkg_bin "/bin")
+  endif()
+  file(GLOB UZUME_VCPKG_DLLS "${_uzume_vcpkg_bin}/*.dll")
+  if(UZUME_VCPKG_DLLS)
+    set(VCPKG_APPLOCAL_DEPS OFF)  # directory scope: inherited by every add_subdirectory below
+  else()
+    message(WARNING "No vcpkg runtime DLLs found in ${_uzume_vcpkg_bin}; keeping vcpkg's applocal step")
+  endif()
+endif()
+
+# uzume_vcpkg_runtime(<exe target>): call right after creating the executable (keyed by its real output directory). The first call per directory creates the copy target, later ones only add the dependency.
+function(uzume_vcpkg_runtime target)
+  if(NOT UZUME_VCPKG_DLLS)
+    return()
+  endif()
+  # Real output directory: the target's RUNTIME_OUTPUT_DIRECTORY (initialised from CMAKE_RUNTIME_OUTPUT_DIRECTORY, which
+  # qt_standard_project_setup() sets to the top build dir on Windows), else the current binary dir.
+  get_target_property(outdir ${target} RUNTIME_OUTPUT_DIRECTORY)
+  if(NOT outdir)
+    set(outdir "${CMAKE_CURRENT_BINARY_DIR}")
+  endif()
+  file(RELATIVE_PATH rel "${CMAKE_BINARY_DIR}" "${outdir}")
+  string(MAKE_C_IDENTIFIER "root_${rel}" slug)
+  set(copy_target uzume_vcpkg_dlls_${slug})
+  if(NOT TARGET ${copy_target})
+    set(stamp "${CMAKE_BINARY_DIR}/uzume_vcpkg_dlls/${slug}.stamp")
+    add_custom_command(OUTPUT "${stamp}"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${UZUME_VCPKG_DLLS} "${outdir}"
+      COMMAND ${CMAKE_COMMAND} -E touch "${stamp}"
+      DEPENDS ${UZUME_VCPKG_DLLS}
+      COMMENT "Copying vcpkg runtime DLLs to ${rel}"
+      VERBATIM)
+    add_custom_target(${copy_target} DEPENDS "${stamp}")
+  endif()
+  add_dependencies(${target} ${copy_target})
+endfunction()
+
 # uzume_add_test(<name> <sources...> [LIBS <libs...>] [NEEDS_CORE])
 # QtTest/plain test as executable test_<name>, ctest name <name>, runs with QT_QPA_PLATFORM=offscreen.
 # NEEDS_CORE: passes UZUME_MELONDS_DS_CORE as an environment variable; if the core is not set,
@@ -71,6 +123,7 @@ function(uzume_add_test name)
   target_link_libraries(test_${name} PRIVATE Qt6::Test ${ARG_LIBS})
   target_include_directories(test_${name} PRIVATE ${UZUME_TESTUTIL_DIR})
   uzume_warnings(test_${name})
+  uzume_vcpkg_runtime(test_${name})
   add_test(NAME ${name} COMMAND test_${name})
   set(env "QT_QPA_PLATFORM=offscreen" "QT_QUICK_BACKEND=software")
   if(ARG_NEEDS_CORE)

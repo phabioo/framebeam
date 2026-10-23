@@ -70,6 +70,8 @@ class SessionViewer : public QObject {
   // Video access units or decoded pictures dropped because the decoder or the UI thread fell behind (PN-6).
   qint64 droppedVideoFrames() const { return droppedVideo_; }
   SessionStats stats() const;
+  // One-line ICE state for diagnostics (state, gathering, candidate counts).
+  QString iceSummary() const;
   ViewerLinkStats link() const;
   // Host state signal (ADR 0026 D3): the owner paused or resumed its game. False / empty until the host says otherwise
   // (older hosts never do). Reset when the connection is closed.
