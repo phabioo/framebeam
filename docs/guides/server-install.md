@@ -73,7 +73,7 @@ At the end the script prints the service status, the URL (`https://<ip>:<port>/`
 A server without an admin prints a **setup banner** at every start (address, security code, setup code) to its output; on systemd read it with `journalctl -u uzume-server -n 30`. In Uzume on another PC choose Set up a server › On another device, enter the address and the setup code, compare the security code and create the admin account. Ask for the banner values or a new code any time:
 
 ```sh
-sudo uzume-server status        # version, address, security code, current setup code (or: set up)
+sudo uzume-server status        # version, address, security code, setup code while the server runs (or: set up)
 sudo uzume-server setup-code    # a new setup code, valid 60 minutes, works once
 sudo uzume-server code          # the security code of the certificate
 ```
