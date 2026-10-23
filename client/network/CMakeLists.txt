@@ -25,6 +25,7 @@ target_sources(uzume_core PRIVATE
   connectionprobes.cpp
   reportuploader.cpp
   accountapi.cpp
+  adminapi.cpp
 )
 target_link_libraries(uzume_core PUBLIC Qt6::WebSockets)
 target_include_directories(uzume_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

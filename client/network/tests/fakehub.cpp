@@ -162,6 +162,374 @@ void FakeHub::respondError(QSslSocket* sock, int status, const QString& code) {
               .toJson(QJsonDocument::Compact));
 }
 
+bool FakeHub::confirmed() const { return confirmedUntil_.isValid() && confirmedUntil_ > QDateTime::currentDateTimeUtc(); }
+
+QJsonObject FakeHub::sampleAdminStatus() {
+  const QDateTime now = QDateTime::currentDateTimeUtc();
+  return QJsonObject{
+      {QStringLiteral("hub_name"), QStringLiteral("Home server")},
+      {QStringLiteral("hub_version"), QStringLiteral("0.18.0")},
+      {QStringLiteral("uptime_seconds"), 12 * 86400 + 4 * 3600 + 120},
+      {QStringLiteral("public_address"), QStringLiteral("server.example.com:8443")},
+      {QStringLiteral("time"), now.toString(Qt::ISODate)},
+      {QStringLiteral("problems"),
+       QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("backup_disk")},
+                              {QStringLiteral("title"), QStringLiteral("Backup disk 92 %")},
+                              {QStringLiteral("detail"), QStringLiteral("Backup disk is 92 % full. Tonight's backup may not fit.")},
+                              {QStringLiteral("severity"), QStringLiteral("warn")}}}},
+      {QStringLiteral("cpu_percent"), 18.4},
+      {QStringLiteral("memory"), QJsonObject{{QStringLiteral("process_bytes"), 80LL * 1024 * 1024},
+                                             {QStringLiteral("system_total_bytes"), 4LL * 1024 * 1024 * 1024},
+                                             {QStringLiteral("system_used_bytes"), 1288490188LL}}},
+      {QStringLiteral("disk"), QJsonObject{{QStringLiteral("total_bytes"), 100LL * 1000 * 1000 * 1000},
+                                           {QStringLiteral("free_bytes"), 39LL * 1000 * 1000 * 1000}}},
+      {QStringLiteral("backup_disk"), QJsonObject{{QStringLiteral("folder"), QStringLiteral("/mnt/backup")},
+                                                  {QStringLiteral("total_bytes"), 50LL * 1000 * 1000 * 1000},
+                                                  {QStringLiteral("free_bytes"), 4LL * 1000 * 1000 * 1000}}},
+      {QStringLiteral("sessions"),
+       QJsonArray{QJsonObject{{QStringLiteral("game_title"), QStringLiteral("Harbor Rally")},
+                              {QStringLiteral("owner"), QStringLiteral("Max")},
+                              {QStringLiteral("device_name"), QStringLiteral("Desktop-LivingRoom")},
+                              {QStringLiteral("visibility"), QStringLiteral("hub_users")},
+                              {QStringLiteral("started_at"), now.addSecs(-1500).toString(Qt::ISODate)},
+                              {QStringLiteral("viewers"), 2}}}},
+      {QStringLiteral("viewers"), 2},
+      {QStringLiteral("turn"), QJsonObject{{QStringLiteral("allocations"), 3}, {QStringLiteral("relay_ports"), 100}}},
+      {QStringLiteral("players"),
+       QJsonArray{QJsonObject{{QStringLiteral("device_name"), QStringLiteral("Desktop-LivingRoom")},
+                              {QStringLiteral("user"), QStringLiteral("Max")},
+                              {QStringLiteral("version"), QStringLiteral("0.18.0")},
+                              {QStringLiteral("state"), QStringLiteral("in_session")},
+                              {QStringLiteral("outdated"), false}},
+                  QJsonObject{{QStringLiteral("device_name"), QStringLiteral("Laptop-Jonas")},
+                              {QStringLiteral("user"), QStringLiteral("Jonas")},
+                              {QStringLiteral("version"), QStringLiteral("0.16.2")},
+                              {QStringLiteral("state"), QStringLiteral("idle")},
+                              {QStringLiteral("outdated"), true}}}},
+      {QStringLiteral("errors"),
+       QJsonArray{QJsonObject{{QStringLiteral("time"), now.addSecs(-600).toString(Qt::ISODate)},
+                              {QStringLiteral("level"), QStringLiteral("warn")},
+                              {QStringLiteral("message"), QStringLiteral("backup folder is almost full")}}}},
+      {QStringLiteral("metrics_enabled"), false}};
+}
+
+void FakeHub::handleAdmin(QSslSocket* sock, const FakeRequest& req) {
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  const auto errorWith = [&](int status, const QString& code, const QString& message, int retryAfter = 0) {
+    QJsonObject e{{QStringLiteral("code"), code}, {QStringLiteral("message"), message}};
+    if (retryAfter > 0) e.insert(QStringLiteral("retry_after"), retryAfter);
+    respond(sock, status, json({{QStringLiteral("error"), e}}));
+  };
+  const QString path = req.path.section(QLatin1Char('?'), 0, 0);
+  const QJsonObject body = QJsonDocument::fromJson(req.body).object();
+
+  if (path == QLatin1String("/api/v1/account/confirm")) {
+    if (req.method == "DELETE") {
+      ++confirmDeletes;
+      confirmedUntil_ = QDateTime();
+      respond(sock, 204, {});
+      return;
+    }
+    ++confirmPosts;
+    if (!accountHasPassword) {
+      errorWith(409, QStringLiteral("password_not_set"), QStringLiteral("This account has no password"));
+      return;
+    }
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    if (confirmLockedUntil_.isValid() && confirmLockedUntil_ > now) {
+      errorWith(429, QStringLiteral("rate_limited"), QStringLiteral("Too many tries"), static_cast<int>(now.secsTo(confirmLockedUntil_)));
+      return;
+    }
+    if (body.value(QStringLiteral("password")).toString() != accountPassword) {
+      if (++confirmWrong_ >= 3) {
+        confirmWrong_ = 0;
+        confirmLockedUntil_ = now.addSecs(confirmLockSeconds);
+        errorWith(429, QStringLiteral("rate_limited"), QStringLiteral("Too many tries"), confirmLockSeconds);
+      } else {
+        errorWith(401, QStringLiteral("invalid_credentials"), QStringLiteral("Invalid credentials"));
+      }
+      return;
+    }
+    confirmWrong_ = 0;
+    confirmedUntil_ = now.addSecs(body.value(QStringLiteral("duration_seconds")).toInt(300));
+    respond(sock, 200, json({{QStringLiteral("confirmed_until"), confirmedUntil_.toString(Qt::ISODate)}}));
+    return;
+  }
+  if (!adminUser) {
+    errorWith(403, QStringLiteral("forbidden"), QStringLiteral("Admins only"));
+    return;
+  }
+  if (confirmRequiredPaths.contains(path) && !confirmed()) {
+    errorWith(403, QStringLiteral("confirmation_required"), QStringLiteral("Confirm it's you first"));
+    return;
+  }
+  if (path == QLatin1String("/api/v1/admin/status") && req.method == "GET") {
+    ++adminStatusRequests;
+    if (adminStatusDown) {
+      errorWith(503, QStringLiteral("internal"), QStringLiteral("down"));
+      return;
+    }
+    respond(sock, 200, json(adminStatus.isEmpty() ? sampleAdminStatus() : adminStatus));
+    return;
+  }
+  if (path == QLatin1String("/api/v1/admin/status/log") && req.method == "GET") {
+    ++adminCalls[QStringLiteral("GET ") + path];
+    respond(sock, 200, adminLog, "text/plain",
+            {{"Content-Disposition", "attachment; filename=\"uzume-server-log-20261022-081500.txt\""}});
+    return;
+  }
+  if (adminDirectory && handleDirectory(sock, req, path, body)) return;
+  const QString callKey = QString::fromLatin1(req.method) + QLatin1Char(' ') + path;
+  ++adminCalls[callKey];
+  lastAdminBody = req.body;
+  adminBodies[callKey] = req.body;
+  if (adminRoutes.contains(callKey)) {
+    const AdminRoute& route = adminRoutes[callKey];
+    respond(sock, route.status, route.body);
+    return;
+  }
+  respond(sock, 200, json({{QStringLiteral("ok"), true}, {QStringLiteral("path"), path}}));
+}
+
+void FakeHub::fillDirectory() {
+  if (!dirUsers.isEmpty()) return;
+  const auto at = [](int minutesAgo) { return QDateTime::currentDateTimeUtc().addSecs(-60 * minutesAgo).toString(Qt::ISODate); };
+  const auto user = [&](const char* id, const char* name, const char* role, int devices, int seenMinutes, bool disabled = false) {
+    QJsonObject o{{QStringLiteral("id"), QString::fromLatin1(id)}, {QStringLiteral("username"), QString::fromLatin1(name).toLower()},
+                  {QStringLiteral("display_name"), QString::fromLatin1(name)}, {QStringLiteral("role"), QString::fromLatin1(role)},
+                  {QStringLiteral("disabled"), disabled}, {QStringLiteral("created_at"), at(60 * 24 * 40)},
+                  {QStringLiteral("devices"), devices}};
+    if (seenMinutes >= 0) o.insert(QStringLiteral("last_seen_at"), at(seenMinutes));
+    return o;
+  };
+  dirUsers = QJsonArray{user("u_test_1", "Tester", "admin", 1, 0), user("u_2", "Lena", "user", 1, 95), user("u_3", "Jonas", "user", 1, 35)};
+  const auto device = [&](const char* id, const char* userId, const char* userName, const char* name, bool online, int seen) {
+    return QJsonObject{{QStringLiteral("id"), QString::fromLatin1(id)}, {QStringLiteral("user_id"), QString::fromLatin1(userId)},
+                       {QStringLiteral("user_name"), QString::fromLatin1(userName)}, {QStringLiteral("name"), QString::fromLatin1(name)},
+                       {QStringLiteral("platform"), QStringLiteral("windows")}, {QStringLiteral("arch"), QStringLiteral("x86_64")},
+                       {QStringLiteral("player_version"), QStringLiteral("0.17.0")}, {QStringLiteral("status"), QStringLiteral("trusted")},
+                       {QStringLiteral("online"), online}, {QStringLiteral("created_at"), at(60 * 24 * 30)},
+                       {QStringLiteral("last_seen_at"), at(seen)}};
+  };
+  dirDevices = QJsonArray{device("d_1", "u_test_1", "Tester", "Desktop-LivingRoom", true, 0), device("d_2", "u_2", "Lena", "Lena-Laptop", false, 95),
+                          device("d_3", "u_3", "Jonas", "Jonas-Laptop", false, 35)};
+  const auto request = [&](const char* id, const char* name, const char* userId) {
+    QJsonObject o{{QStringLiteral("id"), QString::fromLatin1(id)}, {QStringLiteral("device_id"), QStringLiteral("dev_") + QString::fromLatin1(id)},
+                  {QStringLiteral("device_name"), QString::fromLatin1(name)}, {QStringLiteral("platform"), QStringLiteral("windows")},
+                  {QStringLiteral("arch"), QStringLiteral("x86_64")}, {QStringLiteral("player_version"), QStringLiteral("0.17.0")},
+                  {QStringLiteral("protocol_version"), 1}, {QStringLiteral("status"), QStringLiteral("pending")},
+                  {QStringLiteral("created_at"), at(20)}, {QStringLiteral("expires_at"), at(-60 * 24)}};
+    if (userId && *userId) o.insert(QStringLiteral("user_id"), QString::fromLatin1(userId));
+    return o;
+  };
+  dirRequests = QJsonArray{request("r_1", "Lena-PC", "u_2"), request("r_2", "Guest-PC", "")};
+  dirInvites = QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("i_1")}, {QStringLiteral("status"), QStringLiteral("active")},
+                                      {QStringLiteral("authorize_device"), false}, {QStringLiteral("created_at"), at(30)},
+                                      {QStringLiteral("expires_at"), at(-60 * 24 * 3)}},
+                          QJsonObject{{QStringLiteral("id"), QStringLiteral("i_2")}, {QStringLiteral("status"), QStringLiteral("redeemed")},
+                                      {QStringLiteral("authorize_device"), true}, {QStringLiteral("created_at"), at(60 * 24 * 5)},
+                                      {QStringLiteral("expires_at"), at(60 * 24 * 4)}, {QStringLiteral("redeemed_by"), QStringLiteral("Jonas")}}};
+  const auto report = [&](int id, const char* status, const char* title, const char* who, int ago, const QStringList& files, const char* event) {
+    QJsonArray fl;
+    qint64 total = 0;
+    for (const QString& f : files) {
+      const QByteArray content = QByteArray("content of ") + f.toUtf8() + "\n";
+      reportFiles.insert(QString::number(id) + QLatin1Char('/') + f, content);
+      fl.append(QJsonObject{{QStringLiteral("name"), f}, {QStringLiteral("size"), content.size()}});
+      total += content.size();
+    }
+    QJsonObject o{{QStringLiteral("id"), id}, {QStringLiteral("status"), QString::fromLatin1(status)}, {QStringLiteral("title"), QString::fromLatin1(title)},
+                  {QStringLiteral("user"), QString::fromLatin1(who)}, {QStringLiteral("device"), QStringLiteral("Lena-PC")},
+                  {QStringLiteral("player_version"), QStringLiteral("0.17.0")}, {QStringLiteral("os"), QStringLiteral("Windows 11")},
+                  {QStringLiteral("created_at"), at(ago)}, {QStringLiteral("size"), total}, {QStringLiteral("file_count"), files.size()},
+                  {QStringLiteral("description"), QString::fromLatin1(title) + QStringLiteral(". With three tiles open it happens every few seconds.")},
+                  {QStringLiteral("files"), fl}};
+    if (*event) {
+      o.insert(QStringLiteral("linked_event_title"), QString::fromLatin1(event));
+      o.insert(QStringLiteral("linked_event_time"), at(ago + 2));
+    }
+    return o;
+  };
+  dirReports = QJsonArray{report(12, "new", "Sound crackles in Multiview", "Lena", 40, {QStringLiteral("app-log.txt"), QStringLiteral("diagnostics.json")}, "Audio underrun"),
+                          report(11, "seen", "Touch offset on bottom screen", "Jonas", 60 * 24 * 4, {}, "")};
+}
+
+bool FakeHub::handleDirectory(QSslSocket* sock, const FakeRequest& req, const QString& path, const QJsonObject& body) {
+  fillDirectory();
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  const auto err = [&](int status, const QString& code, const QString& message) {
+    respond(sock, status, json({{QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), code}, {QStringLiteral("message"), message}}}}));
+  };
+  const QString rel = path.mid(QStringLiteral("/api/v1/admin/").size());
+  const QStringList seg = rel.split(QLatin1Char('/'), Qt::SkipEmptyParts);
+  if (seg.isEmpty()) return false;
+  const QByteArray m = req.method;
+  const auto count = [&]() { ++adminCalls[QString::fromLatin1(m) + QLatin1Char(' ') + path]; if (!req.body.isEmpty()) lastAdminBody = req.body; };
+  const auto find = [](QJsonArray& arr, const QString& key, const QString& value) {
+    for (int i = 0; i < arr.size(); ++i) if (arr.at(i).toObject().value(key).toVariant().toString() == value) return i;
+    return -1;
+  };
+  const auto edit = [](QJsonArray& arr, int i, const QString& key, const QJsonValue& v) {
+    QJsonObject o = arr.at(i).toObject();
+    o.insert(key, v);
+    arr.replace(i, o);
+  };
+  const QString kind = seg.value(0);
+  const QString id = seg.value(1);
+  const QString action = seg.value(2);
+
+  if (kind == QLatin1String("users")) {
+    if (seg.size() == 1 && m == "GET") {
+      count();
+      respond(sock, 200, json({{QStringLiteral("users"), dirUsers}}));
+      return true;
+    }
+    const int i = find(dirUsers, QStringLiteral("id"), id);
+    if (seg.size() < 2 || i < 0) {
+      count();
+      err(404, QStringLiteral("not_found"), QStringLiteral("Unknown user"));
+      return true;
+    }
+    const QJsonObject u = dirUsers.at(i).toObject();
+    const bool isAdmin = u.value(QStringLiteral("role")).toString() == QLatin1String("admin");
+    count();
+    if (m == "DELETE" && seg.size() == 2) {
+      if (isAdmin) { err(403, QStringLiteral("forbidden"), QStringLiteral("Admins cannot be deleted")); return true; }
+      dirUsers.removeAt(i);
+      respond(sock, 204, {});
+    } else if (action == QLatin1String("disable")) {
+      if (isAdmin) { err(403, QStringLiteral("forbidden"), QStringLiteral("Admins cannot be disabled")); return true; }
+      edit(dirUsers, i, QStringLiteral("disabled"), true);
+      respond(sock, 200, json(dirUsers.at(i).toObject()));
+    } else if (action == QLatin1String("enable")) {
+      edit(dirUsers, i, QStringLiteral("disabled"), false);
+      respond(sock, 200, json(dirUsers.at(i).toObject()));
+    } else if (action == QLatin1String("role")) {
+      const QString role = body.value(QStringLiteral("role")).toString();
+      int admins = 0;
+      for (const QJsonValue& v : std::as_const(dirUsers)) admins += v.toObject().value(QStringLiteral("role")).toString() == QLatin1String("admin") ? 1 : 0;
+      if (role == QLatin1String("user") && isAdmin && (admins <= 1 || id == QLatin1String("u_test_1"))) {
+        err(403, QStringLiteral("forbidden"), QStringLiteral("Make someone else admin first."));
+        return true;
+      }
+      if (role == QLatin1String("admin") && body.value(QStringLiteral("password")).toString().size() < 12) {
+        err(400, QStringLiteral("bad_request"), QStringLiteral("Password must have at least 12 characters"));
+        return true;
+      }
+      edit(dirUsers, i, QStringLiteral("role"), role);
+      respond(sock, 200, json(dirUsers.at(i).toObject()));
+    } else if (action == QLatin1String("password-reset")) {
+      respond(sock, 200, json({{QStringLiteral("temporary_password"), QStringLiteral("PLCH-OLDR-PASS-WORD")}, {QStringLiteral("must_change_password"), true}}));
+    } else if (action == QLatin1String("code")) {
+      respond(sock, 201, json({{QStringLiteral("code"), QStringLiteral("UZ-ABCD-2345")},
+                               {QStringLiteral("expires_at"), QDateTime::currentDateTimeUtc().addDays(1).toString(Qt::ISODate)}}));
+    } else {
+      err(404, QStringLiteral("not_found"), QStringLiteral("Unknown route"));
+    }
+    return true;
+  }
+  if (kind == QLatin1String("devices")) {
+    count();
+    if (seg.size() == 1 && m == "GET") {
+      respond(sock, 200, json({{QStringLiteral("devices"), dirDevices}, {QStringLiteral("min_protocol_version"), 1}}));
+      return true;
+    }
+    const int i = find(dirDevices, QStringLiteral("id"), id);
+    if (i < 0) { err(404, QStringLiteral("not_found"), QStringLiteral("Unknown device")); return true; }
+    if (action == QLatin1String("revoke")) {
+      edit(dirDevices, i, QStringLiteral("status"), QStringLiteral("revoked"));
+      edit(dirDevices, i, QStringLiteral("online"), false);
+      respond(sock, 200, json(dirDevices.at(i).toObject()));
+      return true;
+    }
+    err(404, QStringLiteral("not_found"), QStringLiteral("Unknown route"));
+    return true;
+  }
+  if (kind == QLatin1String("invites")) {
+    count();
+    if (seg.size() == 1 && m == "GET") {
+      respond(sock, 200, json({{QStringLiteral("invites"), dirInvites}}));
+    } else if (seg.size() == 1 && m == "POST") {
+      const QJsonObject inv{{QStringLiteral("id"), QStringLiteral("i_new")}, {QStringLiteral("status"), QStringLiteral("active")},
+                            {QStringLiteral("authorize_device"), body.value(QStringLiteral("authorize_device")).toBool()},
+                            {QStringLiteral("created_at"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
+                            {QStringLiteral("expires_at"), QDateTime::currentDateTimeUtc().addDays(7).toString(Qt::ISODate)}};
+      dirInvites.prepend(inv);
+      respond(sock, 201, json({{QStringLiteral("invite"), inv},
+                               {QStringLiteral("code"), QJsonObject{{QStringLiteral("code"), QStringLiteral("UZ-8XK2-M4QD")},
+                                                                    {QStringLiteral("expires_at"), inv.value(QStringLiteral("expires_at"))}}}}));
+    } else if (m == "DELETE") {
+      const int i = find(dirInvites, QStringLiteral("id"), id);
+      if (i < 0 || dirInvites.at(i).toObject().value(QStringLiteral("status")).toString() != QLatin1String("active")) {
+        err(404, QStringLiteral("not_found"), QStringLiteral("Unknown invite"));
+        return true;
+      }
+      edit(dirInvites, i, QStringLiteral("status"), QStringLiteral("revoked"));
+      respond(sock, 204, {});
+    } else {
+      err(404, QStringLiteral("not_found"), QStringLiteral("Unknown route"));
+    }
+    return true;
+  }
+  if (kind == QLatin1String("pairing-requests")) {
+    count();
+    if (seg.size() == 1 && m == "GET") {
+      respond(sock, 200, json({{QStringLiteral("requests"), dirRequests}, {QStringLiteral("min_protocol_version"), 1}}));
+      return true;
+    }
+    const int i = find(dirRequests, QStringLiteral("id"), id);
+    if (i < 0) { err(409, QStringLiteral("conflict"), QStringLiteral("The request is no longer open")); return true; }
+    if (action == QLatin1String("allow") && find(dirUsers, QStringLiteral("id"), body.value(QStringLiteral("user_id")).toString()) < 0) {
+      err(400, QStringLiteral("bad_request"), QStringLiteral("Unknown user"));
+      return true;
+    }
+    dirRequests.removeAt(i);
+    respond(sock, 204, {});
+    return true;
+  }
+  if (kind == QLatin1String("reports")) {
+    count();
+    if (seg.size() == 1 && m == "GET") {
+      const QString want = req.path.contains(QLatin1String("status=new")) ? QStringLiteral("new") : req.path.contains(QLatin1String("status=seen")) ? QStringLiteral("seen") : QString();
+      QJsonArray out;
+      int cNew = 0, cSeen = 0;
+      for (const QJsonValue& v : std::as_const(dirReports)) {
+        QJsonObject o = v.toObject();
+        const QString st = o.value(QStringLiteral("status")).toString();
+        (st == QLatin1String("new") ? cNew : cSeen)++;
+        if (!want.isEmpty() && st != want) continue;
+        o.remove(QStringLiteral("description"));
+        o.remove(QStringLiteral("files"));
+        out.append(o);
+      }
+      respond(sock, 200, json({{QStringLiteral("reports"), out}, {QStringLiteral("count_all"), cNew + cSeen}, {QStringLiteral("count_new"), cNew},
+                               {QStringLiteral("count_seen"), cSeen}}));
+      return true;
+    }
+    const int i = find(dirReports, QStringLiteral("id"), id);
+    if (i < 0) { err(404, QStringLiteral("not_found"), QStringLiteral("Unknown report")); return true; }
+    if (seg.size() == 2 && m == "GET") {
+      respond(sock, 200, json(dirReports.at(i).toObject()));
+    } else if (seg.size() == 2 && m == "DELETE") {
+      dirReports.removeAt(i);
+      respond(sock, 204, {});
+    } else if (action == QLatin1String("seen")) {
+      edit(dirReports, i, QStringLiteral("status"), QStringLiteral("seen"));
+      respond(sock, 200, json(dirReports.at(i).toObject()));
+    } else if (action == QLatin1String("files")) {
+      const QString name = QUrl::fromPercentEncoding(seg.value(3).toUtf8());
+      if (!reportFiles.contains(id + QLatin1Char('/') + name)) { err(404, QStringLiteral("not_found"), QStringLiteral("Unknown file")); return true; }
+      respond(sock, 200, reportFiles.value(id + QLatin1Char('/') + name), "application/octet-stream");
+    } else if (action == QLatin1String("archive")) {
+      respond(sock, 200, QByteArray("PK-fake-zip-of-report-") + id.toUtf8(), "application/zip");
+    } else {
+      err(404, QStringLiteral("not_found"), QStringLiteral("Unknown route"));
+    }
+    return true;
+  }
+  return false;
+}
+
 void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
   const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
   const QJsonObject body = QJsonDocument::fromJson(req.body).object();
@@ -281,6 +649,9 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     respond(sock, 204, {});
   } else if (!bearerIs(req, "fba_")) {
     respondError(sock, 401, QStringLiteral("unauthorized"));
+  } else if (req.path.startsWith(QLatin1String("/api/v1/admin/")) || req.path.startsWith(QLatin1String("/api/v1/account/confirm"))) {
+    // "Confirm it's you" belongs to the admin fake; the other /account paths are handled by handleAccount().
+    handleAdmin(sock, req);
   } else if (req.method == "PUT" && req.path == QLatin1String("/api/v1/local/settings")) {
     lastLocalSettings = body;
     if (body.contains(QStringLiteral("import_dir")) && !localImportDirError.isEmpty()) {
@@ -304,6 +675,14 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     QJsonArray feats;
     for (const QString& f : features) {
       feats.append(f);
+    }
+    if (adminUser) {
+      for (const QString& f : {QStringLiteral("admin_v1"), QStringLiteral("accounts_v1")}) {
+        if (!features.contains(f)) feats.append(f);
+      }
+      res.insert(QStringLiteral("user"), QJsonObject{{QStringLiteral("id"), QStringLiteral("u_test_1")},
+                                                      {QStringLiteral("display_name"), QStringLiteral("Tester")},
+                                                      {QStringLiteral("role"), QStringLiteral("admin")}});
     }
     res.insert(QStringLiteral("features"), feats);
     if (const auto du = deviceUsers.constFind(callerDeviceId); du != deviceUsers.constEnd() && accountsByUser.contains(*du)) {
