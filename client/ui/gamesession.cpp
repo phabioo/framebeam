@@ -372,6 +372,13 @@ void GameSession::setViewSize(const QObject* view, const QSize& pixels) {
   updateReadbackLimit();
 }
 
+void GameSession::setCpuConsumer(const QObject* view, bool on) {
+  if (!view || cpuViews_.contains(view) == on) return;
+  if (on) cpuViews_.insert(view);
+  else cpuViews_.remove(view);
+  updateReadbackLimit();
+}
+
 void GameSession::setShareSize(const QSize& pixels) {
   if (shareSize_ == pixels) return;
   shareSize_ = pixels;
@@ -449,6 +456,17 @@ void GameSession::updateReadbackLimit() {
   for (const QSize& s : std::as_const(viewSizes_)) views = views.expandedTo(s);
   const bool active = gpuDisplay_ && gpuDisplay_->state() == GpuDisplayBridge::State::Active;
   ReadbackPlan plan = planReadback(active, views, shareSize_);
+  if (active && !cpuViews_.isEmpty()) {  // zero-copy shows the game in one window; the others need readback frames
+    QSize cpu;
+    bool unlimited = false;
+    for (const QObject* v : std::as_const(cpuViews_)) {
+      const QSize s = viewSizes_.value(v);
+      if (s.isEmpty()) unlimited = true;
+      cpu = cpu.expandedTo(s);
+    }
+    plan.readback = true;
+    plan.readbackLimit = unlimited ? QSize() : cpu.expandedTo(shareSize_);
+  }
   if (!captureWaiters_.isEmpty()) {  // a plugin waits for a native-size frame (video.capture): full size, readback on
     plan.readback = true;
     plan.readbackLimit = QSize();

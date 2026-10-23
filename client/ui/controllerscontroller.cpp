@@ -488,7 +488,10 @@ QSet<int> ControllersController::hotkeyKeys() const {
 QMap<int, QString> ControllersController::reservedKeyOwners() const {
   QMap<int, QString> m;
   for (const HotkeyDef& d : hotkeyDefs()) {
-    if (const int k = profiles_.hotkey(d.id); k > 0) m.insert(k, d.label);
+    if (const int k = profiles_.hotkey(d.id); k > 0) {
+      m.insert(k, d.label);
+      if (d.id == QLatin1String("layout")) m.insert(k | int(Qt::ShiftModifier), tr("Swap screens"));  // Shift + the layout key
+    }
   }
   m.insert(Qt::Key_Escape, tr("Leave fullscreen / pause"));
   m.insert(Qt::Key_F4, tr("Hide all HUD widgets"));

@@ -5,6 +5,7 @@
 #include <QImage>
 #include <QPointer>
 #include <QRectF>
+#include <optional>
 #include <QtQml/qqmlregistration.h>
 #include <QtQuick/QQuickItem>
 
@@ -24,8 +25,13 @@ class GameView : public QQuickItem {
   Q_PROPERTY(bool strictInteger READ strictInteger WRITE setStrictInteger NOTIFY pictureOptionsChanged)
   Q_PROPERTY(QString aspectRatio READ aspectRatio WRITE setAspectRatio NOTIFY pictureOptionsChanged)
   Q_PROPERTY(QRectF frameRect READ frameRect NOTIFY frameRectChanged)
-  // In-game screen layout (0.6 D12): "stacked" (as delivered by the core) | "side" | "top"; applies to this game only.
+  // In-game screen layout (0.6 D12, 0.19): "stacked" (as delivered by the core) | "side" | "large" | "top" | "bottom";
+  // applies to this game only. swap draws the second screen where the first would be (layoutSupportsSwap).
   Q_PROPERTY(QString layout READ layout WRITE setLayout NOTIFY layoutChanged)
+  Q_PROPERTY(bool swap READ swap WRITE setSwap NOTIFY layoutChanged)
+  // Always draws the CPU frame (never the GPU texture of the game): the second window of the bottom screen, because the
+  // zero-copy texture has a single consumer window. Makes the session keep the readback running while this view lives.
+  Q_PROPERTY(bool cpuOnly READ cpuOnly WRITE setCpuOnly NOTIFY cpuOnlyChanged)
  public:
   explicit GameView(QQuickItem* parent = nullptr);
   ~GameView() override;
@@ -41,8 +47,16 @@ class GameView : public QQuickItem {
   QRectF frameRect() const { return frameRect_; }
   QString layout() const { return layout_; }
   void setLayout(const QString& layout);
+  bool swap() const { return swap_; }
+  void setSwap(bool on);
+  bool cpuOnly() const { return cpuOnly_; }
+  void setCpuOnly(bool on);
   // Where each screen is drawn right now (item coordinates); empty rects for hidden screens. Tests.
   ScreenPlacement placement() const { return placement_; }
+
+  // Item position -> normalized position in the whole frame for the touch screen under the current layout (nullopt: not on it,
+  // or the touch screen is hidden). What a mouse press or touch sends to the core.
+  std::optional<QPointF> touchTarget(const QPointF& itemPos, bool clamp) const;
 
   // Physical pixel size of a logical size at the given devicePixelRatio (rounded up).
   static QSize physicalSize(const QSizeF& logical, qreal dpr);
@@ -53,6 +67,7 @@ class GameView : public QQuickItem {
   void pictureOptionsChanged();
   void frameRectChanged();
   void layoutChanged();
+  void cpuOnlyChanged();
   void escapePressed();
 
  protected:
@@ -89,6 +104,8 @@ class GameView : public QQuickItem {
   bool touching_ = false;
   QRectF frameRect_;
   QString layout_ = QLatin1String(kLayoutStacked);
+  bool swap_ = false;
+  bool cpuOnly_ = false;
   ScreenPlacement placement_;
 };
 

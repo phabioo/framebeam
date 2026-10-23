@@ -26,7 +26,7 @@ Rectangle {
     readonly property bool multi: ctl.tab !== "session" && (own || ctl.surfaceCount > 1)
     readonly property bool watchingOnly: !own && !multi
     readonly property bool segmentFocused: modeSegment.activeFocus || viewButton.activeFocus || leaveMulti.activeFocus
-    readonly property var layouts: session.active ? session.screenLayouts : (ctl.watching ? ["stacked", "side", "top"] : [])
+    readonly property var layouts: session.active ? session.screenLayouts : (ctl.watching ? ctl.watchLayouts : [])
     readonly property Item addAnchor: addButton
     readonly property Item moreAnchor: moreButton
     readonly property Item layoutAnchor: layoutButton
@@ -37,6 +37,7 @@ Rectangle {
     signal resetRequested()
     signal panelToggled()
     signal pickerToggled()
+    signal layoutMenuClosed()
 
     color: Theme.ground
     implicitHeight: Theme.header56
@@ -120,8 +121,31 @@ Rectangle {
     }
 
     // ---- menus ("⋯", speed, screen layout) ----
-    function layoutLabel(v) { return v === "stacked" ? qsTr("Stacked") : v === "side" ? qsTr("Side by side") : qsTr("Top only") }
-    readonly property var layoutItems: root.layouts.map(function (v) { return { label: root.layoutLabel(v), name: "layout_" + v, value: v } })
+    function layoutLabel(v) { return root.ctl.layoutLabel(v) }
+    // Layout menu (F7): the layouts, "Swap screens" (Shift+F7; only for layouts that show both screens) and, for your own
+    // game, "Bottom screen in its own window". Choosing an item closes the menu, like every menu.
+    readonly property bool swapAllowed: root.ctl.screenLayout === "stacked" || root.ctl.screenLayout === "side" || root.ctl.screenLayout === "large"
+    readonly property string layoutKey: root.key(root.hotkeys.layout)
+    readonly property var layoutItems: {
+        const it = root.layouts.map(function (v) { return { label: root.layoutLabel(v), name: "layout_" + v, value: v, shortcut: "" } })
+        it.push({ separator: true })
+        it.push({ label: qsTr("Swap screens"), name: "swap", hint: root.ctl.screenSwap ? qsTr("On") : "", disabled: !root.swapAllowed || root.ctl.bottomWindow,
+                  shortcut: root.layoutKey !== "" && root.layoutKey.indexOf("+") < 0 ? "Shift+" + root.layoutKey : "" })
+        if (root.own && !root.multi)
+            it.push({ label: qsTr("Bottom screen in its own window"), name: "bottomWindow", hint: root.ctl.bottomWindow ? qsTr("On") : "" })
+        return it
+    }
+    // F7: opens the layout menu below the Layout button (the "⋯" button when the header is narrow).
+    function toggleLayoutMenu() {
+        if (root.layouts.length < 2) return
+        if (layoutMenu.opened) { layoutMenu.close(); return }
+        layoutMenu.openFor(layoutButton.visible ? layoutButton : moreButton, "below", true)
+    }
+    function chooseLayoutItem(item) {
+        if (item.name === "swap") root.ctl.chooseScreenSwap(!root.ctl.screenSwap)
+        else if (item.name === "bottomWindow") root.ctl.chooseBottomWindow(!root.ctl.bottomWindow)
+        else if (item.value !== undefined) root.ctl.chooseScreenLayout(item.value)
+    }
     readonly property var speedItems: root.session.speedUpRatios.map(function (r) { return { label: r + "×", name: "speed_" + r, value: Number(r) } })
     readonly property var moreItems: {
         const it = []
@@ -140,6 +164,8 @@ Rectangle {
             if (root.level >= 1) {
                 for (let i = 0; i < root.layouts.length && root.layouts.length > 1; ++i)
                     it.push({ label: qsTr("Screen layout: %1").arg(root.layoutLabel(root.layouts[i])), hint: cur(root.ctl.screenLayout === root.layouts[i]), name: "layout_" + root.layouts[i] })
+                if (root.layouts.length > 1 && root.own)
+                    it.push({ label: qsTr("Swap screens"), hint: root.ctl.screenSwap ? qsTr("On") : "", name: "swap", disabled: !root.swapAllowed || root.ctl.bottomWindow })
                 if (root.own && root.session.fastForwardAvailable) {
                     const r = root.session.speedUpRatios
                     for (let i = 0; i < r.length; ++i)
@@ -169,7 +195,8 @@ Rectangle {
         else if (name === "speedup") root.session.toggleFastForward()
         else if (name === "panel") root.panelToggled()
         else if (name === "multiview") root.ctl.tab = "multiview"
-        else if (name.indexOf("layout_") === 0) root.ctl.screenLayout = name.substring(7)
+        else if (name.indexOf("layout_") === 0) root.ctl.chooseScreenLayout(name.substring(7))
+        else if (name === "swap") root.ctl.chooseScreenSwap(!root.ctl.screenSwap)
         else if (name.indexOf("speed_") === 0) root.session.fastForwardRatio = Number(name.substring(6))
         else if (name === "screenshot") root.player.screenshots.capture()
         else if (name === "fullscreen") root.fullscreenRequested()
@@ -188,11 +215,12 @@ Rectangle {
     UzMenu {
         id: layoutMenu
         objectName: "layoutPopover"
+        onClosed: root.layoutMenuClosed()
         items: root.layoutItems
         selectable: true
         value: root.ctl.screenLayout
-        menuWidth: 200
-        onChosen: (item) => root.ctl.screenLayout = item.value
+        menuWidth: 280
+        onChosen: (item) => root.chooseLayoutItem(item)
         list.footer: Text {
             x: Theme.space15
             height: 28

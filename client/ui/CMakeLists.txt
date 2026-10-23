@@ -134,6 +134,7 @@ qt_add_qml_module(uzume_ui
     TileStateCard.qml
     DiagnosticsOverlay.qml
     LayoutSwitch.qml
+    BottomScreenWindow.qml
     KeyHintButton.qml
     UzSelect.qml
     UzModelSelect.qml

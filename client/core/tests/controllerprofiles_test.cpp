@@ -96,7 +96,9 @@ class ControllerProfilesTest : public QObject {
   void hotkeyDefaultsAndConflicts() {
     QTemporaryDir dir;
     ControllerProfiles p(dir.path());
-    QCOMPARE(hotkeyDefs().size(), 8);
+    QCOMPARE(hotkeyDefs().size(), 9);
+    QCOMPARE(p.hotkey(QStringLiteral("layout")), int(Qt::Key_F7));
+    QCOMPARE(p.padHotkey(QStringLiteral("layout")), QStringLiteral("pad:dpright"));
     // Audio hotkeys (0.19): +, -, M and Select + D-pad up / down / X; no key or button is used twice.
     QCOMPARE(p.hotkey(QStringLiteral("volumeUp")), int(Qt::Key_Plus));
     QCOMPARE(p.hotkey(QStringLiteral("volumeDown")), int(Qt::Key_Minus));

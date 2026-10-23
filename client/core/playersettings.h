@@ -142,6 +142,18 @@ class PlayerSettings {
   QHash<QString, QString> pluginToastMutes() const;
   bool setPluginToastMute(const QString& pluginId, const QString& mode);
 
+  // Window of the bottom screen (0.19, NDS/3DS "Bottom screen in its own window"): position, size and the name of the
+  // monitor it was on, remembered on this PC only (not per game). Invalid = never placed (the window opens centered).
+  struct WindowGeometry {
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    QString screen;  // QScreen::name() of the monitor; the position is only used while that monitor exists
+    bool valid() const { return width > 0 && height > 0; }
+  };
+  WindowGeometry bottomWindowGeometry() const;
+  bool setBottomWindowGeometry(const WindowGeometry& g);  // invalid removes it
   // Audio (0.19 stage 1), per PC. Master volume 0..100 % (default 100) and mute apply to everything the app plays; "mute when
   // in the background" (default on) silences the local game while the window is inactive; volume step 5 or 10 (default 5);
   // "show volume on screen" (default on); output device id (base64 of QAudioDevice::id(); empty = system default).

@@ -782,6 +782,61 @@ class EmulationControllersTest : public QObject {
     QCOMPARE(emu->uzumeValue(aspect, QStringLiteral("nds"), QStringLiteral("g2")), QStringLiteral("stretch"));
   }
 
+  // 0.19 package 6: layout, swap and the bottom-screen window resolve global > system > game like every uzume.* option.
+  void screenLayoutOptionsPerSystemAndGame() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    h.controller->emulation()->setCoreProbe(QStringLiteral("melondsds"), fakeProbe(), false);
+    h.controller->showEmulation();
+    EmulationController* emu = h.controller->emulation();
+    const QString layout = QString::fromLatin1(EmulationController::kScreenLayoutKey);
+    const QString swap = QString::fromLatin1(EmulationController::kScreenSwapKey);
+    const QString window = QString::fromLatin1(EmulationController::kBottomWindowKey);
+    QCOMPARE(layout, QStringLiteral("uzume.screen_layout"));
+    QCOMPARE(swap, QStringLiteral("uzume.screen_swap"));
+    QCOMPARE(window, QStringLiteral("uzume.bottom_window"));
+
+    QCOMPARE(emu->uzumeValue(layout, QStringLiteral("nds")), QStringLiteral("stacked"));
+    QCOMPARE(emu->uzumeValue(swap, QStringLiteral("nds")), QStringLiteral("off"));
+    QCOMPARE(emu->uzumeValue(window, QStringLiteral("nds")), QStringLiteral("off"));
+
+    const auto rowKeys = [&]() {
+      QStringList keys;
+      for (const QVariant& g : emu->groups())
+        for (const QVariant& o : g.toMap().value(QStringLiteral("options")).toList()) keys.append(o.toMap().value(QStringLiteral("key")).toString());
+      return keys;
+    };
+    // A two-screen system shows the rows, a single-screen system does not.
+    QVERIFY(h.click("systemCard_nds"));
+    QVERIFY(rowKeys().contains(layout) && rowKeys().contains(swap) && rowKeys().contains(window));
+    QSignalSpy changed(emu, &EmulationController::uzumeOptionsChanged);
+    emu->setOption(layout, QStringLiteral("large"));
+    emu->setOption(swap, QStringLiteral("on"));
+    emu->setOption(window, QStringLiteral("on"));
+    emu->setOption(layout, QStringLiteral("diagonal"));  // refused
+    QCOMPARE(changed.count(), 3);
+    for (const char* v : {"stacked", "side", "large", "top", "bottom"}) {  // all five layouts are accepted
+      emu->setOption(layout, QString::fromLatin1(v));
+      QCOMPARE(emu->uzumeValue(layout, QStringLiteral("nds")), QString::fromLatin1(v));
+    }
+    emu->setOption(layout, QStringLiteral("large"));
+
+    QCOMPARE(emu->uzumeValue(layout, QStringLiteral("nds")), QStringLiteral("large"));
+    QCOMPARE(emu->uzumeValue(swap, QStringLiteral("nds")), QStringLiteral("on"));
+    QCOMPARE(emu->uzumeValue(window, QStringLiteral("nds")), QStringLiteral("on"));
+    QCOMPARE(emu->uzumeValue(layout, QStringLiteral("3ds")), QStringLiteral("stacked"));  // other systems keep the default
+    // A game overrides the system; a value stored by an older version stays valid.
+    emu->settings()->setValue(L::Game, QStringLiteral("g1"), layout, QStringLiteral("side"));
+    emu->settings()->setValue(L::Game, QStringLiteral("g1"), swap, QStringLiteral("off"));
+    QCOMPARE(emu->uzumeValue(layout, QStringLiteral("nds"), QStringLiteral("g1")), QStringLiteral("side"));
+    QCOMPARE(emu->uzumeValue(swap, QStringLiteral("nds"), QStringLiteral("g1")), QStringLiteral("off"));
+    QCOMPARE(emu->uzumeValue(layout, QStringLiteral("nds"), QStringLiteral("g2")), QStringLiteral("large"));
+    QCOMPARE(emu->uzumeValue(window, QStringLiteral("nds"), QStringLiteral("g1")), QStringLiteral("on"));
+  }
+
   void firmwareStateOnTheCard() {
     const QByteArray b7(16, '7'), b9(8, '9'), fw(32, 'f');
     struct Case { QString mode; QJsonArray files; QString expected; };
@@ -1261,7 +1316,7 @@ class EmulationControllersTest : public QObject {
     QVERIFY(h.click("tabHotkeys"));
     QVERIFY(visible(h, "hotkeysInfo"));
     QCOMPARE(text(h, "hotkeysInfo"), QStringLiteral("Uzume hotkeys work on the keyboard and on a gamepad (hold the hotkey button, then press another one) and are never sent to the game."));
-    QCOMPARE(c->hotkeyRows().size(), 9);  // eight actions + the fixed Esc row
+    QCOMPARE(c->hotkeyRows().size(), 10);  // nine actions + the fixed Esc row
     QCOMPARE(text(h, "hotkeyText_fullscreen"), QStringLiteral("F11"));
     QCOMPARE(text(h, "hotkeyText_diagnostics"), QStringLiteral("F3"));
     QCOMPARE(text(h, "hotkeyText_snapshot"), QStringLiteral("F5"));

@@ -470,12 +470,50 @@ class GpuDisplayTest : public QObject {
     }
   }
 
+  // The window of the bottom screen draws the CPU frame (the texture has a single consumer window): while such a view
+  // exists the readback keeps running with zero-copy display active, and stops when it goes away.
+  void cpuOnlyViewKeepsReadbackRunning() {
+    install();
+    GameSession gs;
+    QQuickWindow window;
+    window.resize(256, kViewH);
+    GameView view;
+    view.setParentItem(window.contentItem());
+    view.setSize(QSizeF(256, kViewH));
+    view.setSession(&gs);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    gs.start(config(true));
+    QTRY_COMPARE_WITH_TIMEOUT(gs.displayState(), GpuDisplayBridge::State::Active, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(!gs.displayReadbackEnabled(), 5000);
+    {
+      GameView bottom;
+      bottom.setParentItem(window.contentItem());
+      bottom.setSize(QSizeF(128, 96));
+      bottom.setCpuOnly(true);
+      bottom.setLayout(QStringLiteral("bottom"));
+      bottom.setSession(&gs);
+      QTRY_VERIFY_WITH_TIMEOUT(gs.displayReadbackEnabled(), 5000);
+      QTRY_VERIFY_WITH_TIMEOUT(gs.hasFrame(), 5000);
+      QVERIFY(bottom.placement().targets.at(0).isEmpty());
+      QVERIFY(!bottom.placement().targets.at(1).isEmpty());
+      bottom.setCpuOnly(false);
+      QTRY_VERIFY_WITH_TIMEOUT(!gs.displayReadbackEnabled(), 5000);
+      bottom.setCpuOnly(true);
+      QTRY_VERIFY_WITH_TIMEOUT(gs.displayReadbackEnabled(), 5000);
+    }  // the view is destroyed: the readback stops again
+    QTRY_VERIFY_WITH_TIMEOUT(!gs.displayReadbackEnabled(), 5000);
+    gs.stop();
+  }
+
   // Split layout: each screen is a part of the GPU texture (its source rect computed from the delivered content size, not
   // from the larger texture), identical to the readback picture.
   void splitLayoutDrawsPerScreenSourceRects_data() {
     QTest::addColumn<QString>("layout");
     QTest::newRow("side by side") << QStringLiteral("side");
     QTest::newRow("top only") << QStringLiteral("top");
+    QTest::newRow("large top") << QStringLiteral("large");
+    QTest::newRow("bottom only") << QStringLiteral("bottom");
   }
 
   void splitLayoutDrawsPerScreenSourceRects() {
@@ -517,6 +555,7 @@ class GpuDisplayTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(sh->textureHits.load() > hits + 2, 5000);
     QVERIFY(!view.placement().targets.isEmpty());
     if (layout == QLatin1String("top")) QVERIFY(view.placement().targets.at(1).isEmpty());  // the bottom screen is hidden
+    else if (layout == QLatin1String("bottom")) QVERIFY(view.placement().targets.at(0).isEmpty());  // the top screen is hidden
     else QVERIFY(!view.placement().targets.at(1).isEmpty());
     QString why = probeAll();
     QVERIFY2(why.isEmpty(), qPrintable(why));

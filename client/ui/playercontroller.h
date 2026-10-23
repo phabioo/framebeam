@@ -288,6 +288,9 @@ class PlayerController : public QObject {
 
   static QString formatFingerprint(const QString& fp);
   // Date/time helper of every list (timeformat.h): "5 min ago", "today 18:52", "16 Oct"; the full text is for tooltips.
+  // Window of the bottom screen (0.19): {x, y, width, height, screen}, empty map = never placed; saved per PC.
+  Q_INVOKABLE QVariantMap bottomWindowGeometry() const;
+  Q_INVOKABLE void saveBottomWindowGeometry(int x, int y, int width, int height, const QString& screenName);
   Q_INVOKABLE QString whenText(const QString& iso) const;
   Q_INVOKABLE QString fullTimeText(const QString& iso) const;
   static QString platformLabel(const QString& platform, const QString& arch);

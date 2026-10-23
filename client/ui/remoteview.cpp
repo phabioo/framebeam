@@ -46,6 +46,15 @@ void RemoteView::setLayout(const QString& layout) {
   emit layoutChanged();
 }
 
+void RemoteView::setSwap(bool on) {
+  if (on == swap_) {
+    return;
+  }
+  swap_ = on;
+  update();
+  emit layoutChanged();
+}
+
 void RemoteView::paint(QPainter* p) {
   p->fillRect(boundingRect(), Qt::black);
   if (!controller_) {
@@ -56,8 +65,8 @@ void RemoteView::paint(QPainter* p) {
     return;
   }
   const emu::DisplayProfile prof = profileForRemoteFrame(img.size());
-  if (layout_ != QLatin1String("stacked") && prof.screens.size() == 2) {
-    const ScreenPlacement pl = placeScreens(prof, layout_, size(), false);
+  if ((layout_ != QLatin1String("stacked") || (swap_ && layoutSupportsSwap(layout_))) && prof.screens.size() == 2) {
+    const ScreenPlacement pl = placeScreens(prof, layout_, size(), false, false, AspectMode::Core, swap_);
     p->setRenderHint(QPainter::SmoothPixmapTransform, false);
     for (int i = 0; i < pl.targets.size(); ++i) {
       if (!pl.targets.at(i).isEmpty()) {

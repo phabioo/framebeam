@@ -1,9 +1,11 @@
 import QtQuick
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
 // In-game screen layout switch (fullscreen toolbar, D12): square segmented control with mini icons. layouts = the values the system offers
-// ("stacked" | "side" | "top"); applies to the running game only.
+// ("stacked" | "side" | "large" | "top" | "bottom"); applies to the running game only. With five layouts the toolbar uses
+// `compact` (icons only, the name is the tooltip and the accessible name).
 Rectangle {
     id: root
     property var layouts: []
@@ -28,8 +30,17 @@ Rectangle {
     }
     Accessible.role: Accessible.RadioButton
 
-    readonly property var labels: ({ "stacked": qsTr("Stacked"), "side": qsTr("Side by side"), "top": qsTr("Top only") })
-    readonly property var names: ({ "stacked": "layoutStacked", "side": "layoutSide", "top": "layoutTop" })
+    readonly property var labels: ({ "stacked": qsTr("Stacked"), "side": qsTr("Side by side"), "large": qsTr("Large top / small bottom"),
+                                     "top": qsTr("Top screen only"), "bottom": qsTr("Bottom screen only") })
+    readonly property var names: ({ "stacked": "layoutStacked", "side": "layoutSide", "large": "layoutLarge", "top": "layoutTop", "bottom": "layoutBottom" })
+    // Mini icons in a 16 x 14 box: [x, y, width, height, faint] per screen (the faint one is the screen that is not shown).
+    readonly property var icons: ({
+        "stacked": [[3, 0, 10, 6, 0], [3, 8, 10, 6, 0]],
+        "side": [[0, 3, 7, 8, 0], [9, 3, 7, 8, 0]],
+        "large": [[0, 1, 10, 10, 0], [11, 6, 5, 5, 0]],
+        "top": [[3, 0, 10, 6, 0], [3, 8, 10, 6, 1]],
+        "bottom": [[3, 0, 10, 6, 1], [3, 8, 10, 6, 0]]
+    })
 
     visible: layouts.length > 1
     implicitHeight: Theme.row28 + 2
@@ -62,20 +73,22 @@ Rectangle {
                     id: content
                     anchors.centerIn: parent
                     spacing: 7
-                    // Mini icon: two 9 x 7 boxes, in a column or a row; for "Top only" the second box is faint.
-                    Grid {
-                        columns: opt.modelData === "side" ? 2 : 1
-                        spacing: 2
+                    // Mini icon: the screens of the layout as boxes; a faint box is a screen that is not shown.
+                    Item {
+                        width: 16
+                        height: 14
                         Repeater {
-                            model: 2
+                            model: root.icons[opt.modelData] || []
                             delegate: Rectangle {
-                                required property int index
-                                width: 9
-                                height: 7
+                                required property var modelData
+                                x: modelData[0]
+                                y: modelData[1]
+                                width: modelData[2]
+                                height: modelData[3]
                                 color: "transparent"
                                 border.width: 1.5
                                 border.color: opt.active ? Theme.inkOnAccent : Theme.muted
-                                opacity: opt.modelData === "top" && index === 1 ? 0.25 : 1
+                                opacity: modelData[4] === 1 ? 0.25 : 1
                             }
                         }
                     }
@@ -99,6 +112,9 @@ Rectangle {
                     border.color: opt.active ? Theme.inkOnAccent : Theme.accent
                 }
                 HoverHandler { id: optHover; cursorShape: Qt.PointingHandCursor }
+                ToolTip.visible: root.compact && optHover.hovered
+                ToolTip.delay: 500
+                ToolTip.text: root.labels[opt.modelData] || opt.modelData
                 // a mouse click leaves the focus with the game
                 TapHandler { onTapped: root.picked(opt.modelData) }
             }
