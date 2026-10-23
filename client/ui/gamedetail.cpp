@@ -55,6 +55,7 @@ QVariantMap GameDetail::selectedGame() const {
 
   m.insert(QStringLiteral("id"), game->id);
   m.insert(QStringLiteral("saveSlot"), saves_->slotFor(game->id));
+  m.insert(QStringLiteral("personal"), model_.personalFor(game->id));  // play time, last played, favourite, collections (3c-1)
   m.insert(QStringLiteral("title"), game->title);
   m.insert(QStringLiteral("system"), game->system);
   m.insert(QStringLiteral("monogram"), LibraryModel::monogram(game->title));

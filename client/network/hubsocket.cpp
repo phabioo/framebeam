@@ -280,10 +280,13 @@ void HubSocket::flushQueued() {
 
 void HubSocket::sendSignal(const SessionSignal& s) { queueOrSend(QStringLiteral("signal"), s.toPayload()); }
 
-void HubSocket::sendPresence(const QString& state, const QString& gameId) {
+void HubSocket::sendPresence(const QString& state, const QString& gameId, const QString& runId) {
   QJsonObject p{{QStringLiteral("state"), state}};
   if (!gameId.isEmpty()) {
     p.insert(QStringLiteral("game_id"), gameId);
+  }
+  if (!runId.isEmpty() && state == QLatin1String("in_game")) {
+    p.insert(QStringLiteral("run_id"), runId);
   }
   queueOrSend(QStringLiteral("presence_update"), p);
 }

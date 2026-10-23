@@ -52,6 +52,7 @@ std::optional<RunInfo> parseRun(const QJsonObject& o) {
   if (r.saveSlot.isEmpty()) r.saveSlot = runSaveSlot(r.runId);
   r.settings = o.value(QLatin1String("settings")).toObject();
   r.lastSeq = static_cast<qint64>(o.value(QLatin1String("last_seq")).toDouble(0));
+  r.playSeconds = qMax<qint64>(0, static_cast<qint64>(o.value(QLatin1String("play_seconds")).toDouble(0)));
   for (const QJsonValue& v : o.value(QLatin1String("plugins")).toArray()) {
     const QJsonObject p = v.toObject();
     RunPluginRef ref{str(p, "plugin_id"), str(p, "version"), str(p, "sha256").toLower()};
@@ -65,6 +66,8 @@ std::optional<RunInfo> parseRun(const QJsonObject& o) {
     part.userName = str(p, "user_name");
     part.status = str(p, "status");
     part.gameId = str(p, "game_id");
+    part.playSeconds = qMax<qint64>(0, static_cast<qint64>(p.value(QLatin1String("play_seconds")).toDouble(0)));
+    part.lastPlayedAt = str(p, "last_played_at");
     part.color = p.value(QLatin1String("color")).isDouble() ? p.value(QLatin1String("color")).toInt(-1) : -1;
     const QJsonObject sts = p.value(QLatin1String("states")).toObject();
     for (auto it = sts.begin(); it != sts.end(); ++it) {
@@ -91,6 +94,8 @@ QJsonObject participantToJson(const RunParticipant& p) {
           {QStringLiteral("status"), p.status},
           {QStringLiteral("game_id"), p.gameId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(p.gameId)},
           {QStringLiteral("color"), p.color < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(p.color)},
+          {QStringLiteral("play_seconds"), static_cast<double>(p.playSeconds)},
+          {QStringLiteral("last_played_at"), p.lastPlayedAt.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(p.lastPlayedAt)},
           {QStringLiteral("states"), sts}};
 }
 
@@ -111,6 +116,7 @@ QJsonObject runToJson(const RunInfo& r) {
           {QStringLiteral("settings"), r.settings},
           {QStringLiteral("plugins"), plugins},
           {QStringLiteral("participants"), parts},
+          {QStringLiteral("play_seconds"), static_cast<double>(r.playSeconds)},
           {QStringLiteral("last_seq"), static_cast<double>(r.lastSeq)}};
 }
 

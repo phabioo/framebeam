@@ -289,6 +289,15 @@ class FakeHub : public QTcpServer {
   void pushRun(const QString& runId);            // run_updated to the WSS clients
   QJsonObject makeRun(const QString& name, const QStringList& userIds, const QString& creator, const QJsonArray& plugins = {});
 
+  // Favourites and collections (Uzume 0.19): GET/POST /collections, PATCH/DELETE /collections/{id}, PUT/DELETE
+  // /collections/{id}/games/{game}, PUT/DELETE /games/{game}/favorite. In-memory; every request is in `requests`.
+  // `collections` holds {id, name, game_ids, created_at} as served; `favoriteGames` the games marked favourite.
+  QJsonArray collections;
+  QStringList favoriteGames;
+  bool collectionsUnsupported = true;   // the routes answer 404 (a server before 0.19); tests of 0.19 turn it off
+  int collectionFailNext = 0;           // next N collection / favourite changes answer 503
+  bool handleCollections(QSslSocket* sock, const FakeRequest& req);
+
   // Observation
   QList<FakeRequest> requests;
   int count(const QString& pathPrefix) const;

@@ -30,6 +30,8 @@ struct RunParticipant {
   QString status;  // invited | joined | declined | left
   QString gameId;  // Hub library game, empty until joined
   int color = -1;  // 0..7 in join order, -1 until the first join
+  qint64 playSeconds = 0;  // Uzume 0.19: the person's play time in this run (0 on an older server)
+  QString lastPlayedAt;    // RFC 3339, "" = never or unknown
   QMap<QString, RunPluginState> states;  // by plugin id; a missing plugin means state {} at revision 0
   RunPluginState stateOf(const QString& pluginId) const { return states.value(pluginId); }
 };
@@ -47,6 +49,7 @@ struct RunInfo {
   QList<RunPluginRef> plugins;
   QList<RunParticipant> participants;
   qint64 lastSeq = 0;
+  qint64 playSeconds = 0;  // Uzume 0.19: play time of all people in the run (0 on an older server)
 
   const RunParticipant* participant(const QString& userId) const;
   RunParticipant* participant(const QString& userId);

@@ -184,10 +184,10 @@ class PlayerSettingsTest : public QObject {
     QTemporaryDir dir;
     {
       PlayerSettings s(dir.path());
-      QCOMPARE(s.librarySort(), QStringLiteral("name_asc"));
+      QCOMPARE(s.librarySort(), QStringLiteral("played"));
       QVERIFY(!s.libraryReadyFirst());
       QVERIFY(!s.setLibrarySort(QStringLiteral("random")));
-      QCOMPARE(s.librarySort(), QStringLiteral("name_asc"));
+      QCOMPARE(s.librarySort(), QStringLiteral("played"));
       QVERIFY(s.setLibrarySort(QStringLiteral("size_asc")));
       QVERIFY(s.setLibraryReadyFirst(true));
       QVERIFY(s.setAppearance(A::Light));

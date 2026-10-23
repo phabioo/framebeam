@@ -111,9 +111,9 @@ class ShellScreenshotsTest : public QObject {
     // Library with a selected game and the attention filter.
     h.controller->selectGame(QStringLiteral("g2"));
     shot(h, QStringLiteral("3c-library"));
-    QVERIFY(h.click("filterAttention"));
+    h.controller->library()->setFilter(QStringLiteral("attention"));
     shot(h, QStringLiteral("3c-library-attention"));
-    QVERIFY(h.click("filterAll"));
+    h.controller->library()->setFilter(QStringLiteral("all"));
 
     // Emulation: a system, then Defaults with a changed value.
     h.controller->showEmulation();

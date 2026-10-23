@@ -44,7 +44,8 @@ class HubSocket : public QObject {
   void setHelloRunsProvider(std::function<QJsonArray()> provider) { helloRuns_ = std::move(provider); }
 
   void sendSignal(const SessionSignal& s);
-  void sendPresence(const QString& state, const QString& gameId = {});
+  // `runId` (Uzume 0.19) only with state "in_game": the game was started as a run game, the server counts the play time for the run.
+  void sendPresence(const QString& state, const QString& gameId = {}, const QString& runId = {});
 
   // Timing (tests): ping interval, backoff start/max, hello_ack timeout.
   void setPingIntervalMs(int ms) { pingIntervalMs_ = ms; }

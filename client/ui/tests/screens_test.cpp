@@ -427,16 +427,8 @@ class ScreensTest : public QObject {
 
     // R-P4: chips, tiles and sidebar entries are Tab stops and work with Enter / Space.
     {
-      QQuickItem* chip = h.item("filterDownload");
-      QVERIFY(chip != nullptr && chip->activeFocusOnTab());
-      chip->forceActiveFocus();
-      QTest::keyClick(h.window, Qt::Key_Space);
-      QCOMPARE(lib->filter(), QStringLiteral("download"));
-      QVERIFY(Harness::findVisual(chip, QStringLiteral("focusRing"))->isVisible());
-      QQuickItem* all = h.item("filterAll");
-      all->forceActiveFocus();
-      QTest::keyClick(h.window, Qt::Key_Return);
-      QCOMPARE(lib->filter(), QStringLiteral("all"));
+      QQuickItem* status = h.item("statusSelect");
+      QVERIFY(status != nullptr && status->activeFocusOnTab());
 
       QTRY_VERIFY(h.item("gameTile_g3") != nullptr);
       QQuickItem* tile = h.item("gameTile_g3");

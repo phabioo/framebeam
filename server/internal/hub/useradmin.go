@@ -14,6 +14,8 @@ import (
 type UserRow struct {
 	User
 	Devices int
+	// PlayStat is the user's play time over all games (0.19).
+	PlayStat
 }
 
 // ListUserRows returns all users (oldest first) with their number of trusted devices.
@@ -36,7 +38,18 @@ func (s *Service) ListUserRows(ctx context.Context) ([]UserRow, error) {
 		r.CreatedAt, r.DisabledAt = time.Unix(created, 0).UTC(), ts(dis)
 		out = append(out, r)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	stats, err := s.AllUserPlayStats(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		out[i].PlayStat = stats[out[i].ID]
+	}
+	return out, nil
 }
 
 // DisableUser disables a regular user. Admins cannot be disabled (ErrForbidden). The user's tokens stay in

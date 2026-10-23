@@ -52,7 +52,9 @@ QHash<int, QByteArray> LibraryModel::roleNames() const {
           {ProgressRole, "progress"}, {SyncKindRole, "syncKind"}, {SyncTextRole, "syncText"},
           {TileTextRole, "tileText"}, {TileToneRole, "tileTone"}, {NeedsAttentionRole, "needsAttention"},
           {ReadyGroupRole, "readyGroup"}, {AddedTextRole, "addedText"}, {OnHubRole, "onHub"},
-          {LocalFileRole, "localFile"}};
+          {LocalFileRole, "localFile"}, {PlaySecondsRole, "playSeconds"}, {PlayTimeTextRole, "playTimeText"},
+          {SessionsRole, "sessions"}, {LastPlayedMsRole, "lastPlayedMs"}, {LastPlayedTextRole, "lastPlayedText"},
+          {FavoriteRole, "favorite"}, {CollectionIdsRole, "collectionIds"}};
 }
 
 QString LibraryModel::formatSize(qint64 bytes) {
@@ -114,6 +116,13 @@ QVariant LibraryModel::data(const QModelIndex& index, int role) const {
     case ReadyGroupRole: return inReadyGroup(it);
     case OnHubRole: return it.game.onHub;
     case LocalFileRole: return it.status.fromLibraryFolder;
+    case PlaySecondsRole: return it.game.personal.playSeconds;
+    case PlayTimeTextRole: return formatPlayTime(it.game.personal.playSeconds);
+    case SessionsRole: return it.game.personal.sessions;
+    case LastPlayedMsRole: return lastPlayedOf(it);
+    case LastPlayedTextRole: return formatLastPlayed(lastPlayedOf(it));
+    case FavoriteRole: return it.game.personal.favorite;
+    case CollectionIdsRole: return it.game.personal.collectionIds;
     case AddedTextRole:
       return it.addedMs > 0 ? QVariant(QDateTime::fromMSecsSinceEpoch(it.addedMs).toLocalTime().toString(QStringLiteral("dd.MM.yyyy"))) : QVariant(QString());
     case TileToneRole:
@@ -195,7 +204,7 @@ LibraryModel::Category LibraryModel::categoryOf(const Item& it) {
 QVariantMap LibraryModel::countsFor(bool applyText) const {
   int all = 0, ready = 0, attention = 0, download = 0;
   for (const Item& it : items_) {
-    if (applyText && !matchesText(it)) {
+    if (applyText ? !matchesText(it) : !matchesCollection(it)) {
       continue;
     }
     ++all;
@@ -219,8 +228,17 @@ QString LibraryModel::attentionText(const QString& gameId) const {
 }
 
 bool LibraryModel::matchesText(const Item& it) const {
+  if (!matchesCollection(it)) {
+    return false;
+  }
   const QString needle = filterText_.trimmed();
   return needle.isEmpty() || it.game.title.contains(needle, Qt::CaseInsensitive);
+}
+
+bool LibraryModel::matchesCollection(const Item& it) const {
+  if (collection_ == QLatin1String("all")) return true;
+  if (collection_ == QLatin1String("favorites")) return it.game.personal.favorite;
+  return it.game.personal.collectionIds.contains(collection_);
 }
 
 bool LibraryModel::matches(const Item& it) const {
@@ -253,7 +271,8 @@ qint64 LibraryModel::parseAdded(const QString& iso) {
 
 QStringList LibraryModel::sortKeys() {
   return {QStringLiteral("name_asc"),  QStringLiteral("name_desc"), QStringLiteral("added_desc"), QStringLiteral("added_asc"),
-          QStringLiteral("size_desc"), QStringLiteral("size_asc"),  QStringLiteral("system"),     QStringLiteral("played")};
+          QStringLiteral("size_desc"), QStringLiteral("size_asc"),  QStringLiteral("system"),     QStringLiteral("played"),
+          QStringLiteral("playtime")};
 }
 
 bool LibraryModel::lessThan(const Item& a, const Item& b) const {
@@ -261,7 +280,7 @@ bool LibraryModel::lessThan(const Item& a, const Item& b) const {
     const int c = compareTitles(x.game.title, y.game.title);
     return c != 0 ? c : QString::compare(x.game.id, y.game.id);
   };
-  const auto key = [this](const QString& id) { return lastPlayed_.value(id, 0); };
+  const auto key = [this](const Item& it) { return lastPlayedOf(it); };
   if (sortKey_ == QLatin1String("name_desc")) {
     return byName(a, b) > 0;
   }
@@ -282,9 +301,15 @@ bool LibraryModel::lessThan(const Item& a, const Item& b) const {
     return c != 0 ? c < 0 : byName(a, b) < 0;
   }
   if (sortKey_ == QLatin1String("played")) {
-    const qint64 pa = key(a.game.id), pb = key(b.game.id);
+    const qint64 pa = key(a), pb = key(b);
     if (pa != pb) {
-      return pa > pb;  // never played (0) comes last
+      return pa > pb;  // never played (0) comes last; with nothing played at all this is the Name order
+    }
+    return byName(a, b) < 0;
+  }
+  if (sortKey_ == QLatin1String("playtime")) {
+    if (a.game.personal.playSeconds != b.game.personal.playSeconds) {
+      return a.game.personal.playSeconds > b.game.personal.playSeconds;
     }
     return byName(a, b) < 0;
   }
@@ -385,7 +410,7 @@ QString LibraryModel::playedDateText(qint64 msecs, const QDate& today) {
 QVariantList LibraryModel::continueEntriesAt(const QDate& today) const {
   QList<QPair<qint64, const Item*>> played;
   for (const Item& it : items_) {
-    const qint64 at = lastPlayed_.value(it.game.id, 0);
+    const qint64 at = lastPlayedOf(it);  // newer of the server's and this device's
     if (at > 0) played.append({at, &it});
   }
   std::stable_sort(played.begin(), played.end(), [](const auto& a, const auto& b) {
@@ -405,6 +430,146 @@ QVariantList LibraryModel::continueEntriesAt(const QDate& today) const {
   return out;
 }
 
+qint64 LibraryModel::lastPlayedOf(const Item& it) const {
+  return qMax(parseAdded(it.game.personal.lastPlayedAt), lastPlayed_.value(it.game.id, 0));
+}
+
+QString LibraryModel::formatPlayTime(qint64 seconds) {
+  if (seconds <= 0) return QStringLiteral("–");
+  if (seconds < 60) return tr("< 1 min");
+  if (seconds < 3600) return tr("%1 min").arg(seconds / 60);
+  const double hours = static_cast<double>(seconds) / 3600.0;
+  if (hours < 10) {
+    const qint64 tenths = qRound64(hours * 10);  // 2.0 h is shown as "2 h"
+    return tenths % 10 == 0 ? tr("%1 h").arg(tenths / 10) : tr("%1 h").arg(QLocale::c().toString(static_cast<double>(tenths) / 10.0, 'f', 1));
+  }
+  return tr("%1 h").arg(static_cast<qint64>(hours));
+}
+
+QString LibraryModel::formatLastPlayed(qint64 msecs, qint64 nowMsecs) {
+  if (msecs <= 0) return QStringLiteral("–");
+  const QDate today = QDateTime::fromMSecsSinceEpoch(nowMsecs > 0 ? nowMsecs : QDateTime::currentMSecsSinceEpoch()).toLocalTime().date();
+  const QDate day = QDateTime::fromMSecsSinceEpoch(msecs).toLocalTime().date();
+  const qint64 ago = day.daysTo(today);
+  if (ago <= 0) return tr("Today");
+  if (ago == 1) return tr("Yesterday");
+  if (ago < 7) return tr("%1 days ago").arg(ago);
+  return day.toString(QStringLiteral("dd.MM.yyyy"));
+}
+
+void LibraryModel::afterPersonalChange() {
+  const QList<int> before = visible_;
+  rebuild();
+  if (before == visible_ && !visible_.isEmpty()) {
+    emit dataChanged(index(0), index(static_cast<int>(visible_.size()) - 1));
+  }
+  emit countChanged();
+  emit continueChanged();
+  emit collectionsChanged();
+}
+
+void LibraryModel::setPersonalSupported(bool on) {
+  if (on == personalSupported_) return;
+  personalSupported_ = on;
+  emit collectionsChanged();
+}
+
+QVariantList LibraryModel::collectionChips() const {
+  int favorites = 0;
+  QHash<QString, int> perCollection;
+  for (const Item& it : items_) {
+    favorites += it.game.personal.favorite ? 1 : 0;
+    for (const QString& id : it.game.personal.collectionIds) perCollection[id]++;
+  }
+  const auto chip = [](const QString& value, const QString& label, int count, const QString& kind) {
+    return QVariantMap{{QStringLiteral("value"), value}, {QStringLiteral("label"), label}, {QStringLiteral("count"), count}, {QStringLiteral("kind"), kind}};
+  };
+  QVariantList out;
+  out.append(chip(QStringLiteral("all"), tr("All"), static_cast<int>(items_.size()), QStringLiteral("all")));
+  out.append(chip(QStringLiteral("favorites"), tr("Favourites"), favorites, QStringLiteral("favorites")));
+  for (const CollectionInfo& c : collections_) {
+    out.append(chip(c.id, c.name, perCollection.value(c.id), QStringLiteral("collection")));
+  }
+  return out;
+}
+
+void LibraryModel::setCollections(const QList<CollectionInfo>& collections) {
+  collections_ = collections;
+  personalSupported_ = true;
+  QHash<QString, QStringList> byGame;
+  for (const CollectionInfo& c : collections_) {
+    for (const QString& g : c.gameIds) byGame[g].append(c.id);
+  }
+  for (Item& it : items_) {
+    it.game.personal.collectionIds = byGame.value(it.game.id);
+  }
+  bool known = collection_ == QLatin1String("all") || collection_ == QLatin1String("favorites");
+  for (const CollectionInfo& c : collections_) known = known || c.id == collection_;
+  const bool reset = !known;
+  if (reset) collection_ = QStringLiteral("all");
+  afterPersonalChange();
+  if (reset) emit filterChanged();
+}
+
+void LibraryModel::setFavorite(const QString& gameId, bool favorite) {
+  for (Item& it : items_) {
+    if (it.game.id == gameId && it.game.personal.favorite != favorite) {
+      it.game.personal.favorite = favorite;
+      afterPersonalChange();
+      return;
+    }
+  }
+}
+
+void LibraryModel::setCollectionMember(const QString& gameId, const QString& collectionId, bool member) {
+  for (Item& it : items_) {
+    if (it.game.id != gameId) continue;
+    QStringList& ids = it.game.personal.collectionIds;
+    if (member == ids.contains(collectionId)) return;
+    if (member) ids.append(collectionId);
+    else ids.removeAll(collectionId);
+    for (CollectionInfo& c : collections_) {
+      if (c.id != collectionId) continue;
+      if (member) c.gameIds.append(gameId);
+      else c.gameIds.removeAll(gameId);
+    }
+    afterPersonalChange();
+    return;
+  }
+}
+
+QVariantMap LibraryModel::personalFor(const QString& gameId) const {
+  for (const Item& it : items_) {
+    if (it.game.id != gameId) continue;
+    QStringList names;
+    for (const CollectionInfo& c : collections_) {
+      if (it.game.personal.collectionIds.contains(c.id)) names.append(c.name);
+    }
+    const qint64 last = lastPlayedOf(it);
+    return {{QStringLiteral("supported"), personalSupported_},
+            {QStringLiteral("playSeconds"), it.game.personal.playSeconds},
+            {QStringLiteral("playTimeText"), formatPlayTime(it.game.personal.playSeconds)},
+            {QStringLiteral("sessions"), it.game.personal.sessions},
+            {QStringLiteral("lastPlayedMs"), last},
+            {QStringLiteral("lastPlayedText"), formatLastPlayed(last)},
+            {QStringLiteral("favorite"), it.game.personal.favorite},
+            {QStringLiteral("collectionIds"), it.game.personal.collectionIds},
+            {QStringLiteral("collectionNames"), names}};
+  }
+  return {};
+}
+
+void LibraryModel::setCollectionFilter(const QString& value) {
+  bool known = value == QLatin1String("all") || value == QLatin1String("favorites");
+  for (const CollectionInfo& c : collections_) known = known || c.id == value;
+  const QString v = known ? value : QStringLiteral("all");
+  if (v == collection_) return;
+  collection_ = v;
+  rebuild();
+  emit filterChanged();
+  emit countChanged();
+}
+
 void LibraryModel::setSystemLabel(const QString& label) {
   if (label != systemLabel_) {
     systemLabel_ = label;
@@ -417,6 +582,9 @@ QString LibraryModel::countText() const {
   const int shown = rowCount();
   const bool text = !filterText_.trimmed().isEmpty();
   if (filter_ == QLatin1String("all")) {
+    if (!text && collection_ != QLatin1String("all")) {
+      return tr("%1 of %2 games").arg(shown).arg(total);
+    }
     if (!text) {
       const QString base = total == 1 ? tr("1 game") : tr("%1 games").arg(total);
       return systemLabel_.isEmpty() ? base : tr("%1 · %2").arg(base, systemLabel_);
@@ -505,6 +673,13 @@ void LibraryModel::setAttention(const QHash<QString, QString>& byGameId) {
 }
 
 void LibraryModel::setGames(const QList<GameEntry>& games, const std::function<RomStatus(const GameEntry&)>& statusOf) {
+  for (const GameEntry& g : games) {
+    if (g.personal.known && !personalSupported_) {
+      personalSupported_ = true;
+      emit collectionsChanged();
+      break;
+    }
+  }
   // Same games in the same order (periodic refresh): update in place, no reset (scroll position and selection stay).
   if (games.size() == items_.size() && !games.isEmpty()) {
     bool same = true;
@@ -524,6 +699,7 @@ void LibraryModel::setGames(const QList<GameEntry>& games, const std::function<R
       }
       emit countChanged();
       emit continueChanged();
+      emit collectionsChanged();
       return;
     }
   }
@@ -549,9 +725,15 @@ void LibraryModel::setGames(const QList<GameEntry>& games, const std::function<R
   endResetModel();
   emit countChanged();
   emit continueChanged();
+  emit collectionsChanged();
 }
 
-void LibraryModel::clear() { setGames({}, {}); }
+void LibraryModel::clear() {
+  collections_.clear();
+  personalSupported_ = false;
+  collection_ = QStringLiteral("all");
+  setGames({}, {});
+}
 
 void LibraryModel::setStatus(const QString& romSha256, const RomStatus& status) {
   bool any = false;

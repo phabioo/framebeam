@@ -462,8 +462,11 @@ func (s *Service) deleteGameRows(ctx context.Context, g Game) error {
 			return internal(err)
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM games WHERE id = ?`, g.ID); err != nil {
-		return internal(err)
+	// Favorites and collection entries go with the game; play rows stay (the users' totals keep the time).
+	for _, q := range []string{`DELETE FROM favorites WHERE game_id = ?`, `DELETE FROM collection_games WHERE game_id = ?`, `DELETE FROM games WHERE id = ?`} {
+		if _, err := tx.ExecContext(ctx, q, g.ID); err != nil {
+			return internal(err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return internal(err)

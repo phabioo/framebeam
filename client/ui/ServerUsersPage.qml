@@ -6,7 +6,7 @@ import Uzume.App
 // Data from GET /admin/users, /admin/devices, /admin/invites and /admin/pairing-requests, read when the page opens and again
 // after every change. The tabs are ServerUsersPeople / ServerUsersInvites / ServerUsersDevices, the dialogs and the Toast are
 // ServerUsersDialogs; this file holds the data, the actions and the states.
-// What the API does not carry is left out: no play time, no "playing" status, no password state per person, no role or number of
+// What the API does not carry is left out: no "playing" status, no password state per person, no role or number of
 // uses per invite, no "made by", no invite link (only the code), no network or "has no password" text on a waiting device,
 // no warning about a save that is not uploaded.
 Item {
@@ -40,7 +40,8 @@ Item {
     readonly property int selectedIndex: root.peopleRows.findIndex(r => r.id === root.selectedId)
     readonly property var peopleRows: root.users.map(u => ({
         id: u.id, person: u.display_name, since: qsTr("Since %1").arg(root.monthText(u.created_at)),
-        role: u.role === "admin" ? qsTr("Admin") : qsTr("Member"), status: root.statusText(u), devices: String(u.devices ?? 0) }))
+        role: u.role === "admin" ? qsTr("Admin") : qsTr("Member"), status: root.statusText(u), devices: String(u.devices ?? 0),
+        played: root.playText(u.play_seconds) }))
     readonly property var inviteRows: root.invites.map(i => ({
         id: i.id, kind: i.for_user ? qsTr("Pairing code for %1").arg(i.for_user) : qsTr("Invite"),
         trust: i.authorize_device ? qsTr("Trusted at once") : qsTr("Needs approval"),
@@ -57,6 +58,8 @@ Item {
         for (const u of root.users) if (u.id === id) return u
         return null
     }
+    // Play time of a person ("12 h", "45 min"); a dash for none (or an older server that sends none).
+    function playText(seconds: var): string { return root.player.library.formatPlayTime(Number(seconds ?? 0)) }
     function isSelf(u: var): bool { return u !== null && root.selfName !== "" && u.display_name === root.selfName }
     function devicesOf(u: var): var {
         return root.devices.filter(d => d.user_id === u.id && d.status === "trusted").map(d => d.name)

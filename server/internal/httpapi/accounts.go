@@ -45,7 +45,8 @@ func (s *Server) SignIn(ctx context.Context, req api.SignInRequestObject) (api.S
 func toAPIAccount(a hub.Account) api.Account {
 	return api.Account{UserId: a.UserID, Username: a.Username, DisplayName: a.DisplayName, Role: api.AccountRole(a.Role),
 		HasPassword: a.HasPassword, PasswordRequired: a.PasswordRequired, MustChangePassword: a.MustChangePassword,
-		ConfirmedUntil: a.ConfirmedUntil, ConfirmLockedUntil: a.ConfirmLockedUntil}
+		ConfirmedUntil: a.ConfirmedUntil, ConfirmLockedUntil: a.ConfirmLockedUntil,
+		PlaySeconds: a.Seconds, Sessions: a.Sessions, LastPlayedAt: a.LastPlayedAt}
 }
 
 func (s *Server) account(ctx context.Context) (hub.Account, error) {

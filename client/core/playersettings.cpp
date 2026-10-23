@@ -367,7 +367,7 @@ bool PlayerSettings::setDiagnosticsStreamingOpen(bool open) {
 bool PlayerSettings::isValidLibrarySort(const QString& key) {
   static const QStringList keys = {QStringLiteral("name_asc"),  QStringLiteral("name_desc"), QStringLiteral("added_desc"),
                                    QStringLiteral("added_asc"), QStringLiteral("size_desc"), QStringLiteral("size_asc"),
-                                   QStringLiteral("system"),    QStringLiteral("played")};
+                                   QStringLiteral("system"),    QStringLiteral("played"),    QStringLiteral("playtime")};
   return keys.contains(key);
 }
 

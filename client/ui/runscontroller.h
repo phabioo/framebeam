@@ -225,12 +225,13 @@ class RunsController : public QObject {
   static QStringList runRoles() {
     return {QStringLiteral("runId"),  QStringLiteral("name"),     QStringLiteral("status"),  QStringLiteral("statusText"), QStringLiteral("tone"),
             QStringLiteral("subText"), QStringLiteral("timeText"), QStringLiteral("action"), QStringLiteral("participants"),
-            QStringLiteral("game"), QStringLiteral("rulesName"), QStringLiteral("rulesVersion")};
+            QStringLiteral("game"), QStringLiteral("rulesName"), QStringLiteral("rulesVersion"), QStringLiteral("playTimeText")};
   }
   KeyedRowsModel active_{runRoles(), QStringLiteral("runId")};
   KeyedRowsModel finished_{runRoles(), QStringLiteral("runId")};
   KeyedRowsModel participants_{{QStringLiteral("userId"), QStringLiteral("name"), QStringLiteral("color"), QStringLiteral("gameTitle"), QStringLiteral("statusText"),
-                                QStringLiteral("slotText"), QStringLiteral("me")},
+                                QStringLiteral("slotText"), QStringLiteral("me"), QStringLiteral("playTimeText"),
+                                QStringLiteral("lastPlayedText")},
                                QStringLiteral("userId")};
   KeyedRowsModel events_{{QStringLiteral("seq"), QStringLiteral("timeText"), QStringLiteral("fullTimeText"), QStringLiteral("author"), QStringLiteral("text"), QStringLiteral("sourceText")},
                          QStringLiteral("seq")};

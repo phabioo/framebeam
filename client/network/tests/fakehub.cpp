@@ -809,6 +809,8 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     handleAccount(sock, req);
   } else if (handleLocalRoms(sock, req)) {
     // answered
+  } else if (handleCollections(sock, req)) {
+    // answered
   } else if (req.path == QLatin1String("/api/v1/saves") || req.path.startsWith(QLatin1String("/api/v1/games/"))) {
     handleSaves(sock, req);
   } else if (req.method == "GET" && req.path == QLatin1String("/api/v1/games")) {
@@ -2164,4 +2166,106 @@ void FakeHub::handleAccount(QSslSocket* sock, const FakeRequest& req) {
     return;
   }
   respondError(sock, 404, QStringLiteral("not_found"));
+}
+
+bool FakeHub::handleCollections(QSslSocket* sock, const FakeRequest& req) {
+  static const QString kBase = QStringLiteral("/api/v1/collections");
+  const bool isFavorite = req.path.startsWith(QLatin1String("/api/v1/games/")) && req.path.endsWith(QLatin1String("/favorite"));
+  const bool isCollections = req.path == kBase || req.path.startsWith(kBase + QLatin1Char('/'));
+  if (!isFavorite && !isCollections) {
+    return false;
+  }
+  if (collectionsUnsupported) {
+    respondError(sock, 404, QStringLiteral("not_found"));
+    return true;
+  }
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  const bool change = req.method != "GET";
+  if (change && collectionFailNext > 0) {
+    --collectionFailNext;
+    respondError(sock, 503, QStringLiteral("unavailable"));
+    return true;
+  }
+  const QJsonObject body = QJsonDocument::fromJson(req.body).object();
+  if (isFavorite) {
+    const QString gameId = req.path.mid(QStringLiteral("/api/v1/games/").size()).chopped(QStringLiteral("/favorite").size());
+    if (req.method == "PUT") {
+      if (!favoriteGames.contains(gameId)) favoriteGames.append(gameId);
+    } else if (req.method == "DELETE") {
+      favoriteGames.removeAll(gameId);
+    } else {
+      respondError(sock, 405, QStringLiteral("method_not_allowed"));
+      return true;
+    }
+    respond(sock, 204, {});
+    return true;
+  }
+  const auto indexOf = [this](const QString& id) {
+    for (int i = 0; i < collections.size(); ++i) {
+      if (collections.at(i).toObject().value(QStringLiteral("id")).toString() == id) return i;
+    }
+    return -1;
+  };
+  const auto nameTaken = [this](const QString& name, const QString& exceptId) {
+    for (const QJsonValue& v : std::as_const(collections)) {
+      const QJsonObject o = v.toObject();
+      if (o.value(QStringLiteral("id")).toString() != exceptId && o.value(QStringLiteral("name")).toString().compare(name, Qt::CaseInsensitive) == 0) return true;
+    }
+    return false;
+  };
+  const QStringList parts = req.path.mid(kBase.size()).split(QLatin1Char('/'), Qt::SkipEmptyParts);
+  if (parts.isEmpty()) {
+    if (req.method == "GET") {
+      respond(sock, 200, json({{QStringLiteral("collections"), collections}}));
+    } else if (req.method == "POST") {
+      const QString name = body.value(QStringLiteral("name")).toString().trimmed();
+      if (name.isEmpty() || name.size() > 40) {
+        respondError(sock, 400, QStringLiteral("bad_request"));
+      } else if (nameTaken(name, {})) {
+        respondError(sock, 409, QStringLiteral("name_taken"));
+      } else {
+        QJsonObject c{{QStringLiteral("id"), QStringLiteral("c%1").arg(collections.size() + 1)},
+                      {QStringLiteral("name"), name},
+                      {QStringLiteral("game_ids"), body.value(QStringLiteral("game_ids")).toArray()},
+                      {QStringLiteral("created_at"), QStringLiteral("2026-10-01T10:00:00Z")}};
+        collections.append(c);
+        respond(sock, 201, json(c));
+      }
+    } else {
+      respondError(sock, 405, QStringLiteral("method_not_allowed"));
+    }
+    return true;
+  }
+  const int at = indexOf(parts.at(0));
+  if (at < 0) {
+    respondError(sock, 404, QStringLiteral("not_found"));
+    return true;
+  }
+  QJsonObject c = collections.at(at).toObject();
+  if (parts.size() == 1 && req.method == "PATCH") {
+    const QString name = body.value(QStringLiteral("name")).toString().trimmed();
+    if (name.isEmpty() || name.size() > 40) {
+      respondError(sock, 400, QStringLiteral("bad_request"));
+    } else if (nameTaken(name, parts.at(0))) {
+      respondError(sock, 409, QStringLiteral("name_taken"));
+    } else {
+      c.insert(QStringLiteral("name"), name);
+      collections.replace(at, c);
+      respond(sock, 200, json(c));
+    }
+  } else if (parts.size() == 1 && req.method == "DELETE") {
+    collections.removeAt(at);
+    respond(sock, 204, {});
+  } else if (parts.size() == 3 && parts.at(1) == QLatin1String("games") && (req.method == "PUT" || req.method == "DELETE")) {
+    QStringList ids;
+    for (const QJsonValue& v : c.value(QStringLiteral("game_ids")).toArray()) ids.append(v.toString());
+    ids.removeAll(parts.at(2));
+    if (req.method == "PUT") ids.append(parts.at(2));
+    c.insert(QStringLiteral("game_ids"), QJsonArray::fromStringList(ids));
+    collections.replace(at, c);
+    respond(sock, 204, {});
+  } else {
+    respondError(sock, 405, QStringLiteral("method_not_allowed"));
+  }
+  return true;
 }

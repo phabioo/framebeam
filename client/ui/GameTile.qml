@@ -20,7 +20,10 @@ Item {
     required property bool onHub          // false: local-only game (file stays on a Player), shows the "Local" tag
     required property bool localFile      // starts from a local file of a library folder; with onHub: "Local · on server"
     required property string addedText   // "DD.MM.YYYY" from the Hub; shown as "Added ..." with a date sort
+    required property string playTimeText      // "12 h", "45 min", "–" (0.19)
+    required property string lastPlayedText    // "Today", "3 days ago", "DD.MM.YYYY", "–"
     property bool showAdded: false
+    property bool showPersonal: false   // Played and Last played columns (a server that keeps them per person)
     property bool selected: false
     property bool running: false   // game paused in the background (3c-5: tag in the title cell, status line)
 
@@ -125,6 +128,24 @@ Item {
             ToolTip.text: text
             ToolTip.delay: 400
         }
+        UzLabel {   // play time of the signed-in person (3c-0 "Played")
+            objectName: "tilePlayed"
+            visible: tile.showPersonal
+            Layout.preferredWidth: 72
+            text: tile.playTimeText
+            font.pixelSize: Theme.roles.small.size
+            color: tile.playTimeText === "–" ? Theme.dim : Theme.muted
+            elide: Text.ElideRight
+        }
+        UzLabel {
+            objectName: "tileLastPlayed"
+            visible: tile.showPersonal
+            Layout.preferredWidth: 104
+            text: tile.lastPlayedText
+            font.pixelSize: Theme.roles.small.size
+            color: tile.lastPlayedText === "–" ? Theme.dim : Theme.muted
+            elide: Text.ElideRight
+        }
         UzLabel {
             objectName: "tileAdded"
             visible: tile.showAdded && tile.addedText !== ""
@@ -144,7 +165,7 @@ Item {
     // Keyboard (R-P4): Tab reaches the row, Enter/Space selects it.
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
-    Accessible.name: tile.title + ", " + tile.tileText
+    Accessible.name: tile.title + ", " + tile.tileText + (tile.showPersonal && tile.playTimeText !== "–" ? ", " + tile.playTimeText : "")
     Accessible.onPressAction: tile.clicked()
     Keys.onPressed: (event) => {
         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {

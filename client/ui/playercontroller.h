@@ -42,6 +42,7 @@
 #include "librarymodel.h"
 #include "playphase.h"
 #include "pluginscontroller.h"
+#include "personalcontroller.h"
 #include "runscontroller.h"
 #include "playersettings.h"
 #include "romcache.h"
@@ -147,6 +148,8 @@ class PlayerController : public QObject {
   // Plugins (Settings > Plugins, Plugin console tab of the game panel)
   Q_PROPERTY(uzume::ui::PluginsController* plugins READ plugins CONSTANT)
   Q_PROPERTY(uzume::ui::RunsController* runs READ runs CONSTANT)
+  // Favourites and collections of the signed-in person (3c-0, 3c-1, 3c-4)
+  Q_PROPERTY(uzume::ui::PersonalController* personal READ personal CONSTANT)
   // Connection check dialog (design 6e): Hub reachable, STUN, TURN, NAT type, test connection
   Q_PROPERTY(uzume::ui::ConnectionCheckController* connectionCheck READ connectionCheck CONSTANT)
   // Save slot picker, history/restore, snapshots, "save changed elsewhere" notice (ADR 0012 D7)
@@ -215,6 +218,7 @@ class PlayerController : public QObject {
   AccountsController* accounts() { return accounts_.get(); }
   PluginsController* plugins() { return plugins_.get(); }
   RunsController* runs() { return runs_.get(); }
+  PersonalController* personal() { return personal_.get(); }
   SaveHistoryController* saveHistory() { return history_.get(); }
   ConnectionCheckController* connectionCheck() { return connectionCheck_.get(); }
   QString logFile() const;
@@ -467,6 +471,7 @@ class PlayerController : public QObject {
   std::unique_ptr<LocalHubController> localHub_;
   std::unique_ptr<OnboardingController> onboarding_;  // after localHub_ and conn_
   std::unique_ptr<AccountsController> accounts_;
+  std::unique_ptr<PersonalController> personal_;
   std::unique_ptr<PluginsController> plugins_;  // after settings_ and session_: destroyed before them
   std::unique_ptr<RunClient> runClient_;        // after sessions_ (the Hub socket) and plugins_
   std::unique_ptr<RunsController> runs_;

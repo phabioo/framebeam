@@ -134,7 +134,18 @@ Rectangle {
                 color: Theme.muted
             }
 
-            // Filter chips with counts ("All · 10"), sort and "Ready first" on the same row; they wrap under the chips in a
+            UzMenu {
+                id: collectionMenu
+                objectName: "collectionMenu"
+                items: [{ label: qsTr("Rename...") }, { separator: true }, { label: qsTr("Delete collection..."), danger: true }]
+                onChosen: (item, index) => {
+                    const id = root.player.library.collectionFilter
+                    if (index === 0) collectionDialogs.openRename(id)
+                    else if (index === 2) collectionDialogs.openDelete(id)
+                }
+            }
+
+            // Collection chips, status select, sort and "Ready first" on the same row; they wrap under the chips in a
             // narrow column (3c-6). The count of the result is not repeated as text (P11).
             Item {
                 id: toolbar
@@ -151,37 +162,65 @@ Rectangle {
                     return w + Math.max(0, n - 1) * Theme.space1
                 }
                 // Sort + "Ready first" side by side; in a narrow toolbar they wrap into two lines when they do not fit
-                readonly property real controlsNatural: sortControl.implicitWidth + controls.spacing + readyFirst.implicitWidth
+                readonly property real controlsNatural: statusSelect.implicitWidth + sortControl.implicitWidth + readyFirst.implicitWidth + 2 * controls.spacing
                 readonly property bool narrow: width < chipsNatural + controlsNatural + 24
-                implicitHeight: narrow ? chipRow.height + Theme.space1 + controls.height : Math.max(Theme.row36, chipRow.height)
+                implicitHeight: narrow ? (chipRow.visible ? chipRow.height + Theme.space1 : 0) + controls.height : Math.max(Theme.row36, chipRow.visible ? chipRow.height : 0)
+                // Collections (3c-0, Uzume 0.19): "All · 10", "Favourites · 3", one chip per collection and "+ Collection"; the menu of
+                // the open collection (Rename..., Delete collection...) ends the row. Hidden on a server without collections.
                 Flow {
                     id: chipRow
-                    objectName: "filterChips"
+                    objectName: "collectionChips"
+                    visible: root.player.library.personalSupported
                     width: toolbar.width
                     spacing: Theme.space1
                     Repeater {
-                        model: [
-                            { name: "filterAll", value: "all", label: qsTr("All") },
-                            { name: "filterReady", value: "ready", label: qsTr("Ready") },
-                            { name: "filterAttention", value: "attention", label: qsTr("Needs attention") },
-                            { name: "filterDownload", value: "download", label: qsTr("Not downloaded") }
-                        ]
+                        model: root.player.library.collectionChips
                         delegate: UzChip {
                             required property var modelData
-                            objectName: modelData.name
+                            objectName: "collection_" + modelData.value
                             text: modelData.label
-                            count: root.player.library.counts[modelData.value]
-                            active: root.player.library.filter === modelData.value
-                            onClicked: root.player.library.filter = modelData.value
+                            count: modelData.count
+                            maxWidth: Math.max(120, chipRow.width)
+                            active: root.player.library.collectionFilter === modelData.value
+                            onClicked: root.player.library.collectionFilter = modelData.value
                         }
+                    }
+                    UzChip {
+                        objectName: "collectionNew"
+                        text: qsTr("+ Collection")
+                        onClicked: collectionDialogs.openNew("")
+                    }
+                    UzIconButton {
+                        id: collectionMore
+                        objectName: "collectionMenuButton"
+                        visible: !["all", "favorites"].includes(root.player.library.collectionFilter)
+                        height: Theme.row28
+                        width: Theme.row28
+                        glyph: "more"
+                        on: collectionMenu.opened
+                        Accessible.name: qsTr("Collection menu")
+                        onClicked: collectionMenu.openFor(collectionMore)
                     }
                 }
                 Flow {
                     id: controls
                     width: toolbar.narrow ? toolbar.width : toolbar.controlsNatural
                     spacing: Theme.space2
-                    y: toolbar.narrow ? chipRow.height + Theme.space1 : 0
+                    y: toolbar.narrow && chipRow.visible ? chipRow.height + Theme.space1 : 0
                     x: toolbar.narrow ? 0 : toolbar.width - width
+                    UzSelect {
+                        id: statusSelect
+                        objectName: "statusSelect"
+                        implicitWidth: 190
+                        height: Theme.row36
+                        Accessible.name: qsTr("Status")
+                        current: root.player.library.filter
+                        // The closed field reads "Status: Ready · 3"; the counts follow the search.
+                        model: [["all", qsTr("All")], ["ready", qsTr("Ready")], ["attention", qsTr("Needs attention")], ["download", qsTr("Not downloaded")]].map(o => ({
+                            value: o[0],
+                            label: (o[0] === root.player.library.filter ? qsTr("Status: ") : "") + o[1] + " · " + root.player.library.counts[o[0]] }))
+                        onPicked: (value) => root.player.library.filter = value
+                    }
                     SortControl {
                         id: sortControl
                         current: root.player.library.sortKey
@@ -207,6 +246,7 @@ Rectangle {
                 id: countLabel
                 objectName: "libraryCount"
                 readonly property bool narrowed: root.player.library.filter !== "all" || root.player.library.filterText.trim() !== ""
+                                                 || root.player.library.collectionFilter !== "all"
                 visible: narrowed
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
@@ -444,6 +484,8 @@ Rectangle {
                                 { text: qsTr("Game"), w: -1 },
                                 { text: qsTr("System"), w: 56 },
                                 { text: qsTr("Status"), w: 192 },
+                                { text: qsTr("Played"), w: gridScroll.personal ? 72 : 0 },
+                                { text: qsTr("Last played"), w: gridScroll.personal ? 104 : 0 },
                                 { text: qsTr("Added"), w: gridScroll.dated ? 104 : 0 }
                             ]
                             delegate: Text {
@@ -485,6 +527,7 @@ Rectangle {
                     readonly property int cellW: gridW
                     readonly property bool dated: root.player.library.sortKey === "added_desc" || root.player.library.sortKey === "added_asc"
                     readonly property int cellH: Theme.row44
+                    readonly property bool personal: root.player.library.personalSupported
 
                     Column {
                         id: gridColumn
@@ -502,6 +545,7 @@ Rectangle {
                             cellHeight: gridScroll.cellH
                             model: LibraryGroupModel { library: root.player.library; group: root.player.library.grouped ? 0 : -1 }
                             showAdded: gridScroll.dated
+                            showPersonal: gridScroll.personal
                             selectedId: root.player.selectedGameId || ""
                             runningId: root.player.backgroundGame.id || ""
                             onTileClicked: (gameId) => root.player.selectGame(gameId)
@@ -535,6 +579,7 @@ Rectangle {
                             cellHeight: gridScroll.cellH
                             model: LibraryGroupModel { library: root.player.library; group: 1 }
                             showAdded: gridScroll.dated
+                            showPersonal: gridScroll.personal
                             selectedId: root.player.selectedGameId || ""
                             runningId: root.player.backgroundGame.id || ""
                             onTileClicked: (gameId) => root.player.selectGame(gameId)
@@ -555,6 +600,7 @@ Rectangle {
                               : root.player.libraryState === "error" ? "error" : "empty"
                         readonly property string needle: root.player.library.filterText.trim()
                         readonly property string chip: root.player.library.filter
+                        readonly property string coll: root.player.library.collectionFilter
                         title: root.player.libraryState === "loading" ? qsTr("Loading Library…")
                                : root.player.libraryState === "error" ? qsTr("Could not load Library: %1").arg(root.player.libraryError)
                                : root.player.library.totalCount === 0 ? qsTr("No games yet.")
@@ -562,10 +608,37 @@ Rectangle {
                                                   : chip === "attention" ? qsTr("No games needing attention match “%1”").arg(needle)
                                                   : chip === "download" ? qsTr("No games not downloaded match “%1”").arg(needle)
                                                   : qsTr("No games match “%1”").arg(needle))
+                               : chip === "all" && coll === "favorites" ? qsTr("No favourites yet.")
+                               : chip === "all" && coll !== "all" ? qsTr("This collection is empty.")
                                : chip === "attention" ? qsTr("Nothing needs attention.")
                                : qsTr("No results.")
                         action: root.player.libraryState === "error" ? qsTr("Reload") : ""
                         onActionClicked: root.player.reloadLibrary()
+                    }
+                    // Empty states of the collection row (S3c4): favourites follow the person, an empty collection can be renamed or deleted.
+                    UzLabel {
+                        objectName: "collectionEmptyHint"
+                        visible: root.player.libraryState === "ready" && root.player.library.totalCount > 0 && root.player.library.count === 0
+                                 && root.player.library.filterText.trim() === "" && root.player.library.filter === "all"
+                                 && root.player.library.collectionFilter !== "all"
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        color: Theme.dim
+                        font.pixelSize: Theme.roles.small.size
+                        text: root.player.library.collectionFilter === "favorites"
+                              ? qsTr("Favourites are per person and follow you to every PC. Mark a game with Favourite on its page.")
+                              : qsTr("Add games from a game page: Collections, then + Collection.")
+                    }
+                    RowLayout {
+                        objectName: "collectionEmptyActions"
+                        Layout.alignment: Qt.AlignHCenter
+                        visible: root.player.libraryState === "ready" && root.player.library.count === 0
+                                 && root.player.library.filterText.trim() === "" && root.player.library.filter === "all"
+                                 && !["all", "favorites"].includes(root.player.library.collectionFilter)
+                        spacing: Theme.space1
+                        UzButton { objectName: "emptyCollectionRename"; text: qsTr("Rename..."); onClicked: collectionDialogs.openRename(root.player.library.collectionFilter) }
+                        UzButton { objectName: "emptyCollectionDelete"; text: qsTr("Delete collection..."); onClicked: collectionDialogs.openDelete(root.player.library.collectionFilter) }
                     }
                     UzLabel {
                         objectName: "libraryEmptyHint"
@@ -597,6 +670,12 @@ Rectangle {
                             text: qsTr("Show in All")
                             onClicked: root.player.library.filter = "all"
                         }
+                        UzButton {
+                            objectName: "emptyShowAllGames"
+                            visible: root.player.library.collectionFilter !== "all"
+                            text: qsTr("Show all games")
+                            onClicked: root.player.library.collectionFilter = "all"
+                        }
                     }
                 }
             }
@@ -618,4 +697,5 @@ Rectangle {
     }
 
     StartConfirmDialog { player: root.player }
+    CollectionDialogs { id: collectionDialogs; player: root.player }
 }

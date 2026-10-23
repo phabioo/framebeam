@@ -93,7 +93,7 @@ class ShotsPlayerATest : public QObject {
     pair(h, hub);
     resize(h, 1280);
     h.controller->selectGame(QStringLiteral("g2"));
-    QCOMPARE(h.item("filterAll")->property("count").toInt(), 12);  // shown once as "All · 12", no extra badge
+    QCOMPARE(h.controller->library()->counts().value(QStringLiteral("all")).toInt(), 12);
     shot(h, QStringLiteral("3c-6-1280"));
     h.controller->selectGame({});
     resize(h, 3840, 1400);

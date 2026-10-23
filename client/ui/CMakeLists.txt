@@ -43,6 +43,7 @@ qt_add_qml_module(uzume_ui
     pluginscontroller.h pluginscontroller.cpp
     keyedrowsmodel.h keyedrowsmodel.cpp
     runscontroller.h runscontroller.cpp
+    personalcontroller.h personalcontroller.cpp
     connectioncheckcontroller.h connectioncheckcontroller.cpp
     onboardingcontroller.h onboardingcontroller.cpp
     accountscontroller.h accountscontroller.cpp
@@ -233,6 +234,7 @@ qt_add_qml_module(uzume_ui
     AdminCall.qml
     AdminPeople.qml
     AdminAskDialog.qml
+    CollectionDialogs.qml
     LibraryAdminBar.qml
     LibraryContinue.qml
     LibraryAdminDetails.qml

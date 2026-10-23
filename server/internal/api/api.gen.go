@@ -1469,14 +1469,23 @@ type Account struct {
 	DisplayName    string     `json:"display_name"`
 	HasPassword    bool       `json:"has_password"`
 
+	// LastPlayedAt End of the caller's latest play; null when never played
+	LastPlayedAt *time.Time `json:"last_played_at"`
+
 	// MustChangePassword Set by an admin's password reset; cleared by `setAccountPassword`
 	MustChangePassword bool `json:"must_change_password"`
 
 	// PasswordRequired True for admins and while the server requires passwords
-	PasswordRequired bool        `json:"password_required"`
-	Role             AccountRole `json:"role"`
-	UserId           string      `json:"user_id"`
-	Username         string      `json:"username"`
+	PasswordRequired bool `json:"password_required"`
+
+	// PlaySeconds The caller's play time over all games (0.19)
+	PlaySeconds int64       `json:"play_seconds"`
+	Role        AccountRole `json:"role"`
+
+	// Sessions Number of the caller's plays
+	Sessions int    `json:"sessions"`
+	UserId   string `json:"user_id"`
+	Username string `json:"username"`
 }
 
 // AccountRole defines model for Account.Role.
@@ -2716,10 +2725,19 @@ type AdminUser struct {
 	DisplayName string `json:"display_name"`
 	Id          string `json:"id"`
 
+	// LastPlayedAt End of their latest play; null when never played
+	LastPlayedAt *time.Time `json:"last_played_at"`
+
 	// LastSeenAt Newest connection of any of their devices; absent when none ever connected
-	LastSeenAt *time.Time    `json:"last_seen_at,omitempty"`
-	Role       AdminUserRole `json:"role"`
-	Username   string        `json:"username"`
+	LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
+
+	// PlaySeconds Their play time over all games (0.19)
+	PlaySeconds int64         `json:"play_seconds"`
+	Role        AdminUserRole `json:"role"`
+
+	// Sessions Number of their plays
+	Sessions int    `json:"sessions"`
+	Username string `json:"username"`
 }
 
 // AdminUserRole defines model for AdminUser.Role.
@@ -2754,6 +2772,34 @@ type AdminUserRoleChangeRole string
 // AdminUserUpdate defines model for AdminUserUpdate.
 type AdminUserUpdate struct {
 	DisplayName string `json:"display_name"`
+}
+
+// Collection defines model for Collection.
+type Collection struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// GameIds In the order the games were added
+	GameIds []openapi_types.UUID `json:"game_ids"`
+	Id      openapi_types.UUID   `json:"id"`
+	Name    string               `json:"name"`
+}
+
+// CollectionCreate defines model for CollectionCreate.
+type CollectionCreate struct {
+	GameIds *[]openapi_types.UUID `json:"game_ids,omitempty"`
+
+	// Name Trimmed; unique per user, ignoring case
+	Name string `json:"name"`
+}
+
+// CollectionList defines model for CollectionList.
+type CollectionList struct {
+	Collections []Collection `json:"collections"`
+}
+
+// CollectionRename defines model for CollectionRename.
+type CollectionRename struct {
+	Name string `json:"name"`
 }
 
 // CoreInfo defines model for CoreInfo.
@@ -2874,6 +2920,9 @@ type Game struct {
 	// OnHub At least one file of the game is stored on the server (`local_roms_v1`; absent on older servers, then true). A game that is not on the server is only visible to the users who registered a file of it.
 	OnHub *bool `json:"on_hub,omitempty"`
 
+	// Personal The caller's own data for this game. Sent by `listGames` and `getGame` only (not by upload and register).
+	Personal *GamePersonal `json:"personal,omitempty"`
+
 	// Rom A file stored on the server if the game has one, else the primary file.
 	Rom RomInfo `json:"rom"`
 
@@ -2888,6 +2937,21 @@ type Game struct {
 
 // GameGameCodeKind Kind of `game_code`; empty when unknown. `gba-gamecode`: 4-character GBA game code; `gb-title`: Game Boy / Game Boy Color header title (only with a valid header checksum).
 type GameGameCodeKind string
+
+// GamePersonal What the calling user has with one game (0.19). `play_seconds` and `sessions` count the plays the server saw from
+// the app's presence (`in_game`); an open play counts up to now, plays shorter than 10 s are not counted.
+type GamePersonal struct {
+	// CollectionIds Collections of the caller that contain the game, oldest collection first
+	CollectionIds []openapi_types.UUID `json:"collection_ids"`
+	Favorite      bool                 `json:"favorite"`
+
+	// LastPlayedAt End of the latest play (now while one is open); null when never played
+	LastPlayedAt *time.Time `json:"last_played_at"`
+	PlaySeconds  int64      `json:"play_seconds"`
+
+	// Sessions Number of plays
+	Sessions int `json:"sessions"`
+}
 
 // HandshakeProblem defines model for HandshakeProblem.
 type HandshakeProblem struct {
@@ -3228,12 +3292,15 @@ type Run struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// CreatedBy User id of the creator
-	CreatedBy    string             `json:"created_by"`
-	LastSeq      int64              `json:"last_seq"`
-	Name         string             `json:"name"`
-	Participants []RunParticipant   `json:"participants"`
-	Plugins      []RunPlugin        `json:"plugins"`
-	RunId        openapi_types.UUID `json:"run_id"`
+	CreatedBy    string           `json:"created_by"`
+	LastSeq      int64            `json:"last_seq"`
+	Name         string           `json:"name"`
+	Participants []RunParticipant `json:"participants"`
+
+	// PlaySeconds Total play time of all people in this run. Sent by `listRuns`, `getRun` and the admin run reads, not by pushes.
+	PlaySeconds *int64             `json:"play_seconds,omitempty"`
+	Plugins     []RunPlugin        `json:"plugins"`
+	RunId       openapi_types.UUID `json:"run_id"`
 
 	// SaveSlot Feature `runs_v2`. The app's save slot of this run: "run-" plus the first 8 hex characters of the run id (lowercase, dashes ignored).
 	SaveSlot string `json:"save_slot"`
@@ -3348,6 +3415,12 @@ type RunParticipant struct {
 
 	// GameId Server library game; set on join
 	GameId *openapi_types.UUID `json:"game_id"`
+
+	// LastPlayedAt End of their latest play in this run; absent when they never played it (or in pushes)
+	LastPlayedAt *time.Time `json:"last_played_at,omitempty"`
+
+	// PlaySeconds This person's play time in this run (plays whose presence named the run). Sent by `listRuns`, `getRun` and the admin run reads, not by pushes.
+	PlaySeconds *int64 `json:"play_seconds,omitempty"`
 
 	// States State per plugin id; only plugins that have a row (a missing plugin means state `{}` with revision 0)
 	States   map[string]RunPluginState `json:"states"`
@@ -3817,6 +3890,9 @@ type AdminStageId = string
 // AdminSystemId defines model for AdminSystemId.
 type AdminSystemId = string
 
+// CollectionId defines model for CollectionId.
+type CollectionId = openapi_types.UUID
+
 // CoreId defines model for CoreId.
 type CoreId = string
 
@@ -3861,6 +3937,9 @@ type BadRequest = Error
 
 // CapabilityMissing defines model for CapabilityMissing.
 type CapabilityMissing = Error
+
+// CollectionNameTaken defines model for CollectionNameTaken.
+type CollectionNameTaken = Error
 
 // CoreFileNotAvailable defines model for CoreFileNotAvailable.
 type CoreFileNotAvailable = Error
@@ -4118,6 +4197,12 @@ type SignInJSONRequestBody = SignInRequest
 
 // CreateAccessTokenJSONRequestBody defines body for CreateAccessToken for application/json ContentType.
 type CreateAccessTokenJSONRequestBody = TokenRequest
+
+// CreateCollectionJSONRequestBody defines body for CreateCollection for application/json ContentType.
+type CreateCollectionJSONRequestBody = CollectionCreate
+
+// RenameCollectionJSONRequestBody defines body for RenameCollection for application/json ContentType.
+type RenameCollectionJSONRequestBody = CollectionRename
 
 // RegisterGameJSONRequestBody defines body for RegisterGame for application/json ContentType.
 type RegisterGameJSONRequestBody = RegisterGameRequest
@@ -5023,6 +5108,24 @@ type ServerInterface interface {
 	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(w http.ResponseWriter, r *http.Request)
+	// The caller's collections
+	// (GET /api/v1/collections)
+	ListCollections(w http.ResponseWriter, r *http.Request)
+	// Create a collection
+	// (POST /api/v1/collections)
+	CreateCollection(w http.ResponseWriter, r *http.Request)
+	// Delete a collection
+	// (DELETE /api/v1/collections/{collection_id})
+	DeleteCollection(w http.ResponseWriter, r *http.Request, collectionId CollectionId)
+	// Rename a collection
+	// (PATCH /api/v1/collections/{collection_id})
+	RenameCollection(w http.ResponseWriter, r *http.Request, collectionId CollectionId)
+	// Remove a game from a collection (idempotent)
+	// (DELETE /api/v1/collections/{collection_id}/games/{game_id})
+	RemoveCollectionGame(w http.ResponseWriter, r *http.Request, collectionId CollectionId, gameId openapi_types.UUID)
+	// Add a game to a collection (idempotent)
+	// (PUT /api/v1/collections/{collection_id}/games/{game_id})
+	AddCollectionGame(w http.ResponseWriter, r *http.Request, collectionId CollectionId, gameId openapi_types.UUID)
 	// Manifest of a signed core package (any trusted device)
 	// (GET /api/v1/cores/{core_id}/packages/{version}/{platform})
 	GetCorePackage(w http.ResponseWriter, r *http.Request, coreId CoreId, version CoreVersion, platform CorePlatform)
@@ -5041,6 +5144,12 @@ type ServerInterface interface {
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
+	// Remove a game from the caller's favorites (idempotent)
+	// (DELETE /api/v1/games/{game_id}/favorite)
+	RemoveFavorite(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
+	// Mark a game as the caller's favorite (idempotent)
+	// (PUT /api/v1/games/{game_id}/favorite)
+	AddFavorite(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
 	// Remove the caller's local registrations for a game (`local_roms_v1`)
 	// (DELETE /api/v1/games/{game_id}/registration)
 	DeleteGameRegistration(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID)
@@ -8896,6 +9005,192 @@ func (siw *ServerInterfaceWrapper) CreateAccessToken(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ListCollections operation middleware
+func (siw *ServerInterfaceWrapper) ListCollections(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCollections(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateCollection operation middleware
+func (siw *ServerInterfaceWrapper) CreateCollection(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateCollection(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteCollection operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCollection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collection_id" -------------
+	var collectionId CollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collection_id", r.PathValue("collection_id"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteCollection(w, r, collectionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RenameCollection operation middleware
+func (siw *ServerInterfaceWrapper) RenameCollection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collection_id" -------------
+	var collectionId CollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collection_id", r.PathValue("collection_id"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenameCollection(w, r, collectionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveCollectionGame operation middleware
+func (siw *ServerInterfaceWrapper) RemoveCollectionGame(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collection_id" -------------
+	var collectionId CollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collection_id", r.PathValue("collection_id"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveCollectionGame(w, r, collectionId, gameId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddCollectionGame operation middleware
+func (siw *ServerInterfaceWrapper) AddCollectionGame(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collection_id" -------------
+	var collectionId CollectionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collection_id", r.PathValue("collection_id"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddCollectionGame(w, r, collectionId, gameId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetCorePackage operation middleware
 func (siw *ServerInterfaceWrapper) GetCorePackage(w http.ResponseWriter, r *http.Request) {
 
@@ -9144,6 +9439,70 @@ func (siw *ServerInterfaceWrapper) GetGame(w http.ResponseWriter, r *http.Reques
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetGame(w, r, gameId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveFavorite operation middleware
+func (siw *ServerInterfaceWrapper) RemoveFavorite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveFavorite(w, r, gameId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddFavorite operation middleware
+func (siw *ServerInterfaceWrapper) AddFavorite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddFavorite(w, r, gameId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11406,12 +11765,20 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/sign-in", wrapper.SignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/collections", wrapper.ListCollections)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/collections", wrapper.CreateCollection)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/collections/{collection_id}", wrapper.DeleteCollection)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/v1/collections/{collection_id}", wrapper.RenameCollection)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/collections/{collection_id}/games/{game_id}", wrapper.RemoveCollectionGame)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/collections/{collection_id}/games/{game_id}", wrapper.AddCollectionGame)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}", wrapper.GetCorePackage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/cores/{core_id}/packages/{version}/{platform}/files/{name}", wrapper.GetCorePackageFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games", wrapper.ListGames)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games", wrapper.UploadGame)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/register", wrapper.RegisterGame)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}", wrapper.GetGame)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/favorite", wrapper.RemoveFavorite)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/games/{game_id}/favorite", wrapper.AddFavorite)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/registration", wrapper.DeleteGameRegistration)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.DeleteSaveSlot)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}", wrapper.GetSaveSlot)
@@ -11482,6 +11849,8 @@ type AdminUpdateConflictJSONResponse Error
 type BadRequestJSONResponse Error
 
 type CapabilityMissingJSONResponse Error
+
+type CollectionNameTakenJSONResponse Error
 
 type CoreFileNotAvailableJSONResponse Error
 
@@ -19747,6 +20116,322 @@ func (response CreateAccessToken413JSONResponse) VisitCreateAccessTokenResponse(
 	return err
 }
 
+type ListCollectionsRequestObject struct {
+}
+
+type ListCollectionsResponseObject interface {
+	VisitListCollectionsResponse(w http.ResponseWriter) error
+}
+
+type ListCollections200JSONResponse CollectionList
+
+func (response ListCollections200JSONResponse) VisitListCollectionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListCollections401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListCollections401JSONResponse) VisitListCollectionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateCollectionRequestObject struct {
+	Body *CreateCollectionJSONRequestBody
+}
+
+type CreateCollectionResponseObject interface {
+	VisitCreateCollectionResponse(w http.ResponseWriter) error
+}
+
+type CreateCollection201JSONResponse Collection
+
+func (response CreateCollection201JSONResponse) VisitCreateCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateCollection400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateCollection400JSONResponse) VisitCreateCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateCollection401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateCollection401JSONResponse) VisitCreateCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateCollection409JSONResponse struct {
+	CollectionNameTakenJSONResponse
+}
+
+func (response CreateCollection409JSONResponse) VisitCreateCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteCollectionRequestObject struct {
+	CollectionId CollectionId `json:"collection_id"`
+}
+
+type DeleteCollectionResponseObject interface {
+	VisitDeleteCollectionResponse(w http.ResponseWriter) error
+}
+
+type DeleteCollection204Response struct {
+}
+
+func (response DeleteCollection204Response) VisitDeleteCollectionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteCollection401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteCollection401JSONResponse) VisitDeleteCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteCollection404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteCollection404JSONResponse) VisitDeleteCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameCollectionRequestObject struct {
+	CollectionId CollectionId `json:"collection_id"`
+	Body         *RenameCollectionJSONRequestBody
+}
+
+type RenameCollectionResponseObject interface {
+	VisitRenameCollectionResponse(w http.ResponseWriter) error
+}
+
+type RenameCollection200JSONResponse Collection
+
+func (response RenameCollection200JSONResponse) VisitRenameCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameCollection400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RenameCollection400JSONResponse) VisitRenameCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameCollection401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RenameCollection401JSONResponse) VisitRenameCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameCollection404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RenameCollection404JSONResponse) VisitRenameCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenameCollection409JSONResponse struct {
+	CollectionNameTakenJSONResponse
+}
+
+func (response RenameCollection409JSONResponse) VisitRenameCollectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveCollectionGameRequestObject struct {
+	CollectionId CollectionId       `json:"collection_id"`
+	GameId       openapi_types.UUID `json:"game_id"`
+}
+
+type RemoveCollectionGameResponseObject interface {
+	VisitRemoveCollectionGameResponse(w http.ResponseWriter) error
+}
+
+type RemoveCollectionGame204Response struct {
+}
+
+func (response RemoveCollectionGame204Response) VisitRemoveCollectionGameResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveCollectionGame401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RemoveCollectionGame401JSONResponse) VisitRemoveCollectionGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveCollectionGame404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RemoveCollectionGame404JSONResponse) VisitRemoveCollectionGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddCollectionGameRequestObject struct {
+	CollectionId CollectionId       `json:"collection_id"`
+	GameId       openapi_types.UUID `json:"game_id"`
+}
+
+type AddCollectionGameResponseObject interface {
+	VisitAddCollectionGameResponse(w http.ResponseWriter) error
+}
+
+type AddCollectionGame204Response struct {
+}
+
+func (response AddCollectionGame204Response) VisitAddCollectionGameResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AddCollectionGame401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response AddCollectionGame401JSONResponse) VisitAddCollectionGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddCollectionGame404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AddCollectionGame404JSONResponse) VisitAddCollectionGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetCorePackageRequestObject struct {
 	CoreId   CoreId       `json:"core_id"`
 	Version  CoreVersion  `json:"version"`
@@ -20138,6 +20823,94 @@ func (response GetGame401JSONResponse) VisitGetGameResponse(w http.ResponseWrite
 type GetGame404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response GetGame404JSONResponse) VisitGetGameResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveFavoriteRequestObject struct {
+	GameId openapi_types.UUID `json:"game_id"`
+}
+
+type RemoveFavoriteResponseObject interface {
+	VisitRemoveFavoriteResponse(w http.ResponseWriter) error
+}
+
+type RemoveFavorite204Response struct {
+}
+
+func (response RemoveFavorite204Response) VisitRemoveFavoriteResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveFavorite401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RemoveFavorite401JSONResponse) VisitRemoveFavoriteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveFavorite404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RemoveFavorite404JSONResponse) VisitRemoveFavoriteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddFavoriteRequestObject struct {
+	GameId openapi_types.UUID `json:"game_id"`
+}
+
+type AddFavoriteResponseObject interface {
+	VisitAddFavoriteResponse(w http.ResponseWriter) error
+}
+
+type AddFavorite204Response struct {
+}
+
+func (response AddFavorite204Response) VisitAddFavoriteResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AddFavorite401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response AddFavorite401JSONResponse) VisitAddFavoriteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddFavorite404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AddFavorite404JSONResponse) VisitAddFavoriteResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -25089,6 +25862,24 @@ type StrictServerInterface interface {
 	// Exchange device credential for access token
 	// (POST /api/v1/auth/token)
 	CreateAccessToken(ctx context.Context, request CreateAccessTokenRequestObject) (CreateAccessTokenResponseObject, error)
+	// The caller's collections
+	// (GET /api/v1/collections)
+	ListCollections(ctx context.Context, request ListCollectionsRequestObject) (ListCollectionsResponseObject, error)
+	// Create a collection
+	// (POST /api/v1/collections)
+	CreateCollection(ctx context.Context, request CreateCollectionRequestObject) (CreateCollectionResponseObject, error)
+	// Delete a collection
+	// (DELETE /api/v1/collections/{collection_id})
+	DeleteCollection(ctx context.Context, request DeleteCollectionRequestObject) (DeleteCollectionResponseObject, error)
+	// Rename a collection
+	// (PATCH /api/v1/collections/{collection_id})
+	RenameCollection(ctx context.Context, request RenameCollectionRequestObject) (RenameCollectionResponseObject, error)
+	// Remove a game from a collection (idempotent)
+	// (DELETE /api/v1/collections/{collection_id}/games/{game_id})
+	RemoveCollectionGame(ctx context.Context, request RemoveCollectionGameRequestObject) (RemoveCollectionGameResponseObject, error)
+	// Add a game to a collection (idempotent)
+	// (PUT /api/v1/collections/{collection_id}/games/{game_id})
+	AddCollectionGame(ctx context.Context, request AddCollectionGameRequestObject) (AddCollectionGameResponseObject, error)
 	// Manifest of a signed core package (any trusted device)
 	// (GET /api/v1/cores/{core_id}/packages/{version}/{platform})
 	GetCorePackage(ctx context.Context, request GetCorePackageRequestObject) (GetCorePackageResponseObject, error)
@@ -25107,6 +25898,12 @@ type StrictServerInterface interface {
 	// Single game
 	// (GET /api/v1/games/{game_id})
 	GetGame(ctx context.Context, request GetGameRequestObject) (GetGameResponseObject, error)
+	// Remove a game from the caller's favorites (idempotent)
+	// (DELETE /api/v1/games/{game_id}/favorite)
+	RemoveFavorite(ctx context.Context, request RemoveFavoriteRequestObject) (RemoveFavoriteResponseObject, error)
+	// Mark a game as the caller's favorite (idempotent)
+	// (PUT /api/v1/games/{game_id}/favorite)
+	AddFavorite(ctx context.Context, request AddFavoriteRequestObject) (AddFavoriteResponseObject, error)
 	// Remove the caller's local registrations for a game (`local_roms_v1`)
 	// (DELETE /api/v1/games/{game_id}/registration)
 	DeleteGameRegistration(ctx context.Context, request DeleteGameRegistrationRequestObject) (DeleteGameRegistrationResponseObject, error)
@@ -28626,6 +29423,174 @@ func (sh *strictHandler) CreateAccessToken(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// ListCollections operation middleware
+func (sh *strictHandler) ListCollections(w http.ResponseWriter, r *http.Request) {
+	var request ListCollectionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListCollections(ctx, request.(ListCollectionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListCollections")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListCollectionsResponseObject); ok {
+		if err := validResponse.VisitListCollectionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateCollection operation middleware
+func (sh *strictHandler) CreateCollection(w http.ResponseWriter, r *http.Request) {
+	var request CreateCollectionRequestObject
+
+	var body CreateCollectionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateCollection(ctx, request.(CreateCollectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateCollection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateCollectionResponseObject); ok {
+		if err := validResponse.VisitCreateCollectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteCollection operation middleware
+func (sh *strictHandler) DeleteCollection(w http.ResponseWriter, r *http.Request, collectionId CollectionId) {
+	var request DeleteCollectionRequestObject
+
+	request.CollectionId = collectionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteCollection(ctx, request.(DeleteCollectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteCollection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteCollectionResponseObject); ok {
+		if err := validResponse.VisitDeleteCollectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RenameCollection operation middleware
+func (sh *strictHandler) RenameCollection(w http.ResponseWriter, r *http.Request, collectionId CollectionId) {
+	var request RenameCollectionRequestObject
+
+	request.CollectionId = collectionId
+
+	var body RenameCollectionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RenameCollection(ctx, request.(RenameCollectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RenameCollection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RenameCollectionResponseObject); ok {
+		if err := validResponse.VisitRenameCollectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveCollectionGame operation middleware
+func (sh *strictHandler) RemoveCollectionGame(w http.ResponseWriter, r *http.Request, collectionId CollectionId, gameId openapi_types.UUID) {
+	var request RemoveCollectionGameRequestObject
+
+	request.CollectionId = collectionId
+	request.GameId = gameId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveCollectionGame(ctx, request.(RemoveCollectionGameRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveCollectionGame")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveCollectionGameResponseObject); ok {
+		if err := validResponse.VisitRemoveCollectionGameResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddCollectionGame operation middleware
+func (sh *strictHandler) AddCollectionGame(w http.ResponseWriter, r *http.Request, collectionId CollectionId, gameId openapi_types.UUID) {
+	var request AddCollectionGameRequestObject
+
+	request.CollectionId = collectionId
+	request.GameId = gameId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddCollectionGame(ctx, request.(AddCollectionGameRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddCollectionGame")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddCollectionGameResponseObject); ok {
+		if err := validResponse.VisitAddCollectionGameResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetCorePackage operation middleware
 func (sh *strictHandler) GetCorePackage(w http.ResponseWriter, r *http.Request, coreId CoreId, version CoreVersion, platform CorePlatform) {
 	var request GetCorePackageRequestObject
@@ -28786,6 +29751,58 @@ func (sh *strictHandler) GetGame(w http.ResponseWriter, r *http.Request, gameId 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetGameResponseObject); ok {
 		if err := validResponse.VisitGetGameResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveFavorite operation middleware
+func (sh *strictHandler) RemoveFavorite(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID) {
+	var request RemoveFavoriteRequestObject
+
+	request.GameId = gameId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveFavorite(ctx, request.(RemoveFavoriteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveFavorite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveFavoriteResponseObject); ok {
+		if err := validResponse.VisitRemoveFavoriteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddFavorite operation middleware
+func (sh *strictHandler) AddFavorite(w http.ResponseWriter, r *http.Request, gameId openapi_types.UUID) {
+	var request AddFavoriteRequestObject
+
+	request.GameId = gameId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddFavorite(ctx, request.(AddFavoriteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddFavorite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddFavoriteResponseObject); ok {
+		if err := validResponse.VisitAddFavoriteResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

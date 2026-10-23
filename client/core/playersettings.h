@@ -177,7 +177,7 @@ class PlayerSettings {
   bool diagOpen_ = false;
   bool diagEmulationOpen_ = true;
   bool diagStreamingOpen_ = true;
-  QString librarySort_ = QStringLiteral("name_asc");
+  QString librarySort_ = QStringLiteral("played");  // recently played; Name order while nothing was played
   bool libraryReadyFirst_ = false;
   QString sessionVisibility_;
   QStringList libraryFolders_;

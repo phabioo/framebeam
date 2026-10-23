@@ -379,6 +379,41 @@ class AdminUsersUiTest : public QObject {
     QTRY_VERIFY(!shown(h.item("reportsTableRow_1")));
   }
 
+  // Uzume 0.19: play time column in People, play time, sessions and last played in the details of the selected person.
+  void peopleShowPlayTime() {
+    FakeHub hub(QStringLiteral("a"));
+    adminHub(hub);
+    hub.fillDirectory();
+    for (int i = 0; i < hub.dirUsers.size(); ++i) {
+      QJsonObject u = hub.dirUsers.at(i).toObject();
+      if (u.value("id").toString() == QLatin1String("u_2")) {
+        u.insert("play_seconds", 86400);
+        u.insert("sessions", 12);
+        u.insert("last_played_at", QDateTime::currentDateTimeUtc().addSecs(-3 * 3600).toString(Qt::ISODate));
+      } else if (u.value("id").toString() == QLatin1String("u_3")) {
+        u.insert("play_seconds", 1800);
+        u.insert("sessions", 1);
+      }  // Tester: none sent (an older server): a dash
+      hub.dirUsers.replace(i, u);
+    }
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    openUsers(h);
+    // Select Lena: details with play time, sessions, last played
+    QVERIFY(h.click("peopleTableRow_1"));
+    QTRY_COMPARE(text(h.item("detailPlayTime")), QStringLiteral("24 h"));
+    QCOMPARE(text(h.item("detailSessions")), QStringLiteral("12"));
+    QCOMPARE(text(h.item("detailLastPlayed")), QStringLiteral("3 h"));
+    QVERIFY(h.click("peopleTableRow_2"));
+    QTRY_COMPARE(text(h.item("detailPlayTime")), QStringLiteral("30 min"));
+    QCOMPARE(text(h.item("detailLastPlayed")), QStringLiteral("Never"));
+    QVERIFY(h.click("peopleTableRow_0"));
+    QTRY_COMPARE(text(h.item("detailPlayTime")), QStringLiteral("–"));
+    QCOMPARE(text(h.item("detailSessions")), QStringLiteral("–"));
+  }
+
   void reportsEmptyState() {
     FakeHub hub(QStringLiteral("a"));
     adminHub(hub);

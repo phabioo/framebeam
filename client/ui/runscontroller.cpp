@@ -1,5 +1,6 @@
 #include "runscontroller.h"
 #include "timeformat.h"
+#include "librarymodel.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -231,7 +232,8 @@ QVariantMap RunsController::rowFor(const RunInfo& run) const {
           {QStringLiteral("participants"), parts},
           {QStringLiteral("game"), game},
           {QStringLiteral("rulesName"), ruleNames.join(QStringLiteral(" & "))},
-          {QStringLiteral("rulesVersion"), ruleVersion}};
+          {QStringLiteral("rulesVersion"), ruleVersion},
+          {QStringLiteral("playTimeText"), LibraryModel::formatPlayTime(run.playSeconds)}};
 }
 
 void RunsController::rebuild() {
@@ -331,7 +333,10 @@ void RunsController::rebuildDetail() {
                     {QStringLiteral("gameTitle"), p.gameId.isEmpty() ? QStringLiteral("—") : gameTitle(p.gameId)},
                     {QStringLiteral("statusText"), st},
                     {QStringLiteral("slotText"), p.status == QLatin1String("joined") ? tr("Run: %1").arg(run->name) : QStringLiteral("—")},
-                    {QStringLiteral("me"), p.userId == me}});
+                    {QStringLiteral("me"), p.userId == me},
+                    {QStringLiteral("playTimeText"), LibraryModel::formatPlayTime(p.playSeconds)},
+                    {QStringLiteral("lastPlayedText"), LibraryModel::formatLastPlayed(
+                         QDateTime::fromString(p.lastPlayedAt, Qt::ISODate).isValid() ? QDateTime::fromString(p.lastPlayedAt, Qt::ISODate).toMSecsSinceEpoch() : 0)}});
     }
   }
   participants_.setRows(parts);
