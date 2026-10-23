@@ -58,6 +58,16 @@ QString hubExe(const QString& installDir) {
   return QDir(installDir).filePath(QStringLiteral("uzume-server.exe"));
 }
 
+QString serviceDataDir() {
+  const QString env = uzume::env::get("UZUME_LOCAL_SERVICE_DATA_DIR");
+  if (!env.isEmpty()) return env;
+#ifdef Q_OS_WIN
+  const QString pd = qEnvironmentVariable("ProgramData");
+  if (!pd.isEmpty()) return QDir::toNativeSeparators(QDir(pd).filePath(QStringLiteral("Uzume/Server")));
+#endif
+  return {};
+}
+
 Command grantFolderCommand(const QString& installDir, const QString& folder) {
   return {hubExe(installDir), {QStringLiteral("grant-folder"), folder}};
 }

@@ -256,7 +256,7 @@ FocusScope {
         // Admins: "Show saves of: Mine / All users" (package 8, SavesAdminSwitch); "All users" opens a sheet over the window.
         SavesAdminSwitch {
             Layout.fillWidth: true
-            visible: root.player.admin.available && !root.inGame
+            visible: root.player.admin.available && !root.inGame && !root.player.localHub.onThisPcOnly  // no "All users" on this PC (8j-1)
             player: root.player
         }
 

@@ -60,6 +60,7 @@ QString msiScopeName(MsiScope s) {
     case MsiScope::Machine: return QStringLiteral("machine");
     case MsiScope::MachineWithHub: return QStringLiteral("machine-hub");
     case MsiScope::SetupHub: return QStringLiteral("setup-hub");
+    case MsiScope::ShareHub: return QStringLiteral("share-hub");
   }
   return QStringLiteral("user");
 }
@@ -69,7 +70,7 @@ bool msiScopeNeedsElevation(MsiScope s) { return s != MsiScope::User; }
 // msiexec and the launcher need backslash paths (forward slashes give error 1619); explicit so it also works on Linux.
 static QString withBackslashes(QString path) { return path.replace(QLatin1Char('/'), QLatin1Char('\\')); }
 
-QStringList msiexecArguments(const QString& msiPath, MsiScope scope) {
+QStringList msiexecArguments(const QString& msiPath, MsiScope scope, const QStringList& properties) {
   QStringList a{QStringLiteral("/i"), withBackslashes(msiPath), QStringLiteral("/qn"), QStringLiteral("/norestart")};
   switch (scope) {
     case MsiScope::User:
@@ -83,6 +84,9 @@ QStringList msiexecArguments(const QString& msiPath, MsiScope scope) {
       break;
     case MsiScope::SetupHub:
       a << QStringLiteral("ALLUSERS=1") << QStringLiteral("INSTALL_HUB=1") << QStringLiteral("NETWORK_SHARING=0");
+      break;
+    case MsiScope::ShareHub:
+      a << QStringLiteral("ALLUSERS=1") << QStringLiteral("INSTALL_HUB=1") << properties;
       break;
   }
   return a;
@@ -104,12 +108,14 @@ QString copyLauncherToTemp(const QString& installRoot, const QString& tempBase, 
 }
 
 InstallerCommand msiRelaunchCommand(const QString& launcherCopy, const QString& msiPath, MsiScope scope,
-                                    const QString& relaunchExe, const QStringList& relaunchArgs, const QString& sha256, qint64 size) {
+                                    const QString& relaunchExe, const QStringList& relaunchArgs, const QString& sha256, qint64 size,
+                                    const QStringList& msiProperties) {
   InstallerCommand c;
   c.program = launcherCopy;
   c.args = {QStringLiteral("--apply-msi-update")};
   if (!sha256.isEmpty()) c.args << QStringLiteral("--sha256") << sha256;
   if (size >= 0) c.args << QStringLiteral("--size") << QString::number(size);
+  for (const QString& p : msiProperties) c.args << QStringLiteral("--msi-property") << p;
   c.args << withBackslashes(msiPath) << msiScopeName(scope) << withBackslashes(relaunchExe);
   c.args += relaunchArgs;
   return c;

@@ -34,6 +34,12 @@ constexpr const char* kWhatsNewKey = "whats_new_version";
 constexpr const char* kDiagOpenKey = "diagnostics_open";
 constexpr const char* kDeveloperModeKey = "developer_mode";
 constexpr const char* kPlayOnThisPcKey = "play_on_this_pc";
+constexpr const char* kLocalServerModeKey = "local_server_mode";
+constexpr const char* kLocalServerPortKey = "local_server_port";
+constexpr const char* kLocalServerDataDirKey = "local_server_data_dir";
+constexpr const char* kLocalServerHubIdKey = "local_server_hub_id";
+constexpr const char* kPendingShareKey = "pending_share";
+constexpr const char* kDisplayNameKey = "display_name";
 constexpr const char* kPluginLanguageKey = "plugin_language";
 constexpr const char* kDiagEmulationKey = "diagnostics_emulation_open";
 constexpr const char* kDiagStreamingKey = "diagnostics_streaming_open";
@@ -72,6 +78,13 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   diagOpen_ = raw_.value(QLatin1String(kDiagOpenKey)).toBool(false);
   developerMode_ = raw_.value(QLatin1String(kDeveloperModeKey)).toBool(false);
   playOnThisPc_ = raw_.value(QLatin1String(kPlayOnThisPcKey)).toBool(false);
+  if (const QString m = raw_.value(QLatin1String(kLocalServerModeKey)).toString(); m == QLatin1String("child") || m == QLatin1String("service")) {
+    localServerMode_ = m;
+  }
+  if (const int port = raw_.value(QLatin1String(kLocalServerPortKey)).toInt(0); port > 0 && port <= 65535) localServerPort_ = port;
+  localServerDataDir_ = raw_.value(QLatin1String(kLocalServerDataDirKey)).toString();
+  localServerHubId_ = raw_.value(QLatin1String(kLocalServerHubIdKey)).toString();
+  displayName_ = raw_.value(QLatin1String(kDisplayNameKey)).toString();
   if (const QString lang = raw_.value(QLatin1String(kPluginLanguageKey)).toString(); isValidPluginLanguage(lang)) pluginLanguage_ = lang;
   pluginHudAllHidden_ = raw_.value(QLatin1String(kPluginHudAllHiddenKey)).toBool(false);
   diagEmulationOpen_ = raw_.value(QLatin1String(kDiagEmulationKey)).toBool(true);
@@ -201,6 +214,78 @@ bool PlayerSettings::setDeveloperMode(bool on) {
 bool PlayerSettings::setPlayOnThisPcChosen(bool chosen) {
   playOnThisPc_ = chosen;
   raw_.insert(QLatin1String(kPlayOnThisPcKey), chosen);
+  return save();
+}
+
+namespace {
+bool putOrRemove(QJsonObject& raw, const char* key, const QString& value) {
+  if (value.isEmpty()) {
+    raw.remove(QLatin1String(key));
+  } else {
+    raw.insert(QLatin1String(key), value);
+  }
+  return true;
+}
+}  // namespace
+
+bool PlayerSettings::setLocalServerMode(const QString& mode) {
+  if (!mode.isEmpty() && mode != QLatin1String("child") && mode != QLatin1String("service")) return false;
+  localServerMode_ = mode;
+  putOrRemove(raw_, kLocalServerModeKey, mode);
+  return save();
+}
+
+bool PlayerSettings::setLocalServerPort(int port) {
+  if (port < 0 || port > 65535) return false;
+  localServerPort_ = port;
+  if (port == 0) {
+    raw_.remove(QLatin1String(kLocalServerPortKey));
+  } else {
+    raw_.insert(QLatin1String(kLocalServerPortKey), port);
+  }
+  return save();
+}
+
+bool PlayerSettings::setLocalServerDataDir(const QString& dir) {
+  localServerDataDir_ = dir;
+  putOrRemove(raw_, kLocalServerDataDirKey, dir);
+  return save();
+}
+
+bool PlayerSettings::setLocalServerHubId(const QString& hubId) {
+  localServerHubId_ = hubId;
+  putOrRemove(raw_, kLocalServerHubIdKey, hubId);
+  return save();
+}
+
+bool PlayerSettings::setDisplayName(const QString& name) {
+  displayName_ = name.trimmed();
+  putOrRemove(raw_, kDisplayNameKey, displayName_);
+  return save();
+}
+
+PlayerSettings::PendingShare PlayerSettings::pendingShare() const {
+  PendingShare p;
+  const QJsonObject o = raw_.value(QLatin1String(kPendingShareKey)).toObject();
+  p.port = o.value(QLatin1String("port")).toInt(0);
+  p.join = o.value(QLatin1String("join")).toString();
+  p.dataDir = o.value(QLatin1String("data_dir")).toString();
+  if (p.port <= 0 || p.port > 65535 || p.dataDir.isEmpty()) return {};
+  if (p.join != QLatin1String("internet")) p.join = QStringLiteral("home");
+  return p;
+}
+
+bool PlayerSettings::setPendingShare(const PendingShare& p) {
+  if (!p.valid()) return false;
+  raw_.insert(QLatin1String(kPendingShareKey),
+              QJsonObject{{QStringLiteral("port"), p.port},
+                          {QStringLiteral("join"), p.join == QLatin1String("internet") ? p.join : QStringLiteral("home")},
+                          {QStringLiteral("data_dir"), p.dataDir}});
+  return save();
+}
+
+bool PlayerSettings::clearPendingShare() {
+  raw_.remove(QLatin1String(kPendingShareKey));
   return save();
 }
 

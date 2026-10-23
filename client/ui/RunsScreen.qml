@@ -345,6 +345,18 @@ Rectangle {
                         }
                     }
 
+                    Text {
+                        objectName: "runsPcOnlyNote"
+                        visible: root.player.localHub.onThisPcOnly
+                        Layout.fillWidth: true
+                        textFormat: Text.PlainText
+                        wrapMode: Text.Wrap
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.small.size
+                        color: Theme.muted
+                        text: qsTr("Chat and people need a server.")
+                    }
+
                     // Invites: hairline rows with the answer next to them.
                     ColumnLayout {
                         visible: root.runs.invites.count > 0
@@ -785,6 +797,7 @@ Rectangle {
     RunStartDialog {
         id: startDialog
         runs: root.runs
+        pcOnly: root.player.localHub.onThisPcOnly
     }
 
     // Finish / abandon / leave ask first.

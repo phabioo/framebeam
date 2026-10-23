@@ -260,7 +260,7 @@ func httpStatus(c hub.Code) int {
 		return http.StatusConflict
 	case hub.CodeTooLarge:
 		return http.StatusRequestEntityTooLarge
-	case hub.CodeConflict, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
+	case hub.CodeConflict, hub.CodeChildMode, hub.CodePairingExpired, hub.CodeSaveConflict, hub.CodeSaveConflictStale,
 		hub.CodeSessionFull, hub.CodeCapabilityMissing, hub.CodeDisplayNameTaken,
 		hub.CodeSaveSlotExists, hub.CodeSessionRunning, hub.CodeSaveSlotProtected, hub.CodePasswordNotSet, hub.CodeAlreadySetUp:
 		return http.StatusConflict

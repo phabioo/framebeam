@@ -831,6 +831,7 @@ const (
 	ErrorCodeAlreadySetUp         ErrorCode = "already_set_up"
 	ErrorCodeBadRequest           ErrorCode = "bad_request"
 	ErrorCodeCapabilityMissing    ErrorCode = "capability_missing"
+	ErrorCodeChildMode            ErrorCode = "child_mode"
 	ErrorCodeConfirmationRequired ErrorCode = "confirmation_required"
 	ErrorCodeConflict             ErrorCode = "conflict"
 	ErrorCodeCoreFileNotAvailable ErrorCode = "core_file_not_available"
@@ -882,6 +883,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeBadRequest:
 		return true
 	case ErrorCodeCapabilityMissing:
+		return true
+	case ErrorCodeChildMode:
 		return true
 	case ErrorCodeConfirmationRequired:
 		return true
@@ -3031,13 +3034,16 @@ type LocalSettingsUpdate struct {
 
 // LocalStatus defines model for LocalStatus.
 type LocalStatus struct {
-	AdminExists bool   `json:"admin_exists"`
-	HubVersion  string `json:"hub_version"`
+	AdminExists bool `json:"admin_exists"`
+
+	// Child true = the server runs as the app's child process (`uzume-server -child`): loopback only whatever the stored setting says, no self-update. Absent = false.
+	Child      *bool  `json:"child,omitempty"`
+	HubVersion string `json:"hub_version"`
 
 	// ImportDir Library import folder
 	ImportDir string `json:"import_dir"`
 
-	// NetworkSharing false = the server listens on loopback only and the built-in TURN relay is off
+	// NetworkSharing false = the server listens on loopback only and the built-in TURN relay is off; always false while `child` is true
 	NetworkSharing bool `json:"network_sharing"`
 }
 
@@ -21619,6 +21625,20 @@ func (response UpdateLocalSettings403JSONResponse) VisitUpdateLocalSettingsRespo
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocalSettings409JSONResponse Error
+
+func (response UpdateLocalSettings409JSONResponse) VisitUpdateLocalSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }

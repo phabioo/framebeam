@@ -163,6 +163,7 @@ class PlayerController : public QObject {
     QString dataDir;                // empty: ProfileStore::defaultBaseDir()
     bool allowHttp = false;         // --dev-allow-http
     bool memoryCredentials = false; // tests: no OS credential store
+    std::shared_ptr<CredentialStore> credentialStore;  // tests: this store (also across a restart of the controller); wins over memoryCredentials
     bool probeCoreVersions = true;  // determine core version for the handshake (briefly loads the core)
     bool enableGamepads = true;     // SDL3 gamepads (tests without hardware use SDL virtual joysticks)
     bool enableUpdates = false;     // schedule update checks (the app enables it; tests never touch the network)
@@ -427,7 +428,7 @@ class PlayerController : public QObject {
 
   Options options_;
   std::unique_ptr<ProfileStore> profiles_;
-  std::unique_ptr<CredentialStore> credentials_;
+  std::shared_ptr<CredentialStore> credentials_;
   std::unique_ptr<HubConnection> conn_;
   std::unique_ptr<HubLibrary> library_;
   std::unique_ptr<RomCache> cache_;

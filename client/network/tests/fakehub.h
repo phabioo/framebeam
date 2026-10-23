@@ -119,6 +119,11 @@ class FakeHub : public QTcpServer {
   QJsonObject lastLocalBody;       // body of the last /local/setup or /local/pair
   QJsonObject lastLocalSettings;   // body of the last PUT /local/settings
   QString localImportDirError;     // non-empty: PUT import_dir answers 400 import_dir_unreadable with this message
+  // 0.18 package 10: /local/setup creates the admin account (user u_admin_1, role admin) with the given password and
+  // /local/pair then checks the password against it (without such an account: the fixed "correct horse").
+  bool localChild = false;         // status says child:true and PUT network_sharing answers 409 child_mode
+  int localSetupCalls = 0;
+  int localPairCalls = 0;
   QJsonObject lastHandshakeBody;  // request body of the last POST /handshake
   bool userDisabled = false;                             // token endpoint answers 401 user_disabled
   bool uploadsAllowed = true;                            // false: POST /games -> 403 uploads_disabled

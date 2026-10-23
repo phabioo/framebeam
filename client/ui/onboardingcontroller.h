@@ -104,7 +104,7 @@ class OnboardingController : public QObject {
     std::function<bool()> gameRunning;           // a game or a watched Session is running
     std::function<void()> endRunningWork;        // saves and uploads the running game before the connection is dropped
     std::function<void(const QString&)> addLibraryFolder;  // path or file:// URL (PlayerController::addLibraryFolder)
-    std::function<void()> startLocalHub;         // LocalHubController::start()
+    std::function<void()> startLocalHub;         // LocalHubController::startChild() ("Play on this PC": the server runs as a child process of the app)
   };
   explicit OnboardingController(const Deps& deps, QObject* parent = nullptr);
   ~OnboardingController() override;

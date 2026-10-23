@@ -6,6 +6,7 @@
 #include <QSortFilterProxyModel>
 #include <QList>
 #include <QHash>
+#include <QSet>
 #include <QString>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
@@ -31,6 +32,7 @@ class LibraryModel : public QAbstractListModel {
   Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
   Q_PROPERTY(int totalCount READ totalCount NOTIFY countChanged)
   Q_PROPERTY(int readyCount READ readyCount NOTIFY countChanged)
+  Q_PROPERTY(int systemCount READ systemCount NOTIFY countChanged)  // distinct systems among all games ("ON THIS PC · 214 GAMES · 5 SYSTEMS")
   // Sort (3c-2): "name_asc" | "name_desc" | "added_desc" | "added_asc" | "size_desc" | "size_asc" | "system" | "played".
   // Persisted per device by the PlayerController (PlayerSettings).
   Q_PROPERTY(QString sortKey READ sortKey WRITE setSortKey NOTIFY sortChanged)
@@ -82,6 +84,11 @@ class LibraryModel : public QAbstractListModel {
   void setReadyOnly(bool on);
   int totalCount() const { return static_cast<int>(items_.size()); }
   int readyCount() const;
+  int systemCount() const {
+    QSet<QString> s;
+    for (const Item& it : items_) s.insert(it.game.system);
+    return static_cast<int>(s.size());
+  }
   QString filter() const { return filter_; }
   void setFilter(const QString& filter);
   // Chip counts; they follow the search text (not the chip filter), see counts(false) for the totals.

@@ -13,6 +13,7 @@ UzDialog {
     property string inviteRunId: ""
     property bool inviteWasSent: false
     readonly property bool inviting: mode === "invite"
+    property bool pcOnly: false         // the server of this PC only: nobody to invite (8j-4)
 
     size: "lg"
     label: root.inviting ? qsTr("Runs · Invite") : qsTr("Runs · New run")
@@ -250,9 +251,14 @@ UzDialog {
                 Layout.fillWidth: true
                 spacing: Theme.space1
                 FieldLabel { text: qsTr("People") }
-                Hint { visible: root.runs.startUsersLoading; text: qsTr("Loading players…") }
                 Hint {
-                    visible: !root.runs.startUsersLoading && root.runs.startUsers.count === 0
+                    objectName: "runStartNeedsServer"
+                    visible: root.pcOnly
+                    text: qsTr("Needs a server · Share with others or join one")
+                }
+                Hint { visible: !root.pcOnly && root.runs.startUsersLoading; text: qsTr("Loading players…") }
+                Hint {
+                    visible: !root.pcOnly && !root.runs.startUsersLoading && root.runs.startUsers.count === 0
                     text: qsTr("There is nobody else to invite yet.")
                 }
                 GridLayout {
@@ -268,6 +274,7 @@ UzDialog {
                             objectName: "runUser_" + userRow.model.id
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
+                            enabled: !root.pcOnly
                             text: userRow.model.name
                             hint: userRow.model.online ? qsTr("Online") : ""
                             checked: userRow.model.checked

@@ -14,6 +14,9 @@ Rectangle {
     required property PlayerController player
     readonly property AdminController admin: root.player.admin
     readonly property string page: root.player.serverPage
+    // The server of "Play on this PC" is only Systems & cores and Plugins to the person; Users, Status and Reports need a server (8j-4).
+    readonly property bool pcOnly: root.player.localHub.onThisPcOnly
+    readonly property bool pcBlocked: root.pcOnly && root.page !== "systems" && root.page !== "plugins"
     readonly property Component pageComponent: {
         switch (root.page) {
         case "status": return statusPage
@@ -50,15 +53,36 @@ Rectangle {
                 id: pageLoader
                 objectName: "serverPageLoader"
                 anchors.fill: parent
-                active: root.admin.available && root.player.screen === "server" && root.pageComponent !== null
+                active: root.admin.available && !root.pcBlocked && root.player.screen === "server" && root.pageComponent !== null
                 sourceComponent: root.pageComponent
+            }
+
+            // Users (and the other server pages) on the server of this PC only: the person is alone here.
+            Item {
+                objectName: "serverNeedsServer"
+                anchors.fill: parent
+                visible: root.pcBlocked
+                Column {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - 2 * Theme.space7, 480)
+                    spacing: Theme.space2
+                    UzStateBlock {
+                        objectName: "serverNeedsServerState"
+                        width: parent.width
+                        kind: "empty"
+                        title: root.page === "users" ? qsTr("Users needs a server") : qsTr("This page needs a server")
+                        text: root.page === "users" ? qsTr("On this PC there is only you.") : qsTr("On this PC there is only you, so there is nothing to manage here.")
+                        action: root.player.localHub.shareSupported ? qsTr("Share with others…") : ""
+                        onActionClicked: root.player.localHub.openShareDialog("intro")
+                    }
+                }
             }
 
             // Members and admins of a server without the admin pages.
             Item {
                 objectName: "serverMemberBlock"
                 anchors.fill: parent
-                visible: !root.admin.available
+                visible: !root.admin.available && !root.pcBlocked
                 Column {
                     anchors.centerIn: parent
                     width: Math.min(parent.width - 2 * Theme.space7, 480)

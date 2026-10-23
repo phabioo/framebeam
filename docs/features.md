@@ -37,7 +37,7 @@ What the server, the protocol and the app do today, by area. Status by version: 
 
 **Protocol** (`protocol/`)
 
-- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.31.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `local_setup_v1`, `reports_v1`, `accounts_v1`, `admin_v1` (admins only) and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
+- OpenAPI 3.0.3 for `/api/v1` and WSS message schemas; OpenAPI spec version 1.33.0, `protocol_version` is 1; handshake features `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1`, `firmware_v1`, `cores_v1`, `cores_v2`, `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `local_setup_v1`, `reports_v1`, `accounts_v1`, `admin_v1` (admins only) and, with TURN on, `turn_v1`. See [reference/protocol.md](reference/protocol.md).
 
 **Uzume app** (`client/`, [ADR 0003](adr/0003-player-phase2.md))
 
@@ -82,4 +82,4 @@ What the server, the protocol and the app do today, by area. Status by version: 
 - Operations and safety (0.17, [ADR 0029](adr/0029-operations-and-safety.md)): plugin UI language (Settings → Plugins: Auto | English | Deutsch; Auto uses the 3DS system language for 3DS games); connection check (Settings → Hubs or Diagnostics: server, STUN, TURN relay, NAT type, WebRTC test with a plain-language result); "Report a problem" (description plus redacted logs, settings, connection check and system info to your own server, or "Save as file…"); "Go back" to an earlier app release from the update index.
 - Controllers page: SDL3 gamepads, built-in and user profiles, remapping, input test.
 - Settings page: Appearance (Dark / Light / System).
-- Windows installer (MSI only; the Inno shell was removed in 0.10.x): one WiX MSI for app, server or both (server as Windows service, "Set up a Hub on this PC", standalone mode); CI artifact `uzume-windows-x64-msi` ([ADR 0021](adr/0021-one-windows-installer.md)).
+- Windows installer (MSI only; the Inno shell was removed in 0.10.x): one WiX MSI for app, server or both (server as Windows service; "Play on this PC" runs the server as the app's child process without UAC, "Share with others" turns it into the service with one UAC and keeps the data, "Stop sharing" keeps accounts and saves; [ADR 0030](adr/0030-one-app-one-server-uzume.md) D6); CI artifact `uzume-windows-x64-msi` ([ADR 0021](adr/0021-one-windows-installer.md)).

@@ -711,13 +711,45 @@ Rectangle {
                     // Own row (not in the header): a long label must never widen the settings column.
                     UzButton {
                         objectName: "settingsLocalHubButton"
-                        visible: root.player.localHub.available && !root.player.localHub.onThisPc
+                        visible: root.player.localHub.available && !root.player.localHub.onThisPc && root.player.localHub.mode === ""
                         Layout.alignment: Qt.AlignLeft
                         Layout.leftMargin: Theme.settingsDotSlot
                         Layout.minimumWidth: 0
                         kind: "link"
                         text: qsTr("Set up a server on this PC")
                         onClicked: { root.player.switchHub(); root.player.localHub.start() }
+                    }
+
+                    RowLayout {
+                        objectName: "settingsThisPcServerRow"
+                        visible: root.player.localHub.mode !== ""
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.settingsDotSlot
+                        Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0
+                        spacing: Theme.space15
+                        Text {
+                            objectName: "settingsThisPcServerName"
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            elide: Text.ElideRight
+                            color: Theme.ink
+                            font.pixelSize: Theme.roles.body.size
+                            text: root.player.localHub.onThisPcOnly ? qsTr("On this PC") : qsTr("This PC · shared")
+                        }
+                        UzButton {
+                            objectName: "settingsShareButton"
+                            visible: root.player.localHub.shareSupported && root.player.localHub.onThisPcOnly
+                            kind: "outline"
+                            text: qsTr("Share with others…")
+                            onClicked: root.player.localHub.openShareDialog("intro")
+                        }
+                        UzButton {
+                            objectName: "settingsShareAgainButton"
+                            visible: root.player.localHub.shareAgainAvailable
+                            kind: "outline"
+                            text: qsTr("Share again…")
+                            onClicked: root.player.localHub.shareAgain()
+                        }
                     }
 
                     // Settings > Network does not exist yet: the connection check lives next to the Hubs it checks.

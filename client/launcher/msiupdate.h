@@ -1,10 +1,12 @@
 #pragma once
 // MSI update mode of the launcher (no Qt, header only, testable on any platform):
-//   Uzume.exe --apply-msi-update [--sha256 <hex>] [--size <bytes>] <msi> <scope> <relaunchExe> [relaunchArgs...]
+//   Uzume.exe --apply-msi-update [--sha256 <hex>] [--size <bytes>] [--msi-property NAME=VALUE]... <msi> <scope> <relaunchExe> [relaunchArgs...]
 // --sha256/--size: what the Player verified (signed update index); the launcher checks them again right before msiexec
 // (mandatory for elevated scopes) and keeps the file open read-only until msiexec ended, so it cannot be swapped.
 // The Player starts a temporary copy of its launcher in this mode and quits; the copy installs the MSI and starts the
-// Player again. The msiexec arguments mirror uzume::update::msiexecArguments (client/core/installroot.cpp).
+// Player again. --msi-property adds a property to the msiexec call (only the names of isAllowedMsiProperty, only for the
+// scope share-hub: "Share with others" installs the server service and imports the data of "Play on this PC").
+// The msiexec arguments mirror uzume::update::msiexecArguments (client/core/installroot.cpp).
 #include <string>
 #include <vector>
 
@@ -15,7 +17,8 @@ struct MsiUpdateRequest {
   unsigned long long size = 0;
   bool hasSize = false;
   std::wstring msi;
-  std::wstring scope;  // user | machine | machine-hub | setup-hub
+  std::wstring scope;  // user | machine | machine-hub | setup-hub | share-hub
+  std::vector<std::wstring> properties;  // NAME=VALUE for share-hub
   std::wstring relaunchExe;
   std::vector<std::wstring> relaunchArgs;
 };
@@ -25,9 +28,11 @@ struct MsiUpdateRequest {
 inline bool parseMsiUpdate(const std::vector<std::wstring>& argv, MsiUpdateRequest* out) {
   if (argv.size() < 5 || argv[1] != L"--apply-msi-update") return false;
   size_t i = 2;
-  while (i + 1 < argv.size() && (argv[i] == L"--sha256" || argv[i] == L"--size")) {
+  while (i + 1 < argv.size() && (argv[i] == L"--sha256" || argv[i] == L"--size" || argv[i] == L"--msi-property")) {
     if (argv[i] == L"--sha256") {
       out->sha256 = argv[i + 1];
+    } else if (argv[i] == L"--msi-property") {
+      out->properties.push_back(argv[i + 1]);
     } else {
       if (argv[i + 1].empty() || argv[i + 1].size() > 18) return false;
       unsigned long long v = 0;
@@ -51,7 +56,19 @@ inline bool parseMsiUpdate(const std::vector<std::wstring>& argv, MsiUpdateReque
 inline bool scopeNeedsElevation(const std::wstring& scope) { return scope != L"user"; }
 
 inline bool isKnownScope(const std::wstring& scope) {
-  return scope == L"user" || scope == L"machine" || scope == L"machine-hub" || scope == L"setup-hub";
+  return scope == L"user" || scope == L"machine" || scope == L"machine-hub" || scope == L"setup-hub" || scope == L"share-hub";
+}
+
+// The properties "Share with others" may pass to the MSI.
+inline bool isAllowedMsiProperty(const std::wstring& nameValue) {
+  const size_t eq = nameValue.find(L'=');
+  if (eq == std::wstring::npos || eq + 1 >= nameValue.size()) return false;
+  const std::wstring name = nameValue.substr(0, eq);
+  if (name != L"HUB_PORT" && name != L"NETWORK_SHARING" && name != L"IMPORT_SERVER_DATA") return false;
+  for (size_t k = eq + 1; k < nameValue.size(); ++k) {
+    if (nameValue[k] == L'"') return false;  // the value is quoted below
+  }
+  return true;
 }
 
 // A 64-digit hex SHA-256 (any case).
@@ -88,7 +105,7 @@ inline bool msiMatches(const MsiUpdateRequest& r, unsigned long long actualSize,
 // "Set up a server on this PC" downloads the MSI into <temp>\uzume-server-setup-<uuid>;
 // the launcher copy removes that folder after msiexec. Empty for every other call (a staged update MSI stays in the Player's cache).
 inline std::wstring setupDirToRemove(const MsiUpdateRequest& r) {
-  if (r.scope != L"setup-hub") return {};
+  if (r.scope != L"setup-hub" && r.scope != L"share-hub") return {};
   const size_t slash = r.msi.find_last_of(L"\\/");
   if (slash == std::wstring::npos || slash == 0) return {};
   const std::wstring dir = r.msi.substr(0, slash);
@@ -100,7 +117,8 @@ inline std::wstring setupDirToRemove(const MsiUpdateRequest& r) {
 }
 
 // Command line parameters for msiexec.exe (without the program name); empty for an unknown scope.
-inline std::wstring msiexecParameters(const std::wstring& msi, const std::wstring& scope) {
+inline std::wstring msiexecParameters(const std::wstring& msi, const std::wstring& scope,
+                                      const std::vector<std::wstring>& properties = {}) {
   if (!isKnownScope(scope)) return {};
   std::wstring path = msi;
   for (wchar_t& c : path) {
@@ -111,8 +129,15 @@ inline std::wstring msiexecParameters(const std::wstring& msi, const std::wstrin
     p += L" MSIINSTALLPERUSER=1 ALLUSERS=2";
   } else {
     p += L" ALLUSERS=1";
-    if (scope == L"machine-hub" || scope == L"setup-hub") p += L" INSTALL_HUB=1";
+    if (scope == L"machine-hub" || scope == L"setup-hub" || scope == L"share-hub") p += L" INSTALL_HUB=1";
     if (scope == L"setup-hub") p += L" NETWORK_SHARING=0";
+    if (scope == L"share-hub") {
+      for (const std::wstring& nv : properties) {
+        if (!isAllowedMsiProperty(nv)) return {};  // refused as a whole
+        const size_t eq = nv.find(L'=');
+        p += L" " + nv.substr(0, eq + 1) + L"\"" + nv.substr(eq + 1) + L"\"";
+      }
+    }
   }
   return p;
 }
