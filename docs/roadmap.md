@@ -53,7 +53,7 @@ Phase plan: [workflow.md](workflow.md#phase-plan).
 | 0.17 | done in code (real NATs, Docker hosts and rollback on real installs are verified only locally) | Operations and safety | Hub backup and restore, update rollback, problem reports, connection assistant, Hub health, Docker image, plugin UI language. |
 | 0.18 | done in code (Windows UAC, MSI, service switch and real networks verified only locally by Fabio) | Uzume: one app, one server, new name | FrameBeam becomes Uzume: administration moved from the Hub web into the app, every user has an account, the server has setup and emergency commands, one installer with three options, runs without a plugin, the new design system; the web admin is removed ([ADR 0030](adr/0030-one-app-one-server-uzume.md)). |
 | 0.19 | planned | Player comfort and library | Audio controls, scaling, screenshots, play time, favorites and collections, storage overview, per-game overrides, DS/3DS screen layouts. |
-| 0.20 | planned | Emulation | Save states, rewind, run-ahead, `memory.write` in the plugin API and automatic snapshots. |
+| 0.20 | planned | Emulation | Save states, rewind, run-ahead, `memory.write` in the plugin API, automatic snapshots, cheats through the cores and a cheat database. |
 | 0.21 | planned | Together | Online status, notifications, ready check, chat, viewer role, audio mixer, voice chat, controller hand-over. |
 | 0.22 | planned | Plugins | Developer console, run recap, Discord Rich Presence, tracker plugins. |
 | 0.23 | planned | Platforms | Linux app package, Vulkan (may be split into 0.23 and 0.24). |
@@ -445,7 +445,20 @@ Decided by Fabio on 2026-10-21 (as 0.19; renumbered on 2026-10-22). Spike first 
 - [ ] Save states: slots per game, stored on the server next to saves (own limit), hotkeys, preview image; run rule "states allowed" through `run_settings`, run log event on use (M-L)
 - [ ] Rewind: ring buffer, hold a hotkey, memory limit, can be blocked in runs by rule (M)
 - [ ] `memory.write` in the plugin API: consent per game, one write queue, snapshot before the first write, run log, run rule, as described in [12-plugins.md](architecture/12-plugins.md) (M)
-- [ ] Automatic snapshot: plugin API `fb.save.snapshot(reason)` (usable without `memory.write`); SoulLink triggers it before gym battles. Later the editor and cheats plugins build on `memory.write` (S)
+- [ ] Automatic snapshot: plugin API `fb.save.snapshot(reason)` (usable without `memory.write`); SoulLink triggers it before gym battles. Later the editor plugin builds on `memory.write` (S)
+
+Cheats (decided by Fabio on 2026-10-23). Action Replay and the other formats run in the cores' own cheat engines (`retro_cheat_set`), not in Lua; `memory.write` is only needed for raw codes a core cannot handle. Everything works the same with "Only on this PC" (the app's own child server) and with a shared server. No cheat lists of real games in any repository. Order: core cheats and Azahar fork first, then rules and snapshots together with the save state rules, then the plugin API, then the database, then the plugin `uzume-plugin-cheats` v0.1 in its own repository.
+
+- [ ] Design addition in the Uzume canvas (the boards have no cheat screens yet): in-game cheats tab, add/import sheet, consent, run rule at the start and during the run, run log entries, save history badge, server setting for the cheat database (S)
+- [ ] Spike: which formats `retro_cheat_set` accepts in melonDS DS, DeSmuME, mGBA and Gambatte (synthetic codes on homebrew or the test core); size and layout of libretro-database `cht/` and `metadat/` (S)
+- [ ] Core cheats in the app: load `retro_cheat_reset`/`retro_cheat_set` optionally, re-apply the active list between frames after every change, reset and state load; core profile block `cheats` with the supported formats (a core without it has no cheats, even with the symbol) (S-M)
+- [ ] Azahar fork (`phabioo/azahar`): connect `retro_cheat_set` to the existing Gateway engine (`GatewayCheat`), Azahar's own cheat file stays unused; core profile format `gateway` (S)
+- [ ] Run rule `rules.cheats` (`off` by default, `logged`) owned by the core, not by a plugin; the run creator sets it at the start and changes it at any time (`PUT /runs/{id}/rules`, pushed live over the run WSS, `rules.changed` in the run log); switching to `off` clears all active cheats at once; run log events `cheat.enabled`/`cheat.disabled` written by the app (S-M)
+- [ ] Snapshot "Before cheats" at the first active cheat of a play session; later save versions carry `cheats_used`, shown as a badge in the save history (S)
+- [ ] Plugin API: permission `cheats`, `fb.cheats.formats()`, `fb.cheats.apply(list)`, `fb.cheats.clear()`, event `cheats.blocked`; consent per game, snapshot and run log stay in the app (M)
+- [ ] UI building blocks: multi-line `textarea` and `fb.ui.pick_file` (the plugin only gets the content of the picked file) (S-M)
+- [ ] Plugin user store on the server: `fb.store.get/put` per user and plugin with revisions and a local copy in the app (works offline and with "Only on this PC"); on a conflict both versions are kept (M)
+- [ ] Cheat database: the server downloads libretro-database `cht/` and the No-Intro DATs at runtime (`-cheat-db-url`, `none` turns it off; refreshed like the core catalog), offline `import-cheats <zip>`; match by ROM hash -> No-Intro name, 3DS by title ID; `GET /games/{id}/cheats` (M)
 - [ ] Run-ahead: 1-2 frames, only for cores with fast serialization, off for 3DS (M)
 
 ## 0.21 Together
@@ -497,7 +510,7 @@ Decided by Fabio on 2026-10-21 (as 0.22; renumbered on 2026-10-22). May be split
 - Netplay, emulation settings sync, StandaloneBackend. (Save states moved to 0.20, controller hand-over to 0.21.)
 - Further library features: paging (row actions delete and rename are done in 0.10.x).
 - Remaining Nintendo systems from NES to GameCube/Wii (Fabio, 2026-10-07), as plain buildbot cores after 0.10, rendered with OpenGL first: NES, SNES, N64, Virtual Boy (GB, GBC and GBA are scheduled in 0.13) and GameCube/Wii (Dolphin; the libretro port lags upstream). N64 and GameCube/Wii build on the hardware rendering from 0.5.
-- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.13); a Pokémon editor plugin and a cheats plugin (both need `memory.write`, which the API describes but the first release does not build; it is now planned in 0.20); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
+- Plugin follow-ups (Fabio, 2026-10-11; plugin-specific plans live in the plugin repositories): more Pokémon generations for the official plugins, in the order Gen 7 (Sun/Moon, Ultra Sun/Ultra Moon), Gen 4/5 (NDS), Gen 3 and Gen 1/2 (the last two need the GB, GBC and GBA systems with mGBA from 0.13); a Pokémon editor plugin (needs `memory.write`, which the API describes but the first release does not build; it is now planned in 0.20) and a cheats plugin (built on the core cheats of 0.20); a randomizer plugin (tool plugin, signed official only, deferred, not dropped; until then randomized ROMs are made externally). Gen 8 (Switch) is out of scope: no libretro core.
 - Wii U deferred (Fabio, 2026-10-07): Cemu has no libretro core and would need the StandaloneBackend.
 - To evaluate (Fabio, 2026-10-07): Cloudflare Tunnel in front of a self-hosted Hub, so no router port forwards are needed. The Hub itself stays self-hosted; running it on Workers/Pages would be a rewrite and is not planned.
   - Cloudflare TURN (Realtime) moved to 0.10.x (Connections) on 2026-10-11.

@@ -73,7 +73,8 @@ Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar ex
 | `ui` | Provide building-block trees for slots, including notices (toasts) outside the game; no separate notice permission | first release |
 | `run.state` | Read/write per-player run state, append run events | first release |
 | `video.capture` | Capture a screen or region of the game picture as PNG at native resolution (`fb.video`); on demand through the existing readback, no write to disk, 1 per second, local game only | API 1 addition |
-| `memory.write` | Write memory through a write queue | later (cheats, editor) |
+| `memory.write` | Write memory through a write queue | later (editor, raw cheat codes) |
+| `cheats` | Hand cheat codes to the core's own cheat engine (`retro_cheat_set`); consent, snapshot and run log as for `memory.write` | planned for 0.20 (see roadmap) |
 | `tool.exec` | Start an external program | later, signed official only |
 
 `memory.write`: all plugins' writes go through one queue applied on the emulation thread between two frames in a fixed order. If two plugins persistently set the same address, the Player shows the conflict instead of silently letting one win. Before the first write in a play session the Player takes a save snapshot (the Hub already versions saves). The consent ("Change game memory") is asked once per game. In a run, every change is written to the run log that all participants see ("cheat used" event), and a run rule can forbid memory writes; the plugin then stays off in that run.
