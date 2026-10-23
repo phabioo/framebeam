@@ -41,6 +41,7 @@ class ScreensTest : public QObject {
   void connectionScreenEmpty() {
     Harness h;
     QVERIFY(h.start());
+    h.controller->onboarding()->setStartScreenEnabled(false);  // the older connection screens
     QCOMPARE(screenOf(h), QStringLiteral("connection"));
     QVERIFY(h.item("addressField") != nullptr);
     QVERIFY(h.controller->deviceFooter().startsWith(QStringLiteral("This device: ")));
@@ -121,6 +122,7 @@ class ScreensTest : public QObject {
 
     Harness h;
     QVERIFY(h.start());
+    h.controller->onboarding()->setStartScreenEnabled(false);  // the older connection screens
     ProfileStore* ps = h.controller->profileStore();
     HubProfile home = profile(QStringLiteral("hub-home"), QStringLiteral("Home"), QStringLiteral("https://hub.local:8443"));
     QVERIFY(ps->upsertProfile(home));
@@ -186,6 +188,7 @@ class ScreensTest : public QObject {
   void unreachableAttempt() {
     Harness h;
     QVERIFY(h.start());
+    h.controller->onboarding()->setStartScreenEnabled(false);  // the older connection screens
     h.controller->addHub(QStringLiteral("http://127.0.0.1:1"));
     QTRY_COMPARE(h.controller->connection()->state(), HubConnection::State::Unreachable);
     QCOMPARE(screenOf(h), QStringLiteral("connection"));
@@ -204,6 +207,7 @@ class ScreensTest : public QObject {
   void unreachableTwiceShowsStatusScreen() {
     Harness h;
     QVERIFY(h.start());
+    h.controller->onboarding()->setStartScreenEnabled(false);  // the older connection screens
     for (int i = 0; i < 2; ++i) {
       h.controller->addHub(QStringLiteral("http://127.0.0.1:1"));
       QCOMPARE(screenOf(h), QStringLiteral("pairing"));
@@ -270,6 +274,7 @@ class ScreensTest : public QObject {
 
     Harness h;
     QVERIFY(h.start());
+    h.controller->onboarding()->setStartScreenEnabled(false);  // the older connection screens
     // Lumen Drift is already in the cache (validated).
     {
       QFile f(QDir(h.controller->profileStore()->romCacheDir()).filePath(readySha + QStringLiteral(".nds")));

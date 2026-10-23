@@ -52,6 +52,14 @@ In production operation, **HTTPS/WSS is mandatory** for API, signaling, authenti
 
 For simple self-hosted/LAN use, the Hub can generate its own TLS certificate on first start. Your own cert/key and operation behind a reverse proxy are also possible. On first pairing, the Player uses **trust-on-first-use / certificate pinning**: show/confirm the certificate fingerprint (as the short security code, see above) and store it in the Hub profile. Later mismatches produce a warning/error and are not silently accepted as new trust. Concrete certificate management including renewal and confirmed pin change remains to be specified. A custom ACME client is outside the PoC. WebRTC is separately encrypted independently of this.
 
+### Accounts on one PC (0.18, package 7)
+
+- **Several accounts per server on one PC**: every person has their own device row on the server with their own device ID; all share the PC's `install_id`. The first account on a server uses the install ID as its device ID. `profiles.json` lists the accounts of a server; secrets stay in the OS credential store.
+- **PIN for this PC**: four digits, set per person, used to switch people. It is never sent to a server. The hash (PBKDF2-HMAC-SHA256 with a random salt, the device ID mixed in) lives only in the OS credential store (`Uzume/pin/<hub_id>/<device_id>`); `profiles.json` knows only that a PIN exists and the count of wrong tries. After 3 wrong PINs the PIN is locked and the password is needed. It keeps the next person at the keyboard out; it is not a boundary against someone who controls the PC's user session.
+- **Sign-in**: with user name and password a new device is trusted directly (ADR 0030 D5); a user without a password uses an invite or the admin's approval.
+- **Setup**: a server without an admin is set up with its setup code. The app computes the security code from the certificate it pinned and the person compares it with the server's screen before the setup code or an invite is sent; a mismatch stops with nothing sent.
+- **Single instance and links**: only one app runs per user and data directory; a second start passes its `uzume://join/...` link to the running one over a local socket and exits ([join link](../reference/protocol.md#join-link)). On Windows the app registers the `uzume` scheme under HKCU (`HKCU\Software\Classes\uzume`), without admin rights.
+
 ### Switching and removing
 
 A Hub switch first ends the old connection including presence and signaling. Running local/shared Sessions are ended before the switch; pending saves are uploaded to the previous Hub or unambiguously secured for this Hub for later retry. If reconciliation fails, the UI must allow a deliberate decision. An upload must never be redirected to the newly selected Hub. Only then is the new Hub connected.

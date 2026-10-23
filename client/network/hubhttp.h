@@ -24,6 +24,7 @@ struct HttpResult {
   QString observedFingerprint;
   QString apiErrorCode;  // from {"error":{"code","message"}}
   QString apiErrorMessage;
+  int retryAfterSec = 0;  // error.retry_after or the Retry-After header of a 429 (seconds); 0 = unknown
 
   QJsonObject json() const;
   bool ok() const { return !networkError && status >= 200 && status < 300; }

@@ -91,6 +91,10 @@ class PlayerSettings {
   bool developerMode() const { return developerMode_; }
   bool setDeveloperMode(bool on);
 
+  // First start (0.18 package 7): the person chose "Play on this PC" (or "Add later") on the welcome screen, so it is not shown again.
+  bool playOnThisPcChosen() const { return playOnThisPc_; }
+  bool setPlayOnThisPcChosen(bool chosen);
+
   // Plugin UI language (0.17): "auto" (default; 3DS game language or OS language) or an explicit tag such as "en" / "de".
   // Applies when the next game starts. An invalid tag is rejected (false).
   QString pluginLanguage() const { return pluginLanguage_; }
@@ -134,6 +138,7 @@ class PlayerSettings {
   QString sessionVisibility_;
   QStringList libraryFolders_;
   bool developerMode_ = false;
+  bool playOnThisPc_ = false;
   QString pluginLanguage_ = QStringLiteral("auto");
   bool pluginHudAllHidden_ = false;
   qint64 romCacheLimit_ = kDefaultRomCacheLimitBytes;

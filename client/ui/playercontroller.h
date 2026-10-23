@@ -50,6 +50,8 @@
 #include "sessioncontroller.h"
 #include "system_manifest.h"
 #include "localhubcontroller.h"
+#include "onboardingcontroller.h"
+#include "accountscontroller.h"
 #include "updatescontroller.h"
 #include "admincontroller.h"
 #include "reportcontroller.h"
@@ -61,7 +63,7 @@ class PlayerController : public QObject {
   QML_ELEMENT
   QML_UNCREATABLE("Created in main.cpp")
 
-  // Navigation: "connection" | "pairing" | "library" | "game" | "settings" | "emulation" | "controllers" | "runs" | "server"
+  // Navigation: "start" (first start, join, set up, add a person) | "connection" | "pairing" | "library" | "game" | "settings" | "emulation" | "controllers" | "runs" | "server"
   Q_PROPERTY(QString screen READ screen NOTIFY screenChanged)
 
   // 3a
@@ -137,6 +139,9 @@ class PlayerController : public QObject {
   Q_PROPERTY(bool setupAssistantOpen READ setupAssistantOpen NOTIFY setupAssistantChanged)
   // "Set up a Hub on this PC" (connection screen, pairing form, Settings > Hubs)
   Q_PROPERTY(uzume::ui::LocalHubController* localHub READ localHub CONSTANT)
+  // First start, joining and setting up servers (screen "start"); the people on this PC and the account (0.18 package 7)
+  Q_PROPERTY(uzume::ui::OnboardingController* onboarding READ onboarding CONSTANT)
+  Q_PROPERTY(uzume::ui::AccountsController* accounts READ accounts CONSTANT)
   // Plugins (Settings > Plugins, Plugin console tab of the game panel)
   Q_PROPERTY(uzume::ui::PluginsController* plugins READ plugins CONSTANT)
   Q_PROPERTY(uzume::ui::RunsController* runs READ runs CONSTANT)
@@ -203,6 +208,8 @@ class PlayerController : public QObject {
   AdminController* admin() { return admin_.get(); }
   QString serverPage() const { return serverPage_; }
   LocalHubController* localHub() { return localHub_.get(); }
+  OnboardingController* onboarding() { return onboarding_.get(); }
+  AccountsController* accounts() { return accounts_.get(); }
   PluginsController* plugins() { return plugins_.get(); }
   RunsController* runs() { return runs_.get(); }
   SaveHistoryController* saveHistory() { return history_.get(); }
@@ -454,6 +461,8 @@ class PlayerController : public QObject {
   std::unique_ptr<ReportController> report_;  // "Report a problem"
   std::unique_ptr<AdminController> admin_;    // admin area: requests, Confirm it's you, status
   std::unique_ptr<LocalHubController> localHub_;
+  std::unique_ptr<OnboardingController> onboarding_;  // after localHub_ and conn_
+  std::unique_ptr<AccountsController> accounts_;
   std::unique_ptr<PluginsController> plugins_;  // after settings_ and session_: destroyed before them
   std::unique_ptr<RunClient> runClient_;        // after sessions_ (the Hub socket) and plugins_
   std::unique_ptr<RunsController> runs_;

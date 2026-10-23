@@ -564,7 +564,10 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
                              {QStringLiteral("hub_version"), QStringLiteral("0.1.0")},
                              {QStringLiteral("protocol_version"), protocolVersion},
                              {QStringLiteral("min_protocol_version"), minProtocolVersion},
-                             {QStringLiteral("api_base"), QStringLiteral("/api/v1")}}));
+                             {QStringLiteral("api_base"), QStringLiteral("/api/v1")},
+                             {QStringLiteral("setup_required"), setupRequired}}));
+  } else if (handleSignInAndSetup(sock, req)) {
+    // answered (or held)
   } else if (req.method == "POST" && req.path == QLatin1String("/api/v1/pairing/requests")) {
     if (rateLimitPairing) {
       respondError(sock, 429, QStringLiteral("rate_limited"));
@@ -670,7 +673,8 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     respond(sock, 204, {});
   } else if (!bearerIs(req, "fba_")) {
     respondError(sock, 401, QStringLiteral("unauthorized"));
-  } else if (req.path.startsWith(QLatin1String("/api/v1/admin/")) || req.path.startsWith(QLatin1String("/api/v1/account/"))) {
+  } else if (req.path.startsWith(QLatin1String("/api/v1/admin/")) || req.path.startsWith(QLatin1String("/api/v1/account/confirm"))) {
+    // "Confirm it's you" belongs to the admin fake; the other /account paths are handled by handleAccount().
     handleAdmin(sock, req);
   } else if (req.method == "PUT" && req.path == QLatin1String("/api/v1/local/settings")) {
     lastLocalSettings = body;
@@ -705,6 +709,12 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
                                                       {QStringLiteral("role"), QStringLiteral("admin")}});
     }
     res.insert(QStringLiteral("features"), feats);
+    if (const auto du = deviceUsers.constFind(callerDeviceId); du != deviceUsers.constEnd() && accountsByUser.contains(*du)) {
+      const FakeAccount& a = accountsByUser[*du];
+      res.insert(QStringLiteral("user"), QJsonObject{{QStringLiteral("id"), a.userId},
+                                                     {QStringLiteral("display_name"), a.displayName},
+                                                     {QStringLiteral("role"), a.role}});
+    }
     for (auto it = handshakeExtra.begin(); it != handshakeExtra.end(); ++it) {
       res.insert(it.key(), it.value());
     }
@@ -776,6 +786,8 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     }
     reports.append(rep);
     respond(sock, 201, json({{QStringLiteral("id"), reports.size()}}));
+  } else if (req.path == QLatin1String("/api/v1/account") || req.path.startsWith(QLatin1String("/api/v1/account/"))) {
+    handleAccount(sock, req);
   } else if (handleLocalRoms(sock, req)) {
     // answered
   } else if (req.path == QLatin1String("/api/v1/saves") || req.path.startsWith(QLatin1String("/api/v1/games/"))) {
@@ -1916,4 +1928,221 @@ void FakeHub::handleRuns(QSslSocket* sock, const FakeRequest& req) {
   } else {
     respondError(sock, 404, QStringLiteral("not_found"));
   }
+}
+
+
+// ---------------------------------------------------------------- Accounts (accounts_v1) and set-up with a code
+
+void FakeHub::addAccount(const QString& username, const QString& password, const QString& role) {
+  FakeAccount a;
+  a.userId = QStringLiteral("u_") + username.toLower();
+  a.username = username;
+  a.displayName = username;
+  a.role = role;
+  a.password = password;
+  a.passwordRequired = role == QLatin1String("admin");
+  accountsByUser.insert(a.userId, a);
+}
+
+void FakeHub::respondRateLimited(QSslSocket* sock) {
+  QJsonObject err{{QStringLiteral("code"), QStringLiteral("rate_limited")}, {QStringLiteral("message"), QStringLiteral("Too many attempts")}};
+  if (rateLimitRetryAfter > 0) {
+    err.insert(QStringLiteral("retry_after"), rateLimitRetryAfter);
+  }
+  respond(sock, 429, QJsonDocument(QJsonObject{{QStringLiteral("error"), err}}).toJson(QJsonDocument::Compact));
+}
+
+QJsonObject FakeHub::accountJson(const FakeAccount& a) const {
+  return QJsonObject{{QStringLiteral("user_id"), a.userId},
+                     {QStringLiteral("username"), a.username},
+                     {QStringLiteral("display_name"), a.displayName},
+                     {QStringLiteral("role"), a.role},
+                     {QStringLiteral("has_password"), !a.password.isEmpty()},
+                     {QStringLiteral("password_required"), a.passwordRequired || requirePasswords},
+                     {QStringLiteral("must_change_password"), false},
+                     {QStringLiteral("confirmed_until"), QJsonValue::Null},
+                     {QStringLiteral("confirm_locked_until"), QJsonValue::Null}};
+}
+
+FakeHub::FakeAccount* FakeHub::callerAccount() {
+  const auto du = deviceUsers.constFind(callerDeviceId);
+  if (du != deviceUsers.constEnd() && accountsByUser.contains(*du)) {
+    return &accountsByUser[*du];
+  }
+  return accountsByUser.isEmpty() ? nullptr : &*accountsByUser.begin();
+}
+
+// POST /auth/sign-in and POST /setup (no auth).
+bool FakeHub::handleSignInAndSetup(QSslSocket* sock, const FakeRequest& req) {
+  const bool signIn = req.method == "POST" && req.path == QLatin1String("/api/v1/auth/sign-in");
+  const bool setup = req.method == "POST" && req.path == QLatin1String("/api/v1/setup");
+  if (!signIn && !setup) {
+    return false;
+  }
+  const QJsonObject body = QJsonDocument::fromJson(req.body).object();
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  const auto approved = [&](const FakeAccount& a) {
+    approvedDelivered_ = true;
+    deviceUsers.insert(body.value(QStringLiteral("device_id")).toString(), a.userId);
+    respond(sock, 200, json({{QStringLiteral("status"), QStringLiteral("approved")},
+                             {QStringLiteral("hub_id"), hubId},
+                             {QStringLiteral("user_id"), a.userId},
+                             {QStringLiteral("device_credential"), QString::fromLatin1(kDeviceCredential)}}));
+  };
+  if (signIn) {
+    signInBodies.append(body);
+    if (holdSignIn) {
+      return true;
+    }
+    if (signInUnsupported) {
+      respondError(sock, 404, QStringLiteral("not_found"));
+      return true;
+    }
+    if (rateLimitSignIn) {
+      respondRateLimited(sock);
+      return true;
+    }
+    const QString device = body.value(QStringLiteral("device_id")).toString();
+    const QString user = body.value(QStringLiteral("username")).toString();
+    const QString password = body.value(QStringLiteral("password")).toString();
+    for (const FakeAccount& a : std::as_const(accountsByUser)) {
+      if (a.username.compare(user, Qt::CaseInsensitive) != 0 || a.password.isEmpty() || a.password != password) {
+        continue;
+      }
+      if (disabledUsers.contains(a.username, Qt::CaseInsensitive)) {
+        respondError(sock, 401, QStringLiteral("user_disabled"));
+      } else if (conflictDevices.contains(device)) {
+        conflictDevices.removeAll(device);
+        respondError(sock, 409, QStringLiteral("conflict"));
+      } else {
+        approved(a);
+      }
+      return true;
+    }
+    respondError(sock, 401, QStringLiteral("invalid_credentials"));
+    return true;
+  }
+  setupBodies.append(body);
+  if (holdSignIn) {
+    return true;
+  }
+  if (rateLimitSetup) {
+    respondRateLimited(sock);
+    return true;
+  }
+  if (!setupRequired) {
+    respondError(sock, 409, QStringLiteral("already_set_up"));
+    return true;
+  }
+  const QString password = body.value(QStringLiteral("password")).toString();
+  if (body.value(QStringLiteral("username")).toString().isEmpty() || password.size() < 12) {
+    respondError(sock, 400, QStringLiteral("bad_request"));
+    return true;
+  }
+  if (body.value(QStringLiteral("setup_code")).toString() != setupCode) {
+    respondError(sock, 401, QStringLiteral("invalid_setup_code"));
+    return true;
+  }
+  if (setupCodeExpired) {
+    respondError(sock, 410, QStringLiteral("setup_code_expired"));
+    return true;
+  }
+  addAccount(body.value(QStringLiteral("username")).toString(), password, QStringLiteral("admin"));
+  setupRequired = false;
+  approved(accountsByUser[QStringLiteral("u_") + body.value(QStringLiteral("username")).toString().toLower()]);
+  return true;
+}
+
+// GET/PATCH /account, PUT/DELETE /account/password, /account/devices...
+void FakeHub::handleAccount(QSslSocket* sock, const FakeRequest& req) {
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  const QJsonObject body = QJsonDocument::fromJson(req.body).object();
+  FakeAccount* me = callerAccount();
+  if (me == nullptr) {
+    respondError(sock, 404, QStringLiteral("not_found"));
+    return;
+  }
+  if (req.path == QLatin1String("/api/v1/account")) {
+    if (req.method == "GET") {
+      respond(sock, 200, json(accountJson(*me)));
+    } else if (req.method == "PATCH") {
+      const QString name = body.value(QStringLiteral("display_name")).toString().trimmed();
+      if (name.isEmpty() || name.size() > 32) {
+        respondError(sock, 400, QStringLiteral("bad_request"));
+        return;
+      }
+      for (const FakeAccount& a : std::as_const(accountsByUser)) {
+        if (a.userId != me->userId && a.displayName.compare(name, Qt::CaseInsensitive) == 0) {
+          respondError(sock, 409, QStringLiteral("display_name_taken"));
+          return;
+        }
+      }
+      me->displayName = name;
+      respond(sock, 200, json(accountJson(*me)));
+    } else {
+      respondError(sock, 405, QStringLiteral("method_not_allowed"));
+    }
+    return;
+  }
+  if (req.path == QLatin1String("/api/v1/account/password")) {
+    const QString current = body.value(QStringLiteral("current_password")).toString();
+    if (req.method == "PUT") {
+      const QString next = body.value(QStringLiteral("new_password")).toString();
+      if (next.size() < 12) {
+        respondError(sock, 400, QStringLiteral("bad_request"));
+      } else if (!me->password.isEmpty() && current != me->password) {
+        respondError(sock, 401, QStringLiteral("invalid_credentials"));
+      } else {
+        me->password = next;
+        respond(sock, 204, {});
+      }
+    } else if (req.method == "DELETE") {
+      if (me->passwordRequired || requirePasswords) {
+        respondError(sock, 403, QStringLiteral("password_required"));
+      } else if (!me->password.isEmpty() && current != me->password) {
+        respondError(sock, 401, QStringLiteral("invalid_credentials"));
+      } else if (me->password.isEmpty()) {
+        respondError(sock, 409, QStringLiteral("password_not_set"));
+      } else {
+        me->password.clear();
+        respond(sock, 204, {});
+      }
+    } else {
+      respondError(sock, 405, QStringLiteral("method_not_allowed"));
+    }
+    return;
+  }
+  if (req.path == QLatin1String("/api/v1/account/devices") && req.method == "GET") {
+    QJsonArray list;
+    for (const QJsonObject& d : std::as_const(accountDevices)) list.append(d);
+    respond(sock, 200, json({{QStringLiteral("devices"), list}}));
+    return;
+  }
+  if (req.path == QLatin1String("/api/v1/account/devices/sign-out-all") && req.method == "POST") {
+    const bool includeCurrent = body.value(QStringLiteral("include_current")).toBool(false);
+    int n = 0;
+    for (QJsonObject& d : accountDevices) {
+      if (d.value(QStringLiteral("status")).toString() == QLatin1String("trusted") &&
+          (includeCurrent || !d.value(QStringLiteral("current")).toBool())) {
+        d.insert(QStringLiteral("status"), QStringLiteral("revoked"));
+        ++n;
+      }
+    }
+    respond(sock, 200, json({{QStringLiteral("signed_out"), n}}));
+    return;
+  }
+  const QString prefix = QStringLiteral("/api/v1/account/devices/");
+  if (req.path.startsWith(prefix) && req.method == "DELETE") {
+    const QString id = req.path.mid(prefix.size());
+    for (QJsonObject& d : accountDevices) {
+      if (d.value(QStringLiteral("device_id")).toString() == id) {
+        d.insert(QStringLiteral("status"), QStringLiteral("revoked"));
+        respond(sock, 204, {});
+        return;
+      }
+    }
+    respondError(sock, 404, QStringLiteral("not_found"));
+    return;
+  }
+  respondError(sock, 404, QStringLiteral("not_found"));
 }

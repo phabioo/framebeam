@@ -8,8 +8,28 @@
 
 namespace uzume {
 
+// One person signed in on this PC for one server (0.18 package 7, ADR 0030 D5). Never contains a secret: credentialRef is
+// only the key in the CredentialStore, and the PIN hash lives in the CredentialStore too (core/localpin.h); only the facts
+// "has a PIN" and the count of wrong tries are kept here.
+struct HubAccount {
+  QString hubUserId;
+  QString displayName;
+  QString username;       // the sign-in name when the person signed in with it on this PC (hint for "password once"); may be empty
+  QString role;           // "admin" | "user"; empty when unknown
+  QString deviceId;       // this person's device row on the server (the first account on a server uses the install ID)
+  QString credentialRef;  // empty: signed out on this PC (credential revoked or expired), the password is needed
+  QDateTime lastUsed;
+  bool hasPin = false;
+  int pinFailures = 0;  // wrong PINs in a row; kLocalPinMaxTries locks the PIN until a password sign-in
+};
+
 // Hub profile per docs/architecture/10-identity-pairing-tls.md. Never contains a secret:
 // credentialRef is only the key in the CredentialStore.
+//
+// Several people can be signed in on one PC (accounts). The flat fields hubUserId, userDisplayName, userRole, deviceId and
+// credentialRef always describe the ACTIVE account (activeUserId); ProfileStore keeps both in sync: upsertProfile() writes
+// the flat fields into the matching account, setActiveAccount() copies an account into the flat fields. With no active
+// account the flat user fields are empty and deviceId is the device ID the next sign-in will use.
 struct HubProfile {
   QString hubId;
   QString name;
@@ -22,6 +42,8 @@ struct HubProfile {
   QString pinnedFingerprint;  // SHA-256 over leaf DER, uppercase hex with colons; empty for HTTP dev
   QDateTime lastConnected;
   bool allowHttp = false;  // dev flag: HTTP also outside localhost
+  QList<HubAccount> accounts;  // everyone signed in on this PC for this server (an old profile loads as one account)
+  QString activeUserId;        // the account the flat fields show; empty = none
 };
 
 // Local data storage: <base>/profiles.json, <base>/device.json, <base>/hubs/<hub_id>/, <base>/cache/roms/.
@@ -52,15 +74,36 @@ class ProfileStore {
   QString romCacheDir() const;
   QString coreCacheDir() const;  // <data>/cache/cores (downloaded core packages, never migrated)
 
-  QString deviceId() const { return deviceId_; }
+  // The ID of this install of the app (device.json). The first account on a server uses it as its device ID; sent as
+  // `install_id` so the server can group the device rows of one PC.
+  QString installId() const { return deviceId_; }
+  QString deviceId() const { return deviceId_; }  // same as installId()
   QString deviceName() const { return deviceName_; }
   bool setDeviceName(const QString& name);
 
   QList<HubProfile> profiles() const { return profiles_; }
   std::optional<HubProfile> profile(const QString& hubId) const;
   std::optional<HubProfile> profileByAddress(const QString& address) const;
+  // Updates the stored profile of profile.hubId (or adds it). For a stored profile the accounts list stays as stored and only
+  // the account of profile.hubUserId is written from the flat fields (added if missing, made active); a profile with an
+  // empty hubUserId (credential lost) keeps the account but empties its credentialRef and has no active account.
   bool upsertProfile(const HubProfile& profile);
   bool removeProfile(const QString& hubId);
+
+  // Several accounts per server. accounts() is empty for an unknown server.
+  QList<HubAccount> accounts(const QString& hubId) const;
+  std::optional<HubAccount> account(const QString& hubId, const QString& userId) const;
+  // Adds or replaces the account of account.hubUserId. When it is the active one the flat fields follow. False for an
+  // unknown server or an empty user ID.
+  bool upsertAccount(const QString& hubId, const HubAccount& account);
+  // Removes the account (the caller deletes its credential and PIN). When it was the active one the flat user fields are
+  // cleared and deviceId becomes newAccountDeviceId().
+  bool removeAccount(const QString& hubId, const QString& userId);
+  // Makes the account the active one and copies it into the flat fields. False for an unknown account.
+  bool setActiveAccount(const QString& hubId, const QString& userId);
+  // Device ID for an account that is created now: the install ID for the first account on the server, a fresh UUID
+  // for every further one.
+  QString newAccountDeviceId(const QString& hubId) const;
 
   // Hub edit (Settings > Hubs, docs/design/player.md 3p): only host and port of a saved Hub change. hubId, pinned
   // fingerprint, credentialRef, hubUserId and the scheme stay. Fails for an unknown Hub, an invalid input or a

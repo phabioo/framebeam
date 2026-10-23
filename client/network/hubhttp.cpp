@@ -200,6 +200,12 @@ HttpResult HubHttp::resultOf(QNetworkReply* reply) {
     const QJsonObject err = r.json().value(QStringLiteral("error")).toObject();
     r.apiErrorCode = err.value(QStringLiteral("code")).toString();
     r.apiErrorMessage = err.value(QStringLiteral("message")).toString();
+    r.retryAfterSec = err.value(QStringLiteral("retry_after")).toInt(0);
+  }
+  if (r.retryAfterSec <= 0 && r.status == 429) {
+    bool ok = false;
+    const int header = reply->rawHeader("Retry-After").toInt(&ok);
+    r.retryAfterSec = ok && header > 0 ? header : 0;
   }
   return r;
 }

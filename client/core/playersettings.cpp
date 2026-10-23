@@ -33,6 +33,7 @@ constexpr const char* kUpdateSkipKey = "update_skip";
 constexpr const char* kWhatsNewKey = "whats_new_version";
 constexpr const char* kDiagOpenKey = "diagnostics_open";
 constexpr const char* kDeveloperModeKey = "developer_mode";
+constexpr const char* kPlayOnThisPcKey = "play_on_this_pc";
 constexpr const char* kPluginLanguageKey = "plugin_language";
 constexpr const char* kDiagEmulationKey = "diagnostics_emulation_open";
 constexpr const char* kDiagStreamingKey = "diagnostics_streaming_open";
@@ -70,6 +71,7 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   whatsNewVersion_ = raw_.value(QLatin1String(kWhatsNewKey)).toString();
   diagOpen_ = raw_.value(QLatin1String(kDiagOpenKey)).toBool(false);
   developerMode_ = raw_.value(QLatin1String(kDeveloperModeKey)).toBool(false);
+  playOnThisPc_ = raw_.value(QLatin1String(kPlayOnThisPcKey)).toBool(false);
   if (const QString lang = raw_.value(QLatin1String(kPluginLanguageKey)).toString(); isValidPluginLanguage(lang)) pluginLanguage_ = lang;
   pluginHudAllHidden_ = raw_.value(QLatin1String(kPluginHudAllHiddenKey)).toBool(false);
   diagEmulationOpen_ = raw_.value(QLatin1String(kDiagEmulationKey)).toBool(true);
@@ -193,6 +195,12 @@ bool PlayerSettings::setDiagnosticsOpen(bool open) {
 bool PlayerSettings::setDeveloperMode(bool on) {
   developerMode_ = on;
   raw_.insert(QLatin1String(kDeveloperModeKey), on);
+  return save();
+}
+
+bool PlayerSettings::setPlayOnThisPcChosen(bool chosen) {
+  playOnThisPc_ = chosen;
+  raw_.insert(QLatin1String(kPlayOnThisPcKey), chosen);
   return save();
 }
 

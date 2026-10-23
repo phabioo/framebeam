@@ -19,6 +19,18 @@ class PlayerSettingsTest : public QObject {
     QVERIFY(!QFile::exists(s.filePath()));  // nothing is written until something changes
   }
 
+  void playOnThisPcChoicePersists() {
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QVERIFY(!s.playOnThisPcChosen());
+      s.setPlayOnThisPcChosen(true);
+      QVERIFY(s.playOnThisPcChosen());
+    }
+    PlayerSettings again(dir.path());
+    QVERIFY(again.playOnThisPcChosen());
+  }
+
   void pluginLanguageDefaultsToAutoAndPersists() {
     QTemporaryDir dir;
     {

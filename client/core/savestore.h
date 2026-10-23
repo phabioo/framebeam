@@ -60,6 +60,9 @@ class SaveStore {
   static QString slotDirIn(const QString& gameDir, const QString& slot);
   // Slots with a local directory for this game ("default" first when its game dir has a sync.json or save file).
   static QStringList localSlots(const QString& gameDir);
+  // Number of save slots of one person on one server that are not on the server yet (sync.json says pending or a conflict
+  // is open), over all games and slots. Reads files only; 0 for unsafe IDs. Used before a person is removed from this PC.
+  static int pendingSlotCount(const ProfileStore& profiles, const QString& hubId, const QString& userId);
 
   // Save file name the core writes for a ROM path (melonDS DS: <rom basename>.sav in the save directory).
   static QString expectedSaveName(const QString& romPath);

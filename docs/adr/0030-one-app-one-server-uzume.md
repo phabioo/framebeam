@@ -91,6 +91,13 @@ Consequences:
 - **Devices**: `GET/DELETE /api/v1/account/devices[/{id}]` and `sign-out-all` for the user's own devices; handshake feature `accounts_v1`; new codes `confirmation_required`, `password_required`, `password_not_set`, optional `retry_after`.
 - The web admin and its cookie login stay until package 12.
 
+#### Amendment (package 7, 2026-10-22): as built
+
+- **Backend and links**: `OnboardingController` (first start, join with address, invite code or link, set up with a setup code, security check, sign-in, approval, hard stops) and `AccountsController` (people on this PC, switching, adding, removing, My account, devices) for the screens 8a to 8e and 8g. The security code is computed from the pinned certificate; a different code stops the flow with nothing sent. `uzume://join/<host[:port]>/<invite>#<fingerprint>` is checked against the presented certificate, see [reference/protocol.md](../reference/protocol.md#join-link). One app instance per user and data directory; a second start hands its link to the running one. On Windows the app registers the `uzume` scheme under HKCU.
+- **Accounts**: several people per server on one PC, each with their own device ID (the first uses the install ID). The PIN (4 digits, switch user with Ctrl+Shift+U) is PBKDF2-HMAC-SHA256 with a salt, the hash only in the OS credential store, 3 wrong PINs need the password; it is never sent.
+- **Left out because no server API exists yet**: server name and "Who can join" in set-up step 4; the Privacy block and "Ask for my password" in My account; "ask an admin" in Forgot password (only the `reset-admin` command is shown); "Keep for later" for invite links while offline; the count of tries left after a wrong password.
+- **Not in this package**: "Confirm it's you" (8f) is built by package 8 with the admin area.
+
 ### D6 Install modes and "On this PC"
 
 - One installer per platform with three options: the app only, the app with a server on this PC, the server only (Windows MSI as in ADR 0021; Linux packages `uzume` and `uzume-server`; Docker for the server).

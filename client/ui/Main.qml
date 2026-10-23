@@ -65,18 +65,30 @@ ApplicationWindow {
     StackLayout {
         id: stack
         anchors.fill: parent
-        currentIndex: ["connection", "pairing", "library", "game", "settings", "emulation", "controllers", "runs", "server"].indexOf(window.player.screen)
+        currentIndex: ["connection", "pairing", "library", "game", "settings", "emulation", "controllers", "runs", "server", "start"].indexOf(window.player.screen)
 
         ConnectionScreen { player: window.player }
         PairingScreen { player: window.player }
         LibraryScreen { player: window.player }
         GameScreen { player: window.player }
-        SettingsScreen { id: settingsScreen; player: window.player }
+        // Created only while shown: a hidden StackLayout child whose Repeaters change keeps stale layout items and
+        // crashed Qt Layouts on the next switch to Settings.
+        Loader {
+            id: settingsLoader
+            active: window.player.screen === "settings"
+            sourceComponent: SettingsScreen { player: window.player }
+        }
         EmulationScreen { player: window.player }
         ControllersScreen { player: window.player }
         RunsScreen { player: window.player }
         ServerScreen { player: window.player }
+        StartScreen { player: window.player }
     }
+
+    // First start, joining and setting up servers (0.18 package 7): the start screen replaces the connection screens for the first
+    // start. The people on this PC (Ctrl+Shift+U) are a full-window screen above every page.
+    Component.onCompleted: window.player.onboarding.startScreenEnabled = true
+    SwitchUserScreen { anchors.fill: parent; player: window.player }
 
     // Hotkeys (frame.md "0-4 G"): Ctrl+1 to 4 Library, Runs, Emulation, Controllers; Ctrl+, Settings. Not in the game view,
     // not before a server is connected.
@@ -86,6 +98,56 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+3"; enabled: window.navHotkeys; onActivated: window.player.showEmulation() }
     Shortcut { sequence: "Ctrl+4"; enabled: window.navHotkeys; onActivated: window.player.showControllers() }
     Shortcut { sequence: "Ctrl+,"; enabled: window.navHotkeys; onActivated: window.player.showSettings() }
+    // Switch user (8d-1): from every screen with a server, also in the game view (it asks to quit the game first).
+    Shortcut {
+        sequence: "Ctrl+Shift+U"
+        enabled: (window.navHotkeys || window.player.screen === "game") && window.player.accounts.phase === "idle"
+        onActivated: window.player.accounts.open()
+    }
+    // An invite link pasted anywhere in the window (8c-1). A text field that has the focus keeps its own paste.
+    TextEdit { id: clipboardProbe; visible: false }
+    Shortcut {
+        sequences: [StandardKey.Paste]
+        enabled: window.player.accounts.phase === "idle"
+        onActivated: {
+            clipboardProbe.text = ""
+            clipboardProbe.paste()
+            const text = clipboardProbe.text.trim()
+            if (text !== "") window.player.onboarding.openLink(text)
+        }
+    }
+
+    // 8c-3a: an invite that arrived while a game runs waits until the game ended; bottom left, over every screen.
+    UzToast {
+        objectName: "linkWaitingToast"
+        visible: window.player.onboarding.linkWaiting
+        z: 80
+        x: Theme.space3
+        y: parent.height - height - Theme.space3
+        kind: "warning"
+        text: qsTr("The invite opens when you quit. Your save uploads first.")
+        action: qsTr("Dismiss")
+        closable: false
+        onActionTriggered: window.player.onboarding.dismissPendingLink()
+    }
+    // 8c-2 "Add only": nothing changes now, the server is in Settings > This PC > Servers.
+    UzToast {
+        id: linkAddedToast
+        objectName: "linkAddedToast"
+        property string serverName: ""
+        visible: serverName !== ""
+        z: 80
+        x: Theme.space3
+        y: parent.height - height - Theme.space3
+        kind: "done"
+        text: qsTr("%1 is added. You find it in Settings › This PC › Servers.").arg(serverName)
+        onCloseRequested: serverName = ""
+        Timer { running: linkAddedToast.visible; interval: 8000; onTriggered: linkAddedToast.serverName = "" }
+    }
+    Connections {
+        target: window.player.onboarding
+        function onLinkAdded(serverName: string) { linkAddedToast.serverName = serverName }
+    }
 
     // Connection check (6e): modal over every screen; "Edit Hub address…" opens the inline edit of the Hub in Settings.
     ConnectionCheckDialog { player: window.player }
@@ -93,7 +155,7 @@ ApplicationWindow {
         target: window.player.connectionCheck
         function onEditHubRequested() {
             window.player.showSettings()
-            settingsScreen.editActiveHubAddress()
+            if (settingsLoader.item) settingsLoader.item.editActiveHubAddress()
         }
     }
 

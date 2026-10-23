@@ -43,6 +43,8 @@ qt_add_qml_module(uzume_ui
     keyedrowsmodel.h keyedrowsmodel.cpp
     runscontroller.h runscontroller.cpp
     connectioncheckcontroller.h connectioncheckcontroller.cpp
+    onboardingcontroller.h onboardingcontroller.cpp
+    accountscontroller.h accountscontroller.cpp
     pluginimageprovider.h pluginimageprovider.cpp
   QML_FILES
     Main.qml
@@ -66,6 +68,40 @@ qt_add_qml_module(uzume_ui
     StepCard.qml
     ConnectionScreen.qml
     PairingScreen.qml
+    StartFrame.qml
+    StartPage.qml
+    StartHead.qml
+    StartField.qml
+    StartNotice.qml
+    StartChoiceRow.qml
+    StartSignInForm.qml
+    StartInviteForm.qml
+    StartApprovalBlock.qml
+    StartWelcomePage.qml
+    StartPlayPage.qml
+    StartFolderDialog.qml
+    StartSetupWherePage.qml
+    StartLocalHubPage.qml
+    StartAddressPage.qml
+    StartCheckingPage.qml
+    StartSecurityPage.qml
+    StartMessagePage.qml
+    StartSignInPage.qml
+    StartInvitePage.qml
+    StartApprovalPage.qml
+    StartLinkReadyPage.qml
+    StartLinkChoicePage.qml
+    StartSetupAccountPage.qml
+    ForgotPasswordDialog.qml
+    StartScreen.qml
+    PinPad.qml
+    SwitchPeoplePage.qml
+    SwitchPinPage.qml
+    SwitchQuitPage.qml
+    SwitchPasswordPage.qml
+    SwitchAddPage.qml
+    SwitchRemovePage.qml
+    SwitchUserScreen.qml
     UzAppNav.qml
     UzNavItem.qml
     UzNavGroupHead.qml
@@ -75,6 +111,7 @@ qt_add_qml_module(uzume_ui
     GameGrid.qml
     GameScreen.qml
     SettingsScreen.qml
+    SettingsAccountSection.qml
     ConflictDialog.qml
     StartConfirmDialog.qml
     RollbackDialog.qml

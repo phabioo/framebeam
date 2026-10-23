@@ -17,10 +17,11 @@ On the connection screen, "Set up a Hub on this PC" runs a server on the same co
 
 ## Connect and pair
 
-1. Start the app and enter the server address (or pick a saved server profile; auto-connect is available).
-2. On first contact the app shows the server's certificate fingerprint. Compare it with the server's log or Settings page and confirm (trust on first use). On a mismatch the connection is blocked and no credential is sent.
-3. Request pairing; an admin allows it on the server's Clients page. Alternatively choose "I have an invite code" and enter the code and your display name: the server creates a user for you without a password.
-4. Credentials are stored in the Windows Credential Manager under the target `Uzume/<server id>/<device id>`. Known limitation: Linux and macOS builds have no OS credential store yet (planned after 1.0); the device credential is kept in memory only, so after every restart the app pairs again and the admin approves the device anew (no secret is written to disk).
+1. Start the app. On the first start choose "Play on this PC", "Join a server" or "Set up a server". For "Join a server" enter the server address, an invite code (`UZ-XXXX-XXXX`) or paste an invite link (`uzume://join/server.example.com:8443/UZ-XXXX-XXXX#...`; Ctrl+V works on the start screen, clicking a link opens the running app).
+2. The app shows a security code (`K7Q4-9WMP-2HXD`). Compare it with the code on the server's screen or `uzume-server code`, then continue (trust on first use). With an invite link the app checks the certificate fingerprint in the link itself. On a mismatch the app stops and sends no invite, password or setup code. The SHA-256 fingerprint stays available under Details.
+3. Sign in with your user name and password, or use your invite code with a display name (and optionally a password). Without a password, ask an admin to allow the device on the server's Clients page. A server without an admin is set up with its setup code (printed at first start, or `uzume-server setup-code`).
+4. Several people can use one PC: the people sheet (Ctrl+Shift+U) switches the user, adds a person or removes one from this PC. An optional 4-digit PIN for this PC protects switching; it stays on this PC, and after 3 wrong PINs the password is needed. "My account" changes name, password and PIN and lists your devices. Forgotten password: an admin resets it; admins use `uzume-server reset-admin` on the server.
+5. Credentials are stored in the Windows Credential Manager under the target `Uzume/<server id>/<device id>` (PIN hashes under `Uzume/pin/<server id>/<device id>`). Known limitation: Linux and macOS builds have no OS credential store yet (planned after 1.0); the device credential is kept in memory only, so after every restart the app signs in again (no secret is written to disk).
 
 After a server certificate change (renewal) the server card shows the stored and the presented fingerprint. "Trust new certificate", then "Yes, trust this certificate" re-pins it and keeps the credential (CLI: `--accept-fingerprint <sha256>`). Settings → Hubs switches, edits (address, port), removes and sets auto-connect for servers.
 
