@@ -12,6 +12,7 @@ The **Uzume design** ([uzume/README.md](uzume/README.md)) is the valid design fr
 | [uzume/accounts-and-server.md](uzume/accounts-and-server.md) | Sheet 2: accounts (8d-8g) and the admin screens in the app |
 | [uzume/runs-and-server.md](uzume/runs-and-server.md) | Sheet 3: runs, what the server shows, sharing, On this PC, server problems, installers |
 | [uzume/play-and-plugins.md](uzume/play-and-plugins.md) | Sheet 4: library and game page, running game, Multiview, Settings › This PC, developer console, SoulLink & Nuzlocke |
+| [uzume/randomizer.md](uzume/randomizer.md) | Sheet 5: game variants, the Randomize dialog, randomized runs, Server › Tools |
 | [uzume/decisions.md](uzume/decisions.md) | Decisions, accepted review results and open points |
 
 The handoff (boards and design system) is stored unchanged in `source/uzume/`; the boards need the Claude Design runtime `support.js`, which is not in the repository, so they do not render standalone.

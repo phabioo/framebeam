@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>10d-4 Variant states · offline and upkeep</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}[style*="grid-template-rows"] .uz-toast{min-width:0;width:100%;box-sizing:border-box;height:auto;min-height:44px;padding-top:10px;padding-bottom:10px}[style*="grid-template-rows"] .uz-toast-action{white-space:nowrap}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">VARIANT · MORE STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="7 STATES">Offline and upkeep</x-import>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">10D-4A · SERVER OFFLINE · ENGINE ON THIS PC</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">You can still build</span>
+        <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Home server is offline. The randomizer engine is on this PC.</p><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Tag">Not synced</x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">The recipe goes to Home server when it’s back.</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">10D-4B · SERVER OFFLINE · NO ENGINE</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Home server is offline and the engine isn’t on this PC.</x-import><p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Try again when Home server is back.</p><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" size="sm">Try again</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">10D-4C · NEEDS REBUILD</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Chaos night needs a rebuild</span>
+        <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Its files were removed to free space. Rebuilding uses the same recipe, so the world is the same.</p><span style="font-size:12px;line-height:18px;color:var(--muted)">The recipe pins an older engine version; Uzume gets it from Home server.</span><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">FVX 2.2.0</span><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" size="sm">Rebuild · about 3 min</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">10D-4D · UNKNOWN DUMP</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">The randomizer doesn’t know this dump of Coral Saga: Ember.</x-import><p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">It may still work. Main is not touched either way.</p><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" size="sm">Build anyway</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Cancel</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0;min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">10D-4E · DISK FULL</span>
+        <x-import component-from-global-scope="Uzume.StatusIcon" kind="error" size="sm">Not enough space on D:</x-import><p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Randomizer #2 needs 0.3 GB; 0.1 GB is free.</p><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" size="sm">Open Storage</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 24px;border-left:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">10D-4F · GAME UPDATED · OWN VARIANT</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Coral Saga: Ember has update 1.5</span>
+        <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Randomizer #1 was built for 1.4 and still plays. Rebuild for 1.5 to get the update.</p><p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">The world may change; your save stays in its slot.</p><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" size="sm">Rebuild for 1.5</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 24px;border-left:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">10D-4G · GAME UPDATED · RUN VARIANT</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Coral Saga: Ember has update 1.5</span>
+        <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Ember Shuffle pins update 1.4. Your variant stays on 1.4 until the run ends.</p><span data-note="1" style="font-size:12px;line-height:18px;color:var(--muted)">No rebuild button.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "groups": [{"head": "Play", "items": ["Library", "Runs", "Emulation", "Controllers"]}, {"head": "Server", "server": true, "items": ["Status", "Users", "Systems & cores", "Tools", "Plugins", "Reports"]}]}, { noop: () => {},  });
+  }
+}
+</script>
+</body>
+</html>

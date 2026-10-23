@@ -4,7 +4,7 @@ Canvas page "4 Play and plugins": the screens Round 5 did not replace, redrawn i
 
 Rules that hold on every screen of this sheet:
 
-- **Roadmap mapping.** These boards mostly redraw existing player screens. The restyle of an existing screen falls to 0.18 package 3 (design system in the app); the "Built in" line names the milestone that adds what the board shows beyond that (rows, tabs, states). Waves: 0.19 player comfort and library, 0.20 emulation, 0.21 together, 0.22 plugins, 0.23 platforms. Plugin screens are built in the plugin repositories; the app side is the run-tab slot of 0.18 package 9.
+- **Roadmap mapping.** These boards mostly redraw existing player screens. The restyle of an existing screen falls to 0.18 package 3 (design system in the app); the "Built in" line names the milestone that adds what the board shows beyond that (rows, tabs, states). Waves: 0.19 player comfort and library, 0.20 emulation, 0.21 together, 0.22 randomizer, 0.23 plugins, 0.24 platforms. Plugin screens are built in the plugin repositories; the app side is the run-tab slot of 0.18 package 9.
 - **Running game.** `RunHeader` (56 px) + `GameStage` (empty stage: only Toasts, the F3 diagnostics block and the hold-Select hotkey sheet may draw on it) + 320 px side panel with `RunTabs`: Session · People · Chat · Saves (states live in Saves), in a run Run · Chat · Saves · plugin tab. Diagnostics left the tabs for **F3**. Notices are Toasts at the **bottom left of the stage**; persistent ones (Paused, Rewinding) drop the close mark.
 - **Overlays.** Pause, load-state and hold-Select use `Dialog` over a scrim on the stage only; the run header stays visible.
 - **Gamepad hotkeys** use one modifier, **Select** (tapped alone it goes to the game; held it opens the hotkey sheet; no Guide button). Keyboard and gamepad rows are always shown together.
@@ -171,9 +171,9 @@ PLAY group page "Emulation" ("Saved on this PC only. Cores come from Systems & c
 
 ### 3e-2 Emulation · 3DS · Display
 
-Boards: [`S3e2`](../source/uzume/S3e2.dc.html) · [`S3e2Kinari`](../source/uzume/S3e2Kinari.dc.html). Built in: 0.19 (player comfort and library), 0.20 (emulation), 0.23 (platforms).
+Boards: [`S3e2`](../source/uzume/S3e2.dc.html) · [`S3e2Kinari`](../source/uzume/S3e2Kinari.dc.html). Built in: 0.19 (player comfort and library), 0.20 (emulation), 0.24 (platforms).
 
-Only rows the core offers: Run-ahead is off for 3DS ("too heavy to run twice"), Rewind length with a danger tag "High memory" (about 1.1 GB at 10 s), Renderer OpenGL / Vulkan with a "Next start" tag (Vulkan lands in 0.23). One-screen systems (GB, GBC, GBA) have no Screen layout row and no Renderer (mGBA draws in software); Aspect "Core" is 10:9 for GB and 3:2 for GBA.
+Only rows the core offers: Run-ahead is off for 3DS ("too heavy to run twice"), Rewind length with a danger tag "High memory" (about 1.1 GB at 10 s), Renderer OpenGL / Vulkan with a "Next start" tag (Vulkan lands in 0.24). One-screen systems (GB, GBC, GBA) have no Screen layout row and no Renderer (mGBA draws in software); Aspect "Core" is 10:9 for GB and 3:2 for GBA.
 
 ### 9a-1 Controllers · mapping
 
@@ -243,77 +243,77 @@ Boards: [`S6r2`](../source/uzume/S6r2.dc.html) · [`S6r2Kinari`](../source/uzume
 
 ### 4d-1 Plugins · developer console
 
-Boards: [`S4d1`](../source/uzume/S4d1.dc.html) · [`S4d1Kinari`](../source/uzume/S4d1Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S4d1`](../source/uzume/S4d1.dc.html) · [`S4d1Kinari`](../source/uzume/S4d1Kinari.dc.html). Built in: 0.23 (plugins).
 
 Settings › This PC › Plugins with developer mode on. Title "Developer console"; actions Load unpacked..., primary Reload; `Select` Plugin with an "Unpacked" tag and its folder; error line "Paused after an error. Your game keeps running." with Reload and resume. **Permissions** granted on load (ok tags; "Not granted: write memory"). **Log**: level `FilterChip`s (Error, Warn, Info, Debug with counts), Pause log, table time, level `Tag`, message, newest first.
 
 ### 4d-2 Developer console · states
 
-Boards: [`S4d2`](../source/uzume/S4d2.dc.html) · [`S4d2Kinari`](../source/uzume/S4d2Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S4d2`](../source/uzume/S4d2.dc.html) · [`S4d2Kinari`](../source/uzume/S4d2Kinari.dc.html). Built in: 0.23 (plugins).
 
 Six states: load unpacked (folder + manifest check), manifest problem (nothing installed), permissions on load (unpacked plugins ask every time), paused after errors (three errors within 10 s pause the plugin; Toast "Open console"), reloaded (Ctrl+R, plugin state kept), developer mode off (`Toggle`; while on, the game header shows a Developer mode tag and Ctrl+Shift+D opens the console).
 
 ## 5 SoulLink & Nuzlocke
 
-The run plugin is "SoulLink & Nuzlocke" (`uzume.soullink`, on `uzume.soullink-core`) with a mode (SoulLink or Nuzlocke). All plugin content sits under "DRAWN BY SOULLINK". The screens are drawn by the plugin through declarative building blocks; they are built in the plugin repositories with the 0.18 package 9 run-tab slot and the 0.22 plugin work.
+The run plugin is "SoulLink & Nuzlocke" (`uzume.soullink`, on `uzume.soullink-core`) with a mode (SoulLink or Nuzlocke). All plugin content sits under "DRAWN BY SOULLINK". The screens are drawn by the plugin through declarative building blocks; they are built in the plugin repositories with the 0.18 package 9 run-tab slot and the 0.23 plugin work.
 
 ### 5a-1 New run · SoulLink rules
 
-Boards: [`S5a1`](../source/uzume/S5a1.dc.html) · [`S5a1Kinari`](../source/uzume/S5a1Kinari.dc.html). Built in: 0.18 package 9 (runs without plugin), 0.22 (plugins).
+Boards: [`S5a1`](../source/uzume/S5a1.dc.html) · [`S5a1Kinari`](../source/uzume/S5a1Kinari.dc.html). Built in: 0.18 package 9 (runs without plugin), 0.23 (plugins).
 
 Step 2 of 3 of the Runs "Start a run" dialog (lg), label "SOULLINK MODE". Games: a `Select` per person from each person's own library (hints "In your Library", "Twin version · mixes fine", "Picks when joining"). Rules (defaults from Settings › Plugins) as `Checkbox`es: First encounter only, Dupes clause, Shiny clause, Hordes count as first, Linked pairs differ in type, Only linked pairs in the team, Nickname required, Level caps as hints.
 
 ### 5a-2 New run · summary
 
-Boards: [`S5a2`](../source/uzume/S5a2.dc.html) · [`S5a2Kinari`](../source/uzume/S5a2Kinari.dc.html). Built in: 0.18 package 9 (runs without plugin), 0.22 (plugins).
+Boards: [`S5a2`](../source/uzume/S5a2.dc.html) · [`S5a2Kinari`](../source/uzume/S5a2Kinari.dc.html). Built in: 0.18 package 9 (runs without plugin), 0.23 (plugins).
 
 Step 3 of 3 "Start Ember Route?": creates the run on the server and a save slot for each person. Summary rows RUN (name · mode), PEOPLE (with game version), RULES, SAVES ("New slot 'Run: Ember Route' per person · Main stays untouched"). Warning when a person has not joined yet (start now and they join later, or wait).
 
 ### 5b-1 In game · SoulLink tab
 
-Boards: [`S5b1`](../source/uzume/S5b1.dc.html) · [`S5b1Kinari`](../source/uzume/S5b1Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S5b1`](../source/uzume/S5b1.dc.html) · [`S5b1Kinari`](../source/uzume/S5b1Kinari.dc.html). Built in: 0.23 (plugins).
 
 Plugin tab of the in-game panel: run name, Open run; current route with the "Encounter now" tag, the wild creature, "first on this route", Doesn't count (Ctrl+D); the other runners' state on this route (caught, no encounter yet, missed · fled); YOUR TEAM · 5 / 6 with HP `Progress` and linked partners (two-letter placeholders); footer "Graveyard 3 · Badges 4 / 8 · next cap Lv 24". Hints Ctrl+D, Ctrl+H (HUD).
 
 ### 5b-2 SoulLink · panel states
 
-Boards: [`S5b2`](../source/uzume/S5b2.dc.html) · [`S5b2Kinari`](../source/uzume/S5b2Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S5b2`](../source/uzume/S5b2.dc.html) · [`S5b2Kinari`](../source/uzume/S5b2Kinari.dc.html). Built in: 0.23 (plugins).
 
 Location/route status tags (No encounter yet, Encounter now, Caught <name>, Missed, Not a route); plugin paused after an error (Restart plugin, Details; the game keeps running); HUD widget (compact corner "SL · Route 104", expands for 3 s on a death, off with Reduce motion); a friend's tile in Multiview (selecting it shows their team read only); notices (death, catch, new route); scope note that everything under "Drawn by SoulLink" comes from the plugin.
 
 ### 5e-1 SoulLink run · map
 
-Boards: [`S5e1`](../source/uzume/S5e1.dc.html) · [`S5e1Kinari`](../source/uzume/S5e1Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S5e1`](../source/uzume/S5e1.dc.html) · [`S5e1Kinari`](../source/uzume/S5e1Kinari.dc.html). Built in: 0.23 (plugins).
 
 Run page, tab SoulLink, summary line `DEATHS 7 · ROUTES 9 / 31 · BADGES 4`, inner tabs Map · Routes · Team & box · Graveyard · Event log. Map on the stage: route points and hairlines, land comes from the player's own game file and is not drawn (label "MARISOL · MAP FROM YOUR GAME FILE"); a `Segmented` Show (All people / one person); legend (square = caught by owner, ✕ dead, dashed = missed, number = link group); Zoom in, Fit. A route point opens a `Popover` route card (people, state, "A group forms when everyone has caught here or the route is closed."). Hints D-pad next route · A open · L / R zoom.
 
 ### 5e-2 SoulLink run · routes
 
-Boards: [`S5e2`](../source/uzume/S5e2.dc.html) · [`S5e2Kinari`](../source/uzume/S5e2Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S5e2`](../source/uzume/S5e2.dc.html) · [`S5e2Kinari`](../source/uzume/S5e2Kinari.dc.html). Built in: 0.23 (plugins).
 
 Routes table with `FilterChip`s (All · 12, Open · 3, Complete · 9) and Add by hand...: route × one column per person (creature placeholder + nickname, open, missed, dead) × link group × status `Tag` (Linked, Group dead, Open, Gift · no link, Broken).
 
 ### 5e-3 SoulLink run · team and box
 
-Boards: [`S5e3`](../source/uzume/S5e3.dc.html) · [`S5e3Kinari`](../source/uzume/S5e3Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S5e3`](../source/uzume/S5e3.dc.html) · [`S5e3Kinari`](../source/uzume/S5e3Kinari.dc.html). Built in: 0.23 (plugins).
 
 Per person (avatar, game version, current route): TEAM (up to 6, placeholder, nickname, level) and BOX (count and small placeholders).
 
 ### 5e-4 SoulLink run · graveyard
 
-Boards: [`S5e4`](../source/uzume/S5e4.dc.html) · [`S5e4Kinari`](../source/uzume/S5e4Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S5e4`](../source/uzume/S5e4.dc.html) · [`S5e4Kinari`](../source/uzume/S5e4Kinari.dc.html). Built in: 0.23 (plugins).
 
 Table creature (✕ placeholder, nickname, species and level), owner, route, cause ("fainted to ...", "linked partner died", "undone, then fainted again"), when, link group, **Undo...**. Linked deaths are grouped by time. Undo asks for a reason that everyone sees in the log.
 
 ### 5e-5 SoulLink run · event log
 
-Boards: [`S5e5`](../source/uzume/S5e5.dc.html) · [`S5e5Kinari`](../source/uzume/S5e5Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S5e5`](../source/uzume/S5e5.dc.html) · [`S5e5Kinari`](../source/uzume/S5e5Kinari.dc.html). Built in: 0.23 (plugins).
 
 Filters All / Automatic / Manual · 6, people `Select`, Export. Table when, who, event, kind `Tag` (Automatic neutral, Manual accent), source ("Lena's app", "by Sam · seen by all", "Home server"). Manual corrections are always logged with a name and can be undone by others.
 
 ### 5f-1 SoulLink · corrections
 
-Boards: [`S5f1`](../source/uzume/S5f1.dc.html) · [`S5f1Kinari`](../source/uzume/S5f1Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S5f1`](../source/uzume/S5f1.dc.html) · [`S5f1Kinari`](../source/uzume/S5f1Kinari.dc.html). Built in: 0.23 (plugins).
 
 Five dialogs: "This encounter doesn't count?" (reason `Segmented`: Dupe ...), "Undo the death of link group 2?" (reason field shown in the log; danger button), change link group (`Select` Move to; "Moving Sprig also changes who dies with it."), add by hand (species `Select`, nickname, where: Team / Box; "Replaces 'missed'. Marked manual for everyone."), mark a route as missed for you. Rule: every change says who sees it; nobody's change is silent.
 
@@ -325,6 +325,6 @@ The OBS overlay: a 1920 x 1080 transparent page shown at 61 % on the stage with 
 
 ### 5i-1 Settings › This PC › Plugins › SoulLink & Nuzlocke
 
-Boards: [`S5i1`](../source/uzume/S5i1.dc.html) · [`S5i1Kinari`](../source/uzume/S5i1Kinari.dc.html). Built in: 0.22 (plugins).
+Boards: [`S5i1`](../source/uzume/S5i1.dc.html) · [`S5i1Kinari`](../source/uzume/S5i1Kinari.dc.html). Built in: 0.23 (plugins).
 
 Plugin settings (label `OFFICIAL · 1.4.0 · FROM HOME SERVER`, DRAWN BY SOULLINK): Default mode (for new runs), Linked pairs differ in primary type (`Toggle`), HUD widget (Compact ...), Notices while playing (`Select`, "Deaths in your link groups always show."). **Game data** ("STAYS ON THIS PC"): table game file, map status `Tag` (Read / No map), routes, species, read time, Read again. Data is read from the player's own game files; nothing is uploaded; without a map the Routes tab comes first.

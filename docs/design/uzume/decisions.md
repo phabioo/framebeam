@@ -144,6 +144,24 @@ The designer's five decisions in batch 4 were accepted: (1) Toasts at the bottom
 
 Review fixes for batch 4 (all applied in the final boards): Select + ↑ ↓ is volume, so the plugin's "Split" cannot take Select + ↓ (hotkeys page shows the conflict with a "Moved" tag and gives the plugin Select + ←); the microphone is Select + R3 everywhere (Voice, Hotkeys); the map hint reads "L / R zoom"; the quick menu (3g-4) shows its own content (states, screenshot, per-game settings, reset, together, help). New design-system parts requested and delivered: Slider, Popover, speaking mark, extra GamepadHint keys, stage overlays (diagnostics block, hold-Select sheet).
 
+## Sheet 5 · Randomizer (batch 5, 2026-10-23)
+
+Canvas page "5 Randomizer", 26 screens 10a to 10h with Kinari twins and eight handoff sheets, no new tokens; spec [randomizer.md](randomizer.md), decision record [ADR 0031](../../adr/0031-game-variants-and-randomizer.md). Fabio accepted the designer's seven decisions on 2026-10-23:
+
+| # | Decision | Status |
+|---|---|---|
+| 1 | Revisions of existing screens stay in the 10 family and name the board they revise (10a-1 revises 3c-1). | Accepted |
+| 2 | The library keeps one row per game with a variant count ("3 VARIANTS"); variants open from the game page and the slot picker. | Accepted |
+| 3 | Deleting a variant defaults to Keep saves; the recipe stays with the kept saves. | Accepted |
+| 4 | With "Same world for everyone" nobody sees the seed. | Accepted |
+| 5 | The spoiler log is off by default, opens only from a variant's menu after a confirm, and for run variants only after the run ends and only the own one. | Accepted |
+| 6 | Own variants join a run only with the run's engine version. | Accepted |
+| 7 | "FVX" appears only in 10 px Mono lines; copy says "the engine". | Accepted |
+
+Gaps in the design system, accepted as the index describes them: Tools in AppNav after Systems & cores; a step list built from `StatusIcon`, `Enso` and `Progress` (new app part); table row focus with `--focus-ring-inset` (needed for the gamepad); save versions as table rows; a closed `Select` inside a dialog; toast width inside state panels (also fixed on 3g-11, 3m-2, 3s-4, 4d-2, 5b-2 and 8e-5, whose boards were re-imported with this batch).
+
+Review fixes (applied in the canvas before the import): a different dump offers "Download the run's file · 1.8 GB" or "Ask Max to upload the run's file." instead of "Upload mine…", shown with an NDS game because 3DS variants depend only on title and update (10d-1d, 10f-5a); 10d-4 has seven panels, the run variant of a game update (10d-4g) stays on the pinned update with no rebuild button, the own variant (10d-4f) warns "The world may change; your save stays in its slot." Two review notes need no board change: adding a 3DS update on the server (10b-3d) needs the server-side 3DS updates of 0.22 (ADR 0031 D6), and the ready check (10f-5e) comes with 0.21; before that the run board shows Building.
+
 ## Cross-sheet rules (summary)
 
 - **Terms.** Hub = "Uzume server" or "the server", Player = "Uzume" or "the app"; "Stream" only in diagnostics. Session = a running or shared game session.

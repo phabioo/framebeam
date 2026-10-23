@@ -64,7 +64,8 @@ Start with the [root README](../README.md) for what Uzume is and a quick start.
   [0027 GPU paths](adr/0027-gpu-paths.md),
   [0028 release notes and changelogs](adr/0028-release-notes-and-changelogs.md),
   [0029 operations and safety](adr/0029-operations-and-safety.md),
-  [0030 one app, one server, new name: Uzume](adr/0030-one-app-one-server-uzume.md)
+  [0030 one app, one server, new name: Uzume](adr/0030-one-app-one-server-uzume.md),
+  [0031 game variants and the randomizer](adr/0031-game-variants-and-randomizer.md)
 
 ## Conventions
 
