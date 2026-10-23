@@ -30,19 +30,26 @@ Rectangle {
         id: serverMenu
         objectName: "serverMenu"
         items: [{ label: qsTr("Switch server"), name: "switchServer" },
+                { label: qsTr("Switch user…"), name: "switchUser", shortcut: "Ctrl+Shift+U" },
                 { label: qsTr("Details"), name: "serverDetails" }]
         onChosen: (item) => {
             if (item.name === "switchServer") root.player.switchHub()
+            else if (item.name === "switchUser") root.player.accounts.open()
             else root.player.showSettingsSection("hubs")
         }
     }
     UzMenu {
         id: personMenu
         objectName: "personMenu"
-        items: [{ label: qsTr("Settings"), name: "settings", shortcut: "Ctrl+," },
+        items: [{ label: qsTr("My account"), name: "account" },
+                { label: qsTr("Switch user…"), name: "switchUser", shortcut: "Ctrl+Shift+U" },
+                { separator: true },
+                { label: qsTr("Settings"), name: "settings", shortcut: "Ctrl+," },
                 { label: qsTr("Switch server"), name: "switchServer" }]
         onChosen: (item) => {
-            if (item.name === "settings") root.player.showSettings()
+            if (item.name === "account") root.player.showSettingsSection("account")
+            else if (item.name === "switchUser") root.player.accounts.open()
+            else if (item.name === "settings") root.player.showSettings()
             else root.player.switchHub()
         }
     }

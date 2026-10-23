@@ -80,6 +80,26 @@ class StartAccountsTest : public QObject {
     QVERIFY(!onboarding_->firstStart());
   }
 
+  void playStageKeepsTheStartScreenUntilFinished() {
+    onboarding_->setStartScreenEnabled(true);
+    onboarding_->beginPlay();
+    QCOMPARE(onboarding_->flow(), QStringLiteral("play"));
+    QCOMPARE(onboarding_->phase(), QStringLiteral("play"));
+    QVERIFY(onboarding_->takesScreen());
+    // Saving the "Play on this PC" choice early (a folder was added) does not drop the screen.
+    settings_->setPlayOnThisPcChosen(true);
+    QVERIFY(!onboarding_->firstStart());
+    QVERIFY(onboarding_->takesScreen());
+    onboarding_->back();  // cancel
+    QCOMPARE(onboarding_->phase(), QStringLiteral("idle"));
+    QVERIFY(onboarding_->flow().isEmpty());
+    onboarding_->beginPlay();
+    onboarding_->finishPlayOnThisPc();
+    QVERIFY(!onboarding_->firstStart());
+    QVERIFY(!onboarding_->takesScreen());
+    QCOMPARE(onboarding_->phase(), QStringLiteral("idle"));
+  }
+
   void joinByAddressWithSecurityCheckAndSignIn() {
     FakeHub hub(QStringLiteral("a"));
     QVERIFY(hub.start());

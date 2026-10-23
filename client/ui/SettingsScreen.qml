@@ -9,7 +9,7 @@ Rectangle {
     id: root
     required property PlayerController player
     readonly property var updates: root.player.updates
-    property string currentSection: "updates"
+    property string currentSection: "account"
     property string collectMessage: ""
     property string collectedPath: ""
     property string editingHubId: ""
@@ -50,6 +50,7 @@ Rectangle {
 
     function sectionItem(name: string): Item {
         switch (name) {
+        case "account": return secAccount
         case "hubs": return secHubs
         case "appearance": return secAppearance
         case "library": return secLibrary
@@ -81,8 +82,8 @@ Rectangle {
             return
         }
         const probe = flick.contentY + 80
-        let best = "updates"
-        for (const n of ["updates", "hubs", "appearance", "library", "storage", "plugins", "diagnostics"]) {
+        let best = "account"
+        for (const n of ["account", "updates", "hubs", "appearance", "library", "storage", "plugins", "diagnostics"]) {
             if (sectionItem(n).y + content.y <= probe) {
                 best = n
             }
@@ -133,6 +134,7 @@ Rectangle {
 
             Repeater {
                 model: root.scope !== "pc" ? [] : [
+                    { id: "account", name: qsTr("My account") },
                     { id: "updates", name: qsTr("Updates") },
                     { id: "hubs", name: qsTr("Servers") },
                     { id: "appearance", name: qsTr("Appearance") },
@@ -154,7 +156,8 @@ Rectangle {
                         font.pixelSize: Theme.fontMeta
                         elide: Text.ElideRight
                         color: sec.modelData.id === "updates" && root.updates.updateAvailable ? Theme.accentText : Theme.textMuted
-                        text: sec.modelData.id === "updates" ? root.updatesLine()
+                        text: sec.modelData.id === "account" ? (root.player.userName !== "" ? root.player.userName : qsTr("This PC only"))
+                              : sec.modelData.id === "updates" ? root.updatesLine()
                               : sec.modelData.id === "hubs" ? (root.activeHubName !== ""
                                                                ? qsTr("%1 saved · %2 active").arg(root.savedHubs.length).arg(root.activeHubName)
                                                                : qsTr("%1 saved").arg(root.savedHubs.length))
@@ -232,6 +235,17 @@ Rectangle {
                     kind: "empty"
                     title: qsTr("Nothing to set here yet")
                     text: qsTr("Server settings arrive with the admin area.")
+                }
+
+                // ------------------------------------------------------------------ MY ACCOUNT
+                SettingsAccountSection {
+                    id: secAccount
+                    objectName: "accountSection"
+                    visible: root.scope === "pc"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    player: root.player
+                    host: root
                 }
 
                 // ------------------------------------------------------------------ UPDATES

@@ -50,6 +50,7 @@ bool OnboardingController::takesScreen() const {
     case Stage::Address:
     case Stage::LinkChoice:
     case Stage::LinkMember:
+    case Stage::Play:
       return true;
     case Stage::Active:
       return d_.conn->state() != State::Connected;
@@ -67,6 +68,8 @@ QString OnboardingController::phase() const {
       return QStringLiteral("link_choice");
     case Stage::LinkMember:
       return QStringLiteral("link_member");
+    case Stage::Play:
+      return QStringLiteral("play");
     case Stage::Active:
       break;
   }
@@ -240,7 +243,7 @@ void OnboardingController::clearError() {
 }
 
 void OnboardingController::onError(const QString& code, const QString& message) {
-  if (stage_ == Stage::Idle || code.isEmpty()) {
+  if (stage_ == Stage::Idle || stage_ == Stage::Play || code.isEmpty()) {
     return;
   }
   busy_ = false;
@@ -256,7 +259,7 @@ void OnboardingController::onError(const QString& code, const QString& message) 
 // ---------------------------------------------------------------- Connection state
 
 void OnboardingController::onState(State s) {
-  if (stage_ == Stage::Idle) {
+  if (stage_ == Stage::Idle || stage_ == Stage::Play) {
     emit changed();  // firstStart / takesScreen follow the connection
     return;
   }
@@ -344,6 +347,7 @@ void OnboardingController::back() {
       return;
     case Stage::LinkChoice:
     case Stage::LinkMember:
+    case Stage::Play:
       cancel();
       return;
     case Stage::Active:
@@ -363,6 +367,18 @@ void OnboardingController::back() {
   emit changed();
 }
 
+void OnboardingController::beginPlay() {
+  if (stage_ == Stage::Active) {
+    leaveConnection();
+  }
+  flow_ = QStringLiteral("play");
+  stage_ = Stage::Play;
+  mismatch_ = false;
+  busy_ = false;
+  clearError();
+  emit changed();
+}
+
 void OnboardingController::choosePlayOnThisPc() {
   d_.settings->setPlayOnThisPcChosen(true);
   if (d_.startLocalHub) {
@@ -379,8 +395,11 @@ void OnboardingController::addGameFolder(const QString& pathOrUrl) {
 }
 
 void OnboardingController::finishPlayOnThisPc() {
-  d_.settings->setPlayOnThisPcChosen(true);
-  emit changed();
+  if (stage_ == Stage::Play) {
+    stage_ = Stage::Idle;
+    flow_.clear();
+  }
+  choosePlayOnThisPc();
 }
 
 // ---------------------------------------------------------------- Join

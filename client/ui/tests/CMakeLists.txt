@@ -17,6 +17,12 @@ uzume_add_test(ui_screens screens_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NE
 target_include_directories(test_ui_screens PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_screens PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# Start screen, switch user and My account (0.18 package 7) against the FakeHub.
+uzume_add_test(ui_start_screens start_screens_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_start_screens PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_start_screens PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
 # Game view with a real core and the homebrew test ROM (SKIP/77 without UZUME_MELONDS_DS_CORE).
 uzume_add_test(ui_game game_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
   LIBS ${FB_UI_TEST_LIBS} NEEDS_CORE)

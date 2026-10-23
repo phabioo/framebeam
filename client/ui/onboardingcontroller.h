@@ -15,6 +15,7 @@
 //
 // Phases (`phase`), with the design boards they stand for
 //   idle              nothing in progress
+//   play              8a-3: "Play on this PC" (flow "play"): addGameFolder() / finishPlayOnThisPc(); no connection yet
 //   address           ask for the address / invite code / link (8b-1), or address + setup code (8a-4 step 2, flow "setup")
 //   checking          contacting the server
 //   security          security check (8b-2, 8a-4 step 3): securityCode, serverName, serverAddress -> securityMatches() /
@@ -68,7 +69,7 @@ class OnboardingController : public QObject {
   Q_PROPERTY(bool firstStart READ firstStart NOTIFY changed)
   // Route the first start to the "start" screen (off by default; the start screen's QML switches it on).
   Q_PROPERTY(bool startScreenEnabled READ startScreenEnabled WRITE setStartScreenEnabled NOTIFY changed)
-  // "" | "join" | "link" | "setup"
+  // "" | "join" | "link" | "setup" | "play"
   Q_PROPERTY(QString flow READ flow NOTIFY changed)
   Q_PROPERTY(QString phase READ phase NOTIFY changed)
   Q_PROPERTY(bool busy READ busy NOTIFY changed)  // a sign-in, invite or set-up request is in flight
@@ -138,9 +139,12 @@ class OnboardingController : public QObject {
   // One step back: security -> address, invite -> sign_in, everything else -> address; from the address cancels.
   Q_INVOKABLE void back();
 
-  // "Play on this PC" (8a-3): remembers the choice, starts the Hub on this PC (LocalHubController); addGameFolder() reuses the
-  // library-folder flow (progress in player.libraryScan, result in player.libraryGameCount). finishPlayOnThisPc() is
-  // "Start playing" / "Add later". Package 10 changes how that Hub runs; this is the existing flow.
+  // "Play on this PC" (8a-3): beginPlay() opens the step (flow "play", phase "play"; the start screen stays until it ends even
+  // though adding a folder makes firstStart() false); addGameFolder() reuses the library-folder flow (progress in
+  // player.libraryScan, result in player.libraryGameCount). finishPlayOnThisPc() is "Start playing" / "Add later": it ends the
+  // step, remembers the choice and starts the Hub on this PC (= choosePlayOnThisPc()). Package 10 changes how that Hub runs;
+  // this is the existing flow.
+  Q_INVOKABLE void beginPlay();
   Q_INVOKABLE void choosePlayOnThisPc();
   Q_INVOKABLE void addGameFolder(const QString& pathOrUrl);
   Q_INVOKABLE void finishPlayOnThisPc();
@@ -199,7 +203,7 @@ class OnboardingController : public QObject {
   void linkAdded(const QString& serverName);  // confirmLink(false) saved the server
 
  private:
-  enum class Stage { Idle, Address, Active, LinkChoice, LinkMember };
+  enum class Stage { Idle, Address, Active, LinkChoice, LinkMember, Play };
   enum class View { SignIn, Invite };
 
   void onState(HubConnection::State s);

@@ -70,6 +70,7 @@ class HubFeaturesUiTest : public QObject {
     QVERIFY(hub.start());
     Harness h;
     QVERIFY(h.start());
+    h.controller->onboarding()->setStartScreenEnabled(false);  // the older connection screens
     h.controller->addHub(hub.address());
     QTRY_COMPARE(h.controller->connection()->state(), S::NeedsTrustConfirmation);
     QVERIFY(h.click("trustButton"));
@@ -463,6 +464,7 @@ class HubFeaturesUiTest : public QObject {
     QVERIFY(hubB.start());
     Harness h;
     QVERIFY(h.start());
+    h.controller->onboarding()->setStartScreenEnabled(false);  // the older connection screens
     pair(h, hubA);
     h.controller->switchHub();
     pair(h, hubB);
