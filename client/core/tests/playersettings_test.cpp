@@ -216,6 +216,41 @@ class PlayerSettingsTest : public QObject {
     QCOMPARE(s.romCacheLimitBytes(), qint64(0));
   }
 
+  void audioSettingsDefaultAndPersist() {  // 0.19
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QCOMPARE(s.audioVolume(), 100);
+      QVERIFY(!s.audioMuted());
+      QVERIFY(s.audioMuteInBackground());
+      QCOMPARE(s.audioVolumeStep(), 5);
+      QVERIFY(s.audioShowVolume());
+      QCOMPARE(s.audioOutputDevice(), QString());
+      QVERIFY(!s.setAudioVolumeStep(7));  // only 5 and 10
+      QCOMPARE(s.audioVolumeStep(), 5);
+      QVERIFY(s.setAudioVolume(250));  // clamped
+      QCOMPARE(s.audioVolume(), 100);
+      QVERIFY(s.setAudioVolume(35));
+      QVERIFY(s.setAudioMuted(true));
+      QVERIFY(s.setAudioMuteInBackground(false));
+      QVERIFY(s.setAudioVolumeStep(10));
+      QVERIFY(s.setAudioShowVolume(false));
+      QVERIFY(s.setAudioOutputDevice(QStringLiteral("ZGV2")));
+    }
+    {
+      PlayerSettings s(dir.path());
+      QCOMPARE(s.audioVolume(), 35);
+      QVERIFY(s.audioMuted());
+      QVERIFY(!s.audioMuteInBackground());
+      QCOMPARE(s.audioVolumeStep(), 10);
+      QVERIFY(!s.audioShowVolume());
+      QCOMPARE(s.audioOutputDevice(), QStringLiteral("ZGV2"));
+      QVERIFY(s.setAudioOutputDevice(QString()));
+    }
+    PlayerSettings s(dir.path());
+    QCOMPARE(s.audioOutputDevice(), QString());
+  }
+
   void lastPlayedIsSeparatedByHub() {
     QTemporaryDir dir;
     {

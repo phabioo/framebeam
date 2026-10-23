@@ -5,6 +5,7 @@
 #include <QLoggingCategory>
 #include <QMediaDevices>
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 
@@ -73,7 +74,17 @@ bool AudioOutput::start(int coreSampleRate) {
   if (coreSampleRate <= 0) {
     coreSampleRate = kFallbackRate;
   }
-  const QAudioDevice device = QMediaDevices::defaultAudioOutput();
+  QAudioDevice device;
+  if (!deviceId_.isEmpty()) {
+    for (const QAudioDevice& d : QMediaDevices::audioOutputs()) {
+      if (d.id() == deviceId_) {
+        device = d;
+        break;
+      }
+    }
+    if (device.isNull()) qCWarning(lcAudio) << "chosen output device is not available; using the system default";
+  }
+  if (device.isNull()) device = QMediaDevices::defaultAudioOutput();
   if (device.isNull()) {
     qCWarning(lcAudio) << "no default audio output device; session runs without sound";
     return false;
@@ -123,7 +134,7 @@ bool AudioOutput::start(int coreSampleRate) {
   auto dev = std::make_unique<AudioQueueDevice>();
   dev->configure(fmt.bytesPerFrame(), fmt.sampleFormat() == QAudioFormat::UInt8 ? static_cast<char>(0x80) : char(0),
                  bufBytes, bufBytes);
-  dev->setUnderrunCounting(counting_);
+  dev->setUnderrunCounting(counting_ && volume_ > 0.0);
   dev->open(QIODevice::ReadOnly | QIODevice::Unbuffered);
   auto sink = std::make_unique<QAudioSink>(device, fmt);
   sink->setBufferSize(bufBytes);
@@ -165,7 +176,35 @@ void AudioOutput::setUnderrunCounting(bool on) {
   }
   counting_ = on;
   if (device_) {
-    device_->setUnderrunCounting(on);
+    device_->setUnderrunCounting(on && volume_ > 0.0);
+  }
+}
+
+QByteArray AudioOutput::applyGain(const QByteArray& pcm16, double gain) {
+  gain = std::clamp(gain, 0.0, 1.0);
+  if (gain >= 1.0) return pcm16;
+  QByteArray out(pcm16.size(), '\0');
+  if (gain <= 0.0) return out;
+  const qsizetype n = pcm16.size() / 2;
+  const auto* in = reinterpret_cast<const unsigned char*>(pcm16.constData());
+  auto* o = reinterpret_cast<unsigned char*>(out.data());
+  for (qsizetype i = 0; i < n; ++i) {
+    const int v = static_cast<qint16>(static_cast<quint16>(in[2 * i] | (in[2 * i + 1] << 8)));
+    const int g = std::clamp(static_cast<int>(std::lround(v * gain)), -32768, 32767);
+    const quint16 u = static_cast<quint16>(static_cast<qint16>(g));
+    o[2 * i] = static_cast<unsigned char>(u & 0xff);
+    o[2 * i + 1] = static_cast<unsigned char>(u >> 8);
+  }
+  return out;
+}
+
+void AudioOutput::setVolume(double gain) {
+  gain = std::clamp(gain, 0.0, 1.0);
+  if (gain == volume_) return;
+  volume_ = gain;
+  if (device_) {
+    device_->setUnderrunCounting(counting_ && volume_ > 0.0);
+    if (volume_ <= 0.0) device_->resetState();  // drop what is queued so the silence is immediate
   }
 }
 
@@ -194,7 +233,7 @@ void AudioOutput::setCoreRate(int coreSampleRate) {
 }
 
 void AudioOutput::push(const QByteArray& pcm) {
-  if (!sink_ || !device_ || pcm.isEmpty()) {
+  if (!sink_ || !device_ || pcm.isEmpty() || volume_ <= 0.0) {
     return;
   }
   if (!levelLogged_) {
@@ -210,7 +249,8 @@ void AudioOutput::push(const QByteArray& pcm) {
       qCInfo(lcAudio) << "Audio level after 1 s: peak" << levelPeak_ << "of 32767";
     }
   }
-  const QByteArray resampled = resampler_.isPassthrough() ? pcm : resampler_.process(pcm);
+  const QByteArray scaled = applyGain(pcm, volume_);
+  const QByteArray resampled = resampler_.isPassthrough() ? scaled : resampler_.process(scaled);
   const qint64 drop = device_->append(convertSamples(resampled, fmt_.sampleFormat()));
   if (drop > 0) {
     if (dropped_ == 0) {

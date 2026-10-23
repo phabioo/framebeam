@@ -180,6 +180,9 @@ class SessionController : public QObject {
   Q_INVOKABLE void leaveWatch();                        // leaves every remote Session
   Q_INVOKABLE void removeSurface(const QString& sessionId);  // "Remove": leaves that Session only
   Q_INVOKABLE void makeMain(const QString& surface);    // "Swap": the surface takes the main position
+  // Master volume (AudioController) for watched sessions: software gain 0..1; the output device applies on the next start.
+  void setRemoteGain(double gain) { remoteAudio_.setVolume(gain); }
+  void setRemoteAudioDevice(const QByteArray& id) { remoteAudio_.setDeviceId(id); }
   Q_INVOKABLE void audioHere(const QString& surface);   // "local" | Session id
   Q_INVOKABLE void selectSurface(const QString& surface);  // "local" | Session id; the side panel follows
   Q_INVOKABLE void dismissMessage();

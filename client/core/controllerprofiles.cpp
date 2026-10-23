@@ -58,6 +58,9 @@ const QList<HotkeyDef>& hotkeyDefs() {
       {QStringLiteral("diagnostics"), QStringLiteral("Diagnostics overlay"), Qt::Key_F3, QStringLiteral("pad:rightstick")},
       {QStringLiteral("snapshot"), QStringLiteral("Save snapshot"), Qt::Key_F5, QStringLiteral("pad:leftshoulder")},
       {QStringLiteral("speedup"), QStringLiteral("Speed-up"), Qt::Key_Space, QStringLiteral("pad:righttrigger")},
+      {QStringLiteral("volumeUp"), QStringLiteral("Volume up"), Qt::Key_Plus, QStringLiteral("pad:dpup")},
+      {QStringLiteral("volumeDown"), QStringLiteral("Volume down"), Qt::Key_Minus, QStringLiteral("pad:dpdown")},
+      {QStringLiteral("mute"), QStringLiteral("Mute"), Qt::Key_M, QStringLiteral("pad:x")},
   };
   return defs;
 }

@@ -68,6 +68,15 @@ class AudioOutput : public QObject {
   // Starts output for the core sample rate; if the device does not support it, audio is linearly resampled to
   // 48000 Hz. false: no device (silent).
   bool start(int coreSampleRate);
+  // Output device id (QAudioDevice::id()); empty or a device that is gone = system default. Applies on the next start().
+  void setDeviceId(const QByteArray& id) { deviceId_ = id; }
+  QByteArray deviceId() const { return deviceId_; }
+  // Software gain 0..1 for everything pushed (applied to the int16 samples before resampling); clamped. At 0 nothing
+  // is pushed and underruns are not counted (silence on purpose).
+  void setVolume(double gain);
+  double volume() const { return volume_; }
+  // pcm16 (interleaved int16) scaled by gain (clamped to 0..1); gain 1 returns the input unchanged, 0 all zeros.
+  static QByteArray applyGain(const QByteArray& pcm16, double gain);
   // Interleaved Stereo int16 -> stereo in the target format (UInt8, Int16, Int32, Float); other format: empty.
   static QByteArray convertSamples(const QByteArray& pcm16, QAudioFormat::SampleFormat target);
   void stop();
@@ -100,6 +109,8 @@ class AudioOutput : public QObject {
   qint64 dropped_ = 0;
   int underruns_ = 0;  // value kept when the device is gone
   bool counting_ = true;
+  double volume_ = 1.0;
+  QByteArray deviceId_;
   // One-time signal level log: peak of the core audio over the first second.
   qint64 levelFrames_ = 0;
   int levelPeak_ = 0;

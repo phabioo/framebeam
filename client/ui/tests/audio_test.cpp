@@ -2,7 +2,12 @@
 #include <QtTest>
 #include <cstring>
 
+#include <QSignalSpy>
+#include <QTemporaryDir>
+
+#include "audiocontroller.h"
 #include "audiooutput.h"
+#include "playersettings.h"
 
 using namespace uzume::ui;
 
@@ -17,6 +22,98 @@ QByteArray pcm(std::initializer_list<qint16> v) {
 class AudioTest : public QObject {
   Q_OBJECT
  private slots:
+  void gainFullIsUnchanged() {
+    const QByteArray in = pcm({1000, -1000, 32767, -32768});
+    QCOMPARE(AudioOutput::applyGain(in, 1.0), in);
+    QCOMPARE(AudioOutput::applyGain(in, 5.0), in);  // clamped to 1
+  }
+
+  void gainHalvesAndSilences() {
+    const QByteArray in = pcm({1000, -1000, 32767, -32768});
+    QCOMPARE(AudioOutput::applyGain(in, 0.5), pcm({500, -500, 16384, -16384}));
+    QCOMPARE(AudioOutput::applyGain(in, 0.0), pcm({0, 0, 0, 0}));
+    QCOMPARE(AudioOutput::applyGain(in, -1.0), pcm({0, 0, 0, 0}));  // clamped to 0
+    QCOMPARE(AudioOutput::applyGain(in, 0.5).size(), in.size());
+  }
+
+  void volumeClampsAndPushIsNoOpWithoutDevice() {
+    AudioOutput out;
+    QCOMPARE(out.volume(), 1.0);
+    out.setVolume(2.0);
+    QCOMPARE(out.volume(), 1.0);
+    out.setVolume(-3.0);
+    QCOMPARE(out.volume(), 0.0);
+    out.setVolume(0.25);
+    QCOMPARE(out.volume(), 0.25);
+    out.push(pcm({1, 2}));  // no device: nothing happens
+    QCOMPARE(out.droppedBytes(), qint64(0));
+  }
+
+  void controllerStepsMuteAndNotices() {
+    QTemporaryDir dir;
+    uzume::PlayerSettings settings(dir.path());
+    AudioController c(&settings);
+    QCOMPARE(c.volume(), 100);
+    QVERIFY(!c.muted());
+    QSignalSpy notice(&c, &AudioController::volumeNotice);
+    c.volumeDown();
+    QCOMPARE(c.volume(), 95);
+    QCOMPARE(notice.takeLast().first().toString(), QStringLiteral("Volume 95 %"));
+    c.setVolumeStep(10);
+    c.volumeDown();
+    QCOMPARE(c.volume(), 85);
+    c.volumeUp();
+    c.volumeUp();
+    QCOMPARE(c.volume(), 100);  // clamped
+    c.toggleMute();
+    QVERIFY(c.muted());
+    QVERIFY(c.effectiveMuted());
+    QCOMPARE(notice.takeLast().first().toString(), QStringLiteral("Muted"));
+    QCOMPARE(c.localGain(), 0.0);
+    QCOMPARE(c.remoteGain(), 0.0);
+    c.volumeDown();  // stays muted
+    QVERIFY(c.muted());
+    c.volumeUp();    // unmutes
+    QVERIFY(!c.muted());
+    QCOMPARE(notice.takeLast().first().toString(), QStringLiteral("Sound on · 100 %"));
+    c.setVolume(0);
+    QVERIFY(c.effectiveMuted());
+    c.setVolume(72);
+    QCOMPARE(c.localGain(), 0.72);
+    c.setShowVolume(false);
+    notice.clear();
+    c.volumeDown();
+    QCOMPARE(notice.size(), 0);
+    c.setVolumeStep(7);  // rejected
+    QCOMPARE(c.volumeStep(), 10);
+    // persisted per PC
+    AudioController again(&settings);
+    QCOMPARE(again.volume(), c.volume());
+    QCOMPARE(again.volumeStep(), 10);
+    QVERIFY(!again.showVolume());
+  }
+
+  void controllerBackgroundMutesOnlyTheLocalGame() {
+    QTemporaryDir dir;
+    uzume::PlayerSettings settings(dir.path());
+    AudioController c(&settings);
+    c.setVolume(60);
+    QSignalSpy gains(&c, &AudioController::gainsChanged);
+    QVERIFY(c.muteInBackground());
+    c.setAppActive(false);
+    QCOMPARE(c.localGain(), 0.0);   // the game is silent in the background ...
+    QCOMPARE(c.remoteGain(), 0.6);  // ... watched sessions stay audible
+    QVERIFY(gains.count() >= 1);
+    c.setAppActive(true);           // back: sound at once
+    QCOMPARE(c.localGain(), 0.6);
+    c.setMuteInBackground(false);
+    c.setAppActive(false);
+    QCOMPARE(c.localGain(), 0.6);
+    c.setMuted(true);
+    c.setAppActive(true);
+    QCOMPARE(c.remoteGain(), 0.0);  // the master mute covers both
+  }
+
   void toFloat() {
     const QByteArray out = AudioOutput::convertSamples(pcm({0, 16384, -32768, 32767}), QAudioFormat::Float);
     QCOMPARE(out.size(), 16);
