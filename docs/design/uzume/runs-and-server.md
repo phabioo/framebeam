@@ -35,7 +35,7 @@ Same table limited to runs you are in and runs open to everyone on the server. N
 
 ### 4j-app-3 Runs · New run
 
-Boards: [`S4j3`](../source/uzume/S4j3.dc.html) · [`S4j3Kinari`](../source/uzume/S4j3Kinari.dc.html). Built in: 0.18 package 9 (runs without plugin), 0.23 (plugins).
+Boards: [`S4j3`](../source/uzume/S4j3.dc.html) · [`S4j3Kinari`](../source/uzume/S4j3Kinari.dc.html). Built in: 0.18 package 9 (runs without plugin), 0.22 (plugins).
 
 `Dialog` lg "Start a run": Name, Game (`Select`), Rules (`Select`: None, "SoulLink & Nuzlocke"; hint "Only installed run plugins are listed."), Mode (`Segmented` SoulLink / Nuzlocke; "SoulLink links catches from the same route; Nuzlocke plays without links. Set by SoulLink & Nuzlocke; can't change after the start."), People (`Checkbox` per person, 1 to 8, each plays their own copy, you are always in your own run), and the line "Each person gets Run: Ember Route. Main is not touched."
 
@@ -47,19 +47,19 @@ Label `PLAIN RUN · LUMEN DRIFT · STARTED 3 OCT`; Export..., primary **Continue
 
 ### 4j-app-5 Run · SoulLink tab
 
-Boards: [`S4j5`](../source/uzume/S4j5.dc.html) · [`S4j5Kinari`](../source/uzume/S4j5Kinari.dc.html). Built in: 0.23 (plugins).
+Boards: [`S4j5`](../source/uzume/S4j5.dc.html) · [`S4j5Kinari`](../source/uzume/S4j5Kinari.dc.html). Built in: 0.22 (plugins).
 
 Plugin tab (named after the mode, last in the tabs) with the line DRAWN BY SOULLINK 1.4.0. Section "LINKED BY ROUTE · Pairs · 5 alive · 2 lost": table route × person columns (creature names in person colour labels MAX / LENA / JONAS) with a link `Tag` (Alive ok, Open neutral, Lost danger). "Jonas hasn't caught on Route 3 yet; the pair stays open until he does." Details of the plugin screens are on sheet 4 ([play-and-plugins.md](play-and-plugins.md)).
 
 ### 4j-app-6 Runs · states
 
-Boards: [`S4j6`](../source/uzume/S4j6.dc.html) · [`S4j6Kinari`](../source/uzume/S4j6Kinari.dc.html). Built in: 0.18 package 9 (runs without plugin), 0.23 (plugins).
+Boards: [`S4j6`](../source/uzume/S4j6.dc.html) · [`S4j6Kinari`](../source/uzume/S4j6Kinari.dc.html). Built in: 0.18 package 9 (runs without plugin), 0.22 (plugins).
 
 Six states: no run plugin on the server (Rules: None only; admins add the plugin in Plugins), plugin not on this PC (Install; Board, Recap, Log and Chat work without it), run full (8 people is the limit), plugin removed (run keeps board, recap, log, chat and saves; its tab is hidden until the plugin is back), where other plugin screens open (in game: a tab in the side panel after Run · Chat · Saves; on this PC: Settings › This PC › Plugins; never a sidebar row), empty (`StateBlock` "No runs yet. A run is a playthrough with its own save slot, for 1-8 people." New run...).
 
 ### 4j-app-7 In game · run tabs
 
-Boards: [`S4j7`](../source/uzume/S4j7.dc.html) · [`S4j7Kinari`](../source/uzume/S4j7Kinari.dc.html). Built in: 0.18 package 9 (runs without plugin), 0.23 (plugins).
+Boards: [`S4j7`](../source/uzume/S4j7.dc.html) · [`S4j7Kinari`](../source/uzume/S4j7Kinari.dc.html). Built in: 0.18 package 9 (runs without plugin), 0.22 (plugins).
 
 `RunHeader` (back to Runs, game, system, sub "Run: Ember Route", "2 watching"), `GameStage`, side panel (320) with `RunTabs` Run · Chat · Saves · plugin tab. The plugin tab shows "Next pair" and the route list (DRAWN BY SOULLINK) and Runners (`RunnerRow` with presence, status and badges). Hints Ctrl+Tab Next tab, F1 Hide panel.
 
@@ -73,7 +73,7 @@ Header "Ember Route", Export..., primary **Play**; Tabs Board / Recap / ... Runn
 
 ### 4jh-app-2 Run recap · member
 
-Boards: [`S4jh2`](../source/uzume/S4jh2.dc.html) · [`S4jh2Kinari`](../source/uzume/S4jh2Kinari.dc.html). Built in: 0.23 (plugins; run recap page per run).
+Boards: [`S4jh2`](../source/uzume/S4jh2.dc.html) · [`S4jh2Kinari`](../source/uzume/S4jh2Kinari.dc.html). Built in: 0.22 (plugins; run recap page per run).
 
 Buttons Export as image, Share link (shares with everyone on the server). Four Ma metrics (Catches 41, Lost 9, Badges 11, Play time 62 h, each with a per-person split) and the **Lanes** block (DAY 1 to DAY 9, one lane per person, square glyphs; see Ma blocks in [accounts-and-server.md](accounts-and-server.md)).
 

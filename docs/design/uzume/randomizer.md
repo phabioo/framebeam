@@ -1,6 +1,6 @@
 # Randomizer (sheet 5)
 
-Canvas page "5 Randomizer" (Round 5, batch 5, 2026-10-23): randomized game variants on the game page (10a), the Randomize dialog (10b), building a variant (10c), variant states (10d), the Randomizer section of New run (10e), joining and playing a randomized run (10f), Library, slots and Storage (10g) and Server › Tools (10h). Index: [`S5Index`](../source/uzume/S5Index.dc.html). Tokens and components: [design-system.md](design-system.md). Decision record: [ADR 0031](../../adr/0031-game-variants-and-randomizer.md). Built in 0.22 ([roadmap](../../roadmap.md)).
+Canvas page "5 Randomizer" (Round 5, batch 5, 2026-10-23): randomized game variants on the game page (10a), the Randomize dialog (10b), building a variant (10c), variant states (10d), the Randomizer section of New run (10e), joining and playing a randomized run (10f), Library, slots and Storage (10g) and Server › Tools (10h). Index: [`S5Index`](../source/uzume/S5Index.dc.html). Tokens and components: [design-system.md](design-system.md). Decision record: [ADR 0031](../../adr/0031-game-variants-and-randomizer.md). Built in 0.21 ([roadmap](../../roadmap.md)).
 
 Rules that hold on every screen of this sheet:
 
@@ -146,7 +146,7 @@ Board table RUNNER · GAME (only "Run variant" or "Own variant") · PROGRESS · 
 
 Boards: [`S10f5`](../source/uzume/S10f5.dc.html) · [`S10f5Kinari`](../source/uzume/S10f5Kinari.dc.html).
 
-a different dump (as 10d-1d, with Cancel) · b no game file ("Uzume downloads it from Home server · 1.8 GB, then builds your variant." Join and download) · c own variants off · d own variant doesn't match ("Chaos night uses engine 2.2.0; this run pins 2.3.1.") · e waiting for others (`RunnerRow` "Building variant · 2 min"; the ready check of 0.21 waits until every variant is built; before 0.21 the board shows Building) · f spoiler log after the run ("Each person can open the spoiler log of their own variant from Saves." "Never during the run, never someone else's.").
+a different dump (as 10d-1d, with Cancel) · b no game file ("Uzume downloads it from Home server · 1.8 GB, then builds your variant." Join and download) · c own variants off · d own variant doesn't match ("Chaos night uses engine 2.2.0; this run pins 2.3.1.") · e waiting for others (`RunnerRow` "Building variant · 2 min"; the ready check of 0.23 waits until every variant is built; before 0.23 the board shows Building) · f spoiler log after the run ("Each person can open the spoiler log of their own variant from Saves." "Never during the run, never someone else's.").
 
 ## 10g Library and slots
 
