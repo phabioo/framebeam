@@ -672,6 +672,24 @@ jobs:
           $allowed = '\b(emulation_core_options|emulation_core|emulation_core_speed|emulation_core_gl|emulation_core_desmume|emulation_core_gl_testcore|emulation_hw_render|media_cuda_gl_capture|media_cuda_gl_hw|media_d3d11_ring|ui_gpu_encode|ui_gpu_display)\b'
           if (@($skipped | Where-Object { $_ -notmatch $allowed }).Count -gt 0) { throw "Unexpected skipped tests (test-core tests must run)" }
           if ($skipped.Count -gt 0) { Write-Host "Note: real-core and GL tests skipped (allowed: no cores in merge CI, ADR 0020; no GL 3.3 context, ADR 0013 D6)" }
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Build server exe (for the app package and the MSI)
+        # Built natively here (same flags and version stamping as scripts/check.sh hub_build) instead of downloading the
+        # artifact of job hub-windows: no dependency between the jobs, no artifact-name coupling.
+        shell: bash
+        working-directory: server
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p ../dist/hub
+          go build -trimpath \
+            -ldflags "-s -w -X github.com/phabioo/uzume/server/internal/version.Version=$UZUME_VERSION -X github.com/phabioo/uzume/server/internal/version.Channel=$UZUME_CHANNEL -X github.com/phabioo/uzume/server/internal/version.Commit=$UZUME_COMMIT" \
+            -o ../dist/hub/uzume-server.exe ./cmd/uzume-server
+          ../dist/hub/uzume-server.exe version --json | tee ../dist/hub/hub-info.json
+          grep -qF "\"version\":\"$UZUME_VERSION\"" ../dist/hub/hub-info.json
       - name: Assemble package (windeployqt)
         timeout-minutes: 15
         shell: pwsh
@@ -694,6 +712,9 @@ jobs:
           Write-Host "Player:   $($real.FullName)"
           Copy-Item $launcher.FullName "$dist\Uzume.exe"
           Copy-Item $real.FullName "$bin\Uzume.exe"
+          # The server next to the real app: "Only on this PC" starts it as a child process (ADR 0030 D6). The MSI installs the
+          # same exe a second time as the service program when the server option is chosen.
+          Copy-Item "$env:GITHUB_WORKSPACE\dist\hub\uzume-server.exe" "$bin\uzume-server.exe"
           # vcpkg runtime DLLs (libdatachannel, FFmpeg, OpenH264, Opus, SDL3 and their transitive DLLs): windeployqt only
           # deploys Qt. vcpkg's applocal step puts them next to the exe; fall back to the release bin directory of
           # the manifest install (never debug\bin). Qt DLLs are left to windeployqt.
@@ -805,24 +826,6 @@ jobs:
             dist/zip/player-release-info.json
           if-no-files-found: error
           retention-days: 7
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: server/go.mod
-          cache-dependency-path: server/go.sum
-      - name: Build Hub exe (for the MSI)
-        # Built natively here (same flags and version stamping as scripts/check.sh hub_build) instead of downloading the
-        # artifact of job hub-windows: no dependency between the jobs, no artifact-name coupling.
-        shell: bash
-        working-directory: server
-        env:
-          CGO_ENABLED: "0"
-        run: |
-          mkdir -p ../dist/hub
-          go build -trimpath \
-            -ldflags "-s -w -X github.com/phabioo/uzume/server/internal/version.Version=$UZUME_VERSION -X github.com/phabioo/uzume/server/internal/version.Channel=$UZUME_CHANNEL -X github.com/phabioo/uzume/server/internal/version.Commit=$UZUME_COMMIT" \
-            -o ../dist/hub/uzume-server.exe ./cmd/uzume-server
-          ../dist/hub/uzume-server.exe version --json | tee ../dist/hub/hub-info.json
-          grep -qF "\"version\":\"$UZUME_VERSION\"" ../dist/hub/hub-info.json
       - name: Build MSI (WiX v5)
         timeout-minutes: 30
         shell: pwsh

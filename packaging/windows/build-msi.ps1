@@ -21,7 +21,8 @@ if ($ProductVersion -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') { throw "ProductVersion
 $here = $PSScriptRoot
 $PackageDir = (Resolve-Path $PackageDir).Path
 $HubExe = (Resolve-Path $HubExe).Path
-foreach ($f in 'Uzume.exe', 'bin\Uzume.exe', 'LICENSE.txt', 'THIRD-PARTY-NOTICE.txt') {
+# bin\uzume-server.exe: the app starts it as a child process for "Only on this PC" (ADR 0030 D6).
+foreach ($f in 'Uzume.exe', 'bin\Uzume.exe', 'bin\uzume-server.exe', 'LICENSE.txt', 'THIRD-PARTY-NOTICE.txt') {
   if (-not (Test-Path (Join-Path $PackageDir $f))) { throw "package is missing $f" }
 }
 if (Test-Path (Join-Path $PackageDir 'data')) { throw "the package must not contain data\" }
@@ -69,7 +70,7 @@ wix build "$here\uzume.wxs" -arch x64 -o $OutFile `
   -d "IconFile=$here\..\..\client\app\icons\uzume.ico" -d "CompressionLevel=$CompressionLevel" `
   -d "DialogBmp=$here\bitmaps\dialog.bmp" -d "BannerBmp=$here\bitmaps\banner.bmp"
 if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
-# Guard: the File table must hold every file of the package plus the server exe, the compat launcher copy and the two markers (a wrong Files pattern or
+# Guard: the File table must hold every file of the package (with bin\uzume-server.exe) plus the service's server exe and the two markers (a wrong Files pattern or
 # Exclude silently harvests nothing, which once produced a 6 MB MSI without the Player).
 $expected = @(Get-ChildItem -LiteralPath $PackageDir -Recurse -File).Count + 3
 $wi = New-Object -ComObject WindowsInstaller.Installer
@@ -87,6 +88,7 @@ $view.GetType().InvokeMember('Close', 'InvokeMethod', $null, $view, $null) | Out
 [void][Runtime.InteropServices.Marshal]::ReleaseComObject($view); [void][Runtime.InteropServices.Marshal]::ReleaseComObject($db)
 Write-Host "MSI File table: $($names.Count) files (expected $expected)"
 if ($names.Count -ne $expected) { throw "MSI holds $($names.Count) files, expected $expected (package files + server exe + 2 markers)" }
+if (@($names | Where-Object { $_ -eq 'uzume-server.exe' }).Count -ne 2) { throw "MSI File table must hold uzume-server.exe twice (app package and service)" }
 foreach ($need in 'Uzume.exe', 'uzume-server.exe', 'uzume-app.msi-installed', 'uzume-server.msi-installed') {
   if ($names -notcontains $need) { throw "MSI File table has no $need" }
 }

@@ -65,7 +65,7 @@ function Uninstall-Msi { Invoke-Msiexec @('/x', "`"$Msi`"") }
 function Assert-Path([string] $p, [string] $what) { if (-not (Test-Path -LiteralPath $p)) { Fail "$what is missing: $p" } }
 function Assert-NoPath([string] $p, [string] $what) { if (Test-Path -LiteralPath $p) { Fail "$what is still there: $p" } }
 function Assert-PlayerFiles([string] $dir) {
-  foreach ($f in 'Uzume.exe', 'bin\Uzume.exe', 'THIRD-PARTY-NOTICE.txt', 'LICENSE.txt', 'uzume-app.msi-installed') {
+  foreach ($f in 'Uzume.exe', 'bin\Uzume.exe', 'bin\uzume-server.exe', 'THIRD-PARTY-NOTICE.txt', 'LICENSE.txt', 'uzume-app.msi-installed') {
     Assert-Path (Join-Path $dir $f) $f
   }
   if (-not (Get-ChildItem (Join-Path $dir 'licenses') -File -ErrorAction SilentlyContinue)) { Fail "licenses\ is missing or empty in $dir" }
@@ -208,6 +208,10 @@ switch ($Scenario) {
       Install-Msi @('ALLUSERS=1', 'INSTALL_HUB=1', 'INSTALL_PLAYER=0', 'HUB_PORT=18444')
       Assert-NoPath (Join-Path $playerDir 'Uzume.exe') 'Player after a Hub-only install'
       Assert-HubCommandLine '18444' 'true'
+      # The finish page of a server-only install runs exactly this command elevated (8L-7): it must print a setup code.
+      Wait-Until { Test-Path (Join-Path $env:ProgramData 'Uzume\Server\uzume.db') } 60 'the server database'
+      $sc = & (Join-Path $hubDir 'uzume-server.exe') setup-code -listen :18444 -network-sharing=true 2>&1 | Out-String
+      if ($LASTEXITCODE -ne 0 -or $sc -notmatch 'Setup code:\s+\S') { Fail "uzume-server setup-code failed (exit $LASTEXITCODE)" }
       Invoke-Msiexec @('/i', "`"$upg`"", 'ALLUSERS=1')
       Assert-NoPath (Join-Path $playerDir 'Uzume.exe') 'Player after a Hub-only upgrade'
       Assert-Path (Join-Path $hubDir 'uzume-server.exe') 'uzume-server.exe after the Hub-only upgrade'
@@ -222,6 +226,13 @@ switch ($Scenario) {
     }
     Assert-NoPath (Join-Path $hubDir 'uzume-server.exe') 'uzume-server.exe after uninstall'
     Assert-NoPath (Join-Path $playerDir 'Uzume.exe') 'Player after uninstall'
+    Assert-Path $hubData 'server data after a plain uninstall'
+    # Remove with "Also delete all server data" (8L-9): the data and updater folders go too.
+    Install-Msi @('ALLUSERS=1', 'INSTALL_HUB=1', 'INSTALL_PLAYER=0', 'HUB_PORT=18445')
+    Invoke-Msiexec @('/x', "`"$Msi`"", 'REMOVE_SERVER_DATA=1')
+    if (Get-Service UzumeServer -ErrorAction SilentlyContinue) { Fail 'service UzumeServer survived the uninstall with REMOVE_SERVER_DATA=1' }
+    Assert-NoPath $hubData 'server data after an uninstall with REMOVE_SERVER_DATA=1'
+    Assert-NoPath (Join-Path $env:ProgramData 'Uzume\ServerUpdater') 'updater folder after an uninstall with REMOVE_SERVER_DATA=1'
     Remove-Item -Recurse -Force $userDir -ErrorAction SilentlyContinue
   }
 }

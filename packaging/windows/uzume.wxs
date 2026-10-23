@@ -9,6 +9,8 @@
 
   Defaults (silent, no properties): Player only, per user, %LOCALAPPDATA%\Programs\Uzume. INSTALL_HUB=1 (or ADDLOCAL with Hub)
   switches to per machine: Player in %ProgramFiles%\Uzume\App, Hub in %ProgramFiles%\Uzume\Server, two services. Never touches the Player's data\.
+  The app package carries bin\uzume-server.exe for "Only on this PC" (child process, no service, ADR 0030 D6).
+  Dialogs follow docs/design/uzume/runs-and-server.md 8l (three options, destination, server options, finish, remove).
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
@@ -63,6 +65,14 @@
     <Property Id="DESKTOP_SHORTCUT" Secure="yes" />
     <Property Id="INSTALL_CHOICE" Value="PLAYER" Secure="yes" />
     <Property Id="HUB_SHARING_FLAG" Value="false" />
+    <!-- "Share with others" (ADR 0030 D6): the app runs this MSI with INSTALL_HUB=1 and the folder of its per-user server; the
+         server imports it into the service's data folder before the service starts (see ImportServerData). -->
+    <Property Id="IMPORT_SERVER_DATA" Secure="yes" />
+    <!-- Remove dialog (8L-9) or `msiexec /x ... REMOVE_SERVER_DATA=1`: also delete %ProgramData%\Uzume\Server and ServerUpdater. -->
+    <Property Id="REMOVE_SERVER_DATA" Secure="yes" />
+    <!-- No "Change" in Apps & features or the maintenance dialog: the scope (per user or per machine) of an installed product
+         cannot change, so switching between the three options is remove and install again (8L-8). -->
+    <Property Id="ARPNOMODIFY" Value="1" />
 
     <!-- ===== Scope and defaults ===== -->
     <!-- INSTALL_HUB=1 / ADDLOCAL with Hub means per machine (ALLUSERS=1, MSIINSTALLPERUSER cleared); the elevation comes
@@ -280,9 +290,27 @@
     <SetProperty Id="GrantHubUpdaterFolder" Before="GrantHubUpdaterFolder" Sequence="execute"
                  Value="&quot;[System64Folder]icacls.exe&quot; &quot;[CommonAppDataFolder]Uzume\ServerUpdater&quot; /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F"
                  Condition="&amp;Hub=3" />
+    <!-- "Share with others": import the app's per-user server data into the service's data folder (uzume-server import-data
+         refuses to overwrite an existing server database). After the ACLs, so the copied files inherit them; before
+         StartServices. A non-zero exit fails the installation and rolls it back. -->
+    <CustomAction Id="ImportServerData" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="check" />
+    <SetProperty Id="ImportServerData" Before="ImportServerData" Sequence="execute"
+                 Value="&quot;[HUBDIR]uzume-server.exe&quot; import-data --from &quot;[IMPORT_SERVER_DATA]&quot;"
+                 Condition="&amp;Hub=3 AND IMPORT_SERVER_DATA" />
+
+    <!-- Remove with "Also delete all server data" (8L-9): the data and updater folders in ProgramData, after the services and
+         files are gone. Never on an upgrade. -->
+    <CustomAction Id="DeleteServerData" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="ignore" />
+    <SetProperty Id="DeleteServerData" Before="DeleteServerData" Sequence="execute"
+                 Value="&quot;[System64Folder]cmd.exe&quot; /c rmdir /s /q &quot;[CommonAppDataFolder]Uzume\Server&quot; &amp; rmdir /s /q &quot;[CommonAppDataFolder]Uzume\ServerUpdater&quot;"
+                 Condition="REMOVE~=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND REMOVE_SERVER_DATA=&quot;1&quot;" />
+
     <InstallExecuteSequence>
       <Custom Action="GrantHubFolders" After="InstallServices" Condition="&amp;Hub=3" />
       <Custom Action="GrantHubUpdaterFolder" After="GrantHubFolders" Condition="&amp;Hub=3" />
+      <Custom Action="ImportServerData" After="GrantHubUpdaterFolder" Condition="&amp;Hub=3 AND IMPORT_SERVER_DATA" />
+      <Custom Action="DeleteServerData" After="RemoveFolders"
+              Condition="REMOVE~=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND REMOVE_SERVER_DATA=&quot;1&quot;" />
     </InstallExecuteSequence>
   </Fragment>
 
@@ -312,22 +340,23 @@
       <DialogRef Id="CancelDlg" />
       <UIRef Id="WixUI_Common" />
 
-      <!-- What to install. Player only = per user without administrator rights; with Hub = per machine (UAC prompt). -->
+      <!-- 8L-2 How will you use Uzume? The app only = per user without administrator rights; with the server = per machine
+           (UAC prompt). The radio values stay PLAYER / BOTH / HUB. -->
       <Dialog Id="ChoiceDlg" Width="370" Height="270" Title="!(loc.WelcomeDlg_Title)">
         <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
-        <Control Id="Title" Type="Text" X="15" Y="6" Width="340" Height="15" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Title}What do you want to install?" />
-        <Control Id="Description" Type="Text" X="25" Y="23" Width="340" Height="15" Transparent="yes" NoPrefix="yes" Text="Choose the parts of Uzume for this PC." />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Title}How will you use Uzume?" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="270" Height="15" Transparent="yes" NoPrefix="yes" Text="One installer sets up the app, a server or both." />
         <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
-        <Control Id="Choice" Type="RadioButtonGroup" X="20" Y="55" Width="330" Height="110" Property="INSTALL_CHOICE">
+        <Control Id="Choice" Type="RadioButtonGroup" X="20" Y="58" Width="330" Height="160" Property="INSTALL_CHOICE">
           <RadioButtonGroup Property="INSTALL_CHOICE">
-            <RadioButton Value="PLAYER" X="0" Y="0" Width="330" Height="18" Text="Uzume &amp;app (play games, for your account only)" />
-            <RadioButton Value="HUB" X="0" Y="36" Width="330" Height="18" Text="Uzume &amp;server (ROM library and saves for your network, as a service)" />
-            <RadioButton Value="BOTH" X="0" Y="72" Width="330" Height="18" Text="App a&amp;nd server (everything on this PC)" />
+            <RadioButton Value="PLAYER" X="0" Y="0" Width="330" Height="40"
+                         Text="&amp;Uzume: for you only, no administrator rights. Play on a server of friends or only on this PC." />
+            <RadioButton Value="BOTH" X="0" Y="56" Width="330" Height="40"
+                         Text="Uzume &amp;with a server on this PC: needs administrator rights and installs for all users. You set up the server in Uzume." />
+            <RadioButton Value="HUB" X="0" Y="112" Width="330" Height="40"
+                         Text="&amp;Only the server: needs administrator rights. The last page shows how to set it up from another PC." />
           </RadioButtonGroup>
         </Control>
-        <Control Id="Admin" Type="Text" X="20" Y="150" Width="330" Height="26" Transparent="yes" NoPrefix="yes"
-                 Text="The server runs as a Windows service for all users and needs administrator rights; Windows asks for them when you continue." />
-        <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="190" Width="330" Height="18" Property="DESKTOP_SHORTCUT" CheckBoxValue="1" Text="Create a &amp;desktop shortcut for the app" />
         <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
           <Publish Event="NewDialog" Value="LicenseAgreementDlg" />
@@ -343,34 +372,79 @@
           <Publish Property="MSIINSTALLPERUSER" Value="{}" Condition="INSTALL_CHOICE&lt;&gt;&quot;PLAYER&quot;" Order="8" />
           <Publish Property="ALLUSERS" Value="2" Condition="INSTALL_CHOICE=&quot;PLAYER&quot;" Order="9" />
           <Publish Property="MSIINSTALLPERUSER" Value="1" Condition="INSTALL_CHOICE=&quot;PLAYER&quot;" Order="10" />
-          <Publish Event="NewDialog" Value="HubOptionsDlg" Condition="INSTALL_CHOICE&lt;&gt;&quot;PLAYER&quot;" Order="20" />
-          <Publish Event="NewDialog" Value="VerifyReadyDlg" Condition="INSTALL_CHOICE=&quot;PLAYER&quot;" Order="21" />
+          <Publish Property="DESKTOP_SHORTCUT" Value="{}" Condition="INSTALL_CHOICE=&quot;HUB&quot;" Order="11" />
+          <!-- Finish page (8L-6 / 8L-7): the optional checkbox and text of the stock ExitDialog. -->
+          <Publish Property="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" Order="12" />
+          <Publish Property="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Start Uzume" Condition="INSTALL_CHOICE&lt;&gt;&quot;HUB&quot;" Order="13" />
+          <Publish Property="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Show the address, security code and setup code (Windows asks for administrator rights)" Condition="INSTALL_CHOICE=&quot;HUB&quot;" Order="14" />
+          <Publish Property="WIXUI_EXITDIALOGOPTIONALTEXT" Value="{}" Condition="INSTALL_CHOICE=&quot;PLAYER&quot;" Order="15" />
+          <Publish Property="WIXUI_EXITDIALOGOPTIONALTEXT" Value="The Uzume server runs as a Windows service. Start Uzume to set it up: you become its admin." Condition="INSTALL_CHOICE=&quot;BOTH&quot;" Order="16" />
+          <Publish Property="WIXUI_EXITDIALOGOPTIONALTEXT" Value="The Uzume server is running. Set it up from Uzume on another PC: Set up a server &gt; On another device, with the setup code. A new code later: uzume-server setup-code in a terminal as administrator." Condition="INSTALL_CHOICE=&quot;HUB&quot;" Order="17" />
+          <Publish Property="WixShellExecTarget" Value="[LocalAppDataFolder]Programs\Uzume\Uzume.exe" Condition="INSTALL_CHOICE=&quot;PLAYER&quot;" Order="18" />
+          <Publish Property="WixShellExecTarget" Value="[ProgramFiles64Folder]Uzume\App\Uzume.exe" Condition="INSTALL_CHOICE=&quot;BOTH&quot;" Order="19" />
+          <Publish Event="NewDialog" Value="FolderDlg" Order="20" />
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
           <Publish Event="SpawnDialog" Value="CancelDlg" />
         </Control>
       </Dialog>
 
-      <!-- Hub options: port and network sharing. -->
-      <Dialog Id="HubOptionsDlg" Width="370" Height="270" Title="!(loc.WelcomeDlg_Title)">
+      <!-- 8L-3 Destination folder: fixed by the choice (per user or all users), shown, not editable. -->
+      <Dialog Id="FolderDlg" Width="370" Height="270" Title="!(loc.WelcomeDlg_Title)">
         <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
-        <Control Id="Title" Type="Text" X="15" Y="6" Width="340" Height="15" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Title}Server options" />
-        <Control Id="Description" Type="Text" X="25" Y="23" Width="340" Height="15" Transparent="yes" NoPrefix="yes" Text="The Uzume server is installed as the Windows service UzumeServer." />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Title}Destination folder" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="270" Height="15" Transparent="yes" NoPrefix="yes" Text="Uzume is installed in this folder." />
         <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
-        <Control Id="PortLabel" Type="Text" X="20" Y="62" Width="150" Height="16" Transparent="yes" NoPrefix="yes" Text="HTTPS &amp;port of the server:" />
-        <Control Id="Port" Type="Edit" X="175" Y="59" Width="60" Height="18" Property="HUB_PORT" Sunken="yes" Text="{5}" />
-        <Control Id="Sharing" Type="CheckBox" X="20" Y="95" Width="330" Height="18" Property="NETWORK_SHARING" CheckBoxValue="1" Text="&amp;Allow other devices on the network to connect" />
-        <Control Id="SharingHelp" Type="Text" X="38" Y="115" Width="312" Height="40" Transparent="yes" NoPrefix="yes"
-                 Text="Off: only this PC can reach the server. On: other apps on your network can connect and the Windows firewall rules apply. You can change this later in the server settings." />
+        <Control Id="UserFolder" Type="Text" X="20" Y="60" Width="330" Height="16" NoPrefix="yes" Text="[LocalAppDataFolder]Programs\Uzume\"
+                 HideCondition="INSTALL_CHOICE&lt;&gt;&quot;PLAYER&quot;" ShowCondition="INSTALL_CHOICE=&quot;PLAYER&quot;" />
+        <Control Id="MachineFolder" Type="Text" X="20" Y="60" Width="330" Height="16" NoPrefix="yes" Text="[ProgramFiles64Folder]Uzume\"
+                 HideCondition="INSTALL_CHOICE=&quot;PLAYER&quot;" ShowCondition="INSTALL_CHOICE&lt;&gt;&quot;PLAYER&quot;" />
+        <Control Id="UserHelp" Type="Text" X="20" Y="82" Width="330" Height="30" Transparent="yes" NoPrefix="yes"
+                 Text="For your account only. Settings, saves and the game cache are kept when you remove Uzume."
+                 HideCondition="INSTALL_CHOICE&lt;&gt;&quot;PLAYER&quot;" ShowCondition="INSTALL_CHOICE=&quot;PLAYER&quot;" />
+        <Control Id="MachineHelp" Type="Text" X="20" Y="82" Width="330" Height="40" Transparent="yes" NoPrefix="yes"
+                 Text="For all users: the app in App, the server in Server. Server data (library, saves, accounts) goes to [CommonAppDataFolder]Uzume\Server and is kept when you remove Uzume."
+                 HideCondition="INSTALL_CHOICE=&quot;PLAYER&quot;" ShowCondition="INSTALL_CHOICE&lt;&gt;&quot;PLAYER&quot;" />
+        <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="140" Width="330" Height="18" Property="DESKTOP_SHORTCUT" CheckBoxValue="1" Text="Create a &amp;desktop shortcut for Uzume"
+                 HideCondition="INSTALL_CHOICE=&quot;HUB&quot;" ShowCondition="INSTALL_CHOICE&lt;&gt;&quot;HUB&quot;" />
         <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
           <Publish Event="NewDialog" Value="ChoiceDlg" />
         </Control>
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
+          <Publish Event="NewDialog" Value="HubOptionsDlg" Condition="INSTALL_CHOICE&lt;&gt;&quot;PLAYER&quot;" Order="1" />
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" Condition="INSTALL_CHOICE=&quot;PLAYER&quot;" Order="2" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
+      <!-- 8L-4 Server options: port and sharing in the home network. -->
+      <Dialog Id="HubOptionsDlg" Width="370" Height="270" Title="!(loc.WelcomeDlg_Title)">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Title}Server options" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="270" Height="15" Transparent="yes" NoPrefix="yes" Text="The server runs as the Windows service UzumeServer." />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        <Control Id="PortLabel" Type="Text" X="20" Y="62" Width="150" Height="16" Transparent="yes" NoPrefix="yes" Text="Server &amp;port (HTTPS):" />
+        <Control Id="Port" Type="Edit" X="175" Y="59" Width="60" Height="18" Property="HUB_PORT" Sunken="yes" Text="{5}" />
+        <Control Id="Sharing" Type="CheckBox" X="20" Y="95" Width="330" Height="18" Property="NETWORK_SHARING" CheckBoxValue="1" Text="&amp;Share in your home network" />
+        <Control Id="SharingHelp" Type="Text" X="38" Y="115" Width="312" Height="40" Transparent="yes" NoPrefix="yes"
+                 Text="Off: only this PC can reach the server. On: other PCs in your network can join; the Windows firewall rules for the server apply." />
+        <Control Id="InternetHelp" Type="Text" X="20" Y="165" Width="330" Height="30" Transparent="yes" NoPrefix="yes"
+                 Text="Sharing over the internet is set up later in Uzume: Settings &gt; Server &gt; Network &amp; sharing." />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
+          <Publish Event="NewDialog" Value="FolderDlg" />
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
           <!-- An unchecked box leaves the property empty, which the silent default would read as "not given". -->
           <Publish Property="NETWORK_SHARING" Value="0" Condition="NETWORK_SHARING=&quot;&quot;" Order="1" />
-          <Publish Event="SpawnDialog" Value="InvalidPortDlg" Condition="NOT (HUB_PORT &gt;= 1 AND HUB_PORT &lt;= 65535)" Order="2" />
-          <Publish Event="NewDialog" Value="VerifyReadyDlg" Condition="HUB_PORT &gt;= 1 AND HUB_PORT &lt;= 65535" Order="3" />
+          <!-- The UI copy of the service flag, for the setup code window on the finish page (the execute sequence sets its own). -->
+          <Publish Property="HUB_SHARING_FLAG" Value="true" Condition="NETWORK_SHARING=&quot;1&quot;" Order="2" />
+          <Publish Property="HUB_SHARING_FLAG" Value="false" Condition="NETWORK_SHARING&lt;&gt;&quot;1&quot;" Order="3" />
+          <Publish Event="SpawnDialog" Value="InvalidPortDlg" Condition="NOT (HUB_PORT &gt;= 1 AND HUB_PORT &lt;= 65535)" Order="4" />
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" Condition="HUB_PORT &gt;= 1 AND HUB_PORT &lt;= 65535" Order="5" />
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
           <Publish Event="SpawnDialog" Value="CancelDlg" />
@@ -385,19 +459,58 @@
         </Control>
       </Dialog>
 
+      <!-- 8L-9 Remove: data stays unless the box is ticked. Only shown when the server is installed. -->
+      <Dialog Id="RemoveDataDlg" Width="370" Height="270" Title="!(loc.WelcomeDlg_Title)">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Title}Remove Uzume" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="270" Height="15" Transparent="yes" NoPrefix="yes" Text="The programs and the services are removed." />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        <Control Id="Keep" Type="Text" X="20" Y="60" Width="330" Height="30" Transparent="yes" NoPrefix="yes"
+                 Text="Your saves, games and server data in [CommonAppDataFolder]Uzume stay, so a new install picks them up again." />
+        <Control Id="DeleteData" Type="CheckBox" X="20" Y="100" Width="330" Height="18" Property="REMOVE_SERVER_DATA" CheckBoxValue="1" Text="Also &amp;delete all server data" />
+        <Control Id="DeleteHelp" Type="Text" X="38" Y="120" Width="312" Height="40" Transparent="yes" NoPrefix="yes"
+                 Text="Deletes the library, the saves of all users, accounts, plugins and backups in [CommonAppDataFolder]Uzume\Server. This cannot be undone." />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
+          <Publish Property="REMOVE_SERVER_DATA" Value="{}" Order="1" />
+          <Publish Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" />
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
       <!-- Flow -->
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Order="2" Condition="NOT Installed" />
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="2" Condition="Installed AND PATCH" />
       <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="1" />
       <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="ChoiceDlg" Order="2" Condition="LicenseAccepted = 1" />
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="HubOptionsDlg" Order="1" Condition="NOT Installed AND INSTALL_HUB=&quot;1&quot;" />
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ChoiceDlg" Order="2" Condition="NOT Installed AND INSTALL_HUB&lt;&gt;&quot;1&quot;" />
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="3" Condition="Installed AND NOT PATCH" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="FolderDlg" Order="2" Condition="NOT Installed AND INSTALL_HUB&lt;&gt;&quot;1&quot;" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="RemoveDataDlg" Order="3" Condition="Installed AND NOT PATCH AND WixUI_InstallMode=&quot;Remove&quot; AND !Hub=3" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="4" Condition="Installed AND NOT PATCH AND NOT (WixUI_InstallMode=&quot;Remove&quot; AND !Hub=3)" />
       <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" />
       <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg" Order="2" />
-      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" Order="2" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="RemoveDataDlg" Order="2" Condition="!Hub=3" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" Order="3" Condition="NOT (!Hub=3)" />
       <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" Order="2" />
+      <!-- Finish: start the app (8L-6), or show the setup code of a server-only install (8L-7, 8h-3) in an elevated window
+           (the server data folder is for administrators only). -->
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApp" Order="997"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX=1 AND NOT Installed AND INSTALL_CHOICE&lt;&gt;&quot;HUB&quot;" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="ShowSetupCode" Order="998"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX=1 AND NOT Installed AND INSTALL_CHOICE=&quot;HUB&quot;" />
       <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
     </UI>
+
+    <CustomAction Id="LaunchApp" BinaryRef="Wix4UtilCA_X64" DllEntry="WixShellExec" Impersonate="yes" Return="ignore" />
+    <!-- Start-Process -Verb RunAs: one UAC prompt, then a PowerShell window that stays open with `uzume-server setup-code`
+         (address, security code, setup code; the same flags as the service so the addresses match). The code never
+         touches a file or the MSI log. -->
+    <CustomAction Id="ShowSetupCode" Directory="TempFolder" Return="asyncNoWait" Impersonate="yes"
+                  ExeCommand="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -WindowStyle Hidden -Command &quot;Start-Process powershell.exe -Verb RunAs -ArgumentList '-NoProfile','-NoExit','-Command','&amp; ''[HUBDIR]uzume-server.exe'' setup-code -listen :[HUB_PORT] -network-sharing=[HUB_SHARING_FLAG]'&quot;" />
   </Fragment>
 </Wix>
