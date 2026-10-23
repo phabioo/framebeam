@@ -174,7 +174,7 @@ class AdminUiTest : public QObject {
     // Help column: label from the real server name, last errors inside.
     // The column shows from 880 px of page width; Windows CI lays the page out narrower than Linux, so check the rule itself.
     QQuickItem* help = h.item("adminHelp");
-    QQuickItem* page = h.item("adminPage");
+    QQuickItem* page = h.item("serverStatusPage");  // the AdminPage root carries the page's objectName
     QVERIFY(help != nullptr && page != nullptr);
     qInfo("admin page width %.0f (window %d)", page->width(), h.window->width());
     QCOMPARE(help->isVisible(), page->width() >= 880);
