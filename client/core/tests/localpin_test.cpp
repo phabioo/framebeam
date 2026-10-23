@@ -47,9 +47,13 @@ class LocalPinTest : public QObject {
     const auto stored = creds.read(pinTarget(hub, QStringLiteral("dev-lena")));
     QVERIFY(stored.has_value());
     QVERIFY(!stored->contains(QStringLiteral("1234")));
-    QFile f(s.profilesFilePath());
-    QVERIFY(f.open(QIODevice::ReadOnly));
-    const QByteArray json = f.readAll();
+    QByteArray json;
+    {
+      // Closed right away: on Windows an open handle makes the next atomic save of profiles.json fail.
+      QFile f(s.profilesFilePath());
+      QVERIFY(f.open(QIODevice::ReadOnly));
+      json = f.readAll();
+    }
     QVERIFY(!json.contains(stored->toUtf8()));
     QVERIFY(json.contains("has_pin"));
 
