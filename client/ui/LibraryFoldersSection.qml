@@ -14,7 +14,7 @@ ColumnLayout {
     property bool pathPromptOpen: false
     // Rows end where the controls of the SettingsRows end (the reset column of 72 stays empty on this page).
     readonly property real endMargin: width >= Theme.settingsNarrowBelow ? Theme.settingsResetWidth : 0
-    spacing: Theme.space12
+    spacing: Theme.space15
 
     Loader {
         id: folderDialogLoader
@@ -35,7 +35,7 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.minimumWidth: 0
         Layout.rightMargin: root.endMargin > 0 ? root.endMargin - 8 : 0
-        Eyebrow {
+        UzSectionLabel {
             objectName: "libraryFoldersEyebrow"
             Layout.fillWidth: true
             text: qsTr("Library folders · %1").arg(root.folders.length)
@@ -54,11 +54,14 @@ ColumnLayout {
         Layout.leftMargin: Theme.settingsDotSlot
         Layout.rightMargin: root.endMargin
         wrapMode: Text.WordWrap
-        lineHeight: 1.35
-        font.pixelSize: Theme.fontSmall
-        color: Theme.textMuted
+        lineHeight: Theme.roles.small.line
+        lineHeightMode: Text.FixedHeight
+        font.pixelSize: Theme.roles.input.size
+        color: Theme.muted
         text: qsTr("Uzume finds games in these folders and starts them from there. It tells the server which games you have; the files stay on this device.")
     }
+
+    Rectangle { Layout.fillWidth: true; Layout.rightMargin: root.endMargin; Layout.leftMargin: Theme.settingsDotSlot; height: 1; color: Theme.rule; Layout.topMargin: -Theme.space05 }
 
     Repeater {
         model: root.folders
@@ -70,14 +73,14 @@ ColumnLayout {
             Layout.minimumWidth: 0
             Layout.leftMargin: Theme.settingsDotSlot
             Layout.rightMargin: root.endMargin
-            implicitHeight: rowLayout.implicitHeight + 24
-            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.borderRow }
+            implicitHeight: rowLayout.implicitHeight + Theme.space3
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
             RowLayout {
                 id: rowLayout
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 24
+                spacing: Theme.space3
                 ColumnLayout {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -86,8 +89,8 @@ ColumnLayout {
                         objectName: "libraryFolderPath"
                         Layout.fillWidth: true
                         text: folderRow.modelData.path
-                        font.pixelSize: Theme.fontSmall
-                        color: Theme.text
+                        font.pixelSize: Theme.roles.input.size
+                        color: Theme.ink
                         elide: Text.ElideMiddle
                         HoverHandler { id: pathHover }
                         ToolTip.visible: pathHover.hovered && truncated
@@ -98,9 +101,9 @@ ColumnLayout {
                         objectName: "libraryFolderStatus"
                         Layout.fillWidth: true
                         elide: Text.ElideRight
-                        font.pixelSize: Theme.fontMeta
-                        color: !folderRow.modelData.exists ? Theme.pluginWarn
-                               : folderRow.modelData.scanning ? Theme.accent : Theme.textMuted
+                        font.pixelSize: Theme.roles.small.size
+                        color: !folderRow.modelData.exists ? Theme.accentText
+                               : folderRow.modelData.scanning ? Theme.accent : Theme.muted
                         text: !folderRow.modelData.exists
                               ? (folderRow.modelData.scannedText !== "" ? qsTr("Drive not found · last scanned %1").arg(folderRow.modelData.scannedText)
                                                                         : qsTr("Folder not found"))
@@ -113,7 +116,7 @@ ColumnLayout {
                 }
                 RowLayout {
                     Layout.alignment: Qt.AlignVCenter
-                    spacing: 6
+                    spacing: Theme.space1
                     UzButton {
                         objectName: folderRow.modelData.scanning ? "libraryFolderStop" : "libraryFolderRescan"
                         implicitHeight: 32
@@ -140,20 +143,19 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.leftMargin: Theme.settingsDotSlot
         Layout.rightMargin: root.endMargin
-        implicitHeight: Math.max(52, emptyText.implicitHeight + 28)
-        radius: Theme.radius10
+        implicitHeight: Math.max(Theme.row48, emptyText.implicitHeight + 2 * Theme.space2)
         color: "transparent"
         border.width: 1
-        border.color: Theme.borderButton
+        border.color: Theme.rule2
         UzLabel {
             id: emptyText
             anchors.centerIn: parent
-            width: parent.width - 32
+            width: parent.width - 2 * Theme.space2
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             text: qsTr("No folders yet. Add a folder that contains your game files.")
-            font.pixelSize: Theme.fontSmall
-            color: Theme.textFaint
+            font.pixelSize: Theme.roles.input.size
+            color: Theme.dim
         }
     }
     UzLabel {
@@ -162,8 +164,8 @@ ColumnLayout {
         Layout.leftMargin: Theme.settingsDotSlot
         Layout.rightMargin: root.endMargin
         wrapMode: Text.WordWrap
-        font.pixelSize: Theme.fontMeta
-        color: Theme.textMuted
+        font.pixelSize: Theme.roles.small.size
+        color: Theme.muted
         text: qsTr("Remove only takes the folder off the list. Your files are not deleted.")
     }
 
@@ -171,7 +173,7 @@ ColumnLayout {
         objectName: "libraryFolderPathPrompt"
         visible: root.pathPromptOpen
         Layout.fillWidth: true
-        spacing: Theme.space10
+        spacing: Theme.space15
         UzField {
             id: pathField
             objectName: "libraryFolderPathField"
@@ -196,8 +198,8 @@ ColumnLayout {
         Layout.minimumWidth: 0
         Layout.leftMargin: Theme.settingsDotSlot
         wrapMode: Text.WordWrap
-        font.pixelSize: Theme.fontMeta
-        color: Theme.errorText
+        font.pixelSize: Theme.roles.small.size
+        color: Theme.danger
         text: root.scan.text || ""
     }
 }

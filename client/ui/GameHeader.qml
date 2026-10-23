@@ -3,19 +3,20 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// GameHeader (docs/design/player.md "GameHeader", 3g-2, 3r-2): five fixed zones, the same in Session and Multiview:
-// Back | Context | Game controls (your game only) | View | Display. 1280 and below: compact (icons with tooltips; Reset stays in
-// the header, only Hotkeys and Pause move into "⋯"). Watching only: no game controls, "Leave" instead. The popovers themselves (Reset, speed, layout,
-// Running sessions, "⋯") live in the game screen; this header only reports clicks and shows the open one as pressed.
+// RunHeader of the running game (boards 3g and 3r, design-system.md "RunHeader"): 56 px, `ground`, one `rule` line below.
+// Left: back to the Library, a rule, the title, the system chip, the sub line ("Shared · 2 watching" / "Not shared"; in the Multiview
+// "<server> · N people" and the layout switch). Right: the watchers as avatars and the header buttons. Session: Pause,
+// Speed-up (with its speed menu), Layout, Multiview, Panel (toggled) and the "⋯" menu (Reset, Fullscreen, Diagnostics,
+// Hotkeys, Report a problem). Multiview: the audio label, Pause, Speed-up, Layout, Add tile, Panel, Leave and "⋯". Watching only:
+// the Session as title, Panel and Leave. When the width runs out (windows below about 1100 px, wide fonts) the optional parts
+// give way in four steps (`level`) and their functions move into the "⋯" menu, so every function stays reachable.
+// The Add tile popover and the Reset dialog live in the game screen (they cover the stage); this header reports the clicks.
 Rectangle {
     id: root
     objectName: "gameHeader"
     required property PlayerController player
-    property bool compact: false
-    // `compact` from the window width, or forced when the zones still do not fit with wide fonts (icons, Reset into "⋯").
-    property bool forceCompact: false
-    readonly property bool tight: compact || forceCompact
-    property string popover: ""
+    property bool panelShown: true
+    property string popover: ""          // the popover of the game screen that is open ("picker"), for the pressed look of its button
     property var hotkeys: ({})
     readonly property GameSession session: player.gameSession
     readonly property SessionController ctl: player.sessions
@@ -23,486 +24,416 @@ Rectangle {
     readonly property bool own: session.active
     // Multiview: tab "multiview" with a game of your own or several surfaces; one remote Session alone is "watching".
     readonly property bool multi: ctl.tab !== "session" && (own || ctl.surfaceCount > 1)
-    readonly property bool narrow: width < 1100
-    readonly property bool segmentFocused: viewSegment.activeFocus || modeSegment.activeFocus || modeCycle.activeFocus
+    readonly property bool watchingOnly: !own && !multi
+    readonly property bool segmentFocused: modeSegment.activeFocus || viewButton.activeFocus || leaveMulti.activeFocus
     readonly property var layouts: session.active ? session.screenLayouts : (ctl.watching ? ["stacked", "side", "top"] : [])
-    readonly property Item resetAnchor: resetButton
-    readonly property Item speedAnchor: speedSplit
-    readonly property Item layoutAnchor: layoutButton
     readonly property Item addAnchor: addButton
     readonly property Item moreAnchor: moreButton
-    signal popoverToggled(string name)
+    readonly property Item layoutAnchor: layoutButton
+    readonly property Item speedAnchor: speedValueButton
+    readonly property bool menuOpen: moreMenu.opened || layoutMenu.opened || speedMenu.opened
     signal fullscreenRequested()
+    signal resetRequested()
+    signal panelToggled()
+    signal pickerToggled()
 
-    color: Theme.gameHeader
-    implicitHeight: 56
-    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.gameBorder }
+    color: Theme.ground
+    implicitHeight: Theme.header56
+    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule }
 
-    function key(label) { return label !== undefined && label !== "" ? " · " + label : "" }
+    function key(label) { return label !== undefined && label !== "" ? label : "" }
     readonly property string shareText: ctl.shared ? (ctl.visibility === "invite_only" ? qsTr("Invite only · %1 watching") : qsTr("Shared · %1 watching")).arg(ctl.viewerCount)
                                                   : qsTr("Not shared")
     readonly property var watchLink: ctl.surfaceLinks[ctl.surfaceOrder.length > 0 ? ctl.surfaceOrder[0] : ""] || null
-
-    // Wide fonts: when the five zones do not fit at their preferred widths, the optional Multiview texts give way
-    // ("Multiview" title first, then the "YOUR GAME" label) instead of the zones overlapping (the context zone is
-    // squeezed below its mode switch otherwise and the controls cover it). `need` is the preferred width with both texts
-    // shown, derived from the current implicit width, so the result does not depend on what is hidden right now.
-    property bool hideMultiTitle: false
-    property bool hideYourGame: false
-    // Last resort in a tight header that still does not fit (very wide fonts): the key badges next to the display icons go.
-    property bool hideHints: false
-    readonly property real hintsFullWidth: diagnosticsButton.hintFullWidth + fullscreenButton.hintFullWidth
-    property bool hideAddMeta: false   // and, if that is still not enough, the "· 3/4" next to "+ Add"
-
-    // Narrow Multiview header, priority when space runs out (stage 0..4; every width used is measured independent of the
-    // current stage, so the result does not flap): 1 the PiP/Row/Grid segment becomes one cycle button (never an empty pill with
-    // "…"), 2 the key badges and the "· 3/4" give way, 3 "Multiview" becomes "Multi", 4 the sharing pill shrinks to dot + short word.
-    // The game title keeps at least ten characters through all of this (its layout minimum) until the last stage.
-    property int fitStage: 0
-    readonly property bool modeCollapsed: fitStage >= 1
-    readonly property bool stageHints: fitStage >= 2
-    readonly property bool shortView: fitStage >= 3
-    readonly property bool shortPill: fitStage >= 4
-    readonly property bool cycleHidden: fitStage >= 5   // absurdly wide fonts: not even the cycle button fits next to a title and the sharing state
-    readonly property string shareShort: ctl.shared ? (ctl.visibility === "invite_only" ? qsTr("Invite only") : qsTr("Shared")) : qsTr("Not shared")
-    TextMetrics { id: tmTitle10; text: "abcdefghij"; font.pixelSize: 15; font.weight: Font.DemiBold }
-    TextMetrics { id: tmPillFull; text: root.shareText; font.pixelSize: 12; font.weight: Font.Medium }
-    TextMetrics { id: tmPillShort; text: root.shareShort; font.pixelSize: 12; font.weight: Font.Medium }
-    TextMetrics { id: tmViewLong; text: qsTr("Multiview"); font.pixelSize: 13; font.weight: Font.Medium }
-    TextMetrics { id: tmViewShort; text: qsTr("Multi"); font.pixelSize: 13; font.weight: Font.Medium }
-    readonly property bool modeAvailable: multi && ctl.availableLayouts.length > 0
-    readonly property var modeChoices: ctl.availableLayouts.filter(m => m !== "grid" || ctl.gridAvailable)   // the layouts that can be picked
-    // Width the stage savings give back: what is hidden right now is added to the layout's implicit width before judging.
-    readonly property real stageSaving: (modeCollapsed ? modeSegment.implicitWidth - (cycleHidden ? 0 : modeCycle.implicitWidth) : 0)
-        + (stageHints ? hintsFullWidth + addButton.metaFullWidth : 0) + (shortView ? tmViewLong.advanceWidth - tmViewShort.advanceWidth : 0)
-    function computeStage() {
-        if (!(multi && own && multiGameTitle.visible)) return 0
-        const fixedFull = headerRow.implicitWidth - headerContext.implicitWidth   // everything outside the context zone, as laid out now
-            + (hideHints || stageHints ? hintsFullWidth : 0) + (hideAddMeta || stageHints ? addButton.metaFullWidth : 0)
-            + (shortView ? tmViewLong.advanceWidth - tmViewShort.advanceWidth : 0)   // ... with every optional text back
-        const hintsGain = hintsFullWidth + addButton.metaFullWidth
-        const viewGain = tmViewLong.advanceWidth - tmViewShort.advanceWidth
-        const pillFull = tmPillFull.advanceWidth + 32, pillShort = tmPillShort.advanceWidth + 32
-        const title = tmTitle10.advanceWidth
-        const modeFull = modeSegment.implicitWidth + 10, cycle = modeCycle.implicitWidth + 10
-        const avail = headerRow.width
-        const need = (fixed, pill, mode) => fixed + title + 10 + pill + mode
-        if (need(fixedFull, pillFull, modeFull) <= avail) return 0
-        if (need(fixedFull, pillFull, cycle) <= avail) return 1
-        if (need(fixedFull - hintsGain, pillFull, cycle) <= avail) return 2
-        if (need(fixedFull - hintsGain - viewGain, pillFull, cycle) <= avail) return 3
-        if (need(fixedFull - hintsGain - viewGain, pillShort, cycle) - title + 40 <= avail) return 4   // title down to about three characters
-        return 5
+    // System code of the running game: the selected game is the running one while the game view is shown.
+    readonly property string systemCode: {
+        const g = player.selectedGame
+        return own && g && g.title === session.title && g.system ? String(g.system) : ""
     }
-    property real wideNeed: 0   // preferred width without the optional texts, regular (not tight) widths
-    // Applied after the layout pass that reported the new size: changing the visibility of the optional texts inside that pass
-    // makes the header layout polish twice ("polish loop").
-    function updateFit() { Qt.callLater(root.applyFit) }
-    function applyFit() {
-        const titleW = multiTitle.implicitWidth + 10
-        const labelW = yourGame.implicitWidth + 20
-        // The game title and the share pill that stand in for them (narrow Multiview headers) are not part of the preferred width: they elide / sit in the space the context zone has.
-        const extras = (multiGameTitle.visible ? multiGameTitle.Layout.preferredWidth + headerContext.spacing : 0) + (multiSharePill.visible ? multiSharePill.Layout.minimumWidth + headerContext.spacing : 0)
-        const need = headerRow.implicitWidth - extras + (multiTitle.visible ? 0 : titleW) + (yourGame.visible ? 0 : labelW) + root.stageSaving
-        if (!root.forceCompact) {
-            root.wideNeed = need - titleW - labelW - headerContext.implicitWidth + (root.modeAvailable ? modeSegment.implicitWidth : 0) + root.stageSaving   // the context zone can shrink to its mode switch; measured only at regular widths, so the decision cannot flap
+    // Watchers as avatars: the people watching your game; in the Multiview the people whose tiles are shown.
+    readonly property var watchers: {
+        const out = []
+        if (multi) {
+            const o = ctl.surfaceOrder, info = ctl.surfaceInfo
+            for (let i = 0; i < o.length; ++i) {
+                const who = o[i] === "local" ? (ctl.ownName !== "" ? ctl.ownName : qsTr("You")) : ((info[o[i]] || ({})).who || "")
+                if (who !== "") out.push({ name: who, person: i + 1 })
+            }
+        } else if (own) {
+            const p = ctl.participants
+            for (let i = 0; i < p.length; ++i) if (p[i].kind === "viewer") out.push({ name: p[i].name, person: out.length + 2 })
         }
-        // Tight: the layout minimum (every zone at its smallest) plus the badges that are hidden right now.
-        const minFull = headerRow.Layout.minimumWidth + (root.hideHints || root.stageHints ? root.hintsFullWidth : 0) + (root.hideAddMeta || root.stageHints ? addButton.metaFullWidth : 0)
-        const stageOwned = root.multi && root.own && multiGameTitle.visible && root.fitStage < 4   // the stage logic decides first
-        root.hideHints = root.tight && !stageOwned && minFull > headerRow.width
-        root.hideAddMeta = root.tight && !stageOwned && minFull - root.hintsFullWidth > headerRow.width
-        const st = root.computeStage()
-        if (st !== root.fitStage) root.fitStage = st
-        if (root.compact) {   // compact from the window width: the layout was designed for it, only the optional texts can still give way
-            hideMultiTitle = need > headerRow.width
-            hideYourGame = need - titleW > headerRow.width
-            return
+        return out
+    }
+    readonly property string audioWho: {
+        const f = ctl.audioFocus
+        if (f === "local") return ctl.ownName !== "" ? ctl.ownName : qsTr("You")
+        return (ctl.surfaceInfo[f] || ({})).who || ""
+    }
+    readonly property string multiSub: qsTr("%1 · %2").arg(player.hubName !== "" ? player.hubName : qsTr("Server"))
+                                            .arg(ctl.surfaceCount === 1 ? qsTr("1 person") : qsTr("%1 people").arg(ctl.surfaceCount))
+    // The three modes never change, so the segments are created once (a Repeater that rebuilds its segments inside the nested
+    // header layouts crashes Qt 6.4); the label and the disabled state of Grid are read live through getters.
+    readonly property var modeOptions: [
+        { value: "pip", label: qsTr("PiP"), name: "modePip" },
+        { value: "row", label: qsTr("Row"), name: "modeRow" },
+        { get value() { return "grid" }, get label() { return root.ctl.gridAvailable ? qsTr("Grid 2×2") : qsTr("Grid 2×2 · from 4") },
+          name: "modeGrid", get disabled() { return !root.ctl.gridAvailable } }
+    ]
+    readonly property bool modeAvailable: multi && ctl.availableLayouts.length > 0
+
+    // Narrow headers: 0 everything, 1 no avatars, no Layout button and no speed menu button, 2 also no Panel / Multiview button,
+    // 3 also no Pause and Speed-up button. The widths are the implicit ones, so the result does not depend on the level itself.
+    readonly property real availWidth: headerRow.width
+    readonly property int level: {
+        const gap = Theme.space1
+        const left = backButton.implicitWidth + 2 * Theme.space2 + 1 + 100 + (systemCode !== "" ? 60 : 0)
+                     + (modeAvailable ? modeSegment.implicitWidth + Theme.space2 : 0)
+        for (let l = 0; l <= 3; ++l) {
+            let w = 0, n = 0
+            const add = (x) => { w += x + (n > 0 ? gap : 0); ++n }
+            if (watchingOnly) {
+                if (ctl.tab !== "session" && ctl.surfaceCount >= 1) add(addButton.implicitWidth)
+                add(panelButton.implicitWidth); add(leaveButton.implicitWidth); add(moreButton.implicitWidth)
+            } else {
+                if (l < 1 && watchers.length > 0) add(watchers.length * 16 + 8 + Theme.space1)
+                if (l < 3 && own) add(pauseButton.implicitWidth)
+                if (l < 3 && own && session.fastForwardAvailable) add(fastForwardButton.implicitWidth + (l < 1 ? speedValueButton.implicitWidth : 0))
+                if (l < 1 && layouts.length > 1) add(layoutButton.implicitWidth)
+                if (!multi && l < 2) add(viewButton.implicitWidth)
+                if (multi && ctl.surfaceCount >= 1) add(addButton.implicitWidth)
+                if (l < 2) add(panelButton.implicitWidth)
+                if (multi) add(leaveMulti.implicitWidth)
+                if (own || multi) add(moreButton.implicitWidth)
+                if (multi && l < 1) add(audioLabel.implicitWidth)
+            }
+            if (left + w <= availWidth) return l
         }
-        root.forceCompact = root.wideNeed > headerRow.width
-        if (root.forceCompact) {
-            hideMultiTitle = true
-            hideYourGame = true
+        return 3
+    }
+
+    function leaveMultiview() {
+        if (root.own) root.ctl.tab = "session"
+        else root.player.leaveGameView()
+    }
+
+    // ---- menus ("⋯", speed, screen layout) ----
+    function layoutLabel(v) { return v === "stacked" ? qsTr("Stacked") : v === "side" ? qsTr("Side by side") : qsTr("Top only") }
+    readonly property var layoutItems: root.layouts.map(function (v) { return { label: root.layoutLabel(v), name: "layout_" + v, value: v } })
+    readonly property var speedItems: root.session.speedUpRatios.map(function (r) { return { label: r + "×", name: "speed_" + r, value: Number(r) } })
+    readonly property var moreItems: {
+        const it = []
+        const cur = (cond) => cond ? qsTr("Current") : ""
+        if (root.own || root.multi) {
+            it.push({ heading: qsTr("This game") })
+            if (root.level >= 3 && root.own) {
+                it.push({ label: root.session.paused ? qsTr("Resume") : qsTr("Pause"), shortcut: "Esc", name: "pause" })
+                if (root.session.fastForwardAvailable)
+                    it.push({ label: root.session.fastForward ? qsTr("Speed-up off") : qsTr("Speed-up"), shortcut: root.key(root.hotkeys.speedup), name: "speedup" })
+            }
+            if (root.level >= 2 && !root.watchingOnly) {
+                it.push({ label: root.panelShown ? qsTr("Hide panel") : qsTr("Show panel"), name: "panel" })
+                if (!root.multi && root.own) it.push({ label: qsTr("Multiview"), name: "multiview" })
+            }
+            if (root.level >= 1) {
+                for (let i = 0; i < root.layouts.length && root.layouts.length > 1; ++i)
+                    it.push({ label: qsTr("Screen layout: %1").arg(root.layoutLabel(root.layouts[i])), hint: cur(root.ctl.screenLayout === root.layouts[i]), name: "layout_" + root.layouts[i] })
+                if (root.own && root.session.fastForwardAvailable) {
+                    const r = root.session.speedUpRatios
+                    for (let i = 0; i < r.length; ++i)
+                        it.push({ label: qsTr("Speed-up speed: %1×").arg(r[i]), hint: cur(Math.abs(root.session.fastForwardRatio - Number(r[i])) < 0.001), name: "speed_" + r[i] })
+                }
+            }
+            it.push({ label: qsTr("Fullscreen"), shortcut: root.key(root.hotkeys.fullscreen), name: "fullscreen" })
+            it.push({ label: root.diag.open ? qsTr("Hide diagnostics") : qsTr("Diagnostics"), shortcut: root.key(root.hotkeys.diagnostics), name: "diagnostics" })
+            if (root.own) {
+                it.push({ separator: true })
+                it.push({ label: qsTr("Reset %1…").arg(root.session.title), danger: true, name: "reset" })
+            }
+            it.push({ separator: true })
         } else {
-            hideMultiTitle = need > headerRow.width
-            hideYourGame = need - titleW > headerRow.width
+            it.push({ label: root.diag.open ? qsTr("Hide diagnostics") : qsTr("Diagnostics"), shortcut: root.key(root.hotkeys.diagnostics), name: "diagnostics" })
+            it.push({ separator: true })
         }
+        it.push({ heading: qsTr("Help") })
+        it.push({ label: qsTr("Hotkeys…"), name: "hotkeys" })
+        it.push({ label: qsTr("Report a problem…"), name: "report" })
+        return it
+    }
+    function runMore(name) {
+        if (name === "pause") root.session.togglePause()
+        else if (name === "speedup") root.session.toggleFastForward()
+        else if (name === "panel") root.panelToggled()
+        else if (name === "multiview") root.ctl.tab = "multiview"
+        else if (name.indexOf("layout_") === 0) root.ctl.screenLayout = name.substring(7)
+        else if (name.indexOf("speed_") === 0) root.session.fastForwardRatio = Number(name.substring(6))
+        else if (name === "fullscreen") root.fullscreenRequested()
+        else if (name === "diagnostics") root.diag.toggle()
+        else if (name === "reset") root.resetRequested()
+        else if (name === "hotkeys") { root.player.leaveGameView(); root.player.showControllers() }
+        else if (name === "report") root.player.report.show()
+    }
+    UzMenu {
+        id: moreMenu
+        objectName: "morePopover"
+        items: root.moreItems
+        menuWidth: 260
+        onChosen: (item) => root.runMore(item.name)
+    }
+    UzMenu {
+        id: layoutMenu
+        objectName: "layoutPopover"
+        items: root.layoutItems
+        selectable: true
+        value: root.ctl.screenLayout
+        menuWidth: 200
+        onChosen: (item) => root.ctl.screenLayout = item.value
+        list.footer: Text {
+            x: Theme.space15
+            height: 28
+            verticalAlignment: Text.AlignVCenter
+            text: root.multi ? qsTr("Applies to all tiles") : qsTr("This game only")
+            font.family: Theme.sans
+            font.pixelSize: Theme.roles.small.size
+            color: Theme.muted
+        }
+    }
+    UzMenu {
+        id: speedMenu
+        objectName: "speedPopover"
+        items: root.speedItems
+        selectable: true
+        value: Number(Math.round(root.session.fastForwardRatio * 10) / 10)
+        menuWidth: 160
+        onChosen: (item) => root.session.fastForwardRatio = Number(item.value)
     }
 
     RowLayout {
         id: headerRow
         anchors.fill: parent
-        onWidthChanged: root.updateFit()
-        onImplicitWidthChanged: root.updateFit()
-        Layout.onMinimumWidthChanged: root.updateFit()
-        anchors.leftMargin: 16
-        anchors.rightMargin: 16
-        spacing: 12
+        anchors.leftMargin: Theme.space3
+        anchors.rightMargin: Theme.space3
+        spacing: Theme.space2
 
         // 1 Back
-        GameButton {
+        UzButton {
+            id: backButton
             objectName: "backToLibraryButton"
-            muted: true
-            look: "flat"
-            implicitHeight: 32
-            hPad: 8
-            fixedWidth: root.tight ? 32 : 0
-            text: root.tight ? "" : qsTr("← Library")
-            glyph: root.tight ? "←" : ""
-            tip: root.own ? (root.tight ? qsTr("Library · game keeps running, paused") : qsTr("Game keeps running, paused"))
-                          : qsTr("Leave the Session and go to the Library")
+            kind: "link"
+            focusPolicy: Qt.TabFocus
+            text: qsTr("← Library")
+            font.pixelSize: Theme.roles.buttonSm.size
+            font.weight: Font.Normal
+            hPadding: 0
             Accessible.name: qsTr("Library")
+            ToolTip.visible: hovered
+            ToolTip.delay: 500
+            ToolTip.text: root.own ? qsTr("Game keeps running, paused") : qsTr("Leave the Session and go to the Library")
             onClicked: root.player.leaveGameView()
         }
-        Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.gameDivider }
+        Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 16; color: Theme.rule }
 
-        // 2 Context
+        // 2 Identity: title, system chip, sub, layout switch
         RowLayout {
-            id: headerContext
+            id: ident
             objectName: "headerContext"
             Layout.fillWidth: true
-            // Never narrower than the Multiview mode switch (regular, non-compact windows): when even the collapsed header does not fit (very wide
-            // fallback fonts), the right-hand zones run past the window edge instead of covering this switch.
-            // The share pill of a narrow Multiview header stays whole next to the (elided) game title.
-            Layout.minimumWidth: Math.max(modeSegment.visible ? Math.min(modeSegment.implicitWidth, root.compact ? 90 : 360) : 0,
-                                          multiSharePill.visible ? 100 : 0,
-                                          // multiview narrow form: the title may elide down to ten characters, the pill and the mode control stay whole
-                                          multiGameTitle.visible && root.fitStage < 4 ? multiGameTitle.Layout.minimumWidth + (multiSharePill.visible ? multiSharePill.Layout.minimumWidth + headerContext.spacing : 0)
-                                                                   + (modeCycle.visible ? modeCycle.implicitWidth + headerContext.spacing : 0) + headerContext.spacing : 0)
-            spacing: 10
-            // Session: title + share pill
-            UzLabel {
-                objectName: "gameTitle"
-                visible: root.own && !root.multi
-                Layout.minimumWidth: 0
-                Layout.maximumWidth: root.tight ? 150 : 240
-                text: root.session.title
-                elide: Text.ElideRight
-                color: Theme.gameText
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
-            }
-            SharePill {
-                objectName: "sharePill"
-                visible: root.own && !root.multi
-                on: root.ctl.shared
-                text: root.shareText
-            }
-            // Watching only
-            UzLabel {
-                visible: !root.own && !root.multi
-                Layout.minimumWidth: 0
-                text: qsTr("Watching")
-                color: Theme.gameMeta
-                font.pixelSize: 13
-            }
-            UzLabel {
-                objectName: "gameTitle"
-                visible: !root.own && !root.multi
-                Layout.minimumWidth: 0
-                text: qsTr("%1 · %2").arg(root.ctl.watchedWho).arg(root.ctl.watchedGame)
-                elide: Text.ElideRight
-                color: Theme.gameText
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
-            }
-            SharePill {
-                objectName: "watchLinkPill"
-                visible: !root.own && !root.multi && root.watchLink !== null
-                on: root.watchLink ? root.watchLink.tone === "ok" : false
-                text: root.watchLink ? root.watchLink.text : ""
-            }
-            // Multiview: title + mode. When the "Multiview" title and the "YOUR GAME" label give way (narrow windows, wide fonts) the
-            // header keeps the game name (elided) and the sharing pill (R-P5); watching only: the "Multiview" title.
-            UzLabel {
-                id: multiGameTitle
-                objectName: "multiGameTitle"
-                visible: root.multi && !multiTitle.visible
-                Layout.fillWidth: true
-                Layout.minimumWidth: root.fitStage < 4 ? Math.min(implicitWidth, tmTitle10.advanceWidth) : 0   // at least ten characters
-                Layout.preferredWidth: Math.min(implicitWidth, 120)
-                Layout.maximumWidth: Math.min(implicitWidth, root.tight ? 160 : 240)
-                elide: Text.ElideRight
-                text: root.own ? root.session.title : qsTr("Multiview")
-                color: Theme.gameText
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
-            }
-            SharePill {
-                id: multiSharePill
-                objectName: "multiSharePill"
-                visible: root.multi && root.own && !yourGame.visible
-                // fillWidth + maximumWidth = preferred: never grows, shrinks (its text elides) before the header overflows
+            Layout.minimumWidth: 0
+            spacing: Theme.space2
+            Text {
+                id: titleText
+                objectName: root.multi ? "multiviewTitle" : "gameTitle"
+                // fillWidth + maximumWidth = preferred: never grows, but shrinks (elides) before the header overflows
                 Layout.fillWidth: true
                 Layout.preferredWidth: implicitWidth
                 Layout.maximumWidth: implicitWidth
-                Layout.minimumWidth: root.fitStage < 4 ? implicitWidth : 0   // only the title gives way (to ten characters), the pill shortens by text first
-                on: root.ctl.shared
-                text: root.shortPill ? root.shareShort : root.shareText
+                Layout.minimumWidth: Math.min(implicitWidth, 100)
+                elide: Text.ElideRight
+                textFormat: Text.PlainText
+                text: root.multi ? qsTr("Multiview")
+                      : root.own ? root.session.title
+                      : qsTr("%1 · %2").arg(root.ctl.watchedWho).arg(root.ctl.watchedGame)
+                font.family: Theme.sans
+                font.pixelSize: Theme.roles.headerTitle.size
+                font.weight: Theme.roles.headerTitle.weight
+                color: Theme.ink
             }
-            UzLabel {
-                id: multiTitle
-                objectName: "multiviewTitle"
-                visible: root.multi && !root.narrow && !root.hideMultiTitle
+            UzSystemChip {
+                visible: root.systemCode !== "" && !root.multi
+                system: root.systemCode
+            }
+            Text {
+                id: subText
+                objectName: root.multi ? "multiSub" : (root.own ? "sharePill" : "watchLinkPill")
+                visible: text !== "" && !(root.multi && root.level >= 1)
+                Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 elide: Text.ElideRight
-                text: qsTr("Multiview")
-                color: Theme.gameText
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
+                textFormat: Text.PlainText
+                text: root.multi ? root.multiSub
+                      : root.own ? root.shareText
+                      : (root.watchLink ? root.watchLink.text : "")
+                font.family: Theme.sans
+                font.pixelSize: Theme.roles.buttonSm.size
+                color: Theme.muted
             }
-            GameSegment {
+            UzSegmented {
                 id: modeSegment
                 objectName: "modeSegment"
-                // fillWidth + maximumWidth = preferred: never grows, but shrinks with the context zone instead of running past it
+                visible: root.modeAvailable
                 Layout.fillWidth: true
                 Layout.preferredWidth: implicitWidth
                 Layout.maximumWidth: implicitWidth
-                visible: root.modeAvailable && !root.modeCollapsed
-                padX: root.tight ? 8 : 11
+                Layout.minimumWidth: 0
+                segmentHeight: Theme.row28
                 current: root.ctl.multiviewMode
                 // PiP | Row | Grid 2×2; Grid is disabled below four Sessions ("Grid 2×2 · from 4", ADR 0026 D2)
-                options: root.ctl.availableLayouts.map(function (m) {
-                    return m === "pip" ? { value: "pip", label: qsTr("PiP"), name: "modePip" }
-                         : m === "row" ? { value: "row", label: qsTr("Row"), name: "modeRow" }
-                         : { value: "grid", label: root.tight ? (root.ctl.gridAvailable ? qsTr("Grid") : qsTr("Grid · from 4"))   // compact: shorter labels before the segment shrinks to "P…"
-                                  : (root.ctl.gridAvailable ? qsTr("Grid 2×2") : qsTr("Grid 2×2 · from 4")), name: "modeGrid", disabled: !root.ctl.gridAvailable }
-                })
+                options: root.modeOptions
                 onPicked: (v) => root.ctl.multiviewMode = v
             }
-            // The mode switch when it would not fit: one button with the current mode, a click picks the next one.
-            GameButton {
-                id: modeCycle
-                objectName: "modeCycle"
-                visible: root.modeAvailable && root.modeCollapsed && !root.cycleHidden
-                look: "surface"
-                hPad: root.shortPill ? 6 : 10   // last stage (very wide fonts): no room for padding and caret either
-                readonly property var modes: root.ctl.availableLayouts.filter(m => m !== "grid" || root.ctl.gridAvailable)
-                text: root.ctl.multiviewMode === "pip" ? qsTr("PiP") : root.ctl.multiviewMode === "row" ? qsTr("Row") : qsTr("Grid")
-                widthText: qsTr("Grid")
-                caret: root.shortPill ? "" : "▾"
-                tip: qsTr("Multiview layout: %1 · click for the next").arg(text)
+            Item { Layout.fillWidth: true; Layout.preferredWidth: 0; Layout.minimumWidth: 0 }
+        }
+
+        // 3 End: audio label, watchers, header buttons
+        RowLayout {
+            id: endRow
+            spacing: Theme.space1
+            Text {
+                id: audioLabel
+                objectName: "audioLabel"
+                visible: root.multi && root.level < 1 && root.audioWho !== ""
+                Layout.rightMargin: Theme.space1
+                text: qsTr("Audio · %1").arg(root.audioWho)
+                textFormat: Text.PlainText
+                font.family: Theme.mono
+                font.pixelSize: 10
+                font.letterSpacing: 0.8
+                font.capitalization: Font.AllUppercase
+                color: Theme.dim
+            }
+            UzAvatarStack {
+                id: avatars
+                objectName: "watcherAvatars"
+                visible: root.watchers.length > 0 && root.level < 1 && !root.watchingOnly
+                Layout.rightMargin: Theme.space1
+                people: root.watchers
+            }
+            UzButton {
+                id: pauseButton
+                objectName: "pauseButton"
+                visible: root.own && root.level < 3
+                size: "sm"
                 focusPolicy: Qt.TabFocus
-                onClicked: {
-                    const i = modes.indexOf(root.ctl.multiviewMode)
-                    if (modes.length > 0) root.ctl.multiviewMode = modes[(i + 1) % modes.length]
-                }
-                Rectangle {
-                    objectName: "modeCycleFocusRing"
-                    visible: modeCycle.activeFocus
-                    anchors.fill: parent
-                    anchors.margins: -2
-                    radius: 0
-                    color: "transparent"
-                    border.width: 2
-                    border.color: Theme.gameAccent
-                }
+                text: root.session.paused ? qsTr("Resume") : qsTr("Pause")
+                on: root.session.paused
+                enabled: root.session.state === GameSession.Running || root.session.state === GameSession.Paused
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+                ToolTip.text: (root.session.paused ? qsTr("Resume") : qsTr("Pause")) + (root.multi ? qsTr(" your game") : "") + " · Esc"
+                onClicked: root.session.togglePause()
             }
-            Item { Layout.fillWidth: true }
-        }
-
-        // 3 Game controls (your game) or Leave (watching only)
-        Rectangle {
-            id: controls
-            objectName: "gameControls"
-            visible: root.own
-            Layout.alignment: Qt.AlignVCenter
-            implicitHeight: 34
-            implicitWidth: controlsRow.implicitWidth + 4
-            radius: 0
-            color: Theme.gameGroupBg
-            border.width: 1
-            border.color: Theme.gameGroupBorder
-            RowLayout {
-                id: controlsRow
-                anchors.fill: parent
-                anchors.margins: 2
-                spacing: 2
-                ColumnLayout {
-                    id: yourGame
-                    objectName: "yourGameLabel"
-                    visible: root.multi && !root.narrow && !root.hideYourGame
-                    Layout.leftMargin: 8
-                    Layout.rightMargin: 10
-                    spacing: 1
-                    UzMono { text: qsTr("YOUR GAME"); font.pixelSize: 10; font.weight: Font.Medium; font.letterSpacing: 0.8; color: Theme.gameFaint }
-                    SharePill { bare: true; on: root.ctl.shared; text: root.shareText }
-                }
-                GameButton {
-                    objectName: "pauseButton"
-                    iconKind: root.session.paused ? "play" : "pause"
-                    text: root.session.paused ? qsTr("Resume") : qsTr("Pause")
-                    widthText: qsTr("Resume")
-                    iconOnly: root.tight
-                    hPad: root.tight ? 9 : 10
-                    tip: (root.session.paused ? qsTr("Resume") : qsTr("Pause")) + (root.multi ? qsTr(" your game") : "") + " · Esc"
-                    enabled: root.session.state === GameSession.Running || root.session.state === GameSession.Paused
-                    onClicked: root.session.togglePause()
-                }
-                Rectangle {
-                    id: speedSplit
-                    objectName: "speedSplit"
-                    visible: root.session.fastForwardAvailable
-                    Layout.alignment: Qt.AlignVCenter
-                    implicitHeight: 30
-                    implicitWidth: splitRow.implicitWidth
-                    radius: 0
-                    color: root.session.fastForward || root.popover === "speed" ? Theme.gameOnBg : "transparent"
-                    readonly property bool on: root.session.fastForward || root.popover === "speed"
-                    RowLayout {
-                        id: splitRow
-                        anchors.fill: parent
-                        spacing: 0
-                        GameButton {
-                            objectName: "fastForwardButton"
-                            plain: true
-                            iconKind: "speed"
-                            text: qsTr("Speed-up")
-                            iconOnly: root.tight
-                            hPad: root.tight ? 9 : 10
-                            on: speedSplit.on
-                            tip: qsTr("Speed-up") + root.key(root.hotkeys.speedup)
-                            onClicked: root.session.toggleFastForward()
-                        }
-                        Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 16; color: Theme.gameSplitDivider }
-                        GameButton {
-                            objectName: "speedValueButton"
-                            plain: true
-                            monoLabel: true
-                            hPad: 8
-                            text: Math.round(root.session.fastForwardRatio * 10) / 10 + "×"
-                            widthText: "8×"
-                            caret: "▾"
-                            on: speedSplit.on
-                            tip: qsTr("Speed-up speed")
-                            onClicked: root.popoverToggled("speed")
-                        }
-                    }
-                }
-                GameButton {
-                    id: resetButton
-                    objectName: "resetButton"
-                    glyph: "↺"
-                    text: qsTr("Reset")
-                    iconOnly: root.tight    // 1280: the icon stays in the header (P44, 3r-3), never behind "⋯"
-                    hPad: root.tight ? 9 : 10
-                    danger: root.popover === "reset"
-                    tip: qsTr("Reset game")
-                    enabled: root.session.active
-                    onClicked: root.popoverToggled("reset")
-                }
+            UzButton {
+                id: fastForwardButton
+                objectName: "fastForwardButton"
+                visible: root.own && root.session.fastForwardAvailable && root.level < 3
+                size: "sm"
+                focusPolicy: Qt.TabFocus
+                text: qsTr("Speed-up %1×").arg(Math.round(root.session.fastForwardRatio * 10) / 10)
+                on: root.session.fastForward
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Speed-up") + (root.key(root.hotkeys.speedup) !== "" ? " · " + root.hotkeys.speedup : "")
+                onClicked: root.session.toggleFastForward()
             }
-        }
-        GameButton {
-            objectName: "leaveButton"
-            visible: !root.own
-            look: "outlined"
-            hPad: 12
-            text: qsTr("Leave")
-            tip: qsTr("Leave the Session")
-            onClicked: root.player.leaveGameView()
-        }
-
-        // 4 View
-        Rectangle { visible: root.own || addButton.visible; Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.gameDivider }
-        GameSegment {
-            id: viewSegment
-            objectName: "viewSegment"
-            visible: root.own
-            // fillWidth + maximumWidth = preferred: never grows, but may shrink (a non-fill item is never shrunk by the layout)
-            Layout.fillWidth: true
-            Layout.preferredWidth: implicitWidth
-            Layout.maximumWidth: implicitWidth
-            Layout.minimumWidth: Math.min(implicitWidth, 120)
-            padX: 12
-            current: root.multi ? "multiview" : "session"
-            options: [
-                { value: "session", label: qsTr("Session"), name: "tabSession" },
-                { value: "multiview", label: root.shortView ? qsTr("Multi") : qsTr("Multiview"), name: "tabMultiview" }
-            ]
-            onPicked: (v) => root.ctl.tab = v
-        }
-        GameButton {
-            id: addButton
-            objectName: "addSessionToggle"
-            visible: root.ctl.tab !== "session" && root.ctl.surfaceCount >= 1
-            look: "surface"
-            hPad: 11
-            text: qsTr("+ Add")
-            meta: "· " + root.ctl.surfaceCount + "/" + root.ctl.maxSurfaces
-            showMeta: !root.hideAddMeta && !root.stageHints
-            on: root.popover === "picker"
-            tip: qsTr("Running sessions")
-            onClicked: root.popoverToggled("picker")
-        }
-
-        // 5 Display
-        Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.gameDivider }
-        Rectangle {
-            id: display
-            objectName: "displayControls"
-            Layout.alignment: Qt.AlignVCenter
-            implicitHeight: 34
-            implicitWidth: displayRow.implicitWidth + 4
-            radius: 0
-            color: Theme.gameGroupBg
-            border.width: 1
-            border.color: Theme.gameGroupBorder
-            RowLayout {
-                id: displayRow
-                anchors.fill: parent
-                anchors.margins: 2
-                spacing: 2
-                GameButton {
-                    id: layoutButton
-                    objectName: "layoutSwitch"
-                    visible: root.layouts.length > 1
-                    iconKind: "layout"
-                    text: root.multi && !root.tight ? qsTr("All tiles") : ""
-                    iconOnly: !(root.multi && !root.tight)
-                    caret: "▾"
-                    hPad: 9
-                    on: root.popover === "layout"
-                    tip: root.multi ? qsTr("Screen layout · all tiles") : qsTr("Screen layout · this game only")
-                    onClicked: root.popoverToggled("layout")
-                }
-                GameButton {
-                    id: diagnosticsButton
-                    showHint: !root.hideHints && !root.stageHints
-                    objectName: "diagnosticsButton"
-                    iconKind: "diag"
-                    text: qsTr("Diagnostics")
-                    iconOnly: root.tight || root.multi
-                    hint: root.hotkeys.diagnostics || ""
-                    hPad: root.tight ? 9 : 10
-                    on: root.diag.open
-                    tip: qsTr("Diagnostics") + root.key(root.hotkeys.diagnostics)
-                    onClicked: root.diag.toggle()
-                }
-                GameButton {
-                    id: fullscreenButton
-                    showHint: !root.hideHints && !root.stageHints
-                    objectName: "fullscreenButton"
-                    iconKind: "fullscreen"
-                    text: qsTr("Fullscreen")
-                    iconOnly: root.tight || root.multi
-                    hint: root.hotkeys.fullscreen || ""
-                    hPad: root.tight ? 9 : 10
-                    tip: qsTr("Fullscreen") + root.key(root.hotkeys.fullscreen)
-                    onClicked: root.fullscreenRequested()
-                }
+            UzIconButton {
+                id: speedValueButton
+                objectName: "speedValueButton"
+                visible: root.own && root.session.fastForwardAvailable && root.level < 1
+                focusPolicy: Qt.TabFocus
+                glyph: "chevronDown"
+                glyphSize: 12
+                on: speedMenu.opened
+                Accessible.name: qsTr("Speed-up speed")
+                onClicked: speedMenu.opened ? speedMenu.close() : speedMenu.openFor(speedValueButton, "below", true)
             }
-        }
-        GameButton {
-            id: moreButton
-            objectName: "moreButton"
-            visible: (root.tight && root.own) || (root.modeAvailable && root.cycleHidden)
-            look: "surface"
-            fixedWidth: 32
-            glyph: "⋯"
-            on: root.popover === "more"
-            tip: qsTr("More")
-            onClicked: root.popoverToggled("more")
+            UzButton {
+                id: layoutButton
+                objectName: "layoutSwitch"
+                visible: root.layouts.length > 1 && root.level < 1
+                size: "sm"
+                focusPolicy: Qt.TabFocus
+                text: qsTr("Layout")
+                on: layoutMenu.opened
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+                ToolTip.text: root.multi ? qsTr("Screen layout · all tiles") : qsTr("Screen layout · this game only")
+                onClicked: layoutMenu.opened ? layoutMenu.close() : layoutMenu.openFor(layoutButton, "below", true)
+            }
+            UzButton {
+                id: viewButton
+                objectName: "tabMultiview"
+                visible: !root.multi && root.own && root.level < 2
+                size: "sm"
+                focusPolicy: Qt.TabFocus
+                text: qsTr("Multiview")
+                onClicked: root.ctl.tab = "multiview"
+            }
+            UzButton {
+                id: addButton
+                objectName: "addSessionToggle"
+                visible: root.ctl.tab !== "session" && root.ctl.surfaceCount >= 1
+                size: "sm"
+                focusPolicy: Qt.TabFocus
+                text: qsTr("Add tile")
+                on: root.popover === "picker"
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Running sessions · %1 of %2 tiles").arg(root.ctl.surfaceCount).arg(root.ctl.maxSurfaces)
+                onClicked: root.pickerToggled()
+            }
+            UzButton {
+                id: panelButton
+                objectName: "panelToggle"
+                visible: root.level < 2 || root.watchingOnly
+                size: "sm"
+                focusPolicy: Qt.TabFocus
+                text: qsTr("Panel")
+                on: root.panelShown
+                onClicked: root.panelToggled()
+            }
+            UzButton {
+                id: leaveMulti
+                objectName: "leaveMultiview"
+                visible: root.multi
+                size: "sm"
+                focusPolicy: Qt.TabFocus
+                text: qsTr("Leave")
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+                ToolTip.text: root.own ? qsTr("Back to your game") : qsTr("Leave the Session")
+                onClicked: root.leaveMultiview()
+            }
+            UzButton {
+                id: leaveButton
+                objectName: "leaveButton"
+                visible: root.watchingOnly
+                size: "sm"
+                focusPolicy: Qt.TabFocus
+                text: qsTr("Leave")
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Leave the Session")
+                onClicked: root.player.leaveGameView()
+            }
+            UzIconButton {
+                id: moreButton
+                objectName: "moreButton"
+                focusPolicy: Qt.TabFocus
+                glyph: "more"
+                on: moreMenu.opened
+                Accessible.name: qsTr("More")
+                onClicked: moreMenu.opened ? moreMenu.close() : moreMenu.openFor(moreButton, "below", true)
+            }
         }
     }
 }

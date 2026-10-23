@@ -16,7 +16,60 @@ Rectangle {
     // Admins can switch between this PC and the server ("Settings for"); members and users without a server see this PC only.
     readonly property bool canSwitchScope: root.player.isAdmin && root.player.hubAddress !== ""
     property string scope: "pc"   // pc | server
-    color: Theme.bg
+    color: Theme.ground
+
+    // Open help column (boards 9c-1, 6l-1): only on windows wide enough to keep the rows in their wide layout.
+    readonly property bool helpOn: root.width >= 1480
+    readonly property var helpItems: {
+        switch (root.currentSection) {
+        case "appearance": return [{ text: qsTr("Theme is per PC; your favourites and collections follow your account.") }]
+        case "storage": return [{ title: qsTr("Nothing on the server"), text: qsTr("This only removes copies on this PC. Saves are always on %1 and never part of a clean-up.").arg(root.player.hubName !== "" ? root.player.hubName : qsTr("your server")) }]
+        case "library": return [{ text: qsTr("Uzume tells the server which games you have; the files stay on this PC.") }]
+        default: return [{ text: qsTr("These settings only affect this PC and your account.") }]
+        }
+    }
+
+    // Second-column item (board nav): 32 px minimum, 14 px label, 2 px Yamabuki start marker when selected; extra lines go below.
+    component NavRow: Item {
+        id: nr
+        property string label: ""
+        property bool selected: false
+        default property alias sub: subCol.data
+        signal clicked()
+        Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        implicitHeight: Math.max(Theme.row32, nrCol.implicitHeight + 2 * Theme.space05)
+        Rectangle { anchors.fill: parent; color: nrHover.hovered && !nr.selected ? Theme.hover : "transparent" }
+        Rectangle {
+            objectName: "columnItemMarker"
+            visible: nr.selected
+            width: 2
+            height: parent.height
+            color: Theme.accent
+        }
+        ColumnLayout {
+            id: nrCol
+            x: Theme.space15
+            y: Math.max(0, (nr.height - implicitHeight) / 2)
+            width: Math.max(0, nr.width - 2 * Theme.space15)
+            spacing: 0
+            UzLabel {
+                Layout.fillWidth: true
+                text: nr.label
+                elide: Text.ElideRight
+                font.weight: nr.selected ? Font.Medium : Font.Normal
+                color: nr.selected ? Theme.ink : Theme.muted
+            }
+            ColumnLayout {
+                id: subCol
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                spacing: 0
+            }
+        }
+        HoverHandler { id: nrHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: nr.clicked() }
+    }
 
     readonly property var savedHubs: root.player.hubs.filter(function (h) { return h.saved })
     readonly property string activeHubName: {
@@ -81,7 +134,7 @@ Rectangle {
     }
     function jumpTo(name: string) {
         root.currentSection = name
-        const target = Math.max(0, Math.min(sectionItem(name).y + content.y - 20, flick.contentHeight - flick.height))
+        const target = Math.max(0, Math.min(sectionItem(name).y + content.y - Theme.space2, flick.contentHeight - flick.height))
         scrollAnim.stop()
         scrollAnim.to = target
         scrollAnim.start()
@@ -132,58 +185,104 @@ Rectangle {
 
         UzAppNav {
             Layout.fillHeight: true
-            Layout.preferredWidth: Theme.sidebarWidth
+            Layout.preferredWidth: Theme.sidebar
             player: root.player
         }
 
-        ShellColumn {
+        // Second column (board 9c-1): the This PC / Server switch, the scope line and the sections.
+        Item {
             Layout.fillHeight: true
-            Layout.preferredWidth: Theme.columnWidth
-            title: qsTr("Settings")
+            Layout.preferredWidth: Theme.sidebar
+            Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: Theme.rule }
+            Flickable {
+                anchors.fill: parent
+                contentWidth: width
+                contentHeight: secNav.implicitHeight + Theme.space7
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ColumnLayout {
+                    id: secNav
+                    x: Theme.space2
+                    y: Theme.space5 + Theme.space1
+                    width: parent.width - 2 * Theme.space2 - 1
+                    spacing: 0
 
-            Repeater {
-                model: root.scope !== "pc" ? [] : [
-                    { id: "updates", name: qsTr("Updates") },
-                    { id: "hubs", name: qsTr("Servers") },
-                    { id: "appearance", name: qsTr("Appearance") },
-                    { id: "library", name: qsTr("Library folders") },
-                    { id: "storage", name: qsTr("ROM cache") },
-                    { id: "plugins", name: qsTr("Plugins") },
-                    { id: "diagnostics", name: qsTr("Diagnostics") }
-                ]
-                delegate: ColumnItem {
-                    id: sec
-                    required property var modelData
-                    objectName: "section_" + modelData.id
-                    selected: root.currentSection === modelData.id
-                    onClicked: root.jumpTo(sec.modelData.id)
-                    UzLabel { text: sec.modelData.name; font.weight: Font.DemiBold }
-                    UzLabel {
-                        objectName: "sectionStatus_" + sec.modelData.id
+                    // Settings for: This PC / Server (admins only).
+                    ColumnLayout {
+                        objectName: "settingsScopeRow"
+                        visible: root.canSwitchScope
                         Layout.fillWidth: true
-                        font.pixelSize: Theme.fontMeta
-                        elide: Text.ElideRight
-                        color: sec.modelData.id === "updates" && root.updates.updateAvailable ? Theme.accentText : Theme.textMuted
-                        text: sec.modelData.id === "updates" ? root.updatesLine()
-                              : sec.modelData.id === "hubs" ? (root.activeHubName !== ""
-                                                               ? qsTr("%1 saved · %2 active").arg(root.savedHubs.length).arg(root.activeHubName)
-                                                               : qsTr("%1 saved").arg(root.savedHubs.length))
-                              : sec.modelData.id === "appearance" ? (root.player.appearance === "light" ? qsTr("Light")
-                                                                     : root.player.appearance === "system" ? qsTr("System") : qsTr("Dark"))
-                              : sec.modelData.id === "library" ? root.libraryNavText()
-                              : sec.modelData.id === "storage" ? qsTr("%1 of %2").arg(root.player.romCache.usedText).arg(root.player.romCache.limitText)
-                              : sec.modelData.id === "plugins" ? root.player.plugins.summary
-                              : qsTr("Logs and support")
+                        Layout.minimumWidth: 0
+                        Layout.bottomMargin: 14
+                        spacing: Theme.space05
+                        UzLabel { text: qsTr("Settings for"); color: Theme.muted; font.pixelSize: Theme.roles.fieldLabel.size; font.weight: Theme.roles.fieldLabel.weight }
+                        UzSegmented {
+                            objectName: "settingsScope"
+                            Layout.fillWidth: true
+                            stretch: true
+                            options: [{ value: "pc", label: qsTr("This PC"), name: "scopePc" }, { value: "server", label: qsTr("Server"), name: "scopeServer" }]
+                            current: root.scope
+                            onPicked: (value) => root.scope = value
+                        }
+                    }
+                    UzLabel {
+                        objectName: "settingsScopeHint"
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.space15
+                        Layout.rightMargin: Theme.space15
+                        Layout.bottomMargin: 14
+                        text: root.scope === "server" ? qsTr("Affects everyone on %1.").arg(root.player.hubName) : qsTr("Only affects this PC and your account.")
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.small.size
+                        lineHeight: Theme.roles.small.line
+                        lineHeightMode: Text.FixedHeight
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Repeater {
+                        model: root.scope !== "pc" ? [] : [
+                            { id: "updates", name: qsTr("Updates") },
+                            { id: "hubs", name: qsTr("Servers") },
+                            { id: "appearance", name: qsTr("Appearance") },
+                            { id: "library", name: qsTr("Library folders") },
+                            { id: "storage", name: qsTr("Storage") },
+                            { id: "plugins", name: qsTr("Plugins") },
+                            { id: "diagnostics", name: qsTr("Diagnostics") }
+                        ]
+                        delegate: NavRow {
+                            id: sec
+                            required property var modelData
+                            objectName: "section_" + modelData.id
+                            label: sec.modelData.name
+                            selected: root.currentSection === modelData.id
+                            onClicked: root.jumpTo(sec.modelData.id)
+                            UzLabel {
+                                objectName: "sectionStatus_" + sec.modelData.id
+                                Layout.fillWidth: true
+                                font.pixelSize: Theme.roles.small.size
+                                elide: Text.ElideRight
+                                color: sec.modelData.id === "updates" && root.updates.updateAvailable ? Theme.accentText : Theme.dim
+                                text: sec.modelData.id === "updates" ? root.updatesLine()
+                                      : sec.modelData.id === "hubs" ? (root.activeHubName !== ""
+                                                                       ? qsTr("%1 saved · %2 active").arg(root.savedHubs.length).arg(root.activeHubName)
+                                                                       : qsTr("%1 saved").arg(root.savedHubs.length))
+                                      : sec.modelData.id === "appearance" ? (root.player.appearance === "light" ? qsTr("Light")
+                                                                             : root.player.appearance === "system" ? qsTr("System") : qsTr("Dark"))
+                                      : sec.modelData.id === "library" ? root.libraryNavText()
+                                      : sec.modelData.id === "storage" ? qsTr("%1 of %2").arg(root.player.romCache.usedText).arg(root.player.romCache.limitText)
+                                      : sec.modelData.id === "plugins" ? root.player.plugins.summary
+                                      : qsTr("Logs and support")
+                            }
+                        }
+                    }
+
+                    // Settings for: Server (admins): the seven server pages of ServerSettingsPane.
+                    Repeater {
+                        model: root.scope === "server" ? serverPane.pages : []
+                        delegate: serverPane.navDelegate
                     }
                 }
             }
-
-            Repeater {
-                model: root.scope === "server" ? serverPane.pages : []
-                delegate: serverPane.navDelegate
-            }
-
-            Item { Layout.fillHeight: true }
         }
 
         Flickable {
@@ -192,7 +291,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             contentWidth: width
-            contentHeight: content.implicitHeight + 72
+            contentHeight: content.implicitHeight + Theme.space7 + Theme.space2
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar { }
@@ -201,42 +300,38 @@ Rectangle {
 
             ColumnLayout {
                 id: content
-                x: 36
-                y: 28
-                width: Math.min(Theme.contentMaxWidth, flick.width - 72)   // left-aligned, never wider than 880 (P7); descriptions are capped per row
+                x: Theme.space5 + Theme.space1
+                y: Theme.space5 + Theme.space1
+                width: Math.min(Theme.contentMaxWidth, flick.width - 2 * (Theme.space5 + Theme.space1))   // left-aligned, never wider than 880 (P7); descriptions are capped per row
                 // Hub card and update card sit on the label edge (14 in) and end where the controls end (72 in) on wide pages.
                 readonly property bool wide: width >= Theme.settingsNarrowBelow
-                spacing: 32
+                spacing: Theme.space4
 
+                // Page header: section label and title (Light 40, once per page).
                 ColumnLayout {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    spacing: 2
-                    UzLabel { Layout.fillWidth: true; text: qsTr("Settings"); elide: Text.ElideRight; font.pixelSize: Theme.fontPage; font.weight: Font.DemiBold; font.letterSpacing: -0.4 }
-                    UzLabel {
-                        Layout.fillWidth: true
-                        wrapMode: Text.Wrap
-                        text: root.scope === "server" ? qsTr("Affects everyone on %1.").arg(root.player.hubName) : qsTr("Saved on this device only")
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontSmall
-                    }
-                }
-
-                // Settings for: This PC / Server (admins only).
-                RowLayout {
-                    objectName: "settingsScopeRow"
-                    visible: root.canSwitchScope
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
                     spacing: Theme.space2
-                    Eyebrow { text: qsTr("Settings for") }
-                    UzSegmented {
-                        objectName: "settingsScope"
-                        options: [{ value: "pc", label: qsTr("This PC"), name: "scopePc" }, { value: "server", label: qsTr("Server"), name: "scopeServer" }]
-                        current: root.scope
-                        onPicked: (value) => root.scope = value
+                    UzSectionLabel {
+                        Layout.fillWidth: true
+                        number: 1
+                        text: root.scope === "server" ? qsTr("Server") : qsTr("This PC")
+                        meta: root.scope === "server" ? root.player.hubName : ""
                     }
-                    Item { Layout.fillWidth: true }
+                    Text {
+                        objectName: "settingsTitle"
+                        Layout.fillWidth: true
+                        text: qsTr("Settings")
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.title.size
+                        font.weight: Font.Light
+                        font.letterSpacing: Theme.roles.title.spacing
+                        color: Theme.ink
+                        lineHeight: Theme.roles.title.line
+                        lineHeightMode: Text.FixedHeight
+                    }
                 }
                 // Server settings (3q-app-1 to 3q-app-7): the pages are chosen in the second column, shown here.
                 ServerSettingsPane {
@@ -251,12 +346,12 @@ Rectangle {
                     visible: root.scope === "pc"
                     objectName: "updatesSection"
                     Layout.fillWidth: true
-                    spacing: Theme.space14
+                    spacing: Theme.space15
 
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
-                        Eyebrow { text: qsTr("Updates"); Layout.fillWidth: true }
+                        UzSectionLabel { text: qsTr("Updates"); Layout.fillWidth: true }
                         UzTag {
                             objectName: "updatesPill"
                             visible: root.updates.state === "up_to_date" && !root.updates.updateAvailable
@@ -272,36 +367,35 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.leftMargin: Theme.settingsDotSlot
                         Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0
-                        implicitHeight: pausedCol.implicitHeight + 36
-                        radius: Theme.radius10
-                        color: Theme.pluginWarnBg
-                        border.width: 1
-                        border.color: Theme.pluginWarnLine
+                        implicitHeight: pausedCol.implicitHeight + 2 * Theme.space2
+                        color: Theme.selected
+                        Rectangle { width: 2; height: parent.height; color: Theme.accent }   // marker-start, no amber frame
 
                         ColumnLayout {
                             id: pausedCol
                             anchors.fill: parent
-                            anchors.margins: 18
-                            spacing: Theme.space10
+                            anchors.margins: Theme.space2
+                            anchors.leftMargin: Theme.space3
+                            spacing: Theme.space15
                             UzLabel {
                                 objectName: "updatesPausedTitle"
                                 Layout.fillWidth: true
                                 text: root.updates.pausedTitle
-                                font.pixelSize: Theme.fontSection
+                                font.pixelSize: Theme.roles.itemTitle.size
                                 font.weight: Font.DemiBold
-                                color: Theme.pluginWarnText
+                                color: Theme.ink2
                                 wrapMode: Text.WordWrap
                             }
                             UzLabel {
                                 objectName: "updatesPausedDetail"
                                 Layout.fillWidth: true
                                 text: root.updates.pausedDetail
-                                font.pixelSize: Theme.fontSmall
-                                color: Theme.pluginWarnText
+                                font.pixelSize: Theme.roles.input.size
+                                color: Theme.ink2
                                 wrapMode: Text.WordWrap
                             }
                             RowLayout {
-                                spacing: Theme.space10
+                                spacing: Theme.space15
                                 UzButton {
                                     objectName: "updatesUpdateToSkipped"
                                     visible: root.updates.skippedVersion !== "" && root.updates.canInstall
@@ -327,36 +421,35 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.leftMargin: Theme.settingsDotSlot
                         Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0   // ends where the controls end (P5)
-                        implicitHeight: cardCol.implicitHeight + 36
-                        radius: Theme.radius10
-                        color: Theme.surface
+                        implicitHeight: cardCol.implicitHeight + 2 * Theme.space2
+                        color: "transparent"
                         border.width: 1
-                        border.color: root.updates.updateAvailable ? Theme.accentBorder : Theme.borderCard
+                        border.color: root.updates.updateAvailable ? Theme.accent : Theme.rule2
 
                         ColumnLayout {
                             id: cardCol
                             anchors.fill: parent
                             anchors.margins: 18
-                            spacing: Theme.space10
+                            spacing: Theme.space15
 
                             RowLayout {
-                                spacing: Theme.space10
+                                spacing: Theme.space15
                                 UzLabel {
                                     objectName: "updateCardTitle"
                                     text: root.updates.updateAvailable ? qsTr("▲ Update available")
                                           : (root.updates.state === "checking" ? qsTr("Checking for updates…")
                                              : root.updates.effectiveChannel === "off" ? qsTr("Updates are off")
                                              : qsTr("Uzume %1 is up to date").arg(root.updates.currentVersion))
-                                    font.pixelSize: Theme.fontSection
+                                    font.pixelSize: Theme.roles.itemTitle.size
                                     font.weight: Font.DemiBold
-                                    color: root.updates.updateAvailable ? Theme.warn : Theme.text
+                                    color: root.updates.updateAvailable ? Theme.accentText : Theme.ink
                                 }
                                 UzMono {
                                     objectName: "updatesAvailableVersion"
                                     visible: root.updates.updateAvailable
                                     text: root.updates.availableVersion
-                                    color: Theme.text
-                                    font.pixelSize: Theme.fontSmall
+                                    color: Theme.ink
+                                    font.pixelSize: Theme.roles.input.size
                                 }
                                 Item { Layout.fillWidth: true }
                                 UzSpinner { visible: root.updates.checking; size: 14 }
@@ -372,15 +465,15 @@ Rectangle {
                                         ? qsTr("Choose Stable or Beta to check for updates.")
                                       : root.updates.statusText
                                 wrapMode: Text.WordWrap
-                                font.pixelSize: Theme.fontSmall
-                                color: root.updates.state === "error" ? Theme.toneColor("error") : Theme.textSecondary
+                                font.pixelSize: Theme.roles.input.size
+                                color: root.updates.state === "error" ? Theme.toneColor("error") : Theme.ink2
                             }
                             Rectangle {
                                 Layout.fillWidth: true
                                 implicitHeight: 6
                                 radius: 0
                                 visible: root.updates.state === "downloading"
-                                color: Theme.borderRow
+                                color: Theme.rule2
                                 Rectangle {
                                     width: parent.width * root.updates.progress
                                     height: parent.height
@@ -390,7 +483,7 @@ Rectangle {
                                 }
                             }
                             RowLayout {
-                                spacing: Theme.space10
+                                spacing: Theme.space15
                                 visible: root.updates.notesUrl !== "" || root.updates.canInstall
                                 UzButton {
                                     objectName: "updatesNotes"
@@ -417,7 +510,7 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         spacing: 0
-                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.rule2 }
 
                         UzSettingsRow {
                             objectName: "updateChannelRow"
@@ -492,16 +585,16 @@ Rectangle {
                         objectName: "earlierVersions"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
-                        Layout.topMargin: Theme.space10
-                        spacing: Theme.space10
+                        Layout.topMargin: Theme.space15
+                        spacing: Theme.space15
 
-                        Eyebrow { text: qsTr("Earlier versions · %1").arg(root.updates.earlierCount) }
+                        UzSectionLabel { Layout.fillWidth: true; text: qsTr("Earlier versions · %1").arg(root.updates.earlierCount) }
                         UzLabel {
                             Layout.fillWidth: true
                             text: qsTr("Go back if something stopped working after an update. Settings stay; saves and states are on your server and are not touched. The list shows the last %1 releases.").arg(5)
                             wrapMode: Text.WordWrap
-                            font.pixelSize: Theme.fontSmall
-                            color: Theme.textSecondary
+                            font.pixelSize: Theme.roles.input.size
+                            color: Theme.ink2
                         }
                         UzLabel {
                             objectName: "earlierUnavailable"
@@ -509,8 +602,8 @@ Rectangle {
                             Layout.fillWidth: true
                             text: root.updates.goBackUnavailableText
                             wrapMode: Text.WordWrap
-                            font.pixelSize: Theme.fontSmall
-                            color: Theme.pluginWarn
+                            font.pixelSize: Theme.roles.input.size
+                            color: Theme.accentText
                         }
                         UzLabel {
                             objectName: "earlierEmpty"
@@ -520,8 +613,8 @@ Rectangle {
                                   ? qsTr("Choose Stable or Beta to see earlier versions.")
                                   : qsTr("No earlier version to go back to. The list fills after the next update check.")
                             wrapMode: Text.WordWrap
-                            font.pixelSize: Theme.fontSmall
-                            color: Theme.textMuted
+                            font.pixelSize: Theme.roles.input.size
+                            color: Theme.muted
                         }
                         Repeater {
                             model: root.updates.earlierVersions
@@ -531,21 +624,19 @@ Rectangle {
                                 objectName: "earlierRow-" + modelData.version
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
-                                implicitHeight: 52
-                                radius: Theme.radius10
-                                color: Theme.surface
-                                border.width: 1
-                                border.color: Theme.borderCard
+                                implicitHeight: Theme.row48
+                                color: "transparent"
+                                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
 
                                 RowLayout {
                                     anchors.fill: parent
                                     anchors.leftMargin: 16
                                     anchors.rightMargin: 12
-                                    spacing: Theme.space12
+                                    spacing: Theme.space15
                                     UzMono {
                                         text: earlierRow.modelData.version
-                                        color: Theme.text
-                                        font.pixelSize: Theme.fontBody
+                                        color: Theme.ink
+                                        font.pixelSize: Theme.roles.body.size
                                     }
                                     UzLabel {
                                         objectName: "earlierState-" + earlierRow.modelData.version
@@ -554,8 +645,8 @@ Rectangle {
                                         text: earlierRow.modelData.kind === "running" ? (earlierRow.modelData.text !== "" ? qsTr("Running · %1").arg(earlierRow.modelData.text) : qsTr("Running"))
                                                                                       : earlierRow.modelData.text
                                         elide: Text.ElideRight
-                                        font.pixelSize: Theme.fontSmall
-                                        color: earlierRow.modelData.kind === "skipped" ? Theme.pluginWarn : Theme.textMuted
+                                        font.pixelSize: Theme.roles.input.size
+                                        color: earlierRow.modelData.kind === "skipped" ? Theme.accentText : Theme.muted
                                     }
                                     UzButton {
                                         objectName: "earlierGoBack-" + earlierRow.modelData.version
@@ -585,7 +676,7 @@ Rectangle {
                     visible: root.scope === "pc"
                     objectName: "hubsSection"
                     Layout.fillWidth: true
-                    spacing: Theme.space12
+                    spacing: Theme.space15
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -674,10 +765,9 @@ Rectangle {
                             Layout.leftMargin: Theme.settingsDotSlot
                             Layout.rightMargin: content.wide ? Theme.settingsResetWidth : 0
                             Layout.preferredHeight: visible ? rowCol.implicitHeight + 28 : 0
-                            radius: Theme.radius10
                             color: Theme.surface
                             border.width: modelData.connected ? 1.5 : 1
-                            border.color: modelData.connected ? Theme.accent : Theme.borderCard
+                            border.color: modelData.connected ? Theme.accent : Theme.rule
 
                             ColumnLayout {
                                 id: rowCol
@@ -685,7 +775,7 @@ Rectangle {
                                 anchors.margins: 14
                                 anchors.leftMargin: 16
                                 anchors.rightMargin: 16
-                                spacing: Theme.space12
+                                spacing: Theme.space15
                                 RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 24
@@ -694,11 +784,11 @@ Rectangle {
                                         Layout.minimumWidth: 0
                                         spacing: 2
                                         RowLayout {
-                                            spacing: Theme.space8
+                                            spacing: Theme.space1
                                             UzLabel {
                                                 objectName: "hubName_" + hubRow.modelData.hubId
                                                 text: hubRow.modelData.name
-                                                font.pixelSize: Theme.fontSection
+                                                font.pixelSize: Theme.roles.itemTitle.size
                                                 font.weight: Font.Medium
                                                 elide: Text.ElideRight
                                                 Layout.maximumWidth: 280
@@ -784,8 +874,8 @@ Rectangle {
                                         anchors.rightMargin: 24
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 2
-                                        UzLabel { text: qsTr("Connect automatically on startup"); font.pixelSize: Theme.fontBody; Layout.fillWidth: true }
-                                        UzLabel { text: qsTr("Uses this server when Uzume starts."); color: Theme.textMuted; font.pixelSize: Theme.fontMeta; Layout.fillWidth: true }
+                                        UzLabel { text: qsTr("Connect automatically on startup"); font.pixelSize: Theme.roles.body.size; Layout.fillWidth: true }
+                                        UzLabel { text: qsTr("Uses this server when Uzume starts."); color: Theme.muted; font.pixelSize: Theme.roles.small.size; Layout.fillWidth: true }
                                     }
                                     UzToggle {
                                         id: autoToggle
@@ -805,7 +895,7 @@ Rectangle {
                                     objectName: "hubEditRow_" + hubRow.modelData.hubId
                                     visible: hubRow.editing && !hubRow.confirmRemove
                                     Layout.fillWidth: true
-                                    spacing: Theme.space8
+                                    spacing: Theme.space1
                                     // "host" or "host:port"; the port defaults to 8443 when left out.
                                     readonly property var parts: {
                                         const t = hubEditAddress.text.trim()
@@ -817,12 +907,12 @@ Rectangle {
                                     readonly property bool valid: messages.length === 0 && hubEditAddress.text.trim() !== ""
                                     readonly property bool changed: hubEditAddress.text.trim() !== hubRow.modelData.host + ":" + hubRow.modelData.port
 
-                                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+                                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.rule2 }
                                     Eyebrow { text: qsTr("Edit · %1").arg(hubRow.modelData.name) }
                                     RowLayout {
                                         Layout.fillWidth: true
-                                        spacing: Theme.space10
-                                        UzLabel { text: qsTr("Address"); color: Theme.textMuted; font.pixelSize: Theme.fontSmall; Layout.preferredWidth: 70 }
+                                        spacing: Theme.space15
+                                        UzLabel { text: qsTr("Address"); color: Theme.muted; font.pixelSize: Theme.roles.input.size; Layout.preferredWidth: 70 }
                                         UzField {
                                             id: hubEditAddress
                                             objectName: "hubEditAddress_" + hubRow.modelData.hubId
@@ -870,15 +960,15 @@ Rectangle {
                                         visible: text !== "" && hubEditAddress.text.trim() !== ""
                                         text: editBox.messages.length > 0 ? editBox.messages.join(" · ") : extra
                                         wrapMode: Text.WordWrap
-                                        font.pixelSize: Theme.fontMeta
-                                        color: Theme.error
+                                        font.pixelSize: Theme.roles.small.size
+                                        color: Theme.danger
                                     }
                                     UzLabel {
                                         objectName: "hubEditHint_" + hubRow.modelData.hubId
                                         Layout.fillWidth: true
                                         wrapMode: Text.WordWrap
-                                        font.pixelSize: Theme.fontMeta
-                                        color: Theme.textMuted
+                                        font.pixelSize: Theme.roles.small.size
+                                        color: Theme.muted
                                         text: qsTr("host:port, without https://. If the server shows a different certificate, Uzume asks you to compare it.")
                                     }
                                 }
@@ -886,14 +976,14 @@ Rectangle {
                                 RowLayout {
                                     objectName: "hubRemoveConfirm_" + hubRow.modelData.hubId
                                     Layout.fillWidth: true
-                                    spacing: Theme.space10
+                                    spacing: Theme.space15
                                     visible: hubRow.confirmRemove
                                     UzLabel {
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
                                         wrapMode: Text.WordWrap
-                                        font.pixelSize: Theme.fontMeta
-                                        color: Theme.text
+                                        font.pixelSize: Theme.roles.small.size
+                                        color: Theme.ink
                                         text: hubRow.modelData.connected
                                               ? qsTr("Remove %1 from Uzume? Running Sessions end and you return to the connection screen. Saves on the server are not deleted.").arg(hubRow.modelData.name)
                                               : qsTr("Remove %1 from Uzume? Saves on the server are not deleted.").arg(hubRow.modelData.name)
@@ -922,8 +1012,8 @@ Rectangle {
                         visible: root.player.hubs.length === 0
                         Layout.fillWidth: true
                         text: qsTr("No server saved yet.")
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontSmall
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.input.size
                     }
                 }
 
@@ -933,15 +1023,16 @@ Rectangle {
                     visible: root.scope === "pc"
                     objectName: "appearanceSection"
                     Layout.fillWidth: true
-                    spacing: Theme.space12
-                    Eyebrow { text: qsTr("Appearance") }
+                    spacing: Theme.space15
+                    UzSectionLabel { Layout.fillWidth: true; text: qsTr("Appearance") }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.rule; Layout.topMargin: -Theme.space05 }
                     UzSettingsRow {
                         objectName: "themeRow"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         resetMode: "none"
                         label: qsTr("Theme")
-                        description: qsTr("The game view always stays dark.")
+                        description: qsTr("Sumi is dark, Kinari light. The game view always stays dark.")
                         ctrl: "segment"
                         controlName: "appearanceSegment"
                         values: [
@@ -969,10 +1060,11 @@ Rectangle {
                     visible: root.scope === "pc"
                     objectName: "storageSection"
                     Layout.fillWidth: true
-                    spacing: Theme.space12
+                    spacing: Theme.space15
                     property bool confirmClear: false
                     property string clearResult: ""
-                    Eyebrow { text: qsTr("ROM cache") }
+                    UzSectionLabel { Layout.fillWidth: true; text: qsTr("Storage") }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.rule; Layout.topMargin: -Theme.space05 }
                     UzSettingsRow {
                         objectName: "romCacheLimitRow"
                         Layout.fillWidth: true
@@ -1004,15 +1096,15 @@ Rectangle {
                     RowLayout {
                         objectName: "romCacheClearConfirm"
                         Layout.fillWidth: true
-                        spacing: Theme.space10
+                        spacing: Theme.space15
                         visible: secStorage.confirmClear
                         UzLabel {
                             objectName: "romCacheClearConfirmText"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             wrapMode: Text.WordWrap
-                            font.pixelSize: Theme.fontMeta
-                            color: Theme.text
+                            font.pixelSize: Theme.roles.small.size
+                            color: Theme.ink
                             text: qsTr("Remove cached ROMs and free %1? Games are downloaded again when you play them. Saves are not deleted.").arg(root.player.romCache.clearableText)
                         }
                         UzButton {
@@ -1051,8 +1143,9 @@ Rectangle {
                     visible: root.scope === "pc"
                     objectName: "diagnosticsSection"
                     Layout.fillWidth: true
-                    spacing: Theme.space12
-                    Eyebrow { text: qsTr("Diagnostics") }
+                    spacing: Theme.space15
+                    UzSectionLabel { Layout.fillWidth: true; text: qsTr("Diagnostics") }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.rule; Layout.topMargin: -Theme.space05 }
                     UzSettingsRow {
                         objectName: "logFileRow"
                         Layout.fillWidth: true
@@ -1160,6 +1253,17 @@ Rectangle {
                     }
                 }
             }
+        }
+        // Open column: help of the current section (boards 9c-1, 6l-1).
+        UzHelpColumn {
+            objectName: "settingsHelp"
+            visible: root.helpOn
+            Layout.preferredWidth: Theme.openColumn
+            Layout.fillHeight: true
+            Layout.topMargin: Theme.space5 + Theme.space1
+            Layout.rightMargin: Theme.space5 + Theme.space1
+            label: qsTr("Uzume · Settings · This PC")
+            items: root.helpItems
         }
     }
 

@@ -152,7 +152,7 @@ class GameTest : public QObject {
       QVERIFY(header != nullptr);
       const QRectF headerRect = header->mapRectToScene(QRectF(0, 0, header->width(), header->height()));
       QList<QPair<QString, QRectF>> rects;
-      for (const char* name : {"backToLibraryButton", "pauseButton", "resetButton", "viewSegment", "layoutSwitch", "diagnosticsButton", "fullscreenButton"}) {
+      for (const char* name : {"backToLibraryButton", "pauseButton", "tabMultiview", "layoutSwitch", "panelToggle", "moreButton"}) {
         QQuickItem* it = h.item(name);
         if (it == nullptr || !it->isVisible()) continue;
         const QRectF r = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
@@ -176,12 +176,9 @@ class GameTest : public QObject {
     QVERIFY(h.click("pauseButton"));
     QTRY_COMPARE(s->state(), GameSession::Running);
     QTRY_VERIFY(s->frameNumber() > pausedAt + 5);
-    if (h.item("resetButton") && h.item("resetButton")->isVisible()) {
-      QVERIFY(h.click("resetButton"));  // asks first (anchored popover), Reset confirms
-    } else {
-      QVERIFY(h.click("moreButton"));  // compact header: Reset lives in the More menu
-      QVERIFY(h.click("moreReset"));
-    }
+    QVERIFY(h.click("moreButton"));  // Reset lives in the "..." menu and asks first (dialog), Reset confirms
+    QTRY_VERIFY(h.item("menuItem_reset") != nullptr && h.item("menuItem_reset")->isVisible());
+    QVERIFY(h.click("menuItem_reset"));
     QTRY_VERIFY(h.item("resetConfirm") != nullptr && h.item("resetConfirm")->isVisible());
     QVERIFY(h.click("resetConfirm"));
     QTRY_VERIFY(!h.item("resetConfirm")->isVisible());

@@ -33,33 +33,32 @@ Rectangle {
     Layout.fillWidth: true
     Layout.minimumWidth: 0
     Layout.preferredWidth: 1
-    implicitHeight: col.implicitHeight + 24
-    radius: Theme.radius9
-    color: Theme.surface
-    border.width: 1
-    border.color: Theme.borderCard
+    implicitHeight: col.implicitHeight + 2 * Theme.space1 + 1
+    // An open block (no card): a `rule` hairline above, the content on the ground.
+    color: "transparent"
+    Rectangle { width: parent.width; height: 1; color: Theme.rule }
 
     ColumnLayout {
         id: col
         anchors.fill: parent
-        anchors.topMargin: 12
-        anchors.bottomMargin: 12
-        anchors.leftMargin: 14
-        anchors.rightMargin: 14
-        spacing: 10
+        anchors.topMargin: Theme.space1 + 1
+        anchors.bottomMargin: Theme.space1
+        anchors.leftMargin: 0
+        anchors.rightMargin: 0
+        spacing: Theme.space1
 
         // Header: eyebrow + link
         Item {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            implicitHeight: 24
+            implicitHeight: Theme.row28
             Eyebrow {
                 anchors.left: parent.left
                 anchors.right: link.left
-                anchors.rightMargin: 8
+                anchors.rightMargin: Theme.space1
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.conflict ? qsTr("▲ Save conflict") : qsTr("Save")
-                color: root.conflict ? Theme.warn : Theme.textFaint
+                color: root.conflict ? Theme.accentText : Theme.dim
             }
             UzButton {
                 id: link
@@ -70,8 +69,8 @@ Rectangle {
                 width: Math.max(0, Math.min(implicitWidth, parent.width - 68))
                 visible: !root.unsupported
                 kind: "link"
-                implicitHeight: 24
-                font.pixelSize: Theme.fontSmall
+                implicitHeight: Theme.row28
+                font.pixelSize: Theme.roles.input.size
                 font.weight: Font.Medium
                 text: root.noSaves ? (root.hist.canUploadFile && root.hist.uploadBlockReason === "" ? qsTr("Upload save file…") : qsTr("Manage saves →"))
                       : root.offline ? qsTr("View saves →") : qsTr("Manage saves →")
@@ -86,8 +85,8 @@ Rectangle {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             text: root.game.saveText || ""
-            color: Theme.textMuted
-            font.pixelSize: Theme.fontSmall
+            color: Theme.muted
+            font.pixelSize: Theme.roles.input.size
         }
 
         // Conflict
@@ -96,18 +95,18 @@ Rectangle {
             visible: root.conflict && !root.unsupported
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            spacing: 8
+            spacing: Theme.space1
             UzLabel {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: qsTr("The server and this device have different saves for “%1”. Nothing is overwritten until you decide.").arg(root.hist.slotLabel)
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSmall
+                color: Theme.ink2
+                font.pixelSize: Theme.roles.input.size
             }
             UzButton {
                 objectName: "resolveConflictButton"
-                implicitHeight: 32
-                font.pixelSize: Theme.fontSmall
+                implicitHeight: Theme.row32
+                font.pixelSize: Theme.roles.input.size
                 text: qsTr("Resolve conflict")
                 enabled: root.game.canPlay === true && !root.hist.confirmationOpen
                 onClicked: root.player.playSelected()
@@ -116,8 +115,8 @@ Rectangle {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: qsTr("The conflict dialog opens when the game starts. Restore, upload and new slot are paused for “%1” until it is resolved.").arg(root.hist.slotLabel)
-                color: Theme.textFaint
-                font.pixelSize: Theme.fontMeta
+                color: Theme.dim
+                font.pixelSize: Theme.roles.small.size
             }
         }
 
@@ -127,14 +126,14 @@ Rectangle {
             visible: root.noSaves && !root.conflict && !root.unsupported
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            spacing: 4
-            UzLabel { text: qsTr("No saves yet"); font.pixelSize: Theme.fontBody; font.weight: Font.DemiBold }
+            spacing: Theme.space05
+            UzLabel { text: qsTr("No saves yet"); font.pixelSize: Theme.roles.body.size; font.weight: Font.DemiBold }
             UzLabel {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: qsTr("The first save appears in slot “%1” after you play.").arg(root.hist.slotLabel)
-                color: Theme.textMeta
-                font.pixelSize: Theme.fontMeta
+                color: Theme.muted
+                font.pixelSize: Theme.roles.small.size
             }
         }
 
@@ -144,8 +143,8 @@ Rectangle {
             visible: !root.unsupported && !root.noSaves && !root.conflict && root.hist.current.revision === undefined
             Layout.fillWidth: true
             text: root.hist.loading ? qsTr("Loading…") : (root.game.saveText || "")
-            color: Theme.textMeta
-            font.pixelSize: Theme.fontMeta
+            color: Theme.muted
+            font.pixelSize: Theme.roles.small.size
         }
 
         // Current version row: dot | slot + version + meta | pill
@@ -154,17 +153,17 @@ Rectangle {
             visible: !root.unsupported && !root.conflict && root.hist.current.revision !== undefined
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            spacing: 10
+            spacing: Theme.space15
             Item {
                 Layout.preferredWidth: 16
                 Layout.preferredHeight: 16
                 Layout.alignment: Qt.AlignTop
                 Rectangle {
                     anchors.centerIn: parent
-                    width: 16; height: 16; radius: 0
+                    width: 16; height: 16;
                     color: "transparent"; border.width: 1; border.color: Theme.accent
                 }
-                Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 0; color: Theme.accent }
+                Rectangle { anchors.centerIn: parent; width: 10; height: 10; color: Theme.accent }
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -174,11 +173,11 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    spacing: 8
+                    spacing: Theme.space1
                     UzLabel {
                         objectName: "saveSlotName"
                         text: root.hist.slotLabel
-                        font.pixelSize: Theme.fontBody
+                        font.pixelSize: Theme.roles.body.size
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                         Layout.maximumWidth: 160
@@ -186,8 +185,8 @@ Rectangle {
                     UzMono {
                         objectName: "saveVersion"
                         text: root.hist.current.revisionText || ""
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontSmall
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.input.size
                     }
                     Item { Layout.fillWidth: true }
                 }
@@ -196,8 +195,8 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     wrapMode: Text.WordWrap
-                    color: Theme.textMeta
-                    font.pixelSize: Theme.fontMeta
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.small.size
                     text: root.running && root.bg.pausedMs ? qsTr("checkpoint %1 ago · this device").arg(root.ago(root.bg.pausedMs))
                           : root.offline ? qsTr("last synced %1").arg(root.hist.lastSynced)
                           : root.syncKind === "pending" ? qsTr("local changes not uploaded yet · this device")
@@ -224,8 +223,8 @@ Rectangle {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             text: qsTr("You can play. The save syncs when the server is back.")
-            color: Theme.textMeta
-            font.pixelSize: Theme.fontMeta
+            color: Theme.muted
+            font.pixelSize: Theme.roles.small.size
         }
 
         // Footer: "2 slots · 8 versions in Main"
@@ -233,12 +232,12 @@ Rectangle {
             objectName: "saveCounts"
             visible: !root.unsupported && root.hist.current.revision !== undefined
             Layout.fillWidth: true
-            Layout.leftMargin: 26
+            Layout.leftMargin: 16 + Theme.space15
             elide: Text.ElideRight
             text: Theme.plural(root.hist.slotCount, qsTr("slot"), qsTr("slots")) + " · "
                   + (root.hist.versionCount === 1 ? qsTr("1 version in %1") : qsTr("%1 versions in %2").arg(root.hist.versionCount)).arg(root.hist.slotLabel)
-            color: Theme.textFaint
-            font.pixelSize: Theme.fontMeta
+            color: Theme.dim
+            font.pixelSize: Theme.roles.small.size
         }
     }
 }

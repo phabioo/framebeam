@@ -3,9 +3,9 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// "Running sessions" picker (3r-2, docs/design/player.md "Anchored popover"): content of the popover under "+ Add".
-// Row per watchable session with "Add" or "✓ Added", the empty and full states and the footer note. It never opens on
-// its own; the owner shows it in an AnchoredPopover.
+// Running sessions (board 3r-5, "Add tile" popover): "Running sessions" with "N of 4 tiles", a hairline row (44 px) per
+// watchable session with "Add" or the "Added" tag, the empty state (StateBlock), the full note and the footer note. It never
+// opens on its own; the owner shows it in an UzPopover.
 ColumnLayout {
     id: root
     required property PlayerController player
@@ -16,7 +16,7 @@ ColumnLayout {
     readonly property int count: ctl.surfaceCount
     readonly property bool full: count >= ctl.maxSurfaces
     objectName: "multiviewSessionList"
-    spacing: 8
+    spacing: Theme.space15
 
     function firstFree() {
         for (var i = 0; i < list.length; ++i) {
@@ -27,69 +27,52 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        UzLabel {
+        spacing: Theme.space1
+        Text {
             objectName: "multiviewListTitle"
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             elide: Text.ElideRight
+            textFormat: Text.PlainText
             text: qsTr("Running sessions")
-            font.pixelSize: 14
-            font.weight: Font.DemiBold
-            color: Theme.gameText
+            font.family: Theme.sans
+            font.pixelSize: Theme.roles.itemTitle.size
+            font.weight: Theme.roles.itemTitle.weight
+            color: Theme.ink
         }
         UzMono {
             objectName: "multiviewListCount"
-            // The counter keeps its full width; the "Running sessions" title (fillWidth, elides) gives way first (R-P8)
+            // The counter keeps its full width; the "Running sessions" title (fillWidth, elides) gives way first
             Layout.minimumWidth: implicitWidth
             text: qsTr("%1 of %2 tiles").arg(root.count).arg(root.ctl.maxSurfaces)
-            font.pixelSize: 11
-            color: Theme.gameMeta
+            font.pixelSize: 10
+            font.letterSpacing: 0.8
+            font.capitalization: Font.AllUppercase
+            color: Theme.dim
         }
     }
 
-    Rectangle {
+    UzStateBlock {
         objectName: "multiviewNoSessions"
         Layout.fillWidth: true
         Layout.minimumWidth: 0
         visible: root.list.length === 0
-        implicitHeight: emptyCol.implicitHeight + 28
-        radius: 0
-        color: Theme.gameGroupBg
-        border.width: 1
-        border.color: Theme.gameDivider
-        ColumnLayout {
-            id: emptyCol
-            anchors.fill: parent
-            anchors.margins: 14
-            anchors.topMargin: 14
-            spacing: 4
-            UzLabel { Layout.fillWidth: true; text: qsTr("No other sessions right now"); font.pixelSize: 13; color: Theme.gameBadgeText; wrapMode: Text.WordWrap }
-            UzLabel {
-                Layout.fillWidth: true
-                text: qsTr("Sessions appear here when someone on %1 shares a game with everyone here or invites you.").arg(root.player.hubAddress || qsTr("your server"))
-                font.pixelSize: 12
-                color: Theme.gameMeta
-                wrapMode: Text.WordWrap
-            }
-        }
+        kind: "empty"
+        title: qsTr("No other sessions right now")
+        text: qsTr("Sessions appear here when someone on %1 shares a game with everyone here or invites you.").arg(root.player.hubAddress || qsTr("your server"))
     }
 
-    Rectangle {
+    Item {
         Layout.fillWidth: true
         Layout.minimumWidth: 0
         visible: root.list.length > 0
-        implicitHeight: pickView.height + 2
-        radius: 0
-        color: Theme.gameGroupBg
-        border.width: 1
-        border.color: Theme.gameGroupBorder
-        clip: true
+        implicitHeight: pickView.height + 1
+        Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.rule }
         ListView {
             id: pickView
             objectName: "multiviewSessionView"
-            x: 1
             y: 1
-            width: parent.width - 2
+            width: parent.width
             height: Math.min(contentHeight, root.maxListHeight)
             clip: true
             boundsBehavior: Flickable.StopAtBounds
@@ -103,74 +86,39 @@ ColumnLayout {
                 readonly property int tileNo: root.ctl.surfaceOrder.indexOf(modelData.sessionId) + 1
                 objectName: "multiviewSession_" + modelData.sessionId
                 width: ListView.view.width - (pickView.contentHeight > pickView.height ? 10 : 0)
-                implicitHeight: 48
-                height: 48
-                Rectangle {
-                    visible: prow.index < root.list.length - 1
-                    anchors.bottom: parent.bottom
-                    width: parent.width
-                    height: 1
-                    color: Theme.gameGroupBorder
-                }
+                implicitHeight: Theme.row44
+                height: Theme.row44
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 10
-                    anchors.rightMargin: 10
-                    spacing: 10
-                    Rectangle {
-                        Layout.preferredWidth: 26
-                        Layout.preferredHeight: 26
-                        radius: 0
-                        color: Theme.gameSegmentOn
-                        UzLabel {
-                            anchors.centerIn: parent
-                            text: ((prow.modelData.who || prow.modelData.title || "?").charAt(0)).toUpperCase()
-                            font.pixelSize: 12
-                            font.weight: Font.DemiBold
-                            color: Theme.gameText
-                        }
-                    }
+                    spacing: Theme.space15
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         Layout.preferredWidth: 0
                         spacing: 0
-                        UzLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.title; font.pixelSize: 13; color: Theme.gameText }
+                        UzLabel { Layout.fillWidth: true; elide: Text.ElideRight; text: prow.modelData.title; font.pixelSize: Theme.roles.itemTitleSm.size; color: Theme.ink }
                         UzLabel {
                             Layout.fillWidth: true
                             elide: Text.ElideRight
                             text: prow.isShown ? prow.modelData.meta + qsTr(" · in tile %1").arg(prow.tileNo) : prow.modelData.meta
-                            font.pixelSize: 11
-                            color: prow.modelData.invited && !prow.isShown ? Theme.gameAccent : Theme.gameMeta
+                            font.pixelSize: Theme.roles.small.size
+                            color: prow.modelData.invited && !prow.isShown ? Theme.accentText : Theme.muted
                         }
                     }
-                    UzLabel {
+                    UzTag {
                         objectName: "multiviewAdded_" + prow.modelData.sessionId
                         visible: prow.isShown
-                        text: qsTr("✓ Added")
-                        font.pixelSize: 12
-                        color: Theme.gameOk
+                        tone: "ok"
+                        text: qsTr("Added")
                     }
                     UzButton {
                         objectName: "multiviewAddButton_" + prow.modelData.sessionId
                         visible: !prow.isShown
-                        implicitHeight: 28
-                        implicitWidth: 56
-                        Layout.minimumWidth: 56
+                        size: "sm"
                         focusPolicy: Qt.NoFocus
-                        font.pixelSize: 12
-                        font.weight: Font.DemiBold
                         text: qsTr("Add")
                         enabled: root.ctl.hubLink === "online" && root.ctl.canAddSurface && !prow.isShown
-                        contentItem: Text {
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            text: parent.text
-                            textFormat: Text.PlainText
-                            font: parent.font
-                            color: parent.enabled ? Theme.textOnAccent : Theme.gameFaint
-                        }
-                        background: Rectangle { radius: 0; color: parent.enabled ? Theme.gameAccent : Theme.gameTrack }
                         onClicked: root.ctl.watch(prow.modelData.sessionId)
                     }
                 }
@@ -178,32 +126,46 @@ ColumnLayout {
         }
     }
 
-    Rectangle {
+    ColumnLayout {
         objectName: "multiviewFullNote"
         Layout.fillWidth: true
         Layout.minimumWidth: 0
         visible: root.full
-        implicitHeight: fullText.implicitHeight + 20
-        radius: 0
-        color: Theme.neutralPillBg
-        UzLabel {
-            id: fullText
-            anchors.fill: parent
-            anchors.margins: 10
+        spacing: Theme.space05
+        Text {
+            Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            font.pixelSize: 12
-            color: Theme.gameBadgeText
-            text: root.firstFree() !== "" ? qsTr("Multiview is full. Remove a tile to add %1.").arg(root.firstFree())
-                                          : qsTr("Multiview is full. Remove a tile to add another session.")
+            textFormat: Text.PlainText
+            text: qsTr("Multiview is full")
+            font.family: Theme.sans
+            font.pixelSize: Theme.roles.itemTitle.size
+            font.weight: Theme.roles.itemTitle.weight
+            color: Theme.ink
+        }
+        Text {
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            textFormat: Text.PlainText
+            font.family: Theme.sans
+            font.pixelSize: Theme.roles.small.size
+            lineHeight: Theme.roles.small.line
+            lineHeightMode: Text.FixedHeight
+            color: Theme.ink2
+            text: root.firstFree() !== "" ? qsTr("Remove a tile to add %1.").arg(root.firstFree())
+                                          : qsTr("Remove a tile to add another session.")
         }
     }
-    UzLabel {
+    Text {
         objectName: "multiviewListNote"
         Layout.fillWidth: true
         Layout.minimumWidth: 0
         wrapMode: Text.WordWrap
+        textFormat: Text.PlainText
         text: qsTr("Private sessions are not listed. Sound plays from one tile only.")
-        font.pixelSize: 11
-        color: Theme.gameFaint
+        font.family: Theme.sans
+        font.pixelSize: Theme.roles.small.size
+        lineHeight: Theme.roles.small.line
+        lineHeightMode: Text.FixedHeight
+        color: Theme.muted
     }
 }

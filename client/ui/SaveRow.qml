@@ -39,12 +39,12 @@ ColumnLayout {
         id: versionRow
         Layout.fillWidth: true
         Layout.minimumWidth: 0
-        implicitHeight: stacked ? textCol.implicitHeight + 7 + 6 + 28 + 9 : Math.max(textCol.implicitHeight + 7 + 9, 40)
+        implicitHeight: stacked ? textCol.implicitHeight + 7 + 6 + Theme.row32 + 9 : Math.max(textCol.implicitHeight + 7 + 9, Theme.row44)
 
         // Natural (unclamped) width of the buttons. When the text column would get less than 90 px beside them (wide
         // fonts, narrow window) the actions move under the text instead of sticking out of the row.
-        readonly property real actionsNaturalWidth: (restoreBtn.visible ? restoreText.implicitWidth + 20 : 0)
-            + (deleteBtn.visible ? deleteText.implicitWidth + 12 : 0) + (restoreBtn.visible && deleteBtn.visible ? actions.spacing : 0)
+        readonly property real actionsNaturalWidth: (restoreBtn.visible ? restoreBtn.implicitWidth : 0)
+            + (deleteBtn.visible ? deleteBtn.implicitWidth : 0) + (restoreBtn.visible && deleteBtn.visible ? actions.spacing : 0)
         readonly property bool stacked: actionsNaturalWidth > 0 && width - 20 - 12 - 8 - actionsNaturalWidth < 90
 
         // Rail with node
@@ -52,14 +52,14 @@ ColumnLayout {
             id: rail
             width: 20
             height: parent.height
-            Rectangle { x: 9.5; width: 1; height: 14; color: Theme.rail; visible: true }
-            Rectangle { x: 9.5; y: 14 + 12; width: 1; height: parent.height - 26; color: Theme.rail; visible: !root.last }
+            Rectangle { x: 9.5; width: 1; height: 14; color: Theme.rule; visible: true }
+            Rectangle { x: 9.5; y: 14 + 12; width: 1; height: parent.height - 26; color: Theme.rule; visible: !root.last }
             // current: 12px filled with a 3px gap ring and a 1px accent ring
             Rectangle {
                 visible: root.isCurrent
-                x: 4; y: 14; width: 12; height: 12; radius: 0
+                x: 4; y: 14; width: 12; height: 12
                 color: Theme.accent
-                Rectangle { anchors.centerIn: parent; width: 18; height: 18; radius: 0; color: "transparent"; border.width: 1; border.color: Theme.accent }
+                Rectangle { anchors.centerIn: parent; width: 18; height: 18; color: "transparent"; border.width: 1; border.color: Theme.accent }
             }
             // snapshot: 9px diamond
             Rectangle {
@@ -71,10 +71,10 @@ ColumnLayout {
             // other: 10px hollow, 2px border
             Rectangle {
                 visible: !root.isCurrent && !root.isSnap
-                x: 5; y: 15; width: 10; height: 10; radius: 0
-                color: Theme.bgPanel
+                x: 5; y: 15; width: 10; height: 10
+                color: Theme.ground
                 border.width: 2
-                border.color: Theme.textTile
+                border.color: Theme.dim
             }
         }
 
@@ -94,28 +94,28 @@ ColumnLayout {
                 UzMono {
                     objectName: "historyTitle"
                     text: root.versionText
-                    color: Theme.text
-                    font.pixelSize: Theme.fontSmall
+                    color: Theme.ink
+                    font.pixelSize: Theme.roles.input.size
                     font.weight: Font.Medium
                 }
-                Rectangle {
+                UzTag {
                     visible: root.isCurrent
-                    height: 20; width: curText.implicitWidth + 16; radius: 0
-                    color: Theme.okBg
-                    Text { id: curText; anchors.centerIn: parent; text: qsTr("✓ Current"); font.pixelSize: Theme.fontMono; font.weight: Font.DemiBold; color: Theme.ok }
+                    small: true
+                    tone: "ok"
+                    text: qsTr("✓ Current")
                 }
-                Rectangle {
+                UzTag {
                     visible: root.isSnap
-                    height: 20; width: snapText.implicitWidth + 16; radius: 0
-                    color: Theme.accentChipBg
-                    Text { id: snapText; anchors.centerIn: parent; text: qsTr("◆ Snapshot"); font.pixelSize: Theme.fontMono; font.weight: Font.DemiBold; color: Theme.accentText }
+                    small: true
+                    tone: "warn"
+                    text: qsTr("◆ Snapshot")
                 }
                 UzLabel {
                     visible: root.label !== ""
                     objectName: "historyLabel"
                     width: Math.min(implicitWidth, textCol.width)
                     text: "“" + root.label + "”"
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     font.weight: Font.Medium
                     elide: Text.ElideRight
                 }
@@ -125,8 +125,8 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 text: root.meta
-                color: Theme.textMeta
-                font.pixelSize: Theme.fontMeta
+                color: Theme.muted
+                font.pixelSize: Theme.roles.small.size
                 wrapMode: Text.WordWrap
             }
         }
@@ -141,112 +141,95 @@ ColumnLayout {
             readonly property real maxButtonWidth: versionRow.stacked
                 ? (versionRow.width - 32 - (restoreBtn.visible && deleteBtn.visible ? spacing : 0)) / ((restoreBtn.visible ? 1 : 0) + (deleteBtn.visible ? 1 : 0))
                 : 100000
-            Rectangle {
+            UzButton {
                 id: restoreBtn
                 objectName: "restoreButton"
                 visible: root.showRestore && !root.isCurrent
                 enabled: root.restoreEnabled
-                height: 28; width: Math.min(restoreText.implicitWidth + 20, actions.maxButtonWidth); radius: Theme.radius6
-                color: restoreHover.hovered && enabled ? Theme.surfaceRaised : "transparent"
-                border.width: 1
-                border.color: root.confirm === "restore" ? Theme.accent : Theme.borderButton
+                size: "sm"
+                hPadding: Theme.space2
+                on: root.confirm === "restore"
+                width: Math.min(implicitWidth, actions.maxButtonWidth)
                 opacity: enabled && !root.muted ? 1 : 0.5
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
+                text: qsTr("Restore")
                 Accessible.name: qsTr("Restore %1").arg(root.versionText)
-                Text { id: restoreText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 12); elide: Text.ElideRight; text: qsTr("Restore"); font.pixelSize: Theme.fontMeta; font.weight: Font.Medium; color: Theme.text }
-                HoverHandler { id: restoreHover; cursorShape: Qt.PointingHandCursor }
-                TapHandler { enabled: parent.enabled; onTapped: root.restoreClicked() }
-                Keys.onPressed: (event) => { if (enabled && (event.key === Qt.Key_Space || event.key === Qt.Key_Return)) { root.restoreClicked(); event.accepted = true } }
+                onClicked: root.restoreClicked()
             }
-            Rectangle {
+            UzButton {
                 id: deleteBtn
                 objectName: "deleteButton"
                 visible: root.showDelete
                 enabled: root.deleteEnabled
-                height: 28; width: Math.min(deleteText.implicitWidth + 12, actions.maxButtonWidth); radius: Theme.radius6
-                color: deleteHover.hovered && enabled ? Theme.surfaceRaised : "transparent"
+                size: "sm"
+                hPadding: Theme.space2
+                kind: "danger"
+                width: Math.min(implicitWidth, actions.maxButtonWidth)
                 opacity: enabled && !root.muted ? 1 : 0.5
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
+                text: qsTr("Delete")
                 Accessible.name: qsTr("Delete snapshot %1").arg(root.versionText)
-                Text { id: deleteText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 4); elide: Text.ElideRight; text: qsTr("Delete"); font.pixelSize: Theme.fontMeta; font.weight: Font.Medium; color: Theme.error }
-                HoverHandler { id: deleteHover; cursorShape: Qt.PointingHandCursor }
-                TapHandler { enabled: parent.enabled; onTapped: root.deleteClicked() }
-                Keys.onPressed: (event) => { if (enabled && (event.key === Qt.Key_Space || event.key === Qt.Key_Return)) { root.deleteClicked(); event.accepted = true } }
+                onClicked: root.deleteClicked()
             }
         }
 
-        Rectangle { anchors.bottom: parent.bottom; anchors.left: rail.right; anchors.leftMargin: 12; anchors.right: parent.right; height: 1; color: Theme.borderSidebar }
+        Rectangle { anchors.bottom: parent.bottom; anchors.left: rail.right; anchors.leftMargin: 12; anchors.right: parent.right; height: 1; color: Theme.rule }
     }
 
-    // Confirmation under the row
+    // Confirmation under the row: a tinted plane with a 2 px marker (Yamabuki for restore, danger for delete), no frame.
     Rectangle {
         id: confirmBox
         objectName: root.confirm === "delete" ? "deleteConfirmBox" : "restoreConfirmBox"
         visible: root.confirm !== ""
         Layout.fillWidth: true
         Layout.minimumWidth: 0
-        Layout.topMargin: 8
-        Layout.bottomMargin: 10
+        Layout.topMargin: Theme.space1
+        Layout.bottomMargin: Theme.space15
         Layout.leftMargin: 32
-        implicitHeight: confirmCol.implicitHeight + 24
-        radius: Theme.radius9
-        color: root.confirm === "delete" ? Theme.errorBg : Theme.accentChipBg
-        border.width: 1
-        border.color: root.confirm === "delete" ? Theme.dangerBorder : Theme.confirmBorder
+        implicitHeight: confirmCol.implicitHeight + 2 * Theme.space15
+        color: root.confirm === "delete" ? Theme.dangerTint : Theme.selected
+        Rectangle { width: 2; height: parent.height; color: root.confirm === "delete" ? Theme.danger : Theme.accent }
         Column {
             id: confirmCol
-            x: 14
-            y: 12
-            width: parent.width - 28
-            spacing: 10
+            x: Theme.space15 + 2
+            y: Theme.space15
+            width: parent.width - 2 * Theme.space15 - 2
+            spacing: Theme.space15
             Column {
                 width: parent.width
-                spacing: 3
+                spacing: Theme.space05
                 UzLabel {
                     objectName: "confirmTitle"
                     width: parent.width
                     wrapMode: Text.WordWrap
                     text: root.confirmTitle
-                    font.pixelSize: Theme.fontSmall
-                    font.weight: Font.DemiBold
-                    color: root.confirm === "delete" ? Theme.error : Theme.accentText
+                    font.pixelSize: Theme.roles.itemTitleSm.size
+                    font.weight: Theme.roles.itemTitleSm.weight
+                    color: root.confirm === "delete" ? Theme.danger : Theme.ink
                 }
                 UzLabel {
                     objectName: "confirmBody"
                     width: parent.width
                     wrapMode: Text.WordWrap
                     text: root.confirmBody
-                    font.pixelSize: Theme.fontMeta
-                    color: Theme.textSecondary
+                    font.pixelSize: Theme.roles.small.size
+                    color: Theme.ink2
                 }
             }
             Flow {
                 width: parent.width
-                spacing: 8
+                spacing: Theme.space1
                 layoutDirection: Qt.RightToLeft
-                Rectangle {
+                UzButton {
                     id: okBtn
                     objectName: root.confirm === "delete" ? "deleteConfirm" : "restoreConfirm"
-                    height: 30
-                    width: Math.min(okText.implicitWidth + 24, parent.width)   // never wider than the row, the text elides
-                    radius: Theme.radius6
-                    color: root.confirm === "delete" ? Theme.error : Theme.accent
-                    opacity: okTap.pressed ? 0.8 : 1
-                    activeFocusOnTab: true
-                    Accessible.role: Accessible.Button
-                    Accessible.name: root.confirmOk
-                    Text { id: okText; anchors.centerIn: parent; width: Math.min(implicitWidth, parent.width - 24); elide: Text.ElideRight; text: root.confirmOk; font.pixelSize: Theme.fontSmall; font.weight: Font.DemiBold; color: Theme.textOnAccent }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    TapHandler { id: okTap; onTapped: root.confirmed() }
-                    Keys.onPressed: (event) => { if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) { root.confirmed(); event.accepted = true } }
+                    size: "sm"
+                    kind: root.confirm === "delete" ? "danger" : "primary"
+                    text: root.confirmOk
+                    onClicked: root.confirmed()
                 }
                 UzButton {
                     id: cancelBtn
                     objectName: root.confirm === "delete" ? "deleteCancel" : "restoreCancel"
-                    implicitHeight: 30
-                    font.pixelSize: Theme.fontSmall
+                    size: "sm"
                     text: qsTr("Cancel")
                     onClicked: root.cancelled()
                 }

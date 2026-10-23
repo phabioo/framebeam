@@ -54,10 +54,10 @@ int inputIndex(const QString& id) {
 
 const QList<HotkeyDef>& hotkeyDefs() {
   static const QList<HotkeyDef> defs = {
-      {QStringLiteral("fullscreen"), QStringLiteral("Toggle fullscreen"), Qt::Key_F11, QStringLiteral("pad:y")},
+      {QStringLiteral("fullscreen"), QStringLiteral("Toggle fullscreen"), Qt::Key_F11, QStringLiteral("pad:b")},
       {QStringLiteral("diagnostics"), QStringLiteral("Diagnostics overlay"), Qt::Key_F3, QStringLiteral("pad:rightstick")},
       {QStringLiteral("snapshot"), QStringLiteral("Save snapshot"), Qt::Key_F5, QStringLiteral("pad:leftshoulder")},
-      {QStringLiteral("speedup"), QStringLiteral("Speed-up"), Qt::Key_Space, QStringLiteral("pad:rightshoulder")},
+      {QStringLiteral("speedup"), QStringLiteral("Speed-up"), Qt::Key_Space, QStringLiteral("pad:righttrigger")},
   };
   return defs;
 }
