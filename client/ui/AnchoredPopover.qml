@@ -13,7 +13,7 @@ Item {
     property real popWidth: 290
     property real scrimTop: 0
     property string align: "center"       // "center" | "right" (right edge 60 beyond the anchor)
-    property real padding: 14
+    property real padding: Theme.space15
     // Docked placement (3r-3, P41): `dockRight` >= 0 puts the panel `dockRight` px from the right edge, right under `scrimTop`, without a
     // pointer, so it opens in the play area and never covers the side panel (header, tabs, sharing).
     property real dockRight: -1
@@ -55,8 +55,8 @@ Item {
         objectName: "popoverPanel"
         readonly property real wantedX: root.align === "right" ? root.ax + root.aw + 60 - root.popWidth
                                                                : root.ax + root.aw / 2 - root.popWidth / 2
-        x: root.docked ? Math.max(8, root.width - root.dockRight - root.popWidth) : Math.max(8, Math.min(root.width - root.popWidth - 8, wantedX))
-        y: root.docked ? root.scrimTop + 4 : root.ay + root.ah + 10
+        x: root.docked ? Math.max(Theme.space1, root.width - root.dockRight - root.popWidth) : Math.max(Theme.space1, Math.min(root.width - root.popWidth - Theme.space1, wantedX))
+        y: root.docked ? root.scrimTop + Theme.space05 : root.ay + root.ah + Theme.space1
         width: root.popWidth
         height: bodyBox.height
 
@@ -64,10 +64,9 @@ Item {
             id: bodyBox
             width: parent.width
             height: body.childrenRect.height + 2 * root.padding
-            radius: 0
-            color: Theme.gamePopover
+            color: Theme.surface
             border.width: 1
-            border.color: root.danger ? Theme.gameDangerBorder : Theme.gamePopoverBorder
+            border.color: root.danger ? Theme.danger : Theme.rule
             Item {
                 id: body
                 x: root.padding

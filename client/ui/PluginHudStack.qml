@@ -8,7 +8,7 @@ Column {
     property bool upwards: false                   // bottom corners
     property var plugins: null
     signal menuRequested(var entry, Item anchor)
-    spacing: 6
+    spacing: Theme.space1
     Repeater {
         model: Math.min(4, root.widgets.length)
         delegate: PluginHudWidget {

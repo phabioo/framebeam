@@ -11,13 +11,14 @@ Button {
     // Narrow layouts: a small square icon instead of label and key hint (the shortcut still works; the label is the tooltip).
     property bool compact: false
 
-    implicitHeight: 34
+    implicitHeight: Theme.row36
     property real maxWidth: 100000   // the text elides so the button is never wider than this (a card narrower than the label)
-    implicitWidth: compact ? 40 : Math.min(maxWidth, row.implicitWidth + 24)
+    implicitWidth: compact ? Theme.row36 : Math.min(maxWidth, row.implicitWidth + 2 * Theme.space15)
     padding: 0
     hoverEnabled: true
-    font.pixelSize: 13
-    font.weight: Font.Medium
+    font.family: Theme.sans
+    font.pixelSize: Theme.roles.button.size
+    font.weight: Theme.roles.button.weight
 
     Accessible.name: control.text
     ToolTip.visible: compact && hovered
@@ -30,15 +31,15 @@ Button {
             id: row
             visible: !control.compact
             anchors.centerIn: parent
-            spacing: 8
+            spacing: Theme.space1
             Text {
                 // Elides when maxWidth is smaller than the text (wide fonts).
-                Layout.preferredWidth: Math.min(implicitWidth, Math.max(0, control.maxWidth - 24 - (hintText.visible ? hintText.implicitWidth + row.spacing : 0)))
+                Layout.preferredWidth: Math.min(implicitWidth, Math.max(0, control.maxWidth - 2 * Theme.space15 - (hintText.visible ? hintText.implicitWidth + row.spacing : 0)))
                 elide: Text.ElideRight
                 text: control.text
                 textFormat: Text.PlainText
                 font: control.font
-                color: !control.enabled ? Theme.textDisabled : (control.kind === "primary" ? Theme.textOnAccent : Theme.text)
+                color: !control.enabled ? Theme.disabledInk : (control.kind === "primary" ? Theme.inkOnAccent : Theme.ink)
             }
             Text {
                 id: hintText
@@ -46,8 +47,8 @@ Button {
                 text: control.hint
                 textFormat: Text.PlainText
                 font.family: Theme.mono
-                font.pixelSize: 11
-                color: !control.enabled ? Theme.textDisabled : (control.kind === "primary" ? Theme.textOnAccent : Theme.textMuted)
+                font.pixelSize: Theme.roles.meta11.size
+                color: !control.enabled ? Theme.disabledInk : (control.kind === "primary" ? Theme.inkOnAccent : Theme.muted)
             }
         }
     }
@@ -57,15 +58,13 @@ Button {
         anchors.centerIn: parent
         width: 14
         height: 14
-        radius: 0
         color: "transparent"
         border.width: 2
-        border.color: !control.enabled ? Theme.textDisabled : Theme.text
+        border.color: !control.enabled ? Theme.disabledInk : Theme.ink
     }
     background: Item {
         Rectangle {
             anchors.fill: parent
-            radius: 0
             color: control.kind === "primary" ? (control.enabled ? (control.down ? Theme.accentPressed : (control.hovered ? Theme.accentHover : Theme.accent)) : Theme.disabledGround)
                  : control.kind === "raised" ? Theme.hover
                  : (control.hovered && control.enabled ? Theme.hover : "transparent")

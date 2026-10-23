@@ -65,7 +65,7 @@ Item {
                     text: root.row ? String(root.row[cell.modelData.key] ?? "") : ""
                     textFormat: Text.PlainText
                     font.family: cell.modelData.mono ? Theme.mono : Theme.sans
-                    font.pixelSize: cell.modelData.mono ? Theme.fontMono : Theme.fontBody
+                    font.pixelSize: cell.modelData.mono ? Theme.roles.meta11.size : Theme.roles.body.size
                     font.weight: root.selected && cell.index === 0 ? Font.Medium : Font.Normal
                     color: root.disabled ? Theme.disabledInk : (cell.index === 0 || !cell.modelData.mono ? Theme.ink : Theme.muted)
                 }

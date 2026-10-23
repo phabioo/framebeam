@@ -387,7 +387,7 @@ Item {
                     text: qsTr("Same for everyone on %1.").arg(root.player.hubName !== "" ? root.player.hubName : qsTr("this server"))
                     textFormat: Text.PlainText
                     font.family: Theme.sans
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     color: Theme.muted
                 }
                 Repeater {
@@ -423,7 +423,7 @@ Item {
                                 text: modelData.display_name
                                 textFormat: Text.PlainText
                                 font.family: Theme.sans
-                                font.pixelSize: Theme.fontBody
+                                font.pixelSize: Theme.roles.body.size
                                 font.weight: entry.current ? Font.Medium : Font.Normal
                                 color: Theme.ink
                             }
@@ -442,7 +442,7 @@ Item {
                                     text: entry.core !== null ? entry.core.display_name : qsTr("No core")
                                     textFormat: Text.PlainText
                                     font.family: Theme.sans
-                                    font.pixelSize: Theme.fontSmall
+                                    font.pixelSize: Theme.roles.input.size
                                     color: entry.core !== null ? Theme.muted : Theme.ink
                                 }
                             }
@@ -634,7 +634,7 @@ Item {
                                       : qsTr("\"Use this\" downloads the core to the server first.")
                                 textFormat: Text.PlainText
                                 font.family: Theme.sans
-                                font.pixelSize: Theme.fontSmall
+                                font.pixelSize: Theme.roles.input.size
                                 color: Theme.muted
                             }
                             Row {
@@ -752,7 +752,7 @@ Item {
                                 text: fcell.st.hint
                                 textFormat: Text.PlainText
                                 font.family: Theme.sans
-                                font.pixelSize: Theme.fontSmall
+                                font.pixelSize: Theme.roles.input.size
                                 color: Theme.muted
                             }
                         }

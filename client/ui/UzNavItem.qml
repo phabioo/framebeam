@@ -58,7 +58,7 @@ Item {
             text: root.label
             textFormat: Text.PlainText
             font.family: Theme.sans
-            font.pixelSize: Theme.fontBody
+            font.pixelSize: Theme.roles.body.size
             font.weight: root.active ? Font.Medium : Font.Normal
             color: root.active ? Theme.ink : (hover.hovered ? Theme.ink2 : Theme.muted)
         }

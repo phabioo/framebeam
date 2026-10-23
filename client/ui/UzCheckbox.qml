@@ -57,7 +57,7 @@ CheckBox {
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
             font.family: Theme.sans
-            font.pixelSize: Theme.fontBody
+            font.pixelSize: Theme.roles.body.size
             color: control.enabled ? Theme.ink : Theme.disabledInk
         }
         Row {
@@ -73,7 +73,7 @@ CheckBox {
                 text: control.error !== "" ? control.error : control.hint
                 textFormat: Text.PlainText
                 font.family: Theme.sans
-                font.pixelSize: Theme.fontMeta
+                font.pixelSize: Theme.roles.small.size
                 color: control.error !== "" ? Theme.danger : Theme.muted
             }
         }

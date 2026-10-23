@@ -120,7 +120,7 @@ class PluginDetailUiTest : public QObject {
     pc()->setDeveloperMode(true);
 
     QTRY_COMPARE_WITH_TIMEOUT(sectionTitle(), QStringLiteral("Notes for Lumen Drift"), 10000);
-    QCOMPARE(textOf(visibleItem("pluginDetailName")), QStringLiteral("Notes Plugin"));
+    QCOMPARE(textOf(visibleItem("pluginDetailName")), QStringLiteral("Drawn by Notes Plugin"));
     QVERIFY(visibleItem("pluginDetailOrigin") != nullptr);  // installed from a folder: not official
     QQuickItem* row = visibleItem("detailPluginsRow");
     QVERIFY(row != nullptr);

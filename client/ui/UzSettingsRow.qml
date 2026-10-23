@@ -140,7 +140,7 @@ Item {
         text: root.intro
         textFormat: Text.PlainText
         wrapMode: Text.Wrap
-        font.pixelSize: Theme.fontMeta
+        font.pixelSize: Theme.roles.small.size
         lineHeight: 18
         lineHeightMode: Text.FixedHeight
     }
@@ -148,10 +148,10 @@ Item {
     // Row surface (hover) and divider
     Rectangle {
         anchors.fill: parent
-        color: hover.hovered ? Theme.rowHover : "transparent"
+        color: hover.hovered ? Theme.hover : "transparent"
     }
     HoverHandler { id: hover }
-    Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: Theme.borderRow }
+    Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: Theme.rule2 }
 
     // Dot slot (14): the label never shifts, the dot is centered on the first (32 high) label line.
     Item {
@@ -186,7 +186,7 @@ Item {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             Layout.minimumHeight: Theme.settingsControlHeight
-            spacing: Theme.space8
+            spacing: Theme.space1
             UzLabel {
                 id: labelText
                 Layout.fillWidth: true
@@ -197,7 +197,7 @@ Item {
                 lineHeight: 20
                 lineHeightMode: Text.FixedHeight
                 verticalAlignment: Text.AlignVCenter
-                color: root.disabled ? Theme.textMeta : Theme.text
+                color: root.disabled ? Theme.muted : Theme.ink
             }
             // The wrapper takes its width from an unelided probe (an elided Text reports a clamped implicit width inside a layout).
             Item {
@@ -213,7 +213,7 @@ Item {
                     text: root.meta
                     textFormat: Text.PlainText
                     font.family: Theme.mono
-                    font.pixelSize: Theme.fontMono
+                    font.pixelSize: Theme.roles.meta11.size
                 }
                 Text {
                     id: metaVis
@@ -221,8 +221,8 @@ Item {
                     text: root.meta
                     textFormat: Text.PlainText
                     font.family: Theme.mono
-                    font.pixelSize: Theme.fontMono
-                    color: Theme.textFaint
+                    font.pixelSize: Theme.roles.meta11.size
+                    color: Theme.dim
                 }
             }
             Rectangle {
@@ -241,7 +241,7 @@ Item {
                     visible: false
                     text: root.badge
                     textFormat: Text.PlainText
-                    font.pixelSize: Theme.fontMono
+                    font.pixelSize: Theme.roles.meta11.size
                 }
                 clip: true
                 Text {
@@ -250,8 +250,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.badge
                     textFormat: Text.PlainText
-                    font.pixelSize: Theme.fontMono
-                    color: Theme.textMuted
+                    font.pixelSize: Theme.roles.meta11.size
+                    color: Theme.muted
                 }
             }
         }
@@ -269,10 +269,10 @@ Item {
             wrapMode: Text.Wrap
             maximumLineCount: root.showFull ? 100000 : 2
             elide: root.showFull ? Text.ElideNone : Text.ElideRight
-            font.pixelSize: Theme.fontMeta
+            font.pixelSize: Theme.roles.small.size
             lineHeight: 18
             lineHeightMode: Text.FixedHeight
-            color: Theme.textMeta
+            color: Theme.muted
         }
         Rectangle {
             id: optionBox
@@ -309,11 +309,11 @@ Item {
                         textFormat: Text.PlainText
                         wrapMode: isKey ? Text.NoWrap : Text.Wrap
                         elide: isKey ? Text.ElideRight : Text.ElideNone
-                        font.pixelSize: Theme.fontMeta
+                        font.pixelSize: Theme.roles.small.size
                         font.weight: isKey ? Font.Medium : Font.Normal
                         lineHeight: 18
                         lineHeightMode: Text.FixedHeight
-                        color: isKey ? Theme.textSecondary : Theme.textMeta
+                        color: isKey ? Theme.ink2 : Theme.muted
                     }
                 }
             }
@@ -336,9 +336,9 @@ Item {
                 elide: Text.ElideRight
                 text: root.moreLabel
                 textFormat: Text.PlainText
-                font.pixelSize: Theme.fontMeta
+                font.pixelSize: Theme.roles.small.size
                 font.underline: true
-                color: moreLink.activeFocus ? Theme.accentText : Theme.textMuted
+                color: moreLink.activeFocus ? Theme.accentText : Theme.muted
             }
             TapHandler { onTapped: root.expanded = !root.expanded }
             HoverHandler { cursorShape: Qt.PointingHandCursor }
@@ -352,10 +352,10 @@ Item {
             text: "⊘ " + root.disabledReason
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
-            font.pixelSize: Theme.fontMeta
+            font.pixelSize: Theme.roles.small.size
             lineHeight: 18
             lineHeightMode: Text.FixedHeight
-            color: Theme.textSecondary
+            color: Theme.ink2
         }
     }
 
@@ -395,8 +395,8 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: qsTr("Default")
-            font.pixelSize: Theme.fontMeta
-            color: Theme.textDisabled
+            font.pixelSize: Theme.roles.small.size
+            color: Theme.disabledInk
         }
         Item {
             id: resetLink
@@ -411,7 +411,7 @@ Item {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("Reset")
-                font.pixelSize: Theme.fontMeta
+                font.pixelSize: Theme.roles.small.size
                 color: Theme.accentText
             }
             TapHandler { onTapped: root.resetRequested() }
@@ -472,7 +472,7 @@ Item {
                 anchors.fill: parent
                 model: root.values
                 current: root.current
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 onPicked: value => root.valuePicked(value)
                 Keys.onReturnPressed: event => { if (!sel.popup.visible) { sel.popup.open() } else { event.accepted = false } }
             }
@@ -484,13 +484,16 @@ Item {
         Flow {
             // Never wider than the column: wide rows right-align the buttons, narrow rows left-align and wrap.
             width: root.controlWidth
-            spacing: Theme.space8
+            spacing: Theme.space1
             layoutDirection: root.narrow ? Qt.LeftToRight : Qt.RightToLeft
             onChildrenRectChanged: root.buttonsHeight = childrenRect.height
             Repeater {
-                model: root.narrow ? root.buttons : root.buttons.slice().reverse()
+                // Count model, delegates by index: a rebuilt JS array model recreates the buttons on every change and loops the layout.
+                model: root.buttons.length
                 delegate: UzButton {
-                    required property var modelData
+                    id: btn
+                    required property int index
+                    readonly property var modelData: root.buttons[root.narrow ? btn.index : root.buttons.length - 1 - btn.index] || ({})
                     objectName: modelData.name || ""
                     visible: modelData.visible !== false
                     enabled: modelData.enabled !== false
@@ -499,7 +502,7 @@ Item {
                     implicitHeight: Theme.settingsControlHeight
                     hPadding: 28
                     implicitWidth: Math.min(labelNaturalWidth + hPadding, root.controlWidth)
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     text: modelData.text
                     onClicked: root.buttonClicked(modelData.name || "")
                 }
@@ -519,8 +522,8 @@ Item {
             horizontalAlignment: Text.AlignRight
             verticalAlignment: Text.AlignVCenter
             font.family: Theme.mono
-            font.pixelSize: Theme.fontSmall
-            color: Theme.textSecondary
+            font.pixelSize: Theme.roles.input.size
+            color: Theme.ink2
         }
     }
 }

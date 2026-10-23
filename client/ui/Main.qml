@@ -13,7 +13,7 @@ ApplicationWindow {
     minimumWidth: 960
     minimumHeight: 600
     title: qsTr("Uzume")
-    color: Theme.bg
+    color: Theme.ground
 
     // Appearance (Settings): Dark | Light | System; the game view is always dark.
     Binding {
@@ -29,7 +29,7 @@ ApplicationWindow {
         implicitHeight: visible ? 44 : 0
         height: implicitHeight
         color: Theme.surface
-        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.borderCard }
+        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule }
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 20
@@ -40,7 +40,7 @@ ApplicationWindow {
                 objectName: "updateBannerText"
                 Layout.fillWidth: true
                 text: window.player.updates.bannerText
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 elide: Text.ElideRight
             }
             UzButton {

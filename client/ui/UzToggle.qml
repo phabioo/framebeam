@@ -52,7 +52,7 @@ Switch {
             text: control.text
             textFormat: Text.PlainText
             font.family: Theme.sans
-            font.pixelSize: Theme.fontSmall
+            font.pixelSize: Theme.roles.input.size
             color: control.enabled ? Theme.ink : Theme.disabledInk
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.WordWrap

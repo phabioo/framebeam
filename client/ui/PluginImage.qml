@@ -24,7 +24,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 0
-        color: root.imgState === "empty" ? "transparent" : Theme.blockColor("hover", root.dark)
+        color: root.imgState === "empty" ? "transparent" : Theme.tok("placeholder", root.dark)
+        border.width: root.imgState === "empty" ? 0 : 1
+        border.color: Theme.tok("placeholderRule", root.dark)
         visible: root.imgState !== "alive" || img.status !== Image.Ready
         opacity: root.imgState === "dead" ? 0.55 : 1
     }
@@ -74,19 +76,17 @@ Item {
             ctx.strokeRect(1, 1, width - 2, height - 2)
         }
     }
-    Rectangle {  // owner dot (8) with a ring in the surface color
+    Rectangle {  // owner dot (6) with a ring in the surface color
         visible: root.owner > 0
-        width: 10
-        height: 10
-        radius: 0
-        x: parent.width - 7
-        y: parent.height - 7
+        width: 8
+        height: 8
+        x: parent.width - 6
+        y: parent.height - 6
         color: Theme.blockColor("ownerRing", root.dark)
         Rectangle {
             anchors.centerIn: parent
-            width: 8
-            height: 8
-            radius: 0
+            width: 6
+            height: 6
             color: Theme.playerColor(root.owner, root.dark)
         }
     }

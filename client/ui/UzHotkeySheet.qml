@@ -68,7 +68,7 @@ Rectangle {
                     text: hk.modelData[1]
                     textFormat: Text.PlainText
                     font.family: Theme.sans
-                    font.pixelSize: Theme.fontSmall
+                    font.pixelSize: Theme.roles.input.size
                     color: hk.off ? Theme.disabledInk : Theme.ink
                 }
                 Text {

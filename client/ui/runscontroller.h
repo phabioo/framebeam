@@ -224,7 +224,8 @@ class RunsController : public QObject {
   KeyedRowsModel invites_{{QStringLiteral("runId"), QStringLiteral("headline"), QStringLiteral("subText"), QStringLiteral("joinedText"), QStringLiteral("name"), QStringLiteral("inviteLine")}, QStringLiteral("runId")};
   static QStringList runRoles() {
     return {QStringLiteral("runId"),  QStringLiteral("name"),     QStringLiteral("status"),  QStringLiteral("statusText"), QStringLiteral("tone"),
-            QStringLiteral("subText"), QStringLiteral("timeText"), QStringLiteral("action"), QStringLiteral("participants")};
+            QStringLiteral("subText"), QStringLiteral("timeText"), QStringLiteral("action"), QStringLiteral("participants"),
+            QStringLiteral("game"), QStringLiteral("rulesName"), QStringLiteral("rulesVersion")};
   }
   KeyedRowsModel active_{runRoles(), QStringLiteral("runId")};
   KeyedRowsModel finished_{runRoles(), QStringLiteral("runId")};

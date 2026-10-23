@@ -51,7 +51,7 @@ Rectangle {
             text: root.text
             textFormat: Text.PlainText
             font.family: Theme.sans
-            font.pixelSize: Theme.fontSmall
+            font.pixelSize: Theme.roles.input.size
             font.weight: root.selected ? Font.Medium : Font.Normal
             color: !root.itemEnabled ? Theme.disabledInk : root.danger ? Theme.danger : Theme.ink
         }
@@ -61,7 +61,7 @@ Rectangle {
             textFormat: Text.PlainText
             elide: Text.ElideRight
             font.family: Theme.sans
-            font.pixelSize: Theme.fontMeta
+            font.pixelSize: Theme.roles.small.size
             color: root.itemEnabled ? Theme.muted : Theme.disabledInk
         }
         Text {

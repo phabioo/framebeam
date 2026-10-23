@@ -5,7 +5,7 @@ import Uzume.App
 
 // Plugin console (docs/design/plugins.md 4d-4-2 and 4d-console-error): last tab of the game panel, Developer mode only.
 // Plugin select with status dot, Reload, WATCHED, EVENTS, LOG, and the memory regions the core exposes (for checking the
-// memory map of a core with a real game). Always dark, like the rest of the game view. Newest events and log lines first.
+// memory map of a core with a real game). In the active theme tokens (the game view is dark). Newest events and log lines first.
 Item {
     id: root
     required property PlayerController player
@@ -23,18 +23,18 @@ Item {
 
     function dotColor(st: string): color {
         switch (st) {
-        case "running": return Theme.gameOk
-        case "error": return Theme.gameDanger
-        case "paused": return Theme.gamePluginWarn
-        default: return Theme.gameMeta
+        case "running": return Theme.ok
+        case "error": return Theme.danger
+        case "paused": return Theme.accentText
+        default: return Theme.dim
         }
     }
     function levelColor(level: string): color {
         switch (level) {
-        case "warn": return Theme.gamePluginWarn
-        case "error": return Theme.gameDanger
-        case "debug": return Theme.gameFaint
-        default: return Theme.gameText
+        case "warn": return Theme.accentText
+        case "error": return Theme.danger
+        case "debug": return Theme.dim
+        default: return Theme.ink
         }
     }
     function selectedName(): string {
@@ -53,113 +53,133 @@ Item {
         id: flick
         anchors.fill: parent
         contentWidth: width
-        contentHeight: col.implicitHeight + 40
+        contentHeight: col.implicitHeight + 2 * Theme.space3
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { }
 
         Column {
             id: col
-            x: 20
-            y: 16
-            width: flick.width - 40
-            spacing: 16
+            x: Theme.space3
+            y: Theme.space2
+            width: flick.width - 2 * Theme.space3
+            spacing: Theme.space3
 
             // ---- plugin select + reload
             RowLayout {
                 width: parent.width
-                spacing: 8
-                GameButton {
+                spacing: Theme.space1
+                // Select field (design-system.md "Select", 36 px); the list is the anchored popover below.
+                Rectangle {
                     id: selectBtn
                     objectName: "consoleSelect"
                     Layout.fillWidth: true
-                    look: "outlined"
-                    implicitHeight: 32
-                    caret: "▾"
-                    text: root.selectedName()
-                    onClicked: selectPop.open = !selectPop.open
+                    Layout.minimumWidth: 0
+                    implicitHeight: Theme.row36
+                    color: selectPop.open ? Theme.pressed : (Theme.dark ? "transparent" : Theme.surface)
+                    border.width: 1
+                    border.color: selectPop.open ? Theme.ink : (selectHover.hovered ? Theme.ink2 : Theme.rule)
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.ComboBox
+                    Accessible.name: root.selectedName()
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            selectPop.open = !selectPop.open; event.accepted = true
+                        }
+                    }
                     Rectangle {
                         objectName: "consoleStatusDot"
-                        x: 10
+                        x: Theme.space15
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 8; height: 8; radius: 0
+                        width: 8; height: 8
                         color: root.dotColor(root.status)
                     }
-                    leftPadding: 24
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.space15 + 8 + Theme.space1
+                        anchors.right: chevron.left
+                        anchors.rightMargin: Theme.space1
+                        anchors.verticalCenter: parent.verticalCenter
+                        elide: Text.ElideRight
+                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
+                        text: root.selectedName()
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.input.size
+                        color: Theme.ink
+                    }
+                    UzGlyph {
+                        id: chevron
+                        anchors.right: parent.right
+                        anchors.rightMargin: Theme.space15
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: selectPop.open ? "chevronUp" : "chevronDown"
+                        size: 14
+                        color: Theme.muted
+                    }
+                    HoverHandler { id: selectHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: selectPop.open = !selectPop.open }
+                    UzFocusRing { visible: selectBtn.activeFocus }
                 }
-                GameButton {
+                UzButton {
                     objectName: "consoleReload"
-                    look: "outlined"
-                    implicitHeight: 32
-                    glyph: "↻"
+                    property string tip: qsTr("Reload plugin · Ctrl+Shift+R")
                     text: qsTr("Reload")
-                    tip: qsTr("Reload plugin · Ctrl+Shift+R")
                     onClicked: root.ctl.reloadPlugin(root.selected)
+                    ToolTip.visible: hovered
+                    ToolTip.text: tip
+                    ToolTip.delay: 600
+                    Accessible.description: tip
                 }
             }
 
-            // ---- error (4d-console-error)
-            Rectangle {
+            // ---- error (board 4d-2 "Paused after errors"): an icon and a sentence, never a tinted banner
+            Column {
+                id: errBox
                 objectName: "consoleError"
                 visible: root.failed
                 width: parent.width
-                implicitHeight: errCol.implicitHeight + 24
-                height: implicitHeight
-                radius: 0
-                color: Theme.gameDangerBg
-                border.width: 1
-                border.color: Theme.gameDangerBorder
-                Column {
-                    id: errCol
-                    x: 12; y: 12
-                    width: parent.width - 24
-                    spacing: 8
-                    UzLabel {
-                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
-                        width: parent.width
-                        wrapMode: Text.WordWrap
-                        text: qsTr("Paused after an error · your game keeps running")
-                        font.pixelSize: 13
-                        font.weight: Font.DemiBold
-                        color: Theme.gameDanger
-                    }
-                    UzMono {
-                        textFormat: Text.PlainText
-                        objectName: "consoleErrorText"
-                        width: parent.width
-                        wrapMode: Text.WrapAnywhere
-                        text: root.con.error || ""
-                        font.pixelSize: 11
-                        color: Theme.gameText
-                        maximumLineCount: 12
-                        elide: Text.ElideRight
-                    }
-                    UzLabel {
-                        textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
-                        width: parent.width
-                        wrapMode: Text.WordWrap
-                        font.pixelSize: 12
-                        color: Theme.gameTextMuted
-                        text: qsTr("Panels from this plugin show “Paused”. Fix the file and Reload, or reload as is to try again. Saved with the log in Settings → Diagnostics.")
-                    }
-                    GameButton {
-                        objectName: "consoleRestart"
-                        look: "outlined"
-                        implicitHeight: 32
-                        text: qsTr("Restart plugin")
-                        onClicked: root.ctl.reloadPlugin(root.selected)
-                    }
+                spacing: Theme.space15
+                UzStatusIcon {
+                    kind: "error"
+                    text: qsTr("Paused after an error · your game keeps running")
+                    maxWidth: errBox.width
+                }
+                UzMono {
+                    textFormat: Text.PlainText
+                    objectName: "consoleErrorText"
+                    width: parent.width
+                    wrapMode: Text.WrapAnywhere
+                    text: root.con.error || ""
+                    font.pixelSize: Theme.roles.meta11.size
+                    color: Theme.ink
+                    maximumLineCount: 12
+                    elide: Text.ElideRight
+                }
+                UzLabel {
+                    textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: Theme.roles.small.size
+                    color: Theme.muted
+                    text: qsTr("Panels from this plugin show “Paused”. Fix the file and Reload, or reload as is to try again. Saved with the log in Settings → Diagnostics.")
+                }
+                UzButton {
+                    objectName: "consoleRestart"
+                    kind: "primary"
+                    size: "sm"
+                    text: qsTr("Restart plugin")
+                    onClicked: root.ctl.reloadPlugin(root.selected)
                 }
             }
 
             // ---- WATCHED
             Column {
                 width: parent.width
-                spacing: 6
+                spacing: Theme.space1
                 RowLayout {
                     width: parent.width
-                    Eyebrow { Layout.fillWidth: true; color: Theme.gameFaint; text: qsTr("Watched · %1").arg(root.watched.length) }
-                    UzMono { textFormat: Text.PlainText; text: qsTr("live"); font.pixelSize: 11; color: Theme.gameOk }
+                    Eyebrow { Layout.fillWidth: true; color: Theme.dim; text: qsTr("Watched · %1").arg(root.watched.length) }
+                    UzMono { textFormat: Text.PlainText; text: qsTr("live"); font.pixelSize: Theme.roles.meta11.size; color: Theme.ok }
                 }
                 UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
@@ -167,8 +187,8 @@ Item {
                     visible: root.watched.length === 0
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    font.pixelSize: 12
-                    color: Theme.gameMeta
+                    font.pixelSize: Theme.roles.small.size
+                    color: Theme.dim
                     text: qsTr("Nothing watched. Use fb.dev.watch(label, address, kind) in the plugin.")
                 }
                 Repeater {
@@ -176,10 +196,10 @@ Item {
                     delegate: Row {
                         required property var modelData
                         objectName: "consoleWatched"
-                        spacing: 8
-                        UzMono { textFormat: Text.PlainText; width: 92; text: modelData.address; font.pixelSize: 11; color: Theme.gameTextMuted }
-                        UzMono { textFormat: Text.PlainText; width: 70; text: modelData.value; font.pixelSize: 11; color: Theme.gameAccent; elide: Text.ElideRight }
-                        UzLabel { textFormat: Text.PlainText; width: col.width - 92 - 70 - 16; text: modelData.label; font.pixelSize: 12; color: Theme.gameText; elide: Text.ElideRight }
+                        spacing: Theme.space1
+                        UzMono { textFormat: Text.PlainText; width: 92; text: modelData.address; font.pixelSize: Theme.roles.meta11.size; color: Theme.muted }
+                        UzMono { textFormat: Text.PlainText; width: 70; text: modelData.value; font.pixelSize: Theme.roles.meta11.size; color: Theme.accentText; elide: Text.ElideRight }
+                        UzLabel { textFormat: Text.PlainText; width: col.width - 92 - 70 - 16; text: modelData.label; font.pixelSize: Theme.roles.small.size; color: Theme.ink; elide: Text.ElideRight }
                     }
                 }
             }
@@ -187,14 +207,14 @@ Item {
             // ---- EVENTS
             Column {
                 width: parent.width
-                spacing: 6
-                Eyebrow { color: Theme.gameFaint; text: qsTr("Events") }
+                spacing: Theme.space1
+                Eyebrow { color: Theme.dim; text: qsTr("Events") }
                 UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: root.events.length === 0
                     width: parent.width
-                    font.pixelSize: 12
-                    color: Theme.gameMeta
+                    font.pixelSize: Theme.roles.small.size
+                    color: Theme.dim
                     text: qsTr("No events yet.")
                 }
                 Repeater {
@@ -202,14 +222,16 @@ Item {
                     delegate: Row {
                         required property var modelData
                         objectName: "consoleEvent"
-                        spacing: 8
-                        UzMono { textFormat: Text.PlainText; width: 76; text: modelData.time; font.pixelSize: 11; color: Theme.gameFaint }
-                        Rectangle {
-                            width: Math.min(110, kindText.implicitWidth + 12); height: 18; radius: 0
-                            color: Theme.gameOnBg
-                            UzMono { textFormat: Text.PlainText; id: kindText; anchors.centerIn: parent; width: Math.min(implicitWidth, 98); elide: Text.ElideRight; text: modelData.kind; font.pixelSize: 11; color: Theme.gameAccent }
+                        spacing: Theme.space1
+                        UzMono { textFormat: Text.PlainText; width: 76; text: modelData.time; font.pixelSize: Theme.roles.meta11.size; color: Theme.dim }
+                        UzTag {
+                            width: Math.min(110, implicitWidth)
+                            small: true
+                            tone: "accent"
+                            icon: "none"
+                            text: modelData.kind
                         }
-                        UzMono { textFormat: Text.PlainText; width: col.width - 76 - 110 - 16; text: modelData.text; font.pixelSize: 11; color: Theme.gameText; elide: Text.ElideRight }
+                        UzMono { textFormat: Text.PlainText; width: col.width - 76 - 110 - 16; text: modelData.text; font.pixelSize: Theme.roles.meta11.size; color: Theme.ink; elide: Text.ElideRight }
                     }
                 }
             }
@@ -217,16 +239,16 @@ Item {
             // ---- LOG
             Column {
                 width: parent.width
-                spacing: 6
+                spacing: Theme.space1
                 RowLayout {
                     width: parent.width
-                    Eyebrow { Layout.fillWidth: true; color: Theme.gameFaint; text: qsTr("Log") }
+                    Eyebrow { Layout.fillWidth: true; color: Theme.dim; text: qsTr("Log") }
                     UzButton {
                         textFormat: Text.PlainText
                         objectName: "consoleCopy"
                         kind: "link"
                         implicitHeight: 24
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.roles.small.size
                         text: qsTr("Copy")
                         onClicked: root.ctl.copyLog(root.selected)
                     }
@@ -235,7 +257,7 @@ Item {
                         objectName: "consoleClear"
                         kind: "link"
                         implicitHeight: 24
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.roles.small.size
                         text: qsTr("Clear")
                         onClicked: root.ctl.clearLog(root.selected)
                     }
@@ -244,8 +266,8 @@ Item {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     visible: root.logLines.length === 0
                     width: parent.width
-                    font.pixelSize: 12
-                    color: Theme.gameMeta
+                    font.pixelSize: Theme.roles.small.size
+                    color: Theme.dim
                     text: qsTr("The log is empty.")
                 }
                 Repeater {
@@ -253,9 +275,9 @@ Item {
                     delegate: Row {
                         required property var modelData
                         objectName: "consoleLog_" + modelData.level
-                        spacing: 8
-                        UzMono { textFormat: Text.PlainText; width: 76; text: modelData.time; font.pixelSize: 11; color: Theme.gameFaint }
-                        UzMono { textFormat: Text.PlainText; width: col.width - 76 - 8; text: modelData.text; font.pixelSize: 11; color: root.levelColor(modelData.level); wrapMode: Text.WrapAnywhere; maximumLineCount: 4; elide: Text.ElideRight }
+                        spacing: Theme.space1
+                        UzMono { textFormat: Text.PlainText; width: 76; text: modelData.time; font.pixelSize: Theme.roles.meta11.size; color: Theme.dim }
+                        UzMono { textFormat: Text.PlainText; width: col.width - 76 - 8; text: modelData.text; font.pixelSize: Theme.roles.meta11.size; color: root.levelColor(modelData.level); wrapMode: Text.WrapAnywhere; maximumLineCount: 4; elide: Text.ElideRight }
                     }
                 }
             }
@@ -263,16 +285,16 @@ Item {
             // ---- MEMORY MAP
             Column {
                 width: parent.width
-                spacing: 6
-                Eyebrow { color: Theme.gameFaint; text: qsTr("Memory map") }
+                spacing: Theme.space1
+                Eyebrow { color: Theme.dim; text: qsTr("Memory map") }
                 UzLabel {
                     textFormat: Text.PlainText  // plugin- and peer-supplied strings are never HTML
                     objectName: "consoleNoRegions"
                     visible: root.regions.length === 0
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    font.pixelSize: 12
-                    color: Theme.gameMeta
+                    font.pixelSize: Theme.roles.small.size
+                    color: Theme.dim
                     text: root.con.regionsText || qsTr("The core exposes no memory map")
                 }
                 Repeater {
@@ -280,10 +302,10 @@ Item {
                     delegate: Row {
                         required property var modelData
                         objectName: "consoleRegion"
-                        spacing: 8
-                        UzMono { textFormat: Text.PlainText; width: 92; text: modelData.start; font.pixelSize: 11; color: Theme.gameTextMuted }
-                        UzMono { textFormat: Text.PlainText; width: 92; text: "+" + modelData.length; font.pixelSize: 11; color: Theme.gameText }
-                        UzMono { textFormat: Text.PlainText; width: col.width - 92 - 92 - 16; text: modelData.addrspace !== "" ? modelData.addrspace : "-"; font.pixelSize: 11; color: Theme.gameFaint; elide: Text.ElideRight }
+                        spacing: Theme.space1
+                        UzMono { textFormat: Text.PlainText; width: 92; text: modelData.start; font.pixelSize: Theme.roles.meta11.size; color: Theme.muted }
+                        UzMono { textFormat: Text.PlainText; width: 92; text: "+" + modelData.length; font.pixelSize: Theme.roles.meta11.size; color: Theme.ink }
+                        UzMono { textFormat: Text.PlainText; width: col.width - 92 - 92 - 16; text: modelData.addrspace !== "" ? modelData.addrspace : "-"; font.pixelSize: Theme.roles.meta11.size; color: Theme.dim; elide: Text.ElideRight }
                     }
                 }
             }
@@ -294,8 +316,8 @@ Item {
         id: selectPop
         objectName: "consoleSelectPopover"
         anchorItem: selectBtn
-        popWidth: Math.min(300, root.width - 24)
-        padding: 4
+        popWidth: Math.min(300, root.width - 2 * Theme.space15)
+        padding: Theme.space05
         align: "center"
         onCloseRequested: selectPop.open = false
         Column {

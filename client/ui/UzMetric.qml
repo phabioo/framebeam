@@ -90,7 +90,7 @@ Item {
             text: root.line
             textFormat: Text.PlainText
             font.family: Theme.sans
-            font.pixelSize: Theme.fontMeta
+            font.pixelSize: Theme.roles.small.size
             color: Theme.muted
         }
     }

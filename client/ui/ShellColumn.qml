@@ -10,29 +10,29 @@ Rectangle {
     default property alias content: col.data
     property alias spacing: col.spacing
 
-    color: Theme.bgPanel
+    color: Theme.ground
     implicitWidth: Theme.columnWidth
 
     Rectangle {
         anchors.right: parent.right
         width: 1
         height: parent.height
-        color: Theme.borderSidebar
+        color: Theme.rule
     }
     ColumnLayout {
         id: col
         anchors.fill: parent
-        anchors.leftMargin: Theme.space16
-        anchors.rightMargin: Theme.space16
-        anchors.topMargin: Theme.space28
-        anchors.bottomMargin: Theme.space20
-        spacing: Theme.space6
+        anchors.leftMargin: Theme.space2
+        anchors.rightMargin: Theme.space2
+        anchors.topMargin: Theme.space3
+        anchors.bottomMargin: Theme.space2
+        spacing: Theme.space1
 
         Eyebrow {
             visible: root.title !== ""
             text: root.title
             Layout.leftMargin: 4
-            Layout.bottomMargin: Theme.space6
+            Layout.bottomMargin: Theme.space05
         }
     }
 }
