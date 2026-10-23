@@ -312,6 +312,10 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
             [this](const QString& profile, const QString& inputLabel, const QString& touchLabel) {
               controllers_->setSystemLabels(inputLabel, touchLabel);
               controllers_->setInputProfile(profile);
+              // Per-game controller profiles for P1: a temporary override, the device assignments stay as they are.
+              controllers_->setGameProfiles(
+                  emulation_->uzumeValue(QString::fromLatin1(EmulationController::kPadProfileKey), launchGame_.system, launchGame_.id),
+                  emulation_->uzumeValue(QString::fromLatin1(EmulationController::kKeyboardProfileKey), launchGame_.system, launchGame_.id));
             });
   }
   if (options.probeCoreVersions) {
@@ -618,7 +622,15 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
     emit selectedGameChanged();
   });
   applyUzumeOptions();
-  connect(&session_, &GameSession::stateChanged, this, [this]() { emulation_->setGameRunning(session_.isActive()); });
+  connect(&session_, &GameSession::stateChanged, this, [this]() {
+    emulation_->setGameRunning(session_.isActive());
+    emulation_->setRunningGame(session_.isActive() ? launchGame_.id : QString());
+    if (!session_.isActive()) controllers_->clearGameProfiles();  // the per-game profiles end with the game
+  });
+  // Per-game controller profiles (uzume.pad_profile / uzume.keyboard_profile) and the profile lists of the Emulation page.
+  emulation_->setControllerProfiles(controllers_->profileStore());
+  connect(controllers_.get(), &ControllersController::profilesChanged, emulation_.get(), &EmulationController::profilesChanged);
+  connect(emulation_.get(), &EmulationController::gameCoreWanted, this, [this](const QString& gameId) { prepareGameCore(gameId); });
 
   connect(&session_, &GameSession::started, this, [this]() {
     applyUzumeOptions();
@@ -787,6 +799,24 @@ void PlayerController::refreshCoreState() {
 
 // Emulation page: system cards (core, readiness, firmware) and the core options (loaded once without a game or from
 // the cache of the last capture; not possible while a game runs because only one core can be loaded per process).
+// The per-game settings dialog needs the options of the game's core: read them like the Emulation page does (worker thread,
+// else the cache of the last capture; not while a game runs).
+void PlayerController::prepareGameCore(const QString& gameId) {
+  const QString systemId = [&]() {
+    for (const QVariant& v : emulation_->games()) {
+      if (v.toMap().value(QStringLiteral("id")).toString() == gameId) return v.toMap().value(QStringLiteral("systemId")).toString();
+    }
+    return QString();
+  }();
+  const emu::SystemManifest* mp = systemId.isEmpty() ? nullptr : catalog_->manifestForSystem(systemId, gameId);
+  if (mp == nullptr || mp->coreId.isEmpty() || emulation_->hasCoreProbe(mp->coreId)) return;
+  if (!session_.isActive() && (catalog_->probing(mp->coreId) || catalog_->probeCoreOptions(*mp))) {
+    emulation_->setCoreProbing(catalog_->probeBusy());
+    return;
+  }
+  emulation_->loadCoreCache(mp->coreId);
+}
+
 void PlayerController::refreshEmulationPage() {
   // The probe runs on a worker thread (CoreProber); the page shows a loading state and refreshes when the result arrives.
   const auto probeCore = [this](const emu::SystemManifest* mp) {

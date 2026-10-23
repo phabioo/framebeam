@@ -35,6 +35,7 @@ Rectangle {
     readonly property var audio: player.audio
     signal fullscreenRequested()
     signal resetRequested()
+    signal gameSettingsRequested()
     signal panelToggled()
     signal pickerToggled()
     signal layoutMenuClosed()
@@ -172,6 +173,7 @@ Rectangle {
                         it.push({ label: qsTr("Speed-up speed: %1×").arg(r[i]), hint: cur(Math.abs(root.session.fastForwardRatio - Number(r[i])) < 0.001), name: "speed_" + r[i] })
                 }
             }
+            if (root.own) it.push({ label: qsTr("Settings for this game…"), name: "gameSettings" })
             it.push({ label: qsTr("Fullscreen"), shortcut: root.key(root.hotkeys.fullscreen), name: "fullscreen" })
             it.push({ label: root.diag.open ? qsTr("Hide diagnostics") : qsTr("Diagnostics"), shortcut: root.key(root.hotkeys.diagnostics), name: "diagnostics" })
             if (root.own) {
@@ -199,6 +201,7 @@ Rectangle {
         else if (name === "fullscreen") root.fullscreenRequested()
         else if (name === "diagnostics") root.diag.toggle()
         else if (name === "reset") root.resetRequested()
+        else if (name === "gameSettings") root.gameSettingsRequested()
         else if (name === "hotkeys") { root.player.leaveGameView(); root.player.showControllers() }
         else if (name === "report") root.player.report.show()
     }

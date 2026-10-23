@@ -16,7 +16,7 @@ const QString kPadPrefix = QStringLiteral("pad:");
 ControllersController::ControllersController(const QString& dataDir, QObject* parent)
     : QObject(parent), profiles_(dataDir) {
   pads_.setBindingsProvider([this](const QString& deviceKey) {
-    const QString id = profiles_.assignedProfileId(deviceKey, QStringLiteral("gamepad"));
+    const QString id = activeProfileId(deviceKey, QStringLiteral("gamepad"));
     const auto p = profiles_.find(id);
     return p ? p->bindings : ControllerProfiles::builtinProfile(QStringLiteral("gamepad")).bindings;
   });
@@ -51,8 +51,113 @@ ControllersController::ControllersController(const QString& dataDir, QObject* pa
       emit hotkeyHintsChanged();
     }
   });
+  clock_.start();
+  holdTimer_.setSingleShot(true);
+  connect(&holdTimer_, &QTimer::timeout, this, &ControllersController::updateHold);
+  connect(&pads_, &input::GamepadService::stateChanged, this, &ControllersController::updateHold);
+  connect(&pads_, &input::GamepadService::devicesChanged, this, &ControllersController::updateHold);
   syncPadHotkeys();
 }
+
+void ControllersController::updateHold() {
+  const auto devs = pads_.devices();
+  QSet<QString> pressed;
+  // While a button is being captured for a binding the sheet stays away.
+  if (!devs.isEmpty() && !pads_.capturing() && padHotkeyListening_.isEmpty()) pressed = pads_.pressedTokens(devs.first().id);
+  hold_.setModifier(profiles_.padHotkeyModifier());
+  const bool was = hold_.visible();
+  const qint64 now = clock_.elapsed();
+  hold_.update(pressed, now);
+  const int wait = hold_.msUntilShow(now);
+  if (wait >= 0) {
+    holdTimer_.start(wait + 1);
+  } else {
+    holdTimer_.stop();
+  }
+  if (hold_.visible() != was) emit holdSheetChanged();
+}
+
+namespace {
+// GamepadHint key of a pad token.
+QString sheetKey(const QString& token) {
+  static const QHash<QString, QString> k = {
+      {QStringLiteral("pad:a"), QStringLiteral("A")},          {QStringLiteral("pad:b"), QStringLiteral("B")},
+      {QStringLiteral("pad:x"), QStringLiteral("X")},          {QStringLiteral("pad:y"), QStringLiteral("Y")},
+      {QStringLiteral("pad:leftshoulder"), QStringLiteral("L")},  {QStringLiteral("pad:rightshoulder"), QStringLiteral("R")},
+      {QStringLiteral("pad:lefttrigger"), QStringLiteral("L2")},  {QStringLiteral("pad:righttrigger"), QStringLiteral("R2")},
+      {QStringLiteral("pad:leftstick"), QStringLiteral("L3")},    {QStringLiteral("pad:rightstick"), QStringLiteral("R3")},
+      {QStringLiteral("pad:start"), QStringLiteral("Start")},     {QStringLiteral("pad:back"), QStringLiteral("Select")},
+      {QStringLiteral("pad:dpup"), QStringLiteral("↑")},          {QStringLiteral("pad:dpdown"), QStringLiteral("↓")},
+      {QStringLiteral("pad:dpleft"), QStringLiteral("←")},        {QStringLiteral("pad:dpright"), QStringLiteral("→")},
+  };
+  return k.value(token, tokenLabel(token));
+}
+}  // namespace
+
+// The combos of the hold-Select sheet from the bindings in use (the same ones syncPadHotkeys() hands to the GamepadService):
+// buttons that fire while the hotkey button is held. Lone ("solo") buttons are not part of a hold sheet. Pause (hotkey button +
+// Start) and "hide all HUD widgets" (+ L3) are fixed unless the user gave that button to another action.
+QVariantList ControllersController::padSheetRows() const {
+  struct Entry {
+    QString action, token, label;
+  };
+  QList<Entry> entries;
+  QSet<QString> used;
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    const QString b = profiles_.padHotkey(d.id);
+    if (!b.isEmpty()) used.insert(padHotkeyToken(b));
+  }
+  if (!used.contains(QStringLiteral("pad:start"))) entries.append({QStringLiteral("pause"), QStringLiteral("pad:start"), tr("Pause")});
+  for (const HotkeyDef& d : hotkeyDefs()) {
+    const QString b = profiles_.padHotkey(d.id);
+    if (b.isEmpty() || padHotkeySolo(b)) continue;
+    entries.append({d.id, padHotkeyToken(b), d.label});
+  }
+  if (!used.contains(QStringLiteral("pad:leftstick"))) entries.append({QStringLiteral("hud"), QStringLiteral("pad:leftstick"), tr("Hide all HUD widgets")});
+  // Volume up and down on the D-pad up/down are one row, as in the design.
+  QVariantList rows;
+  const auto find = [&](const QString& action) {
+    for (const Entry& e : std::as_const(entries)) {
+      if (e.action == action) return e;
+    }
+    return Entry{};
+  };
+  const Entry up = find(QStringLiteral("volumeUp")), down = find(QStringLiteral("volumeDown"));
+  const bool pair = up.token == QLatin1String("pad:dpup") && down.token == QLatin1String("pad:dpdown");
+  for (const Entry& e : std::as_const(entries)) {
+    if (pair && e.action == QLatin1String("volumeDown")) continue;
+    if (pair && e.action == QLatin1String("volumeUp")) {
+      rows.append(QVariantMap{{QStringLiteral("action"), QStringLiteral("volume")}, {QStringLiteral("key"), QStringLiteral("UpDown")}, {QStringLiteral("label"), tr("Volume")}});
+      continue;
+    }
+    rows.append(QVariantMap{{QStringLiteral("action"), e.action}, {QStringLiteral("key"), sheetKey(e.token)}, {QStringLiteral("label"), e.label}});
+  }
+  return rows;
+}
+
+bool ControllersController::isP1(const QString& deviceKey) const {
+  const auto devs = pads_.devices();
+  return !devs.isEmpty() && devs.first().key == deviceKey;
+}
+
+QString ControllersController::activeProfileId(const QString& deviceKey, const QString& kind) const {
+  const bool pad = kind == QLatin1String("gamepad");
+  const QString& over = pad ? gamePad_ : gameKeyboard_;
+  if (!over.isEmpty() && (!pad || isP1(deviceKey))) {
+    const auto p = profiles_.find(over);
+    if (p && p->kind == kind) return over;  // a deleted profile is ignored here, the device's own one is used
+  }
+  return profiles_.assignedProfileId(deviceKey, kind);
+}
+
+void ControllersController::setGameProfiles(const QString& padProfileId, const QString& keyboardProfileId) {
+  if (gamePad_ == padProfileId && gameKeyboard_ == keyboardProfileId) return;
+  gamePad_ = padProfileId;
+  gameKeyboard_ = keyboardProfileId;
+  profileChanged();
+}
+
+void ControllersController::clearGameProfiles() { setGameProfiles(QString(), QString()); }
 
 void ControllersController::syncPadHotkeys() {
   QList<input::PadHotkeyBinding> bindings;
@@ -397,7 +502,7 @@ void ControllersController::setInputProfile(const QString& profile) {
 }
 
 QHash<int, quint32> ControllersController::keyboardMap() const {
-  const auto p = profiles_.find(profiles_.assignedProfileId(kKeyboard, kKeyboard));
+  const auto p = profiles_.find(activeProfileId(kKeyboard, kKeyboard));
   QHash<int, quint32> map = input::keyMapFor(inputProfile_, p ? p->bindings : ControllerProfiles::builtinProfile(kKeyboard).bindings);
   for (auto it = map.begin(); it != map.end();) {  // a hotkey wins over the keyboard profile
     it = profiles_.hotkeyAction(it.key()).isEmpty() ? std::next(it) : map.erase(it);
@@ -501,6 +606,7 @@ QMap<int, QString> ControllersController::reservedKeyOwners() const {
 
 void ControllersController::hotkeysUpdated() {
   syncPadHotkeys();
+  updateHold();
   emit hotkeysChanged();
   emit hotkeyHintsChanged();
   emit keyboardMapChanged();

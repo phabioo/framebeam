@@ -17,7 +17,7 @@ target_compile_features(uzume_inputmap PUBLIC cxx_std_20)
 target_link_libraries(uzume_inputmap PUBLIC uzume_core Qt6::Core)
 uzume_warnings(uzume_inputmap)
 
-add_library(uzume_input STATIC gamepadservice.cpp padhotkeys.cpp padtype.cpp)
+add_library(uzume_input STATIC gamepadservice.cpp padhotkeys.cpp padhold.cpp padtype.cpp)
 target_include_directories(uzume_input PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(uzume_input PUBLIC cxx_std_20)
 target_link_libraries(uzume_input PUBLIC uzume_inputmap uzume_core Qt6::Core)
@@ -34,3 +34,5 @@ uzume_add_test(input_padtype tests/padtype_test.cpp LIBS uzume_input uzume_sdl3)
 uzume_add_test(input_padhotkeys tests/padhotkeys_test.cpp LIBS uzume_input uzume_emulation uzume_sdl3)
 # Input profile tables from the system manifests: nds/3ds masks unchanged, gb/gba, conflicts, unknown targets.
 uzume_add_test(input_profiles tests/inputprofile_test.cpp LIBS uzume_input uzume_emulation)
+# Hold-Select hotkey sheet: pure hold detection with an injected clock.
+uzume_add_test(input_padhold tests/padhold_test.cpp LIBS uzume_input uzume_sdl3)

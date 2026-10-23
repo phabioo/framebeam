@@ -236,6 +236,7 @@ qt_add_qml_module(uzume_ui
     AdminPeople.qml
     AdminAskDialog.qml
     CollectionDialogs.qml
+    GameSettingsDialog.qml
     LibraryAdminBar.qml
     LibraryContinue.qml
     LibraryAdminDetails.qml

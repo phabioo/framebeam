@@ -4,8 +4,10 @@ import QtQuick.Layouts
 // Hotkey sheet (design-system.md "HotkeySheet"): the "Hold Select +" grid over the stage: 400 px on `surface` in a `rule` frame;
 // head with the pressed Select key and a Mono label, two columns of GamepadHint + action, a foot "Release Select to close".
 // keys: [[key, label], [key, label, whyDisabled]]; a third entry greys the row and shows the reason at the right.
+// modifier: the hotkey button that is held ("Select" unless the player chose another one).
 Rectangle {
     id: root
+    property string modifier: "Select"
     property var keys: [["A", qsTr("Save state")], ["B", qsTr("Load state")], ["L", qsTr("Previous slot")], ["R", qsTr("Next slot")],
                         ["X", qsTr("Screenshot")], ["Y", qsTr("Fast forward")], ["UpDown", qsTr("Volume")], ["Start", qsTr("Pause menu")]]
     implicitWidth: 400
@@ -15,7 +17,7 @@ Rectangle {
     border.width: 1
     border.color: Theme.rule
     Accessible.role: Accessible.Dialog
-    Accessible.name: qsTr("Select shortcuts")
+    Accessible.name: qsTr("%1 shortcuts").arg(root.modifier)
 
     Item {
         id: headBox
@@ -27,10 +29,10 @@ Rectangle {
             anchors.leftMargin: Theme.space2
             anchors.verticalCenter: parent.verticalCenter
             spacing: Theme.space1
-            UzGamepadHint { k: "Select"; pressed: true; anchors.verticalCenter: parent.verticalCenter }
+            UzGamepadHint { k: root.modifier; pressed: true; anchors.verticalCenter: parent.verticalCenter }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: qsTr("Hold Select +")
+                text: qsTr("Hold %1 +").arg(root.modifier)
                 font.family: Theme.mono
                 font.pixelSize: 10
                 font.weight: Font.Medium
@@ -95,7 +97,7 @@ Rectangle {
             anchors.left: parent.left
             anchors.leftMargin: Theme.space2
             anchors.verticalCenter: parent.verticalCenter
-            text: qsTr("Release Select to close")
+            text: qsTr("Release %1 to close").arg(root.modifier)
             font.family: Theme.mono
             font.pixelSize: 10
             font.letterSpacing: 0.6

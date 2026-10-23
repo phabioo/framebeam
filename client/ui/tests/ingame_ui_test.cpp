@@ -762,6 +762,19 @@ class InGameUiTest : public QObject {
     QVERIFY(h.click("moreButton"));
     QTRY_VERIFY(shown(h, "menuItem_diagnostics"));
     QVERIFY(shown(h, "menuItem_fullscreen") && shown(h, "menuItem_reset") && shown(h, "menuItem_hotkeys"));
+    // 0.19: "Settings for this game…" in the menu opens the per-game dialog over the game; Done closes it.
+    QVERIFY(shown(h, "menuItem_gameSettings"));
+    QVERIFY(h.click("menuItem_gameSettings"));
+    QTRY_VERIFY(shown(h, "gameSettingsDialog"));
+    QVERIFY(shown(h, "gameSettingsFooter"));
+    QVERIFY(h.click("gameSettingsDone"));
+    QTRY_VERIFY(!shown(h, "gameSettingsDialog"));
+    // The hold-Select sheet is created only while the hotkey button is held (rows: ui_emulation_controllers).
+    QVERIFY(h.item("padHotkeySheetLoader") != nullptr);
+    QVERIFY(!h.item("padHotkeySheetLoader")->property("active").toBool());
+    QVERIFY(h.item("padHotkeySheet") == nullptr);
+    QVERIFY(h.click("moreButton"));
+    QTRY_VERIFY(shown(h, "menuItem_diagnostics"));
     QTest::keyClick(h.window, Qt::Key_Escape);
     QTRY_VERIFY(!shown(h, "menuItem_diagnostics"));
 
