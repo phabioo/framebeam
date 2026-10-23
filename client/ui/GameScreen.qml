@@ -43,7 +43,7 @@ Rectangle {
     readonly property bool menuOpen: header.menuOpen
 
     // Layouts of the running system (D12); remote pictures offer the switch for frames with two stacked screens.
-    readonly property var screenLayouts: session.active ? session.screenLayouts : (ctl.watching ? ["stacked", "side", "top"] : [])
+    readonly property var screenLayouts: session.active ? session.screenLayouts : (ctl.watching ? ctl.watchLayouts : [])
     readonly property string modeTitle: ctl.multiviewMode === "row" ? qsTr("Multiview · Row")
                                        : ctl.multiviewMode === "grid" ? qsTr("Multiview · Grid 2×2")
                                        : qsTr("Multiview · Picture-in-Picture")
@@ -179,6 +179,17 @@ Rectangle {
     // Player hotkeys are configurable (Controllers > Hotkeys): the controller maps the Qt key to an action name.
     // Hints show the gamepad combo while a gamepad was the last input used, else the key (name kept: hotkeyLabels).
     readonly property var hotkeyLabels: root.player.controllers.hotkeyHints
+    // Screen layout (F7): opens the layout menu in the header; in fullscreen (no header) it picks the next layout instead.
+    // Single-screen systems have no layout UI: nothing happens. Select + Right on the gamepad always cycles (no menu to steer).
+    function openLayoutMenu() {
+        if (root.screenLayouts.length < 2) return
+        if (header.visible) header.toggleLayoutMenu()
+        else root.cycleLayout()
+    }
+    function cycleLayout() {
+        if (root.screenLayouts.length < 2) return
+        root.ctl.chooseScreenLayout(root.ctl.nextLayout(root.screenLayouts))
+    }
     // Runs a hotkey action (keyboard or gamepad); false = unknown action.
     function runHotkey(action) {
         if (action === "fullscreen") root.toggleFullscreen()
@@ -187,13 +198,16 @@ Rectangle {
         else if (action === "pause") { if (root.session.active) root.session.togglePause() }
         else if (action === "hud") root.player.plugins.hudAllHidden = !root.player.plugins.hudAllHidden
         else if (action === "speedup") { if (root.session.fastForwardAvailable) root.session.toggleFastForward() }
+        else if (action === "layout") root.openLayoutMenu()
+        else if (action === "swap") { if (root.screenLayouts.length > 1) root.ctl.chooseScreenSwap(!root.ctl.screenSwap) }
+        else if (action === "nextLayout") root.cycleLayout()
         else return false
         return true
     }
     Connections {
         target: root.player.controllers
         // Gamepad hotkeys (P1): the buttons are already kept away from the core by the GamepadService.
-        function onPadHotkeyTriggered(action) { if (root.visible) root.runHotkey(action) }
+        function onPadHotkeyTriggered(action) { if (root.visible) root.runHotkey(action === "layout" ? "nextLayout" : action) }
     }
     // A text field of a plugin panel has the focus: plugin keys, Alt+n and F4 are typing, not hotkeys.
     function textFieldFocused() {
@@ -216,12 +230,22 @@ Rectangle {
         }
         return false
     }
+    // Keys pressed in the window of the bottom screen that the game view there did not use (hotkeys, Esc).
+    function handleWindowKey(e) {
+        if (e.isAutoRepeat) return
+        var action = root.player.controllers.hotkeyAction(e.key)
+        if (action === "layout" && (e.modifiers & Qt.ShiftModifier)) action = "swap"
+        if (action !== "" && action !== "fullscreen" && root.runHotkey(action)) e.accepted = true
+        else if (e.key === Qt.Key_Escape && root.session.active) { root.session.togglePause(); e.accepted = true }
+    }
     Keys.onPressed: (e) => {
         if (!root.visible) return   // game in the background: hotkeys do not act on it from other screens
         root.player.controllers.noteKeyboardInput()
         if (root.runExtraHotkey(e)) { e.accepted = true; return }
         var action = root.player.controllers.hotkeyAction(e.key)
         if (action !== "") {
+            // Shift + the layout key swaps the screens directly
+            if (action === "layout" && (e.modifiers & Qt.ShiftModifier)) action = "swap"
             if (!(action === "speedup" && e.isAutoRepeat)) root.runHotkey(action)
             e.accepted = true   // the key never reaches the core (GameSession::isReservedKey)
         } else if (e.key === Qt.Key_Escape) {
@@ -235,6 +259,23 @@ Rectangle {
     }
 
     Timer { id: hintTimer; interval: 6000 }
+
+    property string layoutToastText: ""
+    Timer { id: layoutToastTimer; interval: 2500; onTriggered: root.layoutToastText = "" }
+    Connections {
+        target: root.ctl
+        function onLayoutNotice(text) {
+            root.layoutToastText = text
+            layoutToastTimer.restart()
+        }
+    }
+
+    // Bottom screen in its own window (NDS/3DS, local game only): a second top-level window, closed with the game.
+    BottomScreenWindow {
+        id: bottomWindow
+        player: root.player
+        onHotkeyKey: (e) => root.handleWindowKey(e)
+    }
 
     GameHeader {
         id: header
@@ -252,6 +293,7 @@ Rectangle {
         onResetRequested: root.openPopover("reset")
         onPanelToggled: root.panelCollapsed = !root.panelCollapsed
         onPickerToggled: root.togglePopover("picker")
+        onLayoutMenuClosed: Qt.callLater(root.focusLocal)   // the layout hotkey keeps working after the menu
     }
 
     // Stage and panel
@@ -289,7 +331,8 @@ Rectangle {
                         anchors.fill: parent
                         anchors.margins: Theme.space3 + Theme.space05
                         session: root.session
-                        layout: root.ctl.screenLayout
+                        layout: root.ctl.viewLayout
+                        swap: root.ctl.viewSwap
                         strictInteger: root.ctl.integerScale
                         aspectRatio: root.ctl.aspectRatio
                         focus: true
@@ -383,6 +426,15 @@ Rectangle {
                         text: qsTr("Speed-up ×%1").arg(Math.round(root.session.fastForwardRatio * 10) / 10)
                     }
                     // The save of the running game changed on another device (non-blocking)
+                    // "Layout: Side by side" after a layout, swap or bottom-window choice (F7 menu, hotkeys, header)
+                    UzToast {
+                        objectName: "layoutToast"
+                        visible: root.layoutToastText !== ""
+                        width: Math.min(implicitWidth, toasts.maxToastWidth)
+                        kind: "done"
+                        closable: false
+                        text: root.layoutToastText
+                    }
                     UzToast {
                         objectName: "saveNotice"
                         visible: root.player.saveHistory.notice !== ""
@@ -612,7 +664,8 @@ Rectangle {
                     objectName: "toolbarLayoutSwitch"
                     layouts: root.screenLayouts
                     current: root.ctl.screenLayout
-                    onPicked: (v) => root.ctl.screenLayout = v
+                    compact: true
+                    onPicked: (v) => root.ctl.chooseScreenLayout(v)
                 }
                 UzButton {
                     objectName: "fullscreenPauseButton"

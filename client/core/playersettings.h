@@ -142,6 +142,19 @@ class PlayerSettings {
   QHash<QString, QString> pluginToastMutes() const;
   bool setPluginToastMute(const QString& pluginId, const QString& mode);
 
+  // Window of the bottom screen (0.19, NDS/3DS "Bottom screen in its own window"): position, size and the name of the
+  // monitor it was on, remembered on this PC only (not per game). Invalid = never placed (the window opens centered).
+  struct WindowGeometry {
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    QString screen;  // QScreen::name() of the monitor; the position is only used while that monitor exists
+    bool valid() const { return width > 0 && height > 0; }
+  };
+  WindowGeometry bottomWindowGeometry() const;
+  bool setBottomWindowGeometry(const WindowGeometry& g);  // invalid removes it
+
   // Visibility of the own shared Session: "private" | "hub_users" | "invite_only"; "" = not chosen yet (the caller's default).
   QString sessionVisibility() const { return sessionVisibility_; }
   bool setSessionVisibility(const QString& visibility);  // anything else is rejected (false)

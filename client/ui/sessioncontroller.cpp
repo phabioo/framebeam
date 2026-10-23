@@ -992,6 +992,46 @@ void SessionController::setScreenLayout(const QString& layout) {
   emit viewChanged();
 }
 
+void SessionController::setScreenSwap(bool on) {
+  if (on == screenSwap_) {
+    return;
+  }
+  screenSwap_ = on;
+  emit viewChanged();
+}
+
+void SessionController::setBottomWindow(bool on) {
+  if (on == bottomWindow_) {
+    return;
+  }
+  bottomWindow_ = on;
+  emit viewChanged();
+}
+
+QStringList SessionController::watchLayouts() const { return screenLayoutsFor(2); }
+
+QString SessionController::layoutLabel(const QString& layout) const { return screenLayoutLabel(layout); }
+
+QString SessionController::nextLayout(const QStringList& layouts) const { return nextScreenLayout(layouts, screenLayout_); }
+
+void SessionController::chooseScreenLayout(const QString& layout) {
+  if (!isScreenLayout(layout)) {
+    return;
+  }
+  setScreenLayout(layout);
+  emit layoutNotice(tr("Layout: %1").arg(screenLayoutLabel(layout)));
+}
+
+void SessionController::chooseScreenSwap(bool on) {
+  setScreenSwap(on);
+  emit layoutNotice(on ? tr("Screens swapped") : tr("Screens not swapped"));
+}
+
+void SessionController::chooseBottomWindow(bool on) {
+  setBottomWindow(on);
+  emit layoutNotice(on ? tr("Bottom screen in its own window") : tr("Bottom screen back in the game view"));
+}
+
 void SessionController::setPictureOptions(bool integerScale, const QString& aspectRatio) {
   if (integerScale == integerScale_ && aspectRatio == aspectRatio_) {
     return;
@@ -1005,6 +1045,8 @@ void SessionController::gameStarted(const QString& gameId, const QString& title)
   gameId_ = gameId;
   gameTitle_ = title;
   screenLayout_ = QStringLiteral("stacked");  // the in-game switch applies to this game only
+  screenSwap_ = false;
+  bottomWindow_ = false;
   focusPref_ = QStringLiteral("local");
   if (!order_.contains(QStringLiteral("local"))) {
     order_.prepend(QStringLiteral("local"));
@@ -1024,6 +1066,7 @@ void SessionController::gameEnded() {
   stopSharing();
   gameId_.clear();
   gameTitle_.clear();
+  bottomWindow_ = false;  // leaving the game closes the bottom-screen window
   order_.removeAll(QStringLiteral("local"));
   if (focusPref_ == QLatin1String("local")) {
     focusPref_ = order_.isEmpty() ? QStringLiteral("local") : order_.first();

@@ -49,6 +49,7 @@ constexpr const char* kPluginHudAllHiddenKey = "plugin_hud_all_hidden";
 constexpr const char* kPluginHotkeysKey = "plugin_hotkeys";          // { "<plugin_id>/<hotkey_id>": key | "none" }
 constexpr const char* kPluginToastMuteKey = "plugin_toast_mute";    // { plugin_id: mode }
 constexpr const char* kSessionVisibilityKey = "session_visibility";
+constexpr const char* kBottomWindowKey = "bottom_window";
 constexpr const char* kLibrarySortKey = "library_sort";
 constexpr const char* kLibraryReadyFirstKey = "library_ready_first";
 constexpr const char* kRomCacheLimitKey = "rom_cache_limit_bytes";
@@ -457,6 +458,33 @@ bool PlayerSettings::setSessionVisibility(const QString& visibility) {
   }
   sessionVisibility_ = visibility;
   raw_.insert(QLatin1String(kSessionVisibilityKey), visibility);
+  return save();
+}
+
+PlayerSettings::WindowGeometry PlayerSettings::bottomWindowGeometry() const {
+  const QJsonObject o = raw_.value(QLatin1String(kBottomWindowKey)).toObject();
+  WindowGeometry g;
+  g.x = o.value(QLatin1String("x")).toInt();
+  g.y = o.value(QLatin1String("y")).toInt();
+  g.width = o.value(QLatin1String("width")).toInt();
+  g.height = o.value(QLatin1String("height")).toInt();
+  g.screen = o.value(QLatin1String("screen")).toString();
+  if (!g.valid()) return {};
+  return g;
+}
+
+bool PlayerSettings::setBottomWindowGeometry(const WindowGeometry& g) {
+  if (!g.valid()) {
+    raw_.remove(QLatin1String(kBottomWindowKey));
+  } else {
+    QJsonObject o;
+    o.insert(QLatin1String("x"), g.x);
+    o.insert(QLatin1String("y"), g.y);
+    o.insert(QLatin1String("width"), g.width);
+    o.insert(QLatin1String("height"), g.height);
+    o.insert(QLatin1String("screen"), g.screen);
+    raw_.insert(QLatin1String(kBottomWindowKey), o);
+  }
   return save();
 }
 

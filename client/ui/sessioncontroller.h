@@ -90,6 +90,15 @@ class SessionController : public QObject {
   Q_PROPERTY(bool integerScale READ integerScale NOTIFY viewChanged)
   Q_PROPERTY(QString aspectRatio READ aspectRatio NOTIFY viewChanged)
   Q_PROPERTY(QString screenLayout READ screenLayout WRITE setScreenLayout NOTIFY viewChanged)
+  // 0.19 package 6: "Swap screens" (bottom screen where the top would be) and "Bottom screen in its own window" (local game
+  // only; while on, the main view shows the top screen only). Like the layout they start from the Emulation options
+  // (uzume.screen_swap, uzume.bottom_window) at game start; the in-game choice applies to the running game only.
+  // viewLayout / viewSwap = what the main game view draws right now. watchLayouts = what a watched two-screen frame offers.
+  Q_PROPERTY(bool screenSwap READ screenSwap WRITE setScreenSwap NOTIFY viewChanged)
+  Q_PROPERTY(bool bottomWindow READ bottomWindow WRITE setBottomWindow NOTIFY viewChanged)
+  Q_PROPERTY(QString viewLayout READ viewLayout NOTIFY viewChanged)
+  Q_PROPERTY(bool viewSwap READ viewSwap NOTIFY viewChanged)
+  Q_PROPERTY(QStringList watchLayouts READ watchLayouts CONSTANT)
   // Diagnostics overlay (3t-3y): states, formatted values.
   Q_PROPERTY(uzume::ui::DiagnosticsModel* diagnostics READ diagnostics CONSTANT)
   // 3g: "Lena is relayed via the hub (TURN) · may lag slightly." (empty when nobody is relayed)
@@ -144,6 +153,19 @@ class SessionController : public QObject {
   qint64 audioFedFrames(const QString& surface) const { return fedFrames_.value(surface); }
   QString screenLayout() const { return screenLayout_; }
   void setScreenLayout(const QString& layout);
+  bool screenSwap() const { return screenSwap_; }
+  void setScreenSwap(bool on);
+  bool bottomWindow() const { return bottomWindow_; }
+  void setBottomWindow(bool on);
+  QString viewLayout() const { return bottomWindow_ ? QStringLiteral("top") : screenLayout_; }
+  bool viewSwap() const { return screenSwap_ && !bottomWindow_; }
+  QStringList watchLayouts() const;
+  // The user's choices in game (menu, hotkeys): like the setters, plus a notice for the toast ("Layout: Side by side").
+  Q_INVOKABLE void chooseScreenLayout(const QString& layout);
+  Q_INVOKABLE void chooseScreenSwap(bool on);
+  Q_INVOKABLE void chooseBottomWindow(bool on);
+  Q_INVOKABLE QString layoutLabel(const QString& layout) const;
+  Q_INVOKABLE QString nextLayout(const QStringList& layouts) const;  // the layout after the current one (wraps around)
   bool integerScale() const { return integerScale_; }
   QString aspectRatio() const { return aspectRatio_; }
   void setPictureOptions(bool integerScale, const QString& aspectRatio);
@@ -185,6 +207,7 @@ class SessionController : public QObject {
   Q_INVOKABLE void dismissMessage();
 
  signals:
+  void layoutNotice(const QString& text);  // toast text after a layout, swap or bottom-window choice of the user
   void linkChanged();
   void sessionsChanged();
   void shareChanged();
@@ -292,6 +315,8 @@ class SessionController : public QObject {
   QString message_;
   bool messageIsError_ = false;
   QString screenLayout_ = QStringLiteral("stacked");
+  bool screenSwap_ = false;
+  bool bottomWindow_ = false;
   bool integerScale_ = false;
   QString aspectRatio_ = QStringLiteral("core");
   DiagnosticsModel* diagnostics_ = nullptr;  // owned (parent: this)

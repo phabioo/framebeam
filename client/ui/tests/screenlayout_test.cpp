@@ -29,11 +29,146 @@ class ScreenLayoutTest : public QObject {
   Q_OBJECT
  private slots:
   void layoutsFollowScreenCount() {
-    QCOMPARE(screenLayoutsFor(2).size(), 3);
+    QCOMPARE(screenLayoutsFor(2),
+             (QStringList{QStringLiteral("stacked"), QStringLiteral("side"), QStringLiteral("large"), QStringLiteral("top"), QStringLiteral("bottom")}));
+    QVERIFY(screenLayoutsFor(3).isEmpty());
     QVERIFY(screenLayoutsFor(1).isEmpty());
     QVERIFY(screenLayoutsFor(0).isEmpty());
     QVERIFY(isScreenLayout(QStringLiteral("side")));
     QVERIFY(!isScreenLayout(QStringLiteral("bogus")));
+  }
+
+  void everyOfferedLayoutIsKnownAndLabelled() {
+    for (const QString& l : screenLayoutsFor(2)) {
+      QVERIFY(isScreenLayout(l));
+      QVERIFY(!screenLayoutLabel(l).isEmpty());
+    }
+    QCOMPARE(screenLayoutLabel(QStringLiteral("side")), QStringLiteral("Side by side"));
+    QCOMPARE(screenLayoutLabel(QStringLiteral("large")), QStringLiteral("Large top / small bottom"));
+    QVERIFY(layoutSupportsSwap(QStringLiteral("stacked")) && layoutSupportsSwap(QStringLiteral("side")) && layoutSupportsSwap(QStringLiteral("large")));
+    QVERIFY(!layoutSupportsSwap(QStringLiteral("top")) && !layoutSupportsSwap(QStringLiteral("bottom")));
+  }
+
+  void nextLayoutCyclesAndWraps() {
+    const QStringList l = screenLayoutsFor(2);
+    QCOMPARE(nextScreenLayout(l, QStringLiteral("stacked")), QStringLiteral("side"));
+    QCOMPARE(nextScreenLayout(l, QStringLiteral("top")), QStringLiteral("bottom"));
+    QCOMPARE(nextScreenLayout(l, QStringLiteral("bottom")), QStringLiteral("stacked"));  // wraps
+    QCOMPARE(nextScreenLayout(l, QStringLiteral("bogus")), QStringLiteral("stacked"));
+    QVERIFY(nextScreenLayout({}, QStringLiteral("stacked")).isEmpty());
+  }
+
+  void largeLayoutGeometry() {
+    // NDS: the top screen at 2x on the left (512x384), the bottom one at 1x on its right, aligned to the bottom edge.
+    const auto pl = placeScreens(ndsProfile(), QStringLiteral("large"), QSizeF(768, 384), true, true);
+    QCOMPARE(pl.content, QRectF(0, 0, 768, 384));
+    QCOMPARE(pl.targets[0], QRectF(0, 0, 512, 384));
+    QCOMPARE(pl.targets[1], QRectF(512, 192, 256, 192));
+    // 3DS: 800x480 + 320x240 = 1120x480.
+    const auto p3 = placeScreens(threeDsProfile(), QStringLiteral("large"), QSizeF(1120, 480), true, true);
+    QCOMPARE(p3.targets[0], QRectF(0, 0, 800, 480));
+    QCOMPARE(p3.targets[1], QRectF(800, 240, 320, 240));
+    // Scales with the area, keeps the 2:1 relation.
+    const auto big = placeScreens(ndsProfile(), QStringLiteral("large"), QSizeF(1536, 1000), false);
+    QVERIFY(std::abs(big.targets[0].width() / big.targets[1].width() - 2.0) < 1e-6);
+    QVERIFY(std::abs(big.targets[1].bottom() - big.targets[0].bottom()) < 1e-6);
+    QVERIFY(QRectF(0, 0, 1536, 1000).contains(big.content));
+  }
+
+  void bottomOnlyHidesTop() {
+    for (const emu::DisplayProfile& p : {ndsProfile(), threeDsProfile()}) {
+      const auto pl = placeScreens(p, QStringLiteral("bottom"), QSizeF(800, 600), false);
+      QVERIFY(pl.targets[0].isEmpty());
+      QVERIFY(!pl.targets[1].isEmpty());
+      QVERIFY(QRectF(0, 0, 800, 600).contains(pl.content));
+      QCOMPARE(pl.content, pl.targets[1]);
+      // The whole bottom screen is the touch surface: its centre is the middle of the lower half of the frame.
+      const auto mid = touchToFrameFor(p, pl, pl.targets[1].center(), false);
+      QVERIFY(mid.has_value());
+      QVERIFY(std::abs(mid->y() - 0.75) < 1e-9);
+      QVERIFY(!touchToFrameFor(p, pl, QPointF(-5, -5), false).has_value());
+      QVERIFY(touchToFrameFor(p, pl, QPointF(-5, -5), true).has_value());
+    }
+  }
+
+  void swapExchangesThePositions() {
+    const emu::DisplayProfile p = ndsProfile();
+    const auto st = placeScreens(p, QStringLiteral("stacked"), QSizeF(512, 768), true, true, AspectMode::Core, true);
+    QVERIFY(st.targets[1].bottom() <= st.targets[0].top() + 0.5);  // bottom above top
+    QCOMPARE(st.targets[1], QRectF(0, 0, 512, 384));
+    const auto sd = placeScreens(p, QStringLiteral("side"), QSizeF(1024, 384), true, true, AspectMode::Core, true);
+    QVERIFY(sd.targets[1].right() <= sd.targets[0].left() + 0.5);  // bottom on the left
+    const auto lg = placeScreens(p, QStringLiteral("large"), QSizeF(768, 384), true, true, AspectMode::Core, true);
+    QCOMPARE(lg.targets[1], QRectF(0, 0, 512, 384));  // the bottom screen is the large one
+    QCOMPARE(lg.targets[0], QRectF(512, 192, 256, 192));
+    // Single-screen layouts ignore it.
+    for (const QString& l : {QStringLiteral("top"), QStringLiteral("bottom")}) {
+      QCOMPARE(placeScreens(p, l, QSizeF(800, 600), false, false, AspectMode::Core, true).targets, placeScreens(p, l, QSizeF(800, 600), false).targets);
+    }
+    // 3DS keeps its unequal widths, centred, also swapped.
+    const auto s3 = placeScreens(threeDsProfile(), QStringLiteral("stacked"), QSizeF(400, 480), false, false, AspectMode::Core, true);
+    QCOMPARE(s3.targets[1], QRectF(40, 0, 320, 240));
+    QCOMPARE(s3.targets[0], QRectF(0, 240, 400, 240));
+  }
+
+  void touchFollowsEveryLayoutAndSwap() {
+    for (const emu::DisplayProfile& p : {ndsProfile(), threeDsProfile()}) {
+      for (const QString& layout : screenLayoutsFor(2)) {
+        for (const bool swap : {false, true}) {
+          for (const AspectMode mode : {AspectMode::Core, AspectMode::Ratio43, AspectMode::Stretch}) {
+            const auto pl = placeScreens(p, layout, QSizeF(1280, 720), false, false, mode, swap);
+            if (layout == QLatin1String("top")) {  // touch screen hidden: no touch at all
+              QVERIFY(!touchToFrameFor(p, pl, QPointF(640, 360), true).has_value());
+              continue;
+            }
+            const QRectF t = pl.targets[1];
+            QVERIFY2(!t.isEmpty(), qPrintable(layout));
+            // Centre -> middle of the lower half; the corners of the screen -> the corners of the touch rectangle.
+            const auto mid = touchToFrameFor(p, pl, t.center(), false);
+            QVERIFY2(mid.has_value(), qPrintable(layout));
+            QVERIFY(std::abs(mid->y() - 0.75) < 1e-9);
+            QVERIFY(std::abs(mid->x() - 0.5) < 1e-9);
+            const auto br = touchToFrameFor(p, pl, t.bottomRight() - QPointF(0.01, 0.01), false);
+            QVERIFY(br.has_value() && br->y() > 0.99);
+            // The top screen is never a touch.
+            if (!pl.targets[0].isEmpty() && !pl.targets[0].intersects(t)) {
+              QVERIFY(!touchToFrameFor(p, pl, pl.targets[0].center(), false).has_value());
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void integerAndAspectInteractWithNewLayouts() {
+    const emu::DisplayProfile p = ndsProfile();
+    // Strict integer: every screen of the large layout lands on whole multiples of the source size.
+    for (const QSizeF area : {QSizeF(800, 500), QSizeF(1600, 900), QSizeF(2000, 1000)}) {
+      const auto pl = placeScreens(p, QStringLiteral("large"), area, true, true);
+      if (pl.content.isEmpty()) continue;
+      const qreal f = pl.targets[1].width() / 256.0;
+      QVERIFY(std::abs(f - std::round(f)) < 1e-9);
+      QVERIFY(std::abs(pl.targets[0].width() - 2 * pl.targets[1].width()) < 1e-9);
+    }
+    // Bottom only, strict integer: 256x192 in 700x500 -> 2x.
+    QCOMPARE(placeScreens(p, QStringLiteral("bottom"), QSizeF(700, 500), true, true).content.size(), QSizeF(512, 384));
+    // 4:3 on the 3DS: the 400x240 top screen becomes 320x240 like the bottom one, large = 640+320 wide.
+    const auto r = placeScreens(threeDsProfile(), QStringLiteral("large"), QSizeF(960, 480), false, false, AspectMode::Ratio43);
+    QCOMPARE(r.targets[0].size(), QSizeF(640, 480));
+    QCOMPARE(r.targets[1].size(), QSizeF(320, 240));
+    // Stretch fills the whole area for the single-screen layouts too.
+    QCOMPARE(placeScreens(p, QStringLiteral("bottom"), QSizeF(900, 300), false, false, AspectMode::Stretch).content, QRectF(0, 0, 900, 300));
+  }
+
+  void singleScreenSystemsIgnoreNewLayouts() {
+    emu::DisplayProfile one;
+    one.layout = QStringLiteral("single");
+    one.screens = {{QStringLiteral("screen"), 160, 144, false}};
+    for (const QString& l : {QStringLiteral("large"), QStringLiteral("bottom"), QStringLiteral("top")}) {
+      const auto pl = placeScreens(one, l, QSizeF(480, 432), true, true, AspectMode::Core, true);
+      QCOMPARE(pl.targets.size(), 1);
+      QCOMPARE(pl.content.size(), QSizeF(480, 432));
+    }
   }
 
   void pictureOptionsOnTwoScreens() {
@@ -157,7 +292,7 @@ class ScreenLayoutTest : public QObject {
       QCOMPARE(m->display.frameSize(), size);
       QCOMPARE(m->display.touchScreenIndex(), -1);
       QVERIFY(screenLayoutsFor(m->display.screens.size()).isEmpty());  // no layout switch
-      for (const QString& layout : {QStringLiteral("stacked"), QStringLiteral("side"), QStringLiteral("top")}) {
+      for (const QString& layout : {QStringLiteral("stacked"), QStringLiteral("side"), QStringLiteral("large"), QStringLiteral("top"), QStringLiteral("bottom")}) {
         const auto pl = placeScreens(m->display, layout, QSizeF(800, 600), true);
         QCOMPARE(pl.targets.size(), 1);
         QVERIFY(QRectF(0, 0, 800, 600).contains(pl.content));
@@ -167,6 +302,16 @@ class ScreenLayoutTest : public QObject {
       QVERIFY(!touchToFrameFor(m->display, pl, pl.content.center(), false).has_value());  // no touch screen
       QCOMPARE(screenSourceRect(m->display, QSizeF(size), 0), QRectF(QPointF(0, 0), QSizeF(size)));
     }
+  }
+
+  void remoteFramesGetTheSameLayouts() {
+    const emu::DisplayProfile p = profileForRemoteFrame(QSizeF(256, 384));
+    for (const QString& l : screenLayoutsFor(2)) {
+      const auto pl = placeScreens(p, l, QSizeF(900, 500), false, false, AspectMode::Core, true);
+      QCOMPARE(pl.targets.size(), 2);
+      QVERIFY(QRectF(0, 0, 900, 500).contains(pl.content));
+    }
+    QCOMPARE(placeScreens(p, QStringLiteral("bottom"), QSizeF(900, 500), false).targets[0], QRectF());
   }
 
   void remoteFrameProfile() {

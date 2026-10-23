@@ -96,7 +96,9 @@ class ControllerProfilesTest : public QObject {
   void hotkeyDefaultsAndConflicts() {
     QTemporaryDir dir;
     ControllerProfiles p(dir.path());
-    QCOMPARE(hotkeyDefs().size(), 4);
+    QCOMPARE(hotkeyDefs().size(), 5);
+    QCOMPARE(p.hotkey(QStringLiteral("layout")), int(Qt::Key_F7));
+    QCOMPARE(p.padHotkey(QStringLiteral("layout")), QStringLiteral("pad:dpright"));
     QCOMPARE(p.hotkey(QStringLiteral("fullscreen")), int(Qt::Key_F11));
     QCOMPARE(p.hotkey(QStringLiteral("diagnostics")), int(Qt::Key_F3));
     QCOMPARE(p.hotkey(QStringLiteral("snapshot")), int(Qt::Key_F5));

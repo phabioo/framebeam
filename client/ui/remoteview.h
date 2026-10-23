@@ -15,8 +15,10 @@ class RemoteView : public QQuickPaintedItem {
   QML_ELEMENT
   Q_PROPERTY(uzume::ui::SessionController* controller READ controller WRITE setController NOTIFY controllerChanged)
   Q_PROPERTY(QString surfaceId READ surfaceId WRITE setSurfaceId NOTIFY surfaceIdChanged)  // Session id
-  // Screen layout (0.6 D12) "stacked" | "side" | "top"; applies to frames with two stacked screens, others stay as they are.
+  // Screen layout (0.6 D12, 0.19) "stacked" | "side" | "large" | "top" | "bottom" and swap; applies to frames with two
+  // stacked screens, others stay as they are.
   Q_PROPERTY(QString layout READ layout WRITE setLayout NOTIFY layoutChanged)
+  Q_PROPERTY(bool swap READ swap WRITE setSwap NOTIFY layoutChanged)
  public:
   explicit RemoteView(QQuickItem* parent = nullptr);
   SessionController* controller() const { return controller_; }
@@ -25,6 +27,8 @@ class RemoteView : public QQuickPaintedItem {
   void setSurfaceId(const QString& id);
   QString layout() const { return layout_; }
   void setLayout(const QString& layout);
+  bool swap() const { return swap_; }
+  void setSwap(bool on);
   void paint(QPainter* painter) override;
 
  signals:
@@ -36,6 +40,7 @@ class RemoteView : public QQuickPaintedItem {
   QPointer<SessionController> controller_;
   QString surfaceId_;
   QString layout_ = QStringLiteral("stacked");
+  bool swap_ = false;
 };
 
 }  // namespace uzume::ui

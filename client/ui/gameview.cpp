@@ -18,7 +18,10 @@ GameView::GameView(QQuickItem* parent) : QQuickItem(parent) {
 }
 
 GameView::~GameView() {
-  if (session_) session_->setViewSize(this, QSize());
+  if (session_) {
+    session_->setCpuConsumer(this, false);
+    session_->setViewSize(this, QSize());
+  }
 }
 
 QSize GameView::physicalSize(const QSizeF& logical, qreal dpr) {
@@ -59,6 +62,7 @@ void GameView::setSession(GameSession* s) {
   }
   if (session_) {
     session_->disconnect(this);
+    session_->setCpuConsumer(this, false);
     session_->setViewSize(this, QSize());
   }
   session_ = s;
@@ -67,6 +71,7 @@ void GameView::setSession(GameSession* s) {
   if (session_) {
     connect(session_, &GameSession::frameChanged, this, &GameView::onFrame);
     connect(session_, &GameSession::displayStateChanged, this, [this]() { update(); });  // texture <-> readback image
+    session_->setCpuConsumer(this, cpuOnly_);
     frame_ = session_->frame();
   }
   frameDirty_ = true;
@@ -122,12 +127,34 @@ void GameView::setLayout(const QString& layout) {
   emit layoutChanged();
 }
 
+void GameView::setSwap(bool on) {
+  if (swap_ == on) {
+    return;
+  }
+  swap_ = on;
+  frameDirty_ = true;
+  updateFrameRect();
+  update();
+  emit layoutChanged();
+}
+
+void GameView::setCpuOnly(bool on) {
+  if (cpuOnly_ == on) {
+    return;
+  }
+  cpuOnly_ = on;
+  if (session_) session_->setCpuConsumer(this, on);
+  frameDirty_ = true;
+  update();
+  emit cpuOnlyChanged();
+}
+
 // "Stacked" with a vertical source is the frame as the core delivers it (one texture, the fast and unchanged path).
 bool GameView::splitDrawing() const {
   if (!session_ || session_->screenCount() < 2) {
     return false;
   }
-  return layout_ != QLatin1String(kLayoutStacked) || session_->displayProfile().layout != QLatin1String("vertical") ||
+  return layout_ != QLatin1String(kLayoutStacked) || (swap_ && layoutSupportsSwap(layout_)) || session_->displayProfile().layout != QLatin1String("vertical") ||
          aspect_ == AspectMode::Ratio43;
 }
 
@@ -155,7 +182,7 @@ void GameView::updateFrameRect() {
   }
   QRectF r;
   if (splitDrawing()) {
-    placement_ = placeScreens(session_->displayProfile(), layout_, size(), integerScale_, strictInteger_, aspect_);
+    placement_ = placeScreens(session_->displayProfile(), layout_, size(), integerScale_, strictInteger_, aspect_, swap_);
     r = placement_.content;
   } else {
     r = fitPicture(fs, size(), integerScale_, strictInteger_, aspect_);
@@ -276,7 +303,7 @@ QSGNode* GameView::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
   QSGTexture* gpu = nullptr;
   QSize content;
   if (session_) {
-    if (DisplayTextureSource* src = session_->displaySource()) {
+    if (DisplayTextureSource* src = cpuOnly_ ? nullptr : session_->displaySource()) {
       gpu = src->texture(window(), &content);
       if (gpu && (content.isEmpty() || gpu->textureSize().isEmpty())) gpu = nullptr;
     }
@@ -378,12 +405,19 @@ void GameView::focusOutEvent(QFocusEvent* e) {
   touching_ = false;
 }
 
+std::optional<QPointF> GameView::touchTarget(const QPointF& itemPos, bool clamp) const {
+  if (!session_) {
+    return std::nullopt;
+  }
+  return splitDrawing() ? touchToFrameFor(session_->displayProfile(), placement_, itemPos, clamp)
+                        : touchToFrame(session_->displayProfile(), frameRect_, itemPos, clamp);
+}
+
 void GameView::touch(const QPointF& pos, bool press, bool clamp) {
   if (!session_) {
     return;
   }
-  const auto p = splitDrawing() ? touchToFrameFor(session_->displayProfile(), placement_, pos, clamp)
-                                : touchToFrame(session_->displayProfile(), frameRect_, pos, clamp);
+  const auto p = touchTarget(pos, clamp);
   if (!p) {
     return;
   }
@@ -407,8 +441,7 @@ void GameView::mouseMoveEvent(QMouseEvent* e) {
 
 void GameView::mouseReleaseEvent(QMouseEvent* e) {
   if (touching_ && session_) {
-    const auto p = splitDrawing() ? touchToFrameFor(session_->displayProfile(), placement_, e->position(), true)
-                                  : touchToFrame(session_->displayProfile(), frameRect_, e->position(), true);
+    const auto p = touchTarget(e->position(), true);
     if (p) {
       session_->setPointer(*p, false);
     }
