@@ -16,7 +16,7 @@ sudo apt install ./uzume-server_<version>_arm64.deb
 
 The package is `uzume-server`. It installs `/usr/bin/uzume-server`, the units `uzume-server.service`, `uzume-server-update.path` and
 `uzume-server-update.service` (in `/lib/systemd/system`) and is the only install type the server can update itself
-(Settings › Server › Updates). Configure flags (port, admin) in `/etc/uzume/server.env`, which an existing install keeps. Set up the server from the app with the setup code ([First setup](#first-setup)), or create the admin account as described under [Admin account](#admin-account).
+(Settings › Server › Updates). Configure flags (port, admin) in `/etc/uzume/server.env`, which an existing install keeps. The package starts the server on port 8443 right away; if that port is taken, create `/etc/uzume/server.env` with `UZUME_LISTEN=:<port>` and `UZUME_DATA_DIR=/var/lib/uzume` before you install (the package never overwrites it), then run `sudo chown root:uzume /etc/uzume/server.env && sudo chmod 0640 /etc/uzume/server.env` and `sudo systemctl restart uzume-server`. Set up the server from the app with the setup code ([First setup](#first-setup)), or create the admin account as described under [Admin account](#admin-account).
 
 Package details:
 
@@ -24,7 +24,7 @@ Package details:
 - The postinst creates the `uzume` user, `/var/lib/uzume` (only if missing) and `/etc/uzume/server.env` (only
   if missing: an existing file is never overwritten), then enables and (re)starts the server and the update path unit.
 - Migration from `install-server.sh`: the old unit in `/etc/systemd/system` is moved to
-  `/etc/uzume/uzume-server.service.pre-deb`, `/usr/local/bin/uzume-server` and `/usr/local/bin/uzume-server` are removed; drop-ins in
+  `/etc/uzume/uzume-server.service.pre-deb`, `/usr/local/bin/uzume-server` is removed; drop-ins in
   `uzume-server.service.d/`, `server.env` and the data directory are kept.
 - Remove keeps config and data; purge removes `/etc/uzume` only. The data directory (database, saves, ROM library)
   and the `uzume` user are never deleted by the package.
@@ -140,11 +140,32 @@ The `uzume` system user is kept. `status` shows the service state and URL.
 
 The Uzume server does not take over a FrameBeam install ([ADR 0030](../adr/0030-one-app-one-server-uzume.md)). Names, paths and formats changed everywhere, and nothing is migrated:
 
-- **Set up the server fresh.** Install the `uzume-server` package (or run `install-server.sh`) as described above and create the admin account. It uses its own user `uzume`, `/etc/uzume/server.env` and `/var/lib/uzume` and does not read the old `framebeam` user, `/etc/framebeam` or `/var/lib/framebeam`. The `uzume-server` package conflicts with `framebeam-hub`, so installing it removes the old package (both would use port 8443); the old data in `/var/lib/framebeam` stays until you delete it.
+- **Set up the server fresh.** Install the `uzume-server` package (or run `install-server.sh`) as described above and create the admin account. It uses its own user `uzume`, `/etc/uzume/server.env` and `/var/lib/uzume` and does not read the old `framebeam` user, `/etc/framebeam` or `/var/lib/framebeam`. The `uzume-server` package conflicts with `framebeam-hub`, so installing it removes the old package (both would use port 8443); the old data in `/var/lib/framebeam` stays until you delete it. Still remove the old install first (a script install is no package and keeps running), after a backup of `/var/lib/framebeam`:
+
+  ```sh
+  # Debian package framebeam-hub
+  sudo systemctl disable --now framebeam-hub framebeam-hub-update.path
+  sudo apt purge framebeam-hub
+  # or a script install (install-hub.sh)
+  sudo systemctl disable --now framebeam-hub
+  sudo rm -f /etc/systemd/system/framebeam-hub.service /usr/local/bin/framebeam-hub
+  sudo rm -rf /etc/systemd/system/framebeam-hub.service.d /usr/local/share/doc/framebeam-hub /etc/framebeam
+  sudo systemctl daemon-reload
+  # both, once Uzume works
+  sudo userdel framebeam; sudo rm -rf /var/lib/framebeam
+  ```
 - **Install the app again.** Run the new MSI. It replaces the old product, but it does not take over the old app data folder: pair the app with the server again (certificate fingerprint, device approval). Users sign in again.
 - **Environment:** only `UZUME_*` variables are read. A `FRAMEBEAM_*` variable is ignored.
 - **Docker:** use `ghcr.io/<owner>/uzume-server`. The image `framebeam-hub` is not updated any more. Start with a new volume.
-- **Data:** backups made by FrameBeam (`framebeam-hub-*.tar`) cannot be restored, because the archive and database names changed. If you want old ROMs or saves, copy the files by hand: ROMs into the library folder, and upload saves per slot ("Upload a save file").
+- **Data:** backups made by FrameBeam (`framebeam-hub-*.tar`) cannot be restored, because the archive and database names changed. If you want old ROMs or saves, copy the files by hand: upload saves per slot ("Upload a save file"). ROMs are stored as `roms/<sha[:2]>/<sha>`; their names are in `framebeam.db`, so export them with their names into the import folder (`sudo apt install sqlite3` first) and use "Rescan folder" in the app, which reads only files directly in that folder:
+
+  ```sh
+  sudo sqlite3 -separator $'\t' /var/lib/framebeam/framebeam.db "SELECT rom_sha256, filename FROM games" |
+  while IFS=$'\t' read -r sha name; do
+    f=/var/lib/framebeam/roms/${sha:0:2}/$sha
+    [ -f "$f" ] && sudo install -m 0644 -o uzume -g uzume "$f" "/var/lib/uzume/library-import/$name"
+  done
+  ```
 - **Scripts and monitoring:** call `uzume-server`. Metrics are `uzume_*`. Backups are named `uzume-server-<name>-<UTC timestamp>.tar`. Invite codes look like `UZ-XXXX-XXXX`; `FB-` codes are not accepted.
 
 ## Migrating an existing manual data dir
