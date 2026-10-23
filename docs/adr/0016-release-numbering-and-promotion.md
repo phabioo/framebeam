@@ -32,7 +32,7 @@
 
 ### D4 Pruning
 
-- The newest 5 beta prereleases are kept; legacy `-beta.N` prereleases age out in the same pool. Promoted releases are never pruned.
+- All beta prereleases (including legacy `-beta.N`) are kept so the release notes stay traceable; only retired `-test.N` prereleases are deleted. Promoted releases are never pruned.
 
 ### D5 Default update channel
 
@@ -72,3 +72,7 @@ Semantics of D1 to D5 are unchanged: one plain number per beta, the tag is reser
 - **Expiry.** Updates and plugin indexes carry a signed `expires_at` (`generated_at` + 60 days). Hub and Player reject an expired index; the weekly `index-refresh.yml` and `plugin-index.yml` runs re-sign with new dates. Indexes without `expires_at` are accepted during the transition.
 - **Transition.** Both forms are published for at least two minor lines (installed clients keep working on the legacy pair and ignore the new `expires_at` field). A later amendment makes the bundle, the context and `expires_at` mandatory and drops the legacy pair. Until then a client whose bundle download is blocked can be served the legacy pair; this is accepted for the transition.
 - **Rejected:** embedding the signature in the index JSON (needs a canonical form to sign), versioned file names (needs a mutable pointer), a signing key per index type (key distribution is the hard part, the context gives the separation).
+
+## Amendment 2026-10-23 (betas are no longer pruned)
+
+Beta prereleases are no longer pruned (previously the newest 5 were kept). The signed updates-index still keeps the newest 5 per product and channel (`uzume-sign release-add`), so older betas stay downloadable from GitHub but are not offered as updates.
