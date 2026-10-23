@@ -337,6 +337,10 @@ func runSetupCode(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	notRunning := false
+	if running, known := serverRunning(cfg.DataDir); known && !running {
+		notRunning = true
+	}
 	ci, cerr := serverCertificate(cfg)
 	eff := effectiveForCommand(ctx, cfg, svc)
 	addrs := serverAddresses(eff, inContainer(), net.InterfaceAddrs)
@@ -356,6 +360,9 @@ func runSetupCode(args []string, out io.Writer) error {
 	}
 	fmt.Fprintln(out, "\nEnter the setup code in Uzume on another PC: Set up a server › On another device. Compare the security code when Uzume asks.")
 	fmt.Fprintln(out, "An earlier setup code no longer works.")
+	if notRunning {
+		fmt.Fprintln(out, "The server is not running: it replaces this code when it starts. Start it first, then run uzume-server setup-code.")
+	}
 	return nil
 }
 
@@ -529,11 +536,16 @@ func runStatus(args []string, out io.Writer) error {
 			st.State = "set_up"
 		} else {
 			st.State = "ready_for_setup"
-			code, err := svc.EnsureSetupCode(ctx)
-			if err != nil {
-				return err
+			if st.Running != nil && !*st.Running {
+				// Every server start replaces the setup code, so one made now would be dead on arrival.
+				setupHint = "The server makes a new setup code when it starts. Start it, then run uzume-server status again."
+			} else {
+				code, err := svc.EnsureSetupCode(ctx)
+				if err != nil {
+					return err
+				}
+				st.SetupCode, st.SetupCodeUntil = code.Code, &code.Expires
 			}
-			st.SetupCode, st.SetupCodeUntil = code.Code, &code.Expires
 		}
 		bs := svc.BackupStatus(ctx)
 		st.BackupFolder = bs.Settings.Folder

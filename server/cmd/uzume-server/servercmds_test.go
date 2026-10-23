@@ -71,7 +71,22 @@ func TestSetupCodeCommand(t *testing.T) {
 	}
 	first := regexp.MustCompile(`Setup code: +(\S+)`).FindStringSubmatch(out.String())
 	if first == nil || !setupCodeRe.MatchString(first[1]) || !strings.Contains(out.String(), "Security code:") || !strings.Contains(out.String(), "192.0.2.10:8443") ||
-		!strings.Contains(out.String(), "Set up a server › On another device") {
+		!strings.Contains(out.String(), "Set up a server › On another device") ||
+		!strings.Contains(out.String(), "The server is not running: it replaces this code when it starts.") {
+		t.Fatalf("output: %s", out.String())
+	}
+
+	// With the server running (lock held) the note is absent.
+	release, err := backup.LockDataDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := runSetupCode([]string{"-data-dir", dir}, &out); err != nil {
+		t.Fatal(err)
+	}
+	release()
+	if strings.Contains(out.String(), "not running") {
 		t.Fatalf("output: %s", out.String())
 	}
 
@@ -101,7 +116,7 @@ func TestSetupCodeCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	out.Reset()
-	err := runSetupCode([]string{"-data-dir", dir}, &out)
+	err = runSetupCode([]string{"-data-dir", dir}, &out)
 	if err == nil || !strings.Contains(err.Error(), "This server is already set up") {
 		t.Fatalf("set up: %v", err)
 	}
@@ -224,7 +239,7 @@ func TestStatusStoppedDataDir(t *testing.T) {
 		t.Fatal("status must not create the data folder")
 	}
 
-	// Ready for setup: shows the setup code and the security code, creates a code when none is valid.
+	// Ready for setup, server not running: no setup code is created (the server replaces it at its start), a hint says so.
 	dir = newServerData(t, false)
 	cert, _ := tlsutil.EnsureSelfSigned(dir)
 	out.Reset()
@@ -232,8 +247,36 @@ func TestStatusStoppedDataDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := out.String()
-	for _, want := range []string{"ready for setup", "Running         no", "192.0.2.10:8443", tlsutil.SecurityCode(cert), "one use, valid 60 min",
-		"Open Uzume on another PC → Set up a server → On another device.", "uzume-server setup-code", "uzume-server reset-admin", "uzume-server restore"} {
+	for _, want := range []string{"ready for setup", "Running         no", "192.0.2.10:8443", tlsutil.SecurityCode(cert),
+		"The server makes a new setup code when it starts. Start it, then run uzume-server status again.",
+		"uzume-server setup-code", "uzume-server reset-admin", "uzume-server restore"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("missing %q in:\n%s", want, s)
+		}
+	}
+	if strings.Contains(s, "Setup code ") || strings.Contains(s, "one use") {
+		t.Errorf("a stopped server must not show a setup code:\n%s", s)
+	}
+	out.Reset()
+	if err := runStatus([]string{"-data-dir", dir, "-json"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	var j statusJSON
+	if err := json.Unmarshal([]byte(out.String()), &j); err != nil || j.State != "ready_for_setup" || j.SetupCode != "" || j.Running == nil || *j.Running {
+		t.Fatalf("%v %+v", err, j)
+	}
+
+	// Ready for setup, server running (data folder lock held): shows the live setup code.
+	release, err := backup.LockDataDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := runStatus([]string{"-data-dir", dir}, &out); err != nil {
+		t.Fatal(err)
+	}
+	s = out.String()
+	for _, want := range []string{"Running         yes", "one use, valid 60 min", "Open Uzume on another PC → Set up a server → On another device."} {
 		if !strings.Contains(s, want) {
 			t.Errorf("missing %q in:\n%s", want, s)
 		}
@@ -243,10 +286,11 @@ func TestStatusStoppedDataDir(t *testing.T) {
 	if err := runStatus([]string{"-data-dir", dir, "-json"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	var j statusJSON
-	if err := json.Unmarshal([]byte(out.String()), &j); err != nil || j.State != "ready_for_setup" || j.SetupCode != code || j.Running == nil || *j.Running {
+	j = statusJSON{}
+	if err := json.Unmarshal([]byte(out.String()), &j); err != nil || j.State != "ready_for_setup" || j.SetupCode != code || j.Running == nil || !*j.Running {
 		t.Fatalf("%v %+v (code %s)", err, j, code)
 	}
+	release()
 
 	// Set up: users and admins, no setup code.
 	dir = newServerData(t, true)
