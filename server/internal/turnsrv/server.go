@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"net"
 	"net/netip"
 	"strconv"
@@ -151,11 +152,10 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 		s.Resolve(ctx)
 	}
 
-	host := cfg.ListenHost
-	// With a fixed port a failure is final. With port 0 the TCP port is picked first and UDP must bind the same
-	// number: the OS never hands out an excluded TCP port for port 0, whereas on Windows UDP port 0 returns
-	// sequential numbers that can all lie inside one excluded TCP range (Hyper-V/WinNAT, WSAEACCES). A UDP
-	// failure is rare, so pick again.
+	// With a fixed port a failure is final. With port 0 the strategy rotates per attempt, because Windows keeps
+	// separate excluded port ranges for TCP and UDP (Hyper-V/WinNAT, WSAEACCES) and port 0 hands out sequential
+	// numbers that can all lie inside one range: TCP port 0 then UDP on the same number, UDP port 0 then TCP, and a
+	// random port below the OS ephemeral ranges for both.
 	attempts := 1
 	if cfg.Port == 0 {
 		attempts = 20
@@ -164,20 +164,15 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 	var ln net.Listener
 	for i := 0; ; i++ {
 		var err error
-		ln, err = net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(cfg.Port)))
-		if err != nil {
-			return nil, fmt.Errorf("turn tcp listener: %w", err)
-		}
-		s.port = ln.Addr().(*net.TCPAddr).Port
-		pc, err = net.ListenPacket("udp", net.JoinHostPort(host, strconv.Itoa(s.port)))
+		ln, pc, err = bindPair(cfg.ListenHost, cfg.Port, i%3, net.Listen, net.ListenPacket)
 		if err == nil {
 			break
 		}
-		ln.Close()
 		if i+1 >= attempts {
-			return nil, fmt.Errorf("turn udp listener: %w", err)
+			return nil, err
 		}
 	}
+	s.port = ln.Addr().(*net.TCPAddr).Port
 	first, idle := cfg.TCPFirstReadTimeout, cfg.TCPIdleTimeout
 	if first <= 0 {
 		first = DefaultTCPFirstReadTimeout
@@ -214,6 +209,39 @@ func Start(ctx context.Context, cfg Config) (*Server, error) {
 		go s.resolveLoop(rctx)
 	}
 	return s, nil
+}
+
+// bindPair opens the TCP listener and the UDP socket on one port. A fixed port is used as is; for port 0, strategy 0
+// picks the TCP port first, 1 the UDP port first and 2 a random port in 20000-29999. Nothing stays open on error.
+func bindPair(host string, port, strategy int,
+	listen func(network, address string) (net.Listener, error),
+	listenPacket func(network, address string) (net.PacketConn, error)) (net.Listener, net.PacketConn, error) {
+	addr := func(p int) string { return net.JoinHostPort(host, strconv.Itoa(p)) }
+	if port == 0 && strategy == 2 {
+		port = 20000 + rand.IntN(10000)
+	}
+	if port == 0 && strategy == 1 {
+		pc, err := listenPacket("udp", addr(0))
+		if err != nil {
+			return nil, nil, fmt.Errorf("turn udp listener: %w", err)
+		}
+		ln, err := listen("tcp", addr(pc.LocalAddr().(*net.UDPAddr).Port))
+		if err != nil {
+			pc.Close()
+			return nil, nil, fmt.Errorf("turn tcp listener: %w", err)
+		}
+		return ln, pc, nil
+	}
+	ln, err := listen("tcp", addr(port))
+	if err != nil {
+		return nil, nil, fmt.Errorf("turn tcp listener: %w", err)
+	}
+	pc, err := listenPacket("udp", addr(ln.Addr().(*net.TCPAddr).Port))
+	if err != nil {
+		ln.Close()
+		return nil, nil, fmt.Errorf("turn udp listener: %w", err)
+	}
+	return ln, pc, nil
 }
 
 // Port is the listening port (UDP and TCP).

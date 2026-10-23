@@ -89,6 +89,7 @@ class PlayerController : public QObject {
   Q_PROPERTY(QVariantMap selectedGame READ selectedGame NOTIFY selectedGameChanged)
   // Game paused and kept loaded while the Library is shown: {id, title}; empty map when there is none (0.7.x).
   Q_PROPERTY(QVariantMap backgroundGame READ backgroundGame NOTIFY backgroundGameChanged)
+  Q_PROPERTY(QString runningGameId READ runningGameId NOTIFY selectedGameChanged)  // library id of the running game, "" = none
   // "Quit game" was asked for and is running ("Saving and syncing…" in the game panel and the Now running strip).
   Q_PROPERTY(bool quitting READ quitting NOTIFY quittingChanged)
   // Confirmation "Quit {running} and start {new}?": {active, runningTitle, newTitle}
@@ -204,6 +205,7 @@ class PlayerController : public QObject {
   QString selectedGameId() const { return selectedId_; }
   QVariantMap selectedGame() const;
   QVariantMap backgroundGame() const;
+  QString runningGameId() const { return gameActive_ ? launchGame_.id : QString(); }
   // Called when a game starts (msecs 0 = now); tests pass fixed times.
   void recordLastPlayed(const QString& gameId, qint64 msecs = 0);
   // Tests and screenshots (GameSession::setPreview): declare the library game that the preview game stands for.
@@ -429,6 +431,7 @@ class PlayerController : public QObject {
   void applyCachedSyncKinds();
   void onRomStatus(const QString& sha, const RomStatus& st);
   void updateScreen();
+  void prepareGameCore(const QString& gameId);
   void refreshEmulationPage();
   void refreshAttention();
   void adoptUploadedRom(const QString& srcPath, const QString& sha256, const QString& romFilename);  // off-thread copy into the cache

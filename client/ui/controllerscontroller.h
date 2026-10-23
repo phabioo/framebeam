@@ -4,10 +4,12 @@
 // Mapping chain: physical -> profile -> Uzume input -> system input profile -> libretro joypad (merged with the
 // keyboard in GameSession). The mouse is the touch input (fixed, no profile).
 
+#include <QElapsedTimer>
 #include <QHash>
 #include <QObject>
 #include <QSet>
 #include <QString>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
@@ -15,6 +17,7 @@
 
 #include "controllerprofiles.h"
 #include "gamepadservice.h"
+#include "padhold.h"
 
 namespace uzume::ui {
 
@@ -57,6 +60,11 @@ class ControllersController : public QObject {
   Q_PROPERTY(QString padHotkeyModifier READ padHotkeyModifier NOTIFY hotkeysChanged)
   Q_PROPERTY(bool padHotkeyModifierChanged READ padHotkeyModifierChanged NOTIFY hotkeysChanged)
   Q_PROPERTY(QVariantMap hotkeyHints READ hotkeyHints NOTIFY hotkeyHintsChanged)
+  // Hold-Select hotkey sheet: holdSheetHeld = the hotkey button of P1 has been held alone for ~400 ms (hidden again on release or
+  // when another button is pressed); padSheetRows = the combos the sheet lists, [{action, key, label}], from the current bindings
+  // (key = GamepadHint key: "A" "L" "R2" "Start" "↑" ... or "UpDown" for the volume pair).
+  Q_PROPERTY(bool holdSheetHeld READ holdSheetHeld NOTIFY holdSheetChanged)
+  Q_PROPERTY(QVariantList padSheetRows READ padSheetRows NOTIFY hotkeysChanged)
   // System-specific labels from the system manifest (column header, touch input name).
   // System selector of the Buttons tab (3f-4, P33): [{id, label, profile}] and the system whose buttons are listed. It only
   // changes what the page shows; the mapping in use follows the running game's system.
@@ -127,6 +135,17 @@ class ControllersController : public QObject {
   QString padHotkeyModifier() const;
   bool padHotkeyModifierChanged() const { return profiles_.padHotkeyModifierChanged(); }
   QVariantMap hotkeyHints() const;
+  bool holdSheetHeld() const { return hold_.visible(); }
+  QVariantList padSheetRows() const;
+  void setHoldTimeMs(int ms) { hold_.setHoldMs(ms); }  // tests
+
+  // Per-game controller profiles (Emulation > "uzume.pad_profile" / "uzume.keyboard_profile"): a temporary override for P1's
+  // gamepad and the keyboard for the running game. Empty id or an id without a profile of that kind = the device's own profile.
+  // The stored device assignments never change; clearGameProfiles() (game end) restores the normal mapping.
+  void setGameProfiles(const QString& padProfileId, const QString& keyboardProfileId);
+  void clearGameProfiles();
+  QString gamePadProfile() const { return gamePad_; }
+  QString gameKeyboardProfile() const { return gameKeyboard_; }
 
   // Qt::Key -> joypad mask of the keyboard profile (input profile of the system applied); keys that are hotkeys are left out.
   QHash<int, quint32> keyboardMap() const;
@@ -176,6 +195,7 @@ class ControllersController : public QObject {
   void labelSetChanged();
   void hotkeysChanged();
   void hotkeyHintsChanged();
+  void holdSheetChanged();
   void padHotkeyTriggered(const QString& action);  // P1 gamepad hotkey pressed (combo or lone button)
   void libretroMaskChanged(quint32 mask);  // P1 gamepad, nds system profile
 
@@ -198,6 +218,9 @@ class ControllersController : public QObject {
   void syncPadHotkeys();  // profiles_ -> GamepadService
   void hotkeysUpdated();  // after a change of the hotkeys: consumers refresh (also the keyboard map)
   void ensureSelection();
+  void updateHold();
+  QString activeProfileId(const QString& deviceKey, const QString& kind) const;  // game override, else the assignment
+  bool isP1(const QString& deviceKey) const;
 
   ControllerProfiles profiles_;
   input::GamepadService pads_;
@@ -216,6 +239,11 @@ class ControllersController : public QObject {
   QString padHotkeyListening_;
   bool padActive_ = false;  // the gamepad was the last input used
   QSet<int> heldKeys_;
+  input::PadHoldDetector hold_;
+  QTimer holdTimer_;
+  QElapsedTimer clock_;
+  QString gamePad_;       // temporary per-game profile of P1's gamepad ("" = the assigned one)
+  QString gameKeyboard_;  // temporary per-game profile of the keyboard
 };
 
 }  // namespace uzume::ui

@@ -12,6 +12,33 @@ namespace uzume::ui {
 using Level = EmulationSettings::Level;
 using Source = EmulationSettings::Source;
 
+namespace {
+bool isProfileKey(const QString& key) {
+  return key == QLatin1String(EmulationController::kPadProfileKey) || key == QLatin1String(EmulationController::kKeyboardProfileKey);
+}
+// Picture options apply to the running game at once; every other row of the per-game dialog waits for the next start.
+bool appliesLive(const QString& key) {
+  return key == QLatin1String(EmulationController::kIntegerScaleKey) || key == QLatin1String(EmulationController::kAspectRatioKey);
+}
+bool isTwoScreenKey(const QString& key) {
+  return key == QLatin1String(EmulationController::kScreenLayoutKey) || key == QLatin1String(EmulationController::kScreenSwapKey) ||
+         key == QLatin1String(EmulationController::kBottomWindowKey);
+}
+QString labelOf(const QList<emu::CoreOptionValue>& values, const QString& value) {
+  for (const emu::CoreOptionValue& v : values) {
+    if (v.value == value) return v.label.isEmpty() ? v.value : v.label;
+  }
+  return value;
+}
+QVariantList valuesToList(const QList<emu::CoreOptionValue>& values) {
+  QVariantList out;
+  for (const emu::CoreOptionValue& v : values) {
+    out.append(QVariantMap{{QStringLiteral("value"), v.value}, {QStringLiteral("label"), v.label.isEmpty() ? v.value : v.label}});
+  }
+  return out;
+}
+}  // namespace
+
 const QList<EmulationController::FbOption>& EmulationController::uzumeOptions() {
   static const QList<FbOption> opts = {
       {QString::fromLatin1(kFullscreenKey),
@@ -81,6 +108,20 @@ const QList<EmulationController::FbOption>& EmulationController::uzumeOptions() 
        QStringLiteral("core"),
        true,
        QObject::tr("Picture")},
+      {QString::fromLatin1(kPadProfileKey),
+       QObject::tr("Gamepad profile"),
+       QObject::tr("Button mapping of player 1's gamepad for these games. \"Device's own profile\" keeps the profile assigned to the "
+                   "gamepad on the Controllers page; the assignment itself never changes."),
+       {},
+       QString(),
+       true},
+      {QString::fromLatin1(kKeyboardProfileKey),
+       QObject::tr("Keyboard profile"),
+       QObject::tr("Key mapping of the keyboard for these games. \"Device's own profile\" keeps the profile assigned to the keyboard "
+                   "on the Controllers page; the assignment itself never changes."),
+       {},
+       QString(),
+       true},
   };
   return opts;
 }
@@ -191,15 +232,36 @@ QString EmulationController::scope() const {
 }
 
 QString EmulationController::effectiveCoreId() const {
-  const QString systemCore = system().value(QStringLiteral("coreId")).toString();
-  if (level_ != QLatin1String("game") || selectedGame_.isEmpty()) return systemCore;
-  const QString chosen = settings_.value(Level::Game, selectedGame_, QString::fromLatin1(kCoreKey));
+  return coreIdFor(selected_, level_ == QLatin1String("game") ? selectedGame_ : QString());
+}
+
+QVariantMap EmulationController::cardOf(const QString& systemId) const {
+  for (const QVariant& v : systems_) {
+    if (v.toMap().value(QStringLiteral("id")).toString() == systemId) return v.toMap();
+  }
+  return {};
+}
+
+QString EmulationController::coreIdFor(const QString& systemId, const QString& gameId) const {
+  const QVariantMap card = cardOf(systemId);
+  const QString systemCore = card.value(QStringLiteral("coreId")).toString();
+  if (gameId.isEmpty()) return systemCore;
+  const QString chosen = settings_.value(Level::Game, gameId, QString::fromLatin1(kCoreKey));
   if (chosen.isEmpty()) return systemCore;
-  for (const QVariant& c : system().value(QStringLiteral("cores")).toList()) {
+  for (const QVariant& c : card.value(QStringLiteral("cores")).toList()) {
     const QString id = c.toMap().value(QStringLiteral("id")).toString();
     if (id == chosen || (manifests_ != nullptr && manifests_->canonicalCoreId(id) == manifests_->canonicalCoreId(chosen))) return id;
   }
   return systemCore;  // a core the Hub no longer serves is ignored (the notice names it)
+}
+
+std::optional<emu::SystemManifest> EmulationController::manifestFor(const QString& systemId, const QString& coreId) const {
+  if (manifests_ == nullptr || systemId.isEmpty()) return std::nullopt;
+  if (!coreId.isEmpty()) {
+    if (auto m = manifests_->resolve(systemId, coreId)) return m;
+  }
+  const emu::SystemManifest* base = manifests_->find(systemId);
+  return base != nullptr ? std::optional<emu::SystemManifest>(*base) : std::nullopt;
 }
 
 int EmulationController::defaultsChangedCount() const { return static_cast<int>(settings_.values(Level::Global, QString()).size()); }
@@ -211,15 +273,7 @@ QVariantMap EmulationController::system() const {
   return {};
 }
 
-std::optional<emu::SystemManifest> EmulationController::selectedManifest() const {
-  if (manifests_ == nullptr || selected_.isEmpty()) return std::nullopt;
-  const QString coreId = effectiveCoreId();
-  if (!coreId.isEmpty()) {
-    if (auto m = manifests_->resolve(selected_, coreId)) return m;
-  }
-  const emu::SystemManifest* base = manifests_->find(selected_);
-  return base != nullptr ? std::optional<emu::SystemManifest>(*base) : std::nullopt;
-}
+std::optional<emu::SystemManifest> EmulationController::selectedManifest() const { return manifestFor(selected_, effectiveCoreId()); }
 
 QString EmulationController::cachePath(const QString& coreId) const {
   return QDir(dataDir_).filePath(QStringLiteral("cache/core-options/") + coreId + QStringLiteral(".json"));
@@ -331,7 +385,12 @@ QMap<QString, QString> EmulationController::launchOverrides(const QString& syste
 bool EmulationController::knownOption(const QString& key, QList<emu::CoreOptionValue>* values) const {
   for (const FbOption& o : uzumeOptions()) {
     if (o.key == key) {
-      *values = o.values;
+      if (isProfileKey(key)) {
+        if (level_ == QLatin1String("global")) return false;
+        *values = profileValues(key, QString());
+      } else {
+        *values = o.values;
+      }
       return true;
     }
   }
@@ -521,6 +580,7 @@ void EmulationController::rebuild() {
       // Defaults: options that do not depend on a system.
       QVariantList fb;
       for (const FbOption& o : uzumeOptions()) {
+        if (isProfileKey(o.key)) continue;  // controller profiles are chosen per system or game
         fb.append(row(o.key, o.label, o.description, !o.category.isEmpty() ? o.category : o.perSystem ? tr("Speed-up") : tr("Display"), o.values, QString(), o.defaultValue, true));
       }
       groups.append(QVariantMap{{QStringLiteral("id"), QStringLiteral("uzume")},
@@ -635,7 +695,9 @@ void EmulationController::rebuild() {
         // The screen layout only exists for systems with two screens (DS, 3DS); "Overrides Defaults for DS games."
         const bool twoScreen = o.key == QLatin1String(kScreenLayoutKey) || o.key == QLatin1String(kScreenSwapKey) || o.key == QLatin1String(kBottomWindowKey);
         if (twoScreen && (man == nullptr || man->display.screens.size() < 2)) continue;
-        fb.append(row(o.key, o.label, o.description, o.category, o.values, QString(), o.defaultValue, true));
+        QList<emu::CoreOptionValue> vals = o.values;
+        if (isProfileKey(o.key)) vals = profileValues(o.key, settings_.resolve(o.key, selected_, gameLvl ? selectedGame_ : QString(), QString(), o.defaultValue).value);
+        fb.append(row(o.key, o.label, o.description, o.category, vals, QString(), o.defaultValue, true));
       }
       groups.prepend(QVariantMap{{QStringLiteral("id"), QStringLiteral("uzume")},
                                 {QStringLiteral("title"), tr("Uzume")},
@@ -648,6 +710,240 @@ void EmulationController::rebuild() {
   restartHint_ = restartTouched_ && gameRunning_;
   groups_ = groups;
   emit groupsChanged();
+  emit gameSettingsChanged(QString());
+}
+
+// ---------------------------------------------------------------- Controller profiles and per-game settings
+
+void EmulationController::setControllerProfiles(const ControllerProfiles* profiles) {
+  profiles_ = profiles;
+  rebuild();
+}
+
+void EmulationController::setRunningGame(const QString& gameId) {
+  if (runningGame_ == gameId) return;
+  runningGame_ = gameId;
+  emit gameSettingsChanged(QString());
+}
+
+// Profiles of the kind plus "Device's own profile". A stored id whose profile is gone stays listed (marked missing) so it is
+// never replaced silently; at game start the device's own profile is used for it.
+QList<emu::CoreOptionValue> EmulationController::profileValues(const QString& key, const QString& stored) const {
+  QList<emu::CoreOptionValue> out;
+  out.append({QString(), tr("Device's own profile")});
+  const QString kind = key == QLatin1String(kKeyboardProfileKey) ? QStringLiteral("keyboard") : QStringLiteral("gamepad");
+  bool found = stored.isEmpty();
+  if (profiles_ != nullptr) {
+    for (const ControllerProfile& p : profiles_->ofKind(kind)) {
+      out.append({p.id, p.name});
+      found = found || p.id == stored;
+    }
+  }
+  if (!found) out.append({stored, tr("Deleted profile (missing)")});
+  return out;
+}
+
+int EmulationController::gameChangedCount(const QString& gameId) const {
+  return gameId.isEmpty() ? 0 : static_cast<int>(settings_.values(Level::Game, gameId).size());
+}
+
+void EmulationController::ensureGameCore(const QString& gameId) {
+  ensureGames();
+  const auto it = gameIndex_.constFind(gameId);
+  if (it == gameIndex_.cend()) return;
+  const QString coreId = coreIdFor(gamesCache_.at(it.value()).toMap().value(QStringLiteral("systemId")).toString(), gameId);
+  if (!coreId.isEmpty()) loadCoreCache(coreId);
+  emit gameCoreWanted(gameId);
+}
+
+QVariantMap EmulationController::gameSettings(const QString& gameId) const {
+  ensureGames();
+  const auto git = gameIndex_.constFind(gameId);
+  if (git == gameIndex_.cend()) return {};
+  const QVariantMap game = gamesCache_.at(git.value()).toMap();
+  const QString sys = game.value(QStringLiteral("systemId")).toString();
+  const QVariantMap card = cardOf(sys);
+  const QString coreId = coreIdFor(sys, gameId);
+  const std::optional<emu::SystemManifest> manOpt = manifestFor(sys, coreId);
+  const emu::SystemManifest* man = manOpt ? &*manOpt : nullptr;
+  const emu::CoreProbe* probe = coreProbe(man != nullptr && !man->coreId.isEmpty() ? man->coreId : coreId);
+  const bool runningHere = !runningGame_.isEmpty() && runningGame_ == gameId;
+
+  // One row: the value shown is what the game uses; "defaultValue" is what it inherits (system > global > default).
+  const auto makeRow = [&](const QString& key, const QString& label, const QString& description, const QString& category,
+                           QList<emu::CoreOptionValue> values, const QString& manifestDefault, const QString& coreDefault, bool restart) {
+    const bool isSet = settings_.hasValue(Level::Game, gameId, key);
+    const QString inherited = settings_.resolve(key, sys, QString(), manifestDefault, coreDefault).value;
+    const QString shown = isSet ? settings_.value(Level::Game, gameId, key) : inherited;
+    bool known = false;
+    for (const emu::CoreOptionValue& v : std::as_const(values)) known = known || v.value == shown;
+    if (!known && !shown.isEmpty()) values.prepend({shown, shown});  // a stored value the core no longer offers stays visible
+    return QVariantMap{{QStringLiteral("key"), key},
+                       {QStringLiteral("label"), label},
+                       {QStringLiteral("description"), description},
+                       {QStringLiteral("category"), category},
+                       {QStringLiteral("values"), valuesToList(values)},
+                       {QStringLiteral("value"), shown},
+                       {QStringLiteral("valueLabel"), labelOf(values, shown)},
+                       {QStringLiteral("isSet"), isSet},
+                       {QStringLiteral("defaultValue"), inherited},
+                       {QStringLiteral("defaultLabel"), labelOf(values, inherited)},
+                       {QStringLiteral("restart"), restart && runningHere}};
+  };
+  const auto uzumeRow = [&](const FbOption& o) {
+    QList<emu::CoreOptionValue> vals = o.values;
+    if (isProfileKey(o.key)) vals = profileValues(o.key, settings_.resolve(o.key, sys, gameId, QString(), o.defaultValue).value);
+    return makeRow(o.key, o.label, o.description, o.category, vals, QString(), o.defaultValue, !appliesLive(o.key));
+  };
+
+  QVariantList picture, controls, speed, core;
+  for (const FbOption& o : uzumeOptions()) {
+    if (!o.perSystem) continue;
+    if (isTwoScreenKey(o.key) && (man == nullptr || man->display.screens.size() < 2)) continue;  // DS / 3DS only
+    if (isProfileKey(o.key)) controls.append(uzumeRow(o));
+    else if (appliesLive(o.key) || isTwoScreenKey(o.key)) picture.append(uzumeRow(o));
+    else speed.append(uzumeRow(o));
+  }
+
+  // Core choice: "Use system default" or one of the cores the server serves; a stored choice that is no longer served stays visible.
+  QString coreName = probe != nullptr && !probe->info.name.isEmpty() ? probe->info.name : QString();
+  QList<emu::CoreOptionValue> coreValues;
+  const QString ownCore = settings_.value(Level::Game, gameId, QString::fromLatin1(kCoreKey));
+  QString systemCoreName = card.value(QStringLiteral("coreName")).toString();
+  for (const QVariant& c : card.value(QStringLiteral("cores")).toList()) {
+    const QVariantMap cm = c.toMap();
+    coreValues.append({cm.value(QStringLiteral("id")).toString(), cm.value(QStringLiteral("label")).toString()});
+    if (coreName.isEmpty() && cm.value(QStringLiteral("id")).toString() == coreId) coreName = cm.value(QStringLiteral("name")).toString();
+  }
+  if (coreName.isEmpty() && man != nullptr) coreName = man->coreDisplayName;
+  if (coreName.isEmpty()) coreName = systemCoreName;
+  if (coreValues.size() > 1 || !ownCore.isNull()) {
+    QList<emu::CoreOptionValue> vals{{QString(), tr("Use system default")}};
+    vals.append(coreValues);
+    QVariantMap r = makeRow(QString::fromLatin1(kCoreKey), tr("Core"),
+                            tr("The core that runs this game. \"Use system default\" follows the system's choice; the change applies the next time the game starts."),
+                            QString(), vals, QString(), QString(), true);
+    // The game's own choice or none (the system's choice is not a value of this row).
+    const QString shown = ownCore.isNull() ? QString() : ownCore;
+    bool listed = shown.isEmpty();
+    for (const emu::CoreOptionValue& v : std::as_const(vals)) listed = listed || v.value == shown;
+    if (!listed) vals.append({shown, shown});
+    r.insert(QStringLiteral("values"), valuesToList(vals));
+    r.insert(QStringLiteral("value"), shown);
+    r.insert(QStringLiteral("valueLabel"), labelOf(vals, shown));
+    r.insert(QStringLiteral("defaultValue"), QString());
+    r.insert(QStringLiteral("defaultLabel"), systemCoreName.isEmpty() ? tr("Use system default") : systemCoreName);
+    core.append(r);
+  }
+
+  // Core options of the game's core, exactly as the core reported them (nothing invented, locked options left out).
+  QString coreNote;
+  if (man != nullptr && probe != nullptr) {
+    QStringList order;
+    for (const emu::CoreOptionCategory& c : probe->categories) order.append(c.key);
+    order.append(QString());
+    for (const QString& catKey : std::as_const(order)) {
+      QString catName;
+      for (const emu::CoreOptionCategory& c : probe->categories) {
+        if (c.key == catKey) catName = c.description;
+      }
+      if (catName.isEmpty()) catName = tr("Other");
+      for (const emu::CoreOption& o : probe->options) {
+        if (o.categoryKey != catKey && !(catKey.isEmpty() && !order.contains(o.categoryKey))) continue;
+        if ((!o.visible && !man->alwaysShownCoreOptions.contains(o.key)) || o.values.isEmpty()) continue;
+        if (emu::isLockedCoreOption(*man, o.key)) continue;
+        core.append(makeRow(o.key, o.description, o.info, catName, o.values, man->coreOptions.value(o.key, QString()), o.defaultValue, true));
+      }
+    }
+    if (probe->options.isEmpty()) coreNote = tr("The core has not reported any options.");
+  } else {
+    coreNote = tr("The core's options appear after it was loaded once. Uzume does that when it can (not while a game is running).");
+  }
+
+  QVariantList tabs;
+  int changedAll = 0;
+  const auto addTab = [&](const QString& id, const QString& title, const QVariantList& rows, const QString& note) {
+    if (rows.isEmpty() && note.isEmpty()) return;
+    int changed = 0;
+    for (const QVariant& v : rows) changed += v.toMap().value(QStringLiteral("isSet")).toBool() ? 1 : 0;
+    changedAll += changed;
+    tabs.append(QVariantMap{{QStringLiteral("id"), id}, {QStringLiteral("title"), title}, {QStringLiteral("changed"), changed},
+                            {QStringLiteral("note"), note}, {QStringLiteral("rows"), rows}});
+  };
+  addTab(QStringLiteral("picture"), tr("Picture"), picture, QString());
+  addTab(QStringLiteral("controls"), tr("Controls"), controls, QString());
+  addTab(QStringLiteral("speedup"), tr("Speed-up"), speed, QString());
+  addTab(QStringLiteral("core"), tr("Core"), core, coreNote);
+
+  bool restartHint = false;
+  for (const QVariant& t : std::as_const(tabs)) {
+    for (const QVariant& r : t.toMap().value(QStringLiteral("rows")).toList()) {
+      restartHint = restartHint || (r.toMap().value(QStringLiteral("restart")).toBool() && r.toMap().value(QStringLiteral("isSet")).toBool());
+    }
+  }
+  return {{QStringLiteral("gameId"), gameId},
+          {QStringLiteral("title"), game.value(QStringLiteral("title")).toString()},
+          {QStringLiteral("systemId"), sys},
+          {QStringLiteral("systemLabel"), game.value(QStringLiteral("systemName")).toString()},
+          {QStringLiteral("coreName"), coreName},
+          {QStringLiteral("coreKnown"), probe != nullptr},
+          {QStringLiteral("changedCount"), gameChangedCount(gameId)},
+          {QStringLiteral("restartHint"), restartHint},
+          {QStringLiteral("note"), coreNote},
+          {QStringLiteral("tabs"), tabs}};
+}
+
+void EmulationController::afterGameChange(const QString& gameId, const QString& key) {
+  if (level_ == QLatin1String("game") && selectedGame_ == gameId) rebuild();  // the Emulation page shows the same game
+  emitGamesChanged();
+  emit gameSettingsChanged(gameId);
+  if (key.startsWith(QLatin1String("uzume."))) emit uzumeOptionsChanged();
+  if (key == QLatin1String(kCoreKey)) emit coreChoiceChanged();
+}
+
+void EmulationController::setGameOption(const QString& gameId, const QString& key, const QString& value) {
+  const QVariantMap data = gameSettings(gameId);
+  for (const QVariant& t : data.value(QStringLiteral("tabs")).toList()) {
+    for (const QVariant& r : t.toMap().value(QStringLiteral("rows")).toList()) {
+      const QVariantMap row = r.toMap();
+      if (row.value(QStringLiteral("key")).toString() != key) continue;
+      bool valid = false;
+      for (const QVariant& v : row.value(QStringLiteral("values")).toList()) valid = valid || v.toMap().value(QStringLiteral("value")).toString() == value;
+      if (!valid) return;
+      if (value == row.value(QStringLiteral("defaultValue")).toString()) {
+        settings_.removeValue(Level::Game, gameId, key);  // back to what the game inherits: nothing stays stored
+      } else {
+        settings_.setValue(Level::Game, gameId, key, value);
+        if (gameRunning_ && !key.startsWith(QLatin1String("uzume."))) restartTouched_ = true;
+      }
+      afterGameChange(gameId, key);
+      return;
+    }
+  }
+}
+
+void EmulationController::resetGameOption(const QString& gameId, const QString& key) {
+  if (!settings_.hasValue(Level::Game, gameId, key)) return;
+  settings_.removeValue(Level::Game, gameId, key);
+  afterGameChange(gameId, key);
+}
+
+void EmulationController::resetGameOptions(const QString& gameId) {
+  const QMap<QString, QString> vals = settings_.values(Level::Game, gameId);
+  if (vals.isEmpty()) return;
+  bool fb = false;
+  bool core = false;
+  for (auto it = vals.cbegin(); it != vals.cend(); ++it) {
+    settings_.removeValue(Level::Game, gameId, it.key());
+    fb = fb || it.key().startsWith(QLatin1String("uzume."));
+    core = core || it.key() == QLatin1String(kCoreKey);
+  }
+  restartTouched_ = false;
+  if (level_ == QLatin1String("game") && selectedGame_ == gameId) rebuild();
+  emitGamesChanged();
+  emit gameSettingsChanged(gameId);
+  if (fb) emit uzumeOptionsChanged();
+  if (core) emit coreChoiceChanged();
 }
 
 }  // namespace uzume::ui

@@ -16,6 +16,7 @@
 #include <memory>
 #include <optional>
 
+#include "controllerprofiles.h"
 #include "core_options.h"
 #include "emulationsettings.h"
 #include "system_manifest.h"
@@ -99,6 +100,8 @@ class EmulationController : public QObject {
   static constexpr const char* kBottomWindowKey = "uzume.bottom_window";  // off | on: bottom screen in its own window at game start
   static constexpr const char* kIntegerScaleKey = "uzume.integer_scale";  // 0.19 picture: "off" | "on"
   static constexpr const char* kAspectRatioKey = "uzume.aspect_ratio";    // 0.19 picture: "core" | "4:3" | "stretch"
+  static constexpr const char* kPadProfileKey = "uzume.pad_profile";            // 0.19: gamepad profile for P1 ("" = the device's own)
+  static constexpr const char* kKeyboardProfileKey = "uzume.keyboard_profile";  // 0.19: keyboard profile ("" = the device's own)
   static constexpr const char* kSpeedUpRatioKey = "uzume.speedup_ratio";
   static constexpr const char* kSpeedUpOnStartKey = "uzume.speedup_on_start";
   static constexpr const char* kSpeedUpAudioKey = "uzume.speedup_audio";
@@ -151,6 +154,24 @@ class EmulationController : public QObject {
   // Explicit user values for the launch (merged game > system > global).
   QMap<QString, QString> launchOverrides(const QString& systemId, const QString& gameId) const;
 
+  // Controller profiles offered by the "uzume.pad_profile" / "uzume.keyboard_profile" rows (owned by the ControllersController).
+  void setControllerProfiles(const ControllerProfiles* profiles);
+  void profilesChanged() { rebuild(); }  // profiles were added, renamed or deleted
+  // Game that is running right now ("" = none): its restart-only rows carry the "applies on next start" mark.
+  void setRunningGame(const QString& gameId);
+
+  // Per-game settings (game page and in-game menu, board 3c-3). Independent of the Emulation page's level and selection:
+  //   {gameId, title, systemId, systemLabel, coreName, coreKnown, changedCount, restartHint, note,
+  //    tabs:[{id, title, changed, note, rows:[{key, label, description, category, values:[{value,label}], value, valueLabel,
+  //            isSet, defaultValue, defaultLabel, restart}]}]}
+  // Empty for an unknown game. A row that is not set shows the value the game inherits (system > global > default).
+  Q_INVOKABLE QVariantMap gameSettings(const QString& gameId) const;
+  Q_INVOKABLE int gameChangedCount(const QString& gameId) const;
+  Q_INVOKABLE void setGameOption(const QString& gameId, const QString& key, const QString& value);
+  Q_INVOKABLE void resetGameOption(const QString& gameId, const QString& key);
+  Q_INVOKABLE void resetGameOptions(const QString& gameId);
+  Q_INVOKABLE void ensureGameCore(const QString& gameId);  // asks for the core options of the game's core (probe or cache)
+
   Q_INVOKABLE void selectSystem(const QString& id);
   Q_INVOKABLE void setOption(const QString& key, const QString& value);
   Q_INVOKABLE void resetOption(const QString& key);
@@ -167,6 +188,8 @@ class EmulationController : public QObject {
   void gamesChanged();
   void gameSelectionChanged();  // the PlayerController makes sure the game's core options are known
   void uzumeOptionsChanged();  // a "uzume.*" value changed (the PlayerController applies it)
+  void gameSettingsChanged(const QString& gameId);  // per-game rows changed (empty id: any game, e.g. core options arrived)
+  void gameCoreWanted(const QString& gameId);       // the PlayerController makes sure the game's core options are known
   void coreChoiceChanged();        // the core of a system was chosen or reset (the PlayerController refreshes the core state)
 
  private:
@@ -196,9 +219,16 @@ class EmulationController : public QObject {
   QString effectiveCoreId() const;
   void ensureGames() const;
   void emitGamesChanged();
+  QVariantMap cardOf(const QString& systemId) const;
+  QString coreIdFor(const QString& systemId, const QString& gameId) const;  // game's own choice when served, else the system's core
+  std::optional<emu::SystemManifest> manifestFor(const QString& systemId, const QString& coreId) const;
+  QList<emu::CoreOptionValue> profileValues(const QString& key, const QString& stored) const;
+  void afterGameChange(const QString& gameId, const QString& key);
 
   QString dataDir_;
   const emu::ManifestRegistry* manifests_;
+  const ControllerProfiles* profiles_ = nullptr;
+  QString runningGame_;
   EmulationSettings settings_;
   QVariantList systems_;
   QString selected_;

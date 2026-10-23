@@ -76,5 +76,7 @@ Rectangle {
     }
     UzFocusRing { inset: true; visible: root.active && root.itemEnabled }
     HoverHandler { id: hover; cursorShape: root.itemEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
-    TapHandler { enabled: root.itemEnabled; onTapped: root.triggered() }
+    // WithinBounds grabs the press exclusively: with the default passive grab the release that closes the menu also
+    // tapped the control underneath the item (e.g. the Session visibility segment below the "⋯" menu).
+    TapHandler { enabled: root.itemEnabled; gesturePolicy: TapHandler.WithinBounds; onTapped: root.triggered() }
 }

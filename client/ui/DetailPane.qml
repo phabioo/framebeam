@@ -608,6 +608,28 @@ Rectangle {
             enabled: (root.running && !root.player.quitting) || (root.game.canPlay === true && !root.confirming)
             onClicked: root.running ? root.player.requestQuit() : root.player.playAndShareSelected()
         }
+        // Per-game overrides (board 3c-1/3c-3): the dialog lists what differs from the defaults of the system.
+        UzButton {
+            id: gameSettingsButton
+            objectName: "gameSettingsButton"
+            readonly property int changes: { root.player.emulation.gameOverrideCount; return root.player.emulation.gameChangedCount(root.gameId) }
+            visible: root.hasGame && root.gameId !== ""
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            implicitHeight: Theme.row36
+            kind: "ghost"
+            text: qsTr("Settings for this game…")
+            onClicked: gameSettings.open(root.gameId)
+            UzTag {
+                objectName: "gameSettingsTag"
+                visible: gameSettingsButton.changes > 0
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.space15
+                anchors.verticalCenter: parent.verticalCenter
+                tone: "accent"
+                text: qsTr("%n change(s)", "", gameSettingsButton.changes)
+            }
+        }
         UzLabel {
             objectName: "quitNote"
             visible: root.running
@@ -632,5 +654,6 @@ Rectangle {
         }
     }
     CollectionDialogs { id: detailCollections; player: root.player }
+    GameSettingsDialog { id: gameSettings; objectName: "detailGameSettings"; player: root.player }
     ScreenshotViewer { id: screenshotViewer; player: root.player; parent: Window.contentItem }
 }

@@ -241,6 +241,7 @@ qt_add_qml_module(uzume_ui
     AdminPeople.qml
     AdminAskDialog.qml
     CollectionDialogs.qml
+    GameSettingsDialog.qml
     ScreenshotStrip.qml
     ScreenshotViewer.qml
     ScreenshotSaveDialog.qml

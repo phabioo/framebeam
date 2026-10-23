@@ -333,3 +333,63 @@ func TestLimitListenerCapsConnections(t *testing.T) {
 	}
 	_, _ = s2, c4
 }
+
+// Windows keeps separate excluded port ranges for TCP and UDP; the port-0 bind must not get stuck in one of them.
+func TestBindPairRotatesStrategies(t *testing.T) {
+	refuse := errors.New("bind: forbidden")
+	for _, tc := range []string{"udp", "tcp"} {
+		t.Run(tc+" refuses ports of the other protocol's port 0", func(t *testing.T) {
+			// The refusing protocol rejects every port that the other protocol's port 0 handed out.
+			handed := map[int]bool{}
+			listen := func(network, address string) (net.Listener, error) {
+				ln, err := net.Listen(network, address)
+				if err != nil {
+					return nil, err
+				}
+				p := ln.Addr().(*net.TCPAddr).Port
+				if tc == "tcp" && handed[p] {
+					ln.Close()
+					return nil, refuse
+				}
+				if tc == "udp" {
+					handed[p] = true
+				}
+				return ln, nil
+			}
+			listenPacket := func(network, address string) (net.PacketConn, error) {
+				pc, err := net.ListenPacket(network, address)
+				if err != nil {
+					return nil, err
+				}
+				p := pc.LocalAddr().(*net.UDPAddr).Port
+				if tc == "udp" && handed[p] {
+					pc.Close()
+					return nil, refuse
+				}
+				if tc == "tcp" {
+					handed[p] = true
+				}
+				return pc, nil
+			}
+			ok := false
+			for i := 0; i < 20 && !ok; i++ {
+				ln, pc, err := bindPair("127.0.0.1", 0, i%3, listen, listenPacket)
+				if err != nil {
+					if !errors.Is(err, refuse) {
+						t.Fatal(err)
+					}
+					continue
+				}
+				if ln.Addr().(*net.TCPAddr).Port != pc.LocalAddr().(*net.UDPAddr).Port {
+					t.Fatal("ports differ")
+				}
+				ln.Close()
+				pc.Close()
+				ok = true
+			}
+			if !ok {
+				t.Fatal("no attempt succeeded")
+			}
+		})
+	}
+}

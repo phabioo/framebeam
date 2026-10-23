@@ -264,6 +264,14 @@ Rectangle {
 
     Timer { id: hintTimer; interval: 6000 }
 
+    // "Settings for this game…" of the "⋯" menu: the same dialog as on the game page; the game keeps running behind it.
+    GameSettingsDialog {
+        id: gameSettings
+        objectName: "gameSettingsHost"
+        player: root.player
+        onClosed: Qt.callLater(root.focusLocal)
+    }
+
     property string layoutToastText: ""
     Timer { id: layoutToastTimer; interval: 2500; onTriggered: root.layoutToastText = "" }
     Connections {
@@ -295,6 +303,7 @@ Rectangle {
         hotkeys: root.hotkeyLabels
         onFullscreenRequested: root.toggleFullscreen()
         onResetRequested: root.openPopover("reset")
+        onGameSettingsRequested: gameSettings.open(root.player.runningGameId)
         onPanelToggled: root.panelCollapsed = !root.panelCollapsed
         onPickerToggled: root.togglePopover("picker")
         onLayoutMenuClosed: Qt.callLater(root.focusLocal)   // the layout hotkey keeps working after the menu
@@ -407,6 +416,28 @@ Rectangle {
                             if (children[i].objectName === "hudStack_bottom-left") leftStack = children[i]
                     }
                     onDetailsRequested: panel.openTab("console")
+                }
+
+                // Hold-Select hotkey sheet (board 3g-10): while P1 holds the hotkey button alone for a moment, the combos of the
+                // current bindings are listed over the stage; releasing it, or pressing a button (the combo fires as usual), closes it.
+                Loader {
+                    id: padSheet
+                    objectName: "padHotkeySheetLoader"
+                    // Created only while the button is held: the sheet's grid never rearranges while the stage is set up.
+                    active: root.visible && root.tab === "session" && root.session.active && !root.session.paused
+                            && root.player.controllers.holdSheetHeld
+                    anchors.centerIn: parent
+                    z: 15
+                    sourceComponent: UzHotkeySheet {
+                        objectName: "padHotkeySheet"
+                        width: Math.min(implicitWidth, Math.max(0, playArea.width - 2 * Theme.space3))
+                        modifier: root.player.controllers.padHotkeyModifier
+                        keys: root.player.controllers.padSheetRows.map(function (r) {
+                            if (r.action === "layout" && root.screenLayouts.length < 2) return [r.key, r.label, qsTr("One screen")]
+                            if (r.action === "speedup" && !root.session.fastForwardAvailable) return [r.key, r.label, qsTr("Not available")]
+                            return [r.key, r.label]
+                        })
+                    }
                 }
 
                 // Toasts, bottom left of the stage: persistent notices (Speed-up) have no close mark

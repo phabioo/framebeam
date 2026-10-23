@@ -243,6 +243,45 @@ class EmulationControllersTest : public QObject {
     QVERIFY(QMetaObject::invokeMethod(sel, "picked", Q_ARG(QString, value)));
   }
 
+  // A hub with the system nds (two cores) and one game "g1" (dummy file, no real ROM), paired and ready.
+  static void ndsGameHub(FakeHub& hub) {
+    hub.features = {QStringLiteral("saves_v1"), QStringLiteral("firmware_v1"), QStringLiteral("cores_v1"), QStringLiteral("cores_v2")};
+    const auto core = [](const QString& id, const QString& name, const QString& date) {
+      return QJsonObject{{QStringLiteral("core_id"), id},   {QStringLiteral("display_name"), name},
+                         {QStringLiteral("version"), date},  {QStringLiteral("license"), QStringLiteral("GPLv3")},
+                         {QStringLiteral("experimental"), false}, {QStringLiteral("origin"), QStringLiteral("libretro-buildbot")},
+                         {QStringLiteral("build_date"), date}};
+    };
+    hub.systems = {{QStringLiteral("systems"),
+                    QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("nds")},
+                                           {QStringLiteral("display_name"), QStringLiteral("Nintendo DS")},
+                                           {QStringLiteral("preferred_core_id"), QStringLiteral("melondsds")},
+                                           {QStringLiteral("default_core_id"), QStringLiteral("melondsds")},
+                                           {QStringLiteral("core_package_version"), QStringLiteral("2026.10.09")},
+                                           {QStringLiteral("cores"), QJsonArray{core(QStringLiteral("melondsds"), QStringLiteral("melonDS DS"), QStringLiteral("2026.10.09")),
+                                                                                core(QStringLiteral("desmume"), QStringLiteral("DeSmuME"), QStringLiteral("2026.10.08"))}},
+                                           {QStringLiteral("firmware_mode"), QStringLiteral("builtin")},
+                                           {QStringLiteral("firmware"), QJsonArray{}}}}}};
+    const QByteArray rom = QByteArray(2048, 'q') + "UZUME-DUMMY";
+    hub.roms.insert(uitest::sha256Hex(rom), rom);
+    hub.games = QJsonObject{{QStringLiteral("games"), QJsonArray{uitest::gameJson(QStringLiteral("g1"), QStringLiteral("Lumen Drift"),
+                                                                                    uitest::sha256Hex(rom), rom.size())}}};
+  }
+  static QVariantMap gameRow(const QVariantMap& data, const QString& key) {
+    for (const QVariant& t : data.value(QStringLiteral("tabs")).toList()) {
+      for (const QVariant& r : t.toMap().value(QStringLiteral("rows")).toList()) {
+        if (r.toMap().value(QStringLiteral("key")).toString() == key) return r.toMap();
+      }
+    }
+    return {};
+  }
+  static QVariantMap gameTab(const QVariantMap& data, const QString& id) {
+    for (const QVariant& t : data.value(QStringLiteral("tabs")).toList()) {
+      if (t.toMap().value(QStringLiteral("id")).toString() == id) return t.toMap();
+    }
+    return {};
+  }
+
  private slots:
   void initTestCase() {
     savedCoreEnv_ = qgetenv("UZUME_MELONDS_DS_CORE");
@@ -1036,6 +1075,287 @@ class EmulationControllersTest : public QObject {
     // Back on a system: the game section stays out of the way.
     emu->setLevel(QStringLiteral("system"));
     QVERIFY(!visible(h, "gamePicker"));
+  }
+
+  // ------------------------------------------------------------------ 0.19 per-game settings API and controller profiles
+
+  void gameSettingsApiResolvesAndResets() {
+    FakeHub hub(QStringLiteral("a"));
+    ndsGameHub(hub);
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    QTRY_VERIFY_WITH_TIMEOUT(h.controller->hubSystems()->state() == HubSystems::State::Ready, 8000);
+    h.controller->showEmulation();  // refreshes the system cards
+    EmulationController* emu = h.controller->emulation();
+    QTRY_COMPARE_WITH_TIMEOUT(emu->games().size(), 1, 4000);
+    const QString g = QStringLiteral("g1");
+    const QString ratio = QString::fromLatin1(EmulationController::kSpeedUpRatioKey);
+    const QString scale = QString::fromLatin1(EmulationController::kIntegerScaleKey);
+    const QString layout = QString::fromLatin1(EmulationController::kScreenLayoutKey);
+    const QString coreKey = QString::fromLatin1(EmulationSettings::kCoreKey);
+
+    QVERIFY(emu->gameSettings(QStringLiteral("nope")).isEmpty());
+    // Before the core options are known: the uzume rows and a note on the Core tab.
+    QVariantMap d = emu->gameSettings(g);
+    QCOMPARE(d.value(QStringLiteral("title")).toString(), QStringLiteral("Lumen Drift"));
+    QCOMPARE(d.value(QStringLiteral("systemLabel")).toString(), emu->games().first().toMap().value(QStringLiteral("systemName")).toString());
+    QCOMPARE(d.value(QStringLiteral("changedCount")).toInt(), 0);
+    QVERIFY(!d.value(QStringLiteral("coreKnown")).toBool());
+    QVERIFY(!gameRow(d, scale).isEmpty());
+    QVERIFY(!gameRow(d, layout).isEmpty());  // two-screen system
+    QVERIFY(!gameRow(d, QString::fromLatin1(EmulationController::kPadProfileKey)).isEmpty());
+    QVERIFY(!gameTab(d, QStringLiteral("core")).value(QStringLiteral("note")).toString().isEmpty());
+    QVERIFY(!gameRow(d, coreKey).isEmpty());
+    QCOMPARE(gameRow(d, coreKey).value(QStringLiteral("defaultLabel")).toString(), QStringLiteral("melonDS DS"));
+
+    // The page's own state is not touched by anything below.
+    const QString pageLevel = emu->level();
+    const QString pageGame = emu->selectedGame();
+    QSignalSpy changedSpy(emu, &EmulationController::gameSettingsChanged);
+    QSignalSpy gamesSpy(emu, &EmulationController::gamesChanged);
+    QSignalSpy uzumeSpy(emu, &EmulationController::uzumeOptionsChanged);
+    QSignalSpy coreSpy(emu, &EmulationController::coreChoiceChanged);
+
+    // A system value is what the game inherits; a game value wins; the default value stores nothing.
+    emu->settings()->setValue(L::System, QStringLiteral("nds"), ratio, QStringLiteral("4"));
+    QVariantMap r = gameRow(emu->gameSettings(g), ratio);
+    QCOMPARE(r.value(QStringLiteral("value")).toString(), QStringLiteral("4"));
+    QVERIFY(!r.value(QStringLiteral("isSet")).toBool());
+    QCOMPARE(r.value(QStringLiteral("defaultLabel")).toString(), r.value(QStringLiteral("valueLabel")).toString());
+    emu->setGameOption(g, ratio, QStringLiteral("8"));
+    r = gameRow(emu->gameSettings(g), ratio);
+    QVERIFY(r.value(QStringLiteral("isSet")).toBool());
+    QCOMPARE(r.value(QStringLiteral("value")).toString(), QStringLiteral("8"));
+    QCOMPARE(r.value(QStringLiteral("defaultValue")).toString(), QStringLiteral("4"));
+    QCOMPARE(emu->uzumeValue(ratio, QStringLiteral("nds"), g), QStringLiteral("8"));
+    QCOMPARE(emu->uzumeValue(ratio, QStringLiteral("nds")), QStringLiteral("4"));
+    QCOMPARE(emu->gameChangedCount(g), 1);
+    QCOMPARE(emu->gameSettings(g).value(QStringLiteral("changedCount")).toInt(), 1);
+    QCOMPARE(gameTab(emu->gameSettings(g), QStringLiteral("speedup")).value(QStringLiteral("changed")).toInt(), 1);
+    QCOMPARE(emu->gameOverrideCount(), 1);
+    QVERIFY(changedSpy.count() > 0 && gamesSpy.count() > 0 && uzumeSpy.count() > 0);
+    emu->setGameOption(g, ratio, QStringLiteral("4"));  // the inherited value: nothing stays stored
+    QVERIFY(!emu->settings()->hasValue(L::Game, g, ratio));
+    emu->setGameOption(g, ratio, QStringLiteral("not-a-value"));  // refused
+    emu->setGameOption(g, QStringLiteral("uzume.nope"), QStringLiteral("1"));
+    QCOMPARE(emu->gameChangedCount(g), 0);
+
+    // Core choice per game: "Use system default" stores nothing; a game core is stored at game level only.
+    emu->setGameOption(g, coreKey, QStringLiteral("desmume"));
+    QCOMPARE(emu->settings()->value(L::Game, g, coreKey), QStringLiteral("desmume"));
+    QVERIFY(!emu->settings()->hasValue(L::System, QStringLiteral("nds"), coreKey));
+    QVERIFY(gameRow(emu->gameSettings(g), coreKey).value(QStringLiteral("valueLabel")).toString().startsWith(QStringLiteral("DeSmuME")));
+    QCOMPARE(emu->gameSettings(g).value(QStringLiteral("coreName")).toString(), QStringLiteral("DeSmuME"));
+    QVERIFY(coreSpy.count() > 0);
+    emu->setGameOption(g, coreKey, QString());
+    QVERIFY(!emu->settings()->hasValue(L::Game, g, coreKey));
+
+    // Core options of the game's core appear once known; locked/hidden ones stay out.
+    emu->setCoreProbe(QStringLiteral("melondsds"), fakeProbe(), false);
+    d = emu->gameSettings(g);
+    QVERIFY(d.value(QStringLiteral("coreKnown")).toBool());
+    QVERIFY(!gameRow(d, QStringLiteral("melonds_audio_interpolation")).isEmpty());
+    QVERIFY(gameRow(d, QStringLiteral("melonds_hidden_by_core")).isEmpty());
+    QVERIFY(gameRow(d, QStringLiteral("melonds_sysfile_mode")).isEmpty());  // firmware option: Uzume controls it
+    emu->setGameOption(g, QStringLiteral("melonds_audio_interpolation"), QStringLiteral("linear"));
+    QCOMPARE(emu->launchOverrides(QStringLiteral("nds"), g).value(QStringLiteral("melonds_audio_interpolation")), QStringLiteral("linear"));
+    QVERIFY(emu->launchOverrides(QStringLiteral("nds"), QString()).value(QStringLiteral("melonds_audio_interpolation")).isEmpty());
+
+    // Restart marks: only the running game, and not for the picture options that apply at once.
+    emu->setGameOption(g, scale, QStringLiteral("on"));
+    d = emu->gameSettings(g);
+    QVERIFY(!gameRow(d, ratio).value(QStringLiteral("restart")).toBool());
+    emu->setRunningGame(g);
+    d = emu->gameSettings(g);
+    QVERIFY(gameRow(d, ratio).value(QStringLiteral("restart")).toBool());
+    QVERIFY(gameRow(d, QStringLiteral("melonds_audio_interpolation")).value(QStringLiteral("restart")).toBool());
+    QVERIFY(!gameRow(d, scale).value(QStringLiteral("restart")).toBool());
+    QVERIFY(d.value(QStringLiteral("restartHint")).toBool());  // a restart-only row is changed while the game runs
+    emu->setRunningGame(QString());
+
+    // Reset one row, then everything.
+    emu->resetGameOption(g, scale);
+    QVERIFY(!emu->settings()->hasValue(L::Game, g, scale));
+    QCOMPARE(emu->gameChangedCount(g), 1);
+    emu->setGameOption(g, ratio, QStringLiteral("8"));
+    emu->resetGameOptions(g);
+    QCOMPARE(emu->gameChangedCount(g), 0);
+    QCOMPARE(emu->gameOverrideCount(), 0);
+
+    QCOMPARE(emu->level(), pageLevel);
+    QCOMPARE(emu->selectedGame(), pageGame);
+  }
+
+  void controllerProfilesPerGame() {
+    FakeHub hub(QStringLiteral("a"));
+    ndsGameHub(hub);
+    QVERIFY(hub.start());
+    Harness h;
+    QVERIFY(h.start());
+    pair(h, hub);
+    QTRY_VERIFY_WITH_TIMEOUT(h.controller->hubSystems()->state() == HubSystems::State::Ready, 8000);
+    EmulationController* emu = h.controller->emulation();
+    ControllersController* c = h.controller->controllers();
+    ControllerProfiles* store = c->profileStore();
+    h.controller->showEmulation();  // refreshes the system cards
+    QTRY_COMPARE_WITH_TIMEOUT(emu->games().size(), 1, 4000);
+    const QString g = QStringLiteral("g1");
+    const QString kbKey = QString::fromLatin1(EmulationController::kKeyboardProfileKey);
+    const QString padKey = QString::fromLatin1(EmulationController::kPadProfileKey);
+    const QString kbDevice = QString::fromLatin1(ControllerProfiles::kKeyboardDevice);
+
+    // A user keyboard profile with F9 on the A button.
+    const QString mine = store->duplicate(QString::fromLatin1(ControllerProfiles::kBuiltinKeyboardId), QStringLiteral("Lefty"));
+    QVERIFY(!mine.isEmpty());
+    QVERIFY(store->setBinding(mine, QStringLiteral("a"), {QStringLiteral("key:%1").arg(int(Qt::Key_F9))}));
+    emu->profilesChanged();
+    QVariantMap row = gameRow(emu->gameSettings(g), kbKey);
+    QCOMPARE(row.value(QStringLiteral("value")).toString(), QString());  // the device's own profile
+    QCOMPARE(row.value(QStringLiteral("valueLabel")).toString(), QStringLiteral("Device's own profile"));
+    QStringList ids;
+    for (const QVariant& v : row.value(QStringLiteral("values")).toList()) ids << v.toMap().value(QStringLiteral("value")).toString();
+    QVERIFY(ids.contains(mine) && ids.contains(QString::fromLatin1(ControllerProfiles::kBuiltinKeyboardId)));
+    QVERIFY(!ids.contains(QString::fromLatin1(ControllerProfiles::kBuiltinGamepadId)));  // only profiles of the kind
+    QVERIFY(gameRow(emu->gameSettings(g), padKey).value(QStringLiteral("values")).toList().size() >= 2);
+
+    // Stored per game, resolved system/game; the game wins.
+    emu->setGameOption(g, kbKey, mine);
+    QCOMPARE(emu->uzumeValue(kbKey, QStringLiteral("nds"), g), mine);
+    QCOMPARE(emu->uzumeValue(kbKey, QStringLiteral("nds")), QString());
+    const QString assigned = store->assignedProfileId(kbDevice, QStringLiteral("keyboard"));
+    QCOMPARE(assigned, QString::fromLatin1(ControllerProfiles::kBuiltinKeyboardId));
+
+    // Applied at game start as a temporary override; the stored assignment stays, the end of the game clears it.
+    QVERIFY(!c->keyboardMap().contains(int(Qt::Key_F9)));
+    c->setGameProfiles(QString(), emu->uzumeValue(kbKey, QStringLiteral("nds"), g));
+    QCOMPARE(c->gameKeyboardProfile(), mine);
+    QVERIFY(c->keyboardMap().contains(int(Qt::Key_F9)));
+    QCOMPARE(store->assignedProfileId(kbDevice, QStringLiteral("keyboard")), assigned);
+    ControllerProfiles reread(h.controller->profileStore()->baseDir());
+    QCOMPARE(reread.assignedProfileId(kbDevice, QStringLiteral("keyboard")), assigned);  // nothing written
+    c->clearGameProfiles();
+    QVERIFY(!c->keyboardMap().contains(int(Qt::Key_F9)));
+    QCOMPARE(c->gameKeyboardProfile(), QString());
+
+    // A deleted profile stays listed (marked missing) and stays stored; the device's own profile is used meanwhile.
+    QVERIFY(store->remove(mine));
+    emu->profilesChanged();
+    row = gameRow(emu->gameSettings(g), kbKey);
+    QCOMPARE(row.value(QStringLiteral("value")).toString(), mine);
+    QCOMPARE(row.value(QStringLiteral("valueLabel")).toString(), QStringLiteral("Deleted profile (missing)"));
+    QVERIFY(row.value(QStringLiteral("isSet")).toBool());
+    QCOMPARE(emu->settings()->value(L::Game, g, kbKey), mine);
+    const QHash<int, quint32> own = c->keyboardMap();
+    c->setGameProfiles(QString(), mine);
+    QCOMPARE(c->keyboardMap(), own);
+    c->clearGameProfiles();
+    emu->resetGameOption(g, kbKey);
+    row = gameRow(emu->gameSettings(g), kbKey);
+    QVERIFY(!row.value(QStringLiteral("isSet")).toBool());
+
+    // The Emulation page offers the rows at system and game level, not in Defaults.
+    emu->setLevel(QStringLiteral("system"));
+    bool onSystem = false;
+    for (const QVariant& grp : emu->groups()) {
+      for (const QVariant& o : grp.toMap().value(QStringLiteral("options")).toList()) onSystem = onSystem || o.toMap().value(QStringLiteral("key")).toString() == padKey;
+    }
+    QVERIFY(onSystem);
+    emu->setOption(padKey, QString::fromLatin1(ControllerProfiles::kBuiltinGamepadId));
+    QCOMPARE(emu->uzumeValue(padKey, QStringLiteral("nds"), g), QString::fromLatin1(ControllerProfiles::kBuiltinGamepadId));
+    QCOMPARE(gameRow(emu->gameSettings(g), padKey).value(QStringLiteral("defaultLabel")).toString(), QStringLiteral("Standard Gamepad"));
+    emu->setLevel(QStringLiteral("global"));
+    for (const QVariant& grp : emu->groups()) {
+      for (const QVariant& o : grp.toMap().value(QStringLiteral("options")).toList()) QVERIFY(o.toMap().value(QStringLiteral("key")).toString() != padKey);
+    }
+  }
+
+  void gamepadProfileOverrideAndHoldSheet() {
+    FakeHub hub(QStringLiteral("a"));
+    QVERIFY(hub.start());
+    Harness h;
+    h.gamepads = true;
+    QVERIFY(h.start());
+    pair(h, hub);
+    ControllersController* c = h.controller->controllers();
+    QVERIFY2(c->gamepadAvailable(), qPrintable(c->gamepadNote()));
+    ControllerProfiles* store = c->profileStore();
+    VirtualPad pad("Uzume Profile Pad");
+    QVERIFY(pad.js != nullptr);
+    c->gamepads()->poll();
+    const auto poll = [&]() { c->gamepads()->poll(); QTest::qWait(1); };
+    const quint32 a = 1u << uzume::inputIndex(QStringLiteral("a"));
+
+    // Override for P1's gamepad: the south button is "A" in the chosen profile, East is "A" in the standard one.
+    const QString mine = store->duplicate(QString::fromLatin1(ControllerProfiles::kBuiltinGamepadId), QStringLiteral("Southpaw"));
+    QVERIFY(store->setBinding(mine, QStringLiteral("a"), {QStringLiteral("pad:a")}));
+    pad.button(South, true);
+    poll();
+    QVERIFY((c->gamepads()->inputMask() & a) == 0);
+    c->setGameProfiles(mine, QString());
+    poll();
+    QVERIFY((c->gamepads()->inputMask() & a) != 0);
+    const QString padDevice = c->gamepads()->devices().first().key;
+    QCOMPARE(store->assignedProfileId(padDevice, QStringLiteral("gamepad")), QString::fromLatin1(ControllerProfiles::kBuiltinGamepadId));
+    c->clearGameProfiles();
+    poll();
+    QVERIFY((c->gamepads()->inputMask() & a) == 0);
+    pad.button(South, false);
+    poll();
+
+    // Hold-Select sheet: shows after the hold time, closes on release; a combo never shows it.
+    c->setHoldTimeMs(40);
+    QVERIFY(!c->holdSheetHeld());
+    QSignalSpy sheetSpy(c, &ControllersController::holdSheetChanged);
+    pad.button(Back, true);
+    poll();
+    QVERIFY(!c->holdSheetHeld());
+    QTRY_VERIFY_WITH_TIMEOUT(c->holdSheetHeld(), 2000);
+    pad.button(Back, false);
+    poll();
+    QVERIFY(!c->holdSheetHeld());
+    QCOMPARE(sheetSpy.count(), 2);
+    pad.button(Back, true);
+    poll();
+    pad.button(RB, true);  // Select + RB: the speed-up combo fires, the sheet never opens
+    poll();
+    QTest::qWait(150);
+    QVERIFY(!c->holdSheetHeld());
+    pad.button(RB, false);
+    pad.button(Back, false);
+    poll();
+    // Pressing a button while the sheet is open closes it again.
+    pad.button(Back, true);
+    poll();
+    QTRY_VERIFY_WITH_TIMEOUT(c->holdSheetHeld(), 2000);
+    pad.button(LB, true);
+    poll();
+    QVERIFY(!c->holdSheetHeld());
+    pad.button(LB, false);
+    pad.button(Back, false);
+    poll();
+
+    // The rows follow the bindings in use: defaults, then a rebound action; solo bindings are not part of it.
+    const auto rowOf = [&](const QString& action) {
+      for (const QVariant& v : c->padSheetRows()) {
+        if (v.toMap().value(QStringLiteral("action")).toString() == action) return v.toMap();
+      }
+      return QVariantMap();
+    };
+    QCOMPARE(c->padSheetRows().first().toMap().value(QStringLiteral("action")).toString(), QStringLiteral("pause"));
+    QCOMPARE(rowOf(QStringLiteral("pause")).value(QStringLiteral("key")).toString(), QStringLiteral("Start"));
+    QCOMPARE(rowOf(QStringLiteral("layout")).value(QStringLiteral("key")).toString(), QStringLiteral("→"));
+    QCOMPARE(rowOf(QStringLiteral("layout")).value(QStringLiteral("label")).toString(), QStringLiteral("Screen layout"));
+    QCOMPARE(rowOf(QStringLiteral("snapshot")).value(QStringLiteral("key")).toString(), QStringLiteral("L"));
+    QCOMPARE(rowOf(QStringLiteral("speedup")).value(QStringLiteral("key")).toString(), QStringLiteral("R2"));
+    QCOMPARE(rowOf(QStringLiteral("volume")).value(QStringLiteral("key")).toString(), QStringLiteral("UpDown"));
+    QVERIFY(rowOf(QStringLiteral("volumeUp")).isEmpty() && rowOf(QStringLiteral("volumeDown")).isEmpty());
+    QVERIFY(!rowOf(QStringLiteral("hud")).isEmpty());
+    QVERIFY(store->setPadHotkey(QStringLiteral("layout"), QStringLiteral("pad:a")));
+    QCOMPARE(rowOf(QStringLiteral("layout")).value(QStringLiteral("key")).toString(), QStringLiteral("A"));
+    QVERIFY(store->setPadHotkey(QStringLiteral("snapshot"), QStringLiteral("solo:pad:dpleft")));  // a lone button is not a combo
+    QVERIFY(rowOf(QStringLiteral("snapshot")).isEmpty());
   }
 
   void romCacheLimitAndClearOnTheSettingsPage() {
