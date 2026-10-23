@@ -71,7 +71,13 @@ ApplicationWindow {
         PairingScreen { player: window.player }
         LibraryScreen { player: window.player }
         GameScreen { player: window.player }
-        SettingsScreen { id: settingsScreen; player: window.player }
+        // Created only while shown: a hidden StackLayout child whose Repeaters change keeps stale layout items and
+        // crashed Qt Layouts on the next switch to Settings.
+        Loader {
+            id: settingsLoader
+            active: window.player.screen === "settings"
+            sourceComponent: SettingsScreen { player: window.player }
+        }
         EmulationScreen { player: window.player }
         ControllersScreen { player: window.player }
         PluginScreen { player: window.player }
@@ -149,7 +155,7 @@ ApplicationWindow {
         target: window.player.connectionCheck
         function onEditHubRequested() {
             window.player.showSettings()
-            settingsScreen.editActiveHubAddress()
+            if (settingsLoader.item) settingsLoader.item.editActiveHubAddress()
         }
     }
 
