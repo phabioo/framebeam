@@ -169,7 +169,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"GetAdminStatus", "GetAdminStatusLog", "GetAdminMetrics", "SetAdminMetrics", "CreateAdminMetricsToken",
 			"ListAdminBackups", "StartAdminBackup", "GetAdminBackupStatus", "CancelAdminBackup", "GetAdminBackupSettings", "UpdateAdminBackupSettings",
 			"DismissAdminRestoreResult", "DeleteAdminBackup", "RestoreAdminBackup",
-			"CreateReport", "ListAdminReports", "GetAdminReport", "MarkAdminReportSeen", "DeleteAdminReport", "GetAdminReportFile", "GetAdminReportArchive",
+			"CreateReport", "ListAdminReports", "GetAdminReport", "MarkAdminReportSeen", "DeleteAdminReport", "GetAdminReportFile", "GetAdminReportArchive", "ExportAdminUserSaves",
 			"GetAdminUpdateVersions", "RollbackAdminUpdate", "ResumeAdminUpdates",
 			"GetAccount", "UpdateAccount", "SetAccountPassword", "RemoveAccountPassword", "ConfirmAccount", "EndAccountConfirmation",
 			"ListAccountDevices", "SignOutAccountDevice", "SignOutAllAccountDevices", "ResetAdminUserPassword",

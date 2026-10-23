@@ -102,7 +102,7 @@ func TestAdminPartBRequiresAdmin(t *testing.T) {
 	adminAuthzTable(t, s, member, [][2]string{
 		{"GET", "/api/v1/admin/library/rescan"}, {"POST", "/api/v1/admin/library/rescan"},
 		{"PATCH", "/api/v1/admin/games/" + g}, {"DELETE", "/api/v1/admin/games/" + g},
-		{"GET", "/api/v1/admin/saves"},
+		{"GET", "/api/v1/admin/saves"}, {"GET", "/api/v1/admin/users/" + u + "/saves/export"},
 		{"GET", sv}, {"GET", sv + "/history"}, {"GET", sv + "/content"}, {"GET", sv + "/history/1/content"}, {"DELETE", sv + "/history/1"},
 		{"POST", sv + "/history/1/restore"}, {"POST", sv + "/snapshots"}, {"POST", sv + "/conflicts/x/resolve"}, {"POST", sv + "/slots"},
 		{"POST", sv + "/rename"}, {"DELETE", sv + "?confirm_revision=1"},

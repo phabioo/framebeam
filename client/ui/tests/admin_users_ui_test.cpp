@@ -292,6 +292,25 @@ class AdminUsersUiTest : public QObject {
     QTRY_VERIFY(shown(h.item("usersAskDialog")));
     QVERIFY(h.item("usersAskDialog")->property("text").toString().contains(QStringLiteral("saves")));
     QCOMPARE(hub.adminCalls.value(QStringLiteral("DELETE /api/v1/admin/users/u_3")), 0);
+    // "Download saves…" saves the zip, tells so and leaves the dialog open (the save dialog is native: the page function it ends in is
+    // called directly), then Remove still works.
+    QVERIFY(shown(h.item("askSecondary")));
+    QCOMPARE(h.item("askSecondary")->property("text").toString(), QStringLiteral("Download saves…"));
+    QVERIFY(!shown(h.item("askNote")));
+    hub.adminRoutes[QStringLiteral("GET /api/v1/admin/users/u_3/saves/export")] = {200, "PK-fake-zip-bytes"};
+    QTemporaryDir out;
+    QVERIFY(out.isValid());
+    const QString target = out.filePath(QStringLiteral("uzume-saves-test.zip"));
+    QVERIFY(QMetaObject::invokeMethod(h.item("serverUsersPage"), "startSavesDownload", Q_ARG(QString, QStringLiteral("u_3")),
+                                      Q_ARG(QString, target)));
+    QTRY_VERIFY(shown(h.item("askNote")));
+    QCOMPARE(text(h.item("askNote")), QStringLiteral("Saves downloaded to uzume-saves-test.zip."));
+    QFile f(target);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    QCOMPARE(f.readAll(), QByteArray("PK-fake-zip-bytes"));
+    QCOMPARE(hub.adminCalls.value(QStringLiteral("GET /api/v1/admin/users/u_3/saves/export")), 1);
+    QVERIFY(shown(h.item("usersAskDialog")));
+    QCOMPARE(hub.adminCalls.value(QStringLiteral("DELETE /api/v1/admin/users/u_3")), 0);
     QVERIFY(h.click("askDanger"));
     QTRY_COMPARE(hub.adminCalls.value(QStringLiteral("DELETE /api/v1/admin/users/u_3")), 1);
     QTRY_VERIFY(!shown(h.item("peopleTableRow_2")));

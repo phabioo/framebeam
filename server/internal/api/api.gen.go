@@ -5008,6 +5008,9 @@ type ServerInterface interface {
 	// Change the role of a user (admin)
 	// (POST /api/v1/admin/users/{user_id}/role)
 	SetAdminUserRole(w http.ResponseWriter, r *http.Request, userId UserId)
+	// Download all saves of a user as one zip (admin)
+	// (GET /api/v1/admin/users/{user_id}/saves/export)
+	ExportAdminUserSaves(w http.ResponseWriter, r *http.Request, userId UserId)
 	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(w http.ResponseWriter, r *http.Request)
@@ -8810,6 +8813,38 @@ func (siw *ServerInterfaceWrapper) SetAdminUserRole(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ExportAdminUserSaves operation middleware
+func (siw *ServerInterfaceWrapper) ExportAdminUserSaves(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user_id" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user_id", r.PathValue("user_id"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportAdminUserSaves(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RevokeSelf operation middleware
 func (siw *ServerInterfaceWrapper) RevokeSelf(w http.ResponseWriter, r *http.Request) {
 
@@ -11364,6 +11399,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/games/{game_id}/saves/{slot}/upload", wrapper.UploadAdminSaveFile)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/password-reset", wrapper.ResetAdminUserPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/role", wrapper.SetAdminUserRole)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/admin/users/{user_id}/saves/export", wrapper.ExportAdminUserSaves)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/revoke", wrapper.RevokeSelf)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/sign-in", wrapper.SignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/auth/token", wrapper.CreateAccessToken)
@@ -19445,6 +19481,84 @@ func (response SetAdminUserRole404JSONResponse) VisitSetAdminUserRoleResponse(w 
 	return err
 }
 
+type ExportAdminUserSavesRequestObject struct {
+	UserId UserId `json:"user_id"`
+}
+
+type ExportAdminUserSavesResponseObject interface {
+	VisitExportAdminUserSavesResponse(w http.ResponseWriter) error
+}
+
+type ExportAdminUserSaves200ResponseHeaders struct {
+	ContentDisposition *string
+}
+
+type ExportAdminUserSaves200ApplicationzipResponse struct {
+	Body          io.Reader
+	Headers       ExportAdminUserSaves200ResponseHeaders
+	ContentLength int64
+}
+
+func (response ExportAdminUserSaves200ApplicationzipResponse) VisitExportAdminUserSavesResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/zip")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type ExportAdminUserSaves401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ExportAdminUserSaves401JSONResponse) VisitExportAdminUserSavesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportAdminUserSaves403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ExportAdminUserSaves403JSONResponse) VisitExportAdminUserSavesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportAdminUserSaves404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ExportAdminUserSaves404JSONResponse) VisitExportAdminUserSavesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type RevokeSelfRequestObject struct {
 }
 
@@ -24946,6 +25060,9 @@ type StrictServerInterface interface {
 	// Change the role of a user (admin)
 	// (POST /api/v1/admin/users/{user_id}/role)
 	SetAdminUserRole(ctx context.Context, request SetAdminUserRoleRequestObject) (SetAdminUserRoleResponseObject, error)
+	// Download all saves of a user as one zip (admin)
+	// (GET /api/v1/admin/users/{user_id}/saves/export)
+	ExportAdminUserSaves(ctx context.Context, request ExportAdminUserSavesRequestObject) (ExportAdminUserSavesResponseObject, error)
 	// Device revokes itself
 	// (POST /api/v1/auth/revoke)
 	RevokeSelf(ctx context.Context, request RevokeSelfRequestObject) (RevokeSelfResponseObject, error)
@@ -28373,6 +28490,32 @@ func (sh *strictHandler) SetAdminUserRole(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(SetAdminUserRoleResponseObject); ok {
 		if err := validResponse.VisitSetAdminUserRoleResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ExportAdminUserSaves operation middleware
+func (sh *strictHandler) ExportAdminUserSaves(w http.ResponseWriter, r *http.Request, userId UserId) {
+	var request ExportAdminUserSavesRequestObject
+
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ExportAdminUserSaves(ctx, request.(ExportAdminUserSavesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ExportAdminUserSaves")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ExportAdminUserSavesResponseObject); ok {
+		if err := validResponse.VisitExportAdminUserSavesResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
