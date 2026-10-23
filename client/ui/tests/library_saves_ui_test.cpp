@@ -942,7 +942,7 @@ class LibrarySavesUiTest : public QObject {
     hist->refresh();
     openSavesViewViaApi(h);
     QTRY_VERIFY_WITH_TIMEOUT(shown(h, "resolveConflictButton"), 8000);
-    // Resolved in the Hub web interface meanwhile: the view says so and the local marker is dropped
+    // Resolved in the server admin meanwhile: the view says so and the local marker is dropped
     hub.saves[QStringLiteral("g1")].conflicts[0].status = QStringLiteral("resolved_hub");
     QVERIFY(h.click("resolveConflictButton"));
     QTRY_VERIFY_WITH_TIMEOUT(hist->message().contains(QStringLiteral("already resolved")), 8000);

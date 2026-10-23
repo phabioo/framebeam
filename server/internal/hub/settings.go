@@ -9,14 +9,6 @@ import (
 // Server settings live in the settings table (key/value).
 const (
 	settingAllowUserUploads = "allow_user_uploads"
-	settingAppearance       = "appearance"
-)
-
-// Appearance values of the app.
-const (
-	AppearanceLight  = "light"
-	AppearanceDark   = "dark"
-	AppearanceSystem = "system"
 )
 
 func (s *Service) getSetting(ctx context.Context, key string) (string, bool, error) {
@@ -58,27 +50,4 @@ func (s *Service) CanUpload(ctx context.Context, u User) (bool, error) {
 		return true, nil
 	}
 	return s.AllowUserUploads(ctx)
-}
-
-// Appearance returns the app mode (light, dark, system). Without a stored choice (new installs, or a
-// value this version does not know) it is system: the page follows prefers-color-scheme of the browser.
-func (s *Service) Appearance(ctx context.Context) (string, error) {
-	v, ok, err := s.getSetting(ctx, settingAppearance)
-	if err != nil || !ok {
-		return AppearanceSystem, err
-	}
-	switch v {
-	case AppearanceDark, AppearanceLight:
-		return v, nil
-	}
-	return AppearanceSystem, nil
-}
-
-// SetAppearance stores the app mode.
-func (s *Service) SetAppearance(ctx context.Context, mode string) error {
-	switch mode {
-	case AppearanceLight, AppearanceDark, AppearanceSystem:
-		return s.setSetting(ctx, settingAppearance, mode)
-	}
-	return badRequest("Appearance must be light, dark or system")
 }

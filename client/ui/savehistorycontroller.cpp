@@ -895,7 +895,7 @@ void SaveHistoryController::onSaveUpdated(const SaveUpdate& u, bool runningHere)
   }
   if (runningHere) {
     notice_ = tr("The save for this game was changed on %1. Your next upload will become a conflict that you can resolve at the next start.")
-                  .arg(u.deviceName.isEmpty() ? (u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000") ? tr("Server web interface") : tr("another device")) : u.deviceName);
+                  .arg(u.deviceName.isEmpty() ? (u.deviceId == QLatin1String("00000000-0000-0000-0000-000000000000") ? tr("Server admin") : tr("another device")) : u.deviceName);
     emit changed();
   }
 }

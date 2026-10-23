@@ -2125,9 +2125,6 @@ type AdminPlugins struct {
 
 // AdminProblem defines model for AdminProblem.
 type AdminProblem struct {
-	// ActionHref Informational path of the suggested action (the app maps the label itself)
-	ActionHref *string `json:"action_href,omitempty"`
-
 	// ActionLabel Label of the suggested action, empty when none
 	ActionLabel *string `json:"action_label,omitempty"`
 	Detail      string  `json:"detail"`

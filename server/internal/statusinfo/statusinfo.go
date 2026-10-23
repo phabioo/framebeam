@@ -74,7 +74,7 @@ func (s *Source) Problems(ctx context.Context) []health.Problem {
 	}
 	for _, m := range s.TURNIssues {
 		ps = append(ps, health.Problem{ID: "turn", Title: "TURN relay down", Detail: m, Severity: health.Error,
-			ActionLabel: "Open Network", ActionHref: "/settings/network"})
+			ActionLabel: "Open Network"})
 	}
 	if f := s.Svc.LastUpdateFailure(); f != nil {
 		detail := "Version " + f.Version + " could not be installed"
@@ -82,15 +82,15 @@ func (s *Source) Problems(ctx context.Context) []health.Problem {
 			detail += ": " + f.Message
 		}
 		ps = append(ps, health.Problem{ID: "update", Title: "Update failed", Detail: detail, Severity: health.Warn,
-			ActionLabel: "Open Updates", ActionHref: "/settings/updates"})
+			ActionLabel: "Open Updates"})
 	}
 	if up := s.Svc.UpdatePausedProblem(ctx); up != nil {
 		ps = append(ps, health.Problem{ID: "update-paused", Title: up.Title, Detail: up.Detail, Severity: health.Warn,
-			ActionLabel: "Open Updates", ActionHref: "/settings/updates"})
+			ActionLabel: "Open Updates"})
 	}
 	if bp := s.Svc.BackupProblem(ctx); bp != nil {
 		ps = append(ps, health.Problem{ID: "backup", Title: bp.Title, Detail: bp.Detail, Severity: health.Warn,
-			ActionLabel: "Open Backups", ActionHref: "/settings/backups"})
+			ActionLabel: "Open Backups"})
 	}
 	health.Sort(ps)
 	return ps
@@ -108,7 +108,7 @@ func DiskProblems(total, free uint64) []health.Problem {
 	}
 	return []health.Problem{{ID: "disk", Title: fmt.Sprintf("Disk %.0f %%", pct), Severity: sev,
 		Detail:      fmt.Sprintf("Only %s of %s are free on the data folder. Saves, uploads and updates need space.", HumanBytes(free), HumanBytes(total)),
-		ActionLabel: "Open Saves retention", ActionHref: "/settings/saves"}}
+		ActionLabel: "Open Saves retention"}}
 }
 
 // HumanBytes formats bytes with one decimal (steps of 1024).

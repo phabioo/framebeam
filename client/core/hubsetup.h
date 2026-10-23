@@ -1,5 +1,5 @@
 #pragma once
-// "Set up a Hub on this PC" without a local Hub (0.9): downloads the MSI of the Player's own version from the signed
+// "Set up a server on this PC" without a local Hub (0.9): downloads the MSI of the Player's own version from the signed
 // update index, verifies size and SHA-256 like the updater, then hands over to a temporary copy of the launcher that
 // runs msiexec elevated (ALLUSERS=1 INSTALL_HUB=1 NETWORK_SHARING=0) and starts the per-machine Player with
 // `--setup-local-hub`.

@@ -10,7 +10,7 @@ import (
 
 // Admin API for the saves of all users (0.18, `admin_v1`). The hub functions are the ones of the member API and of the
 // app; the path names the owner. Changes are recorded as made by the web device of the admin
-// (hub.WebDeviceID) and follow the same base revision rules: a stale revision is a 409, nothing is
+// (hub.AdminDeviceID) and follow the same base revision rules: a stale revision is a 409, nothing is
 // overwritten silently.
 
 func (s *Server) ListAdminSaves(ctx context.Context, req api.ListAdminSavesRequestObject) (api.ListAdminSavesResponseObject, error) {
@@ -114,7 +114,7 @@ func (s *Server) RestoreAdminSaveVersion(ctx context.Context, req api.RestoreAdm
 	if req.Body == nil {
 		return nil, hub.ErrBadRequest
 	}
-	sl, err := s.svc.RestoreSaveVersion(ctx, hub.RestoreInput{UserID: req.UserId, DeviceID: hub.WebDeviceID(principal(ctx).User.ID),
+	sl, err := s.svc.RestoreSaveVersion(ctx, hub.RestoreInput{UserID: req.UserId, DeviceID: hub.AdminDeviceID(principal(ctx).User.ID),
 		GameID: req.GameId.String(), Slot: req.Slot, Version: req.Version, ExpectedRevision: req.Body.ExpectedRevision})
 	if err != nil {
 		return nil, err
@@ -159,7 +159,7 @@ func (s *Server) CreateAdminSaveSlot(ctx context.Context, req api.CreateAdminSav
 	if req.Body == nil {
 		return nil, hub.ErrBadRequest
 	}
-	sl, err := s.svc.CreateSaveSlot(ctx, req.UserId, req.GameId.String(), req.Slot, req.Body.Name, hub.WebDeviceID(principal(ctx).User.ID))
+	sl, err := s.svc.CreateSaveSlot(ctx, req.UserId, req.GameId.String(), req.Slot, req.Body.Name, hub.AdminDeviceID(principal(ctx).User.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (s *Server) RenameAdminSaveSlot(ctx context.Context, req api.RenameAdminSav
 	if req.Body == nil {
 		return nil, hub.ErrBadRequest
 	}
-	sl, err := s.svc.RenameSaveSlot(ctx, hub.RenameInput{UserID: req.UserId, DeviceID: hub.WebDeviceID(principal(ctx).User.ID),
+	sl, err := s.svc.RenameSaveSlot(ctx, hub.RenameInput{UserID: req.UserId, DeviceID: hub.AdminDeviceID(principal(ctx).User.ID),
 		GameID: req.GameId.String(), Slot: req.Slot, NewSlot: req.Body.Name})
 	if err != nil {
 		return nil, err
@@ -193,7 +193,7 @@ func (s *Server) DeleteAdminSaveSlot(ctx context.Context, req api.DeleteAdminSav
 	if req.Params.ConfirmRevision < 1 {
 		return nil, hub.ErrBadRequest
 	}
-	if err := s.svc.DeleteSaveSlot(ctx, hub.DeleteInput{UserID: req.UserId, DeviceID: hub.WebDeviceID(principal(ctx).User.ID),
+	if err := s.svc.DeleteSaveSlot(ctx, hub.DeleteInput{UserID: req.UserId, DeviceID: hub.AdminDeviceID(principal(ctx).User.ID),
 		GameID: req.GameId.String(), Slot: req.Slot, ConfirmRevision: req.Params.ConfirmRevision}); err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func (s *Server) UploadAdminSaveFile(ctx context.Context, req api.UploadAdminSav
 		return nil, hub.ErrBadRequest
 	}
 	rev := req.Params.XUzumeExpectedRevision
-	sl, err := s.svc.UploadSaveFile(ctx, hub.UploadSaveInput{UserID: req.UserId, DeviceID: hub.WebDeviceID(principal(ctx).User.ID),
+	sl, err := s.svc.UploadSaveFile(ctx, hub.UploadSaveInput{UserID: req.UserId, DeviceID: hub.AdminDeviceID(principal(ctx).User.ID),
 		GameID: req.GameId.String(), Slot: req.Slot, ExpectedRevision: &rev, SHA256: req.Params.XUzumeContentSHA256, Body: req.Body})
 	if err != nil {
 		return nil, err

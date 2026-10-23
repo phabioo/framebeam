@@ -25,8 +25,8 @@ type Problem struct {
 	Detail string
 	// Severity decides the order and the color.
 	Severity Severity
-	// ActionLabel and ActionHref are the banner button ("Open Backups", "/settings/backups"); both may be empty.
-	ActionLabel, ActionHref string
+	// ActionLabel is the banner button text ("Open Backups"); the app maps it to its own page. May be empty.
+	ActionLabel string
 }
 
 // Sort orders problems from most to least urgent. Problems of the same severity keep their order (the order the

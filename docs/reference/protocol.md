@@ -9,7 +9,7 @@ Shared protocol definition for server and app: `protocol/openapi/uzume.yaml` (Op
 - Current `protocol_version`: **1** (integer, separate from product versions). Server and app each report `protocol_version` and `min_protocol_version`.
 - Compatibility: `Player.protocol_version < Hub.min_protocol_version` -> `player_too_old`; `Hub.protocol_version < Player.min_protocol_version` -> `hub_too_old`.
 - Error format: `{"error": {"code": <enum>, "message": string}}`. Auth: Bearer (`fba_` access token, 15 min, `fbd_` device credential, `fbp_` poll token).
-- Current OpenAPI spec version: 1.34.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only while a relay provider is on: embedded TURN, Cloudflare TURN and/or an external TURN server), `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `cores_v2`, `local_setup_v1`, `ice_update_v1`, `plugins_v1`, `runs_v1`, `runs_v2`, `local_roms_v1`, `reports_v1`, `accounts_v1`, `setup_code_v1`, `admin_v1` (only advertised to admins); `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
+- Current OpenAPI spec version: 1.35.0 (history per milestone below). Handshake features: `saves_v1`, `sessions_v1`, `users_v1`, `uploads_v1` (only advertised when the caller may upload), `firmware_v1`, `cores_v1`, `turn_v1` (only while a relay provider is on: embedded TURN, Cloudflare TURN and/or an external TURN server), `saves_v2`, `saves_v3`, `saves_v4`, `saves_v5`, `saves_v6`, `cores_v2`, `local_setup_v1`, `ice_update_v1`, `plugins_v1`, `runs_v1`, `runs_v2`, `local_roms_v1`, `reports_v1`, `accounts_v1`, `setup_code_v1`, `admin_v1` (only advertised to admins); `cores_index_v1` existed in 0.4 to 0.7 and was removed in 0.8.
 
 | Method | Path | Auth | operationId |
 |---|---|---|---|
@@ -226,3 +226,5 @@ The release feed of the updaters is specified in [update-index.md](update-index.
 0.18 "On this PC and sharing" (package 10, OpenAPI 1.33.0, `protocol_version` stays 1, [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D6). Added: `child` (optional boolean) in the local status, true while the server runs as the app's child process (`uzume-server -child`); then `network_sharing` is always false, and `PUT /local/settings` with `network_sharing: true` answers 409 with the new error code `child_mode` (the stored value is not changed).
 
 0.18 "Remove the web admin" (package 12, OpenAPI 1.34.0, `protocol_version` stays 1, [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D2). Descriptions only: no endpoint, field or feature flag changed. The server no longer serves web pages; `/`, `/login` and `/static/...` answer 404.
+
+0.19 "Health problems" (OpenAPI 1.35.0, `protocol_version` stays 1, no new feature, `admin_v1`). Removed: `action_href` from the admin status problems (it held dead web paths; the app maps `action_label` itself).

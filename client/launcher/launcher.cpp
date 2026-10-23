@@ -159,7 +159,7 @@ int applyMsiUpdate(const uzume::launcher::MsiUpdateRequest& req) {
     const size_t slash = dir.find_last_of(L"\\/");
     if (slash != std::wstring::npos) dir.resize(slash);
     std::wstring clean = L"cmd.exe /c ping -n 4 127.0.0.1 >nul & del /f /q \"" + std::wstring(self, n) + L"\" & rmdir \"" + dir + L"\"";
-    const std::wstring setupDir = setupDirToRemove(req);  // downloaded setup MSI of "Set up a Hub on this PC"
+    const std::wstring setupDir = setupDirToRemove(req);  // downloaded setup MSI of "Set up a server on this PC"
     if (!setupDir.empty()) clean += L" & rd /s /q \"" + setupDir + L"\"";
     STARTUPINFOW si2 = {};
     si2.cb = sizeof(si2);

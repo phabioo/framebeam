@@ -25,7 +25,7 @@ type saveRetention struct {
 }
 
 // RestoreInput restores a history version as the new checkpoint. DeviceID is the caller's device, or
-// WebDeviceID(user) for the app.
+// AdminDeviceID(user) for the app.
 type RestoreInput struct {
 	UserID, DeviceID, GameID, Slot string
 	Version, ExpectedRevision      int
@@ -96,7 +96,7 @@ func (s *Service) RestoreSaveVersion(ctx context.Context, in RestoreInput) (_ Sa
 var pathPartRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 // UploadSaveInput is a deliberate save file upload (feature saves_v4). DeviceID is the caller's device, or
-// WebDeviceID(user) for the app. ExpectedRevision nil = no check (web only); otherwise 0 = the slot must
+// AdminDeviceID(user) for the app. ExpectedRevision nil = no check (web only); otherwise 0 = the slot must
 // not exist yet, N = the current checkpoint revision must be N.
 type UploadSaveInput struct {
 	UserID, DeviceID, GameID, Slot string
@@ -619,7 +619,7 @@ type scanner2 interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-// RenameInput renames a slot (feature saves_v5). DeviceID is the caller's device or WebDeviceID(user).
+// RenameInput renames a slot (feature saves_v5). DeviceID is the caller's device or AdminDeviceID(user).
 type RenameInput struct {
 	UserID, DeviceID, GameID, Slot, NewSlot string
 }

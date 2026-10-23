@@ -280,7 +280,7 @@ func (s *Service) SetHubName(ctx context.Context, name string) error {
 	return nil
 }
 
-// Cleanup removes expired access tokens, web sessions, old pairing requests and idle upload sessions.
+// Cleanup removes expired access tokens, old pairing requests and idle upload sessions.
 func (s *Service) Cleanup(ctx context.Context) error {
 	now := s.now().Unix()
 	for _, q := range []struct {
@@ -288,7 +288,6 @@ func (s *Service) Cleanup(ctx context.Context) error {
 		arg int64
 	}{
 		{`DELETE FROM access_tokens WHERE expires_at <= ?`, now},
-		{`DELETE FROM web_sessions WHERE expires_at <= ?`, now},
 		// Expired requests stay visible for 1 h so the player can still poll "expired".
 		{`DELETE FROM pairing_requests WHERE expires_at <= ?`, now - 3600},
 		// Invite history is kept for 90 days (users created by a redemption stay).
@@ -335,9 +334,3 @@ func isUnique(err error) bool {
 // IsLocalRequest reports whether r comes from the machine the server runs on (see clientip.Local): never through a
 // trusted proxy; otherwise a loopback peer without reverse-proxy headers and with a loopback Host header.
 func IsLocalRequest(r *http.Request) bool { return clientip.Local(r) }
-
-// RequestHTTPS reports whether a trusted proxy says the client connection of r is https (see clientip.HTTPS).
-func RequestHTTPS(r *http.Request) bool { return clientip.HTTPS(r) }
-
-// ClientKey is the address rate limits and pairing records are keyed on (see clientip.Key).
-func ClientKey(r *http.Request) string { return clientip.Key(r) }
