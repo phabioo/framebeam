@@ -1,5 +1,9 @@
 # How saves work
 
+At a glance: How saves are stored and synced: the server keeps versioned copies, the app syncs before launch, while playing and on exit, and conflicts are never resolved silently. Covers sync, conflicts, history, restore, snapshots and slots. Administration: SERVER › Saves in the app.
+
+Contents: [Sync](#sync), [Conflicts](#conflicts), [History, restore, snapshots, slots](#history-restore-snapshots-slots).
+
 The server keeps the central, versioned copy of every save; the app syncs with it. The server stores a save as an opaque blob and never merges it. Decisions: [ADR 0005](../adr/0005-saves-phase3.md), [ADR 0012](../adr/0012-internet-sessions-and-save-comfort.md) D7; model: [03-saves.md](../architecture/03-saves.md).
 
 ## Sync

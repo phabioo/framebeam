@@ -1,6 +1,10 @@
 # Server backup and restore
 
-One archive holds everything a Uzume server needs to come back on the same or a new machine. Decisions: [ADR 0029](../adr/0029-operations-and-safety.md) D2. Design of the former web page (legacy): [design/legacy/hub.md](../design/legacy/hub.md#6b-backups), decision 26 in [design/legacy/decisions.md](../design/legacy/decisions.md).
+At a glance: Back up and restore a whole Uzume server with one archive: by command line, admin API or in the app (Settings › Server › Backups). Start with what is inside; restore and its consequences are further down.
+
+Contents: [What is inside](#what-is-inside), [Settings](#settings), [Command line](#command-line), [Admin API](#admin-api), [Restore](#restore), [Docker](#docker), [Restore on a new machine](#restore-on-a-new-machine), [Limits](#limits).
+
+One archive holds everything a Uzume server needs to come back on the same or a new machine. Decisions: [ADR 0029](../adr/0029-operations-and-safety.md) D2. Legacy design of the removed web admin page: [design/legacy/hub.md](../design/legacy/hub.md#6b-backups), decision 26 in [design/legacy/decisions.md](../design/legacy/decisions.md).
 
 Three ways to use it, all with the same archive:
 

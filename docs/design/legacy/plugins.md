@@ -202,7 +202,7 @@ Source: `#4jh-3` (392-418). Fixes H27, H28, H29, H30, H31.
 
 ## Round 4 (2026-10-21)
 
-Source `source/round-4-e.dc.html` (4d-6, 4jh-4/4j-4, 6z), `round-4-c.dc.html` (6o-2) and the rules in `round-4-sheet.dc.html`. Design only; plugin API v1 and `memory.write` are not implemented (roadmap 0.19, 0.21). Table with line ranges: [README.md](../README.md#round-4-screens-2026-10-21-features-before-10); decisions 24-35 and open points bl-bq: [decisions.md](decisions.md). Plugin parts shown in Player screens (header chip, panel tabs, States) are in [player.md](player.md#round-4-2026-10-21). Mock plugin and creature names are placeholders.
+Source `source/round-4-e.dc.html` (4d-6, 4jh-4/4j-4, 6z), `round-4-c.dc.html` (6o-2) and the rules in `round-4-sheet.dc.html`. Design only; plugin API v1 and `memory.write` are not implemented (roadmap 0.19, 0.21). Table with line ranges: [README.md](README.md#round-4-screens-2026-10-21-features-before-10); decisions 24-35 and open points bl-bq: [decisions.md](decisions.md). Plugin parts shown in Player screens (header chip, panel tabs, States) are in [player.md](player.md#round-4-2026-10-21). Mock plugin and creature names are placeholders.
 
 ### 4d-6 Developer console (Round 4)
 Source: `round-4-e#4d-6` (23-49), `#4d-6-2` (50-67). Wave 5. Docked console instead of the side-panel tab of 4d-4-2; developer mode only.

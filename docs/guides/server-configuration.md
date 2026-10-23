@@ -1,5 +1,9 @@
 # Server configuration
 
+At a glance: Reference for running the server: commands, flags and environment variables (`UZUME_*`), TURN, reverse proxy, certificate, limits, data directory. Everyday settings are in the app (Settings › Server). Install first: [server-install.md](server-install.md).
+
+Contents: [Commands](#commands), [Server commands](#server-commands), [Flags and environment](#flags-and-environment), [Settings in the app](#settings-in-the-app), [Diagnostics bundle](#diagnostics-bundle), [Problem reports](#problem-reports), [Status page and metrics endpoint](#status-page-and-metrics-endpoint), [Reverse proxy](#reverse-proxy), [Certificate](#certificate), [Resumable ROM uploads](#resumable-rom-uploads), [Limits for unauthenticated requests](#limits-for-unauthenticated-requests), [Core packages](#core-packages), [Run export](#run-export), [Plugins](#plugins), [Windows](#windows), [Data directory](#data-directory).
+
 Reference for running the Uzume server binary: commands, flags and environment variables, certificates. For installation see [server-install.md](server-install.md).
 
 ## Commands
@@ -191,7 +195,7 @@ If the server does not come up or the app cannot reach it, `uzume-server diagnos
 
 ## Problem reports
 
-Apps send reports with Settings → Diagnostics → "Report a problem…" ([player.md](app.md)). Admins find them under SERVER › Reports ("n new" badge; "n new reports" is information, not a Status problem). The list shows reports newest first with the filters All / New / Seen; a report shows who sent it (user, device, app version, OS), the text, the linked event if any, and its files for download or as one zip. Opening a report does not mark it seen: "Mark as seen" does. Delete is in the "⋯" menu and asks first. Reports are kept until an admin deletes them (the files live in `<data>/reports/<id>/`; they are part of the data directory backup).
+Apps send reports with Settings → Diagnostics → "Report a problem…" ([app.md](app.md)). Admins find them under SERVER › Reports ("n new" badge; "n new reports" is information, not a Status problem). The list shows reports newest first with the filters All / New / Seen; a report shows who sent it (user, device, app version, OS), the text, the linked event if any, and its files for download or as one zip. Opening a report does not mark it seen: "Mark as seen" does. Delete is in the "⋯" menu and asks first. Reports are kept until an admin deletes them (the files live in `<data>/reports/<id>/`; they are part of the data directory backup).
 
 Limits: 25 MB and 12 files per report, description up to 8000 characters, 5 reports per device and hour (429). Text attachments pass the server redactor again on receipt (tokens, passwords, TURN credentials, cookies become `[redacted]`). The server logs only report id and device, never the content.
 
@@ -255,7 +259,7 @@ The certificate's SHA-256 fingerprint is printed to the log at startup (`journal
 
 - The server creates a self-signed certificate (ECDSA P-256, 10 years) under `<data-dir>/tls/`. At startup it renews it when it is expired or expires within 30 days; the previous pair stays as `cert.pem.prev` / `key.pem.prev`. The Settings page shows "Expires within 30 days".
 - `uzume-server renew-cert [-data-dir <dir>]` renews on demand and prints the certificate directory it renewed. It refuses when `-tls-cert` / `-tls-key` are set. Own certificates are never modified.
-- A renewed certificate has a new fingerprint, which apps must confirm ([ADR 0009](../adr/0009-finish-poc.md)); see [player.md](app.md).
+- A renewed certificate has a new fingerprint, which apps must confirm ([ADR 0009](../adr/0009-finish-poc.md)); see [app.md](app.md).
 - On a systemd install do not call `uzume-server renew-cert` directly: another user or `-data-dir` renews a different certificate, and root would create files the service cannot read. Use `install-server.sh renew-cert`.
 
 ## Resumable ROM uploads

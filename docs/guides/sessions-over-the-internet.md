@@ -1,5 +1,7 @@
 # Sessions: LAN and internet
 
+At a glance: How to share a running game as a Session: first on a LAN, then over the internet with the embedded TURN relay, Cloudflare TURN or your own coturn ([coturn-on-a-vps.md](coturn-on-a-vps.md)); what to do when a Session does not connect. Network settings are in the app (Settings › Server › Network & sharing).
+
 A Session shares a running game from one app with other apps. Audio and video flow directly between the apps (WebRTC, H.264 + Opus); the server only handles presence, signaling and, optionally, a relay. Decisions: [ADR 0006](../adr/0006-sessions-phase4.md), [ADR 0012](../adr/0012-internet-sessions-and-save-comfort.md).
 
 ## Test Sessions on a LAN

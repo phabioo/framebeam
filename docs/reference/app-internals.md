@@ -1,6 +1,10 @@
 # App internals
 
-How the Uzume (`client/`, C++20/Qt 6/QML) is built and what it does in detail. Using it: [player.md](../guides/app.md). Build and test: [development.md](../development.md). Rules for agents: `client/CLAUDE.md`. Decisions: [ADR 0003](../adr/0003-player-phase2.md), [ADR 0004](../adr/0004-player-portable-data.md), [ADR 0005](../adr/0005-saves-phase3.md), [ADR 0006](../adr/0006-sessions-phase4.md), [ADR 0007](../adr/0007-phase5.md), [ADR 0009](../adr/0009-finish-poc.md), [ADR 0013](../adr/0013-opengl-hardware-rendering.md), [ADR 0014](../adr/0014-player-ui-pass.md).
+At a glance: How the app (`client/`, C++20, Qt 6, QML) is built: structure, dependencies, data storage, runtime details and its updater. For users: [app.md](../guides/app.md). Build and test: [development.md](../development.md).
+
+Contents: [Structure](#structure), [Dependencies](#dependencies), [Data storage](#data-storage), [Users, uploads, firmware, appearance (ADR 0007)](#users-uploads-firmware-appearance), [Runtime details](#runtime-details), [Version and automatic updates](#version-and-automatic-updates).
+
+How the Uzume (`client/`, C++20/Qt 6/QML) is built and what it does in detail. Using it: [app.md](../guides/app.md). Build and test: [development.md](../development.md). Rules for agents: `client/CLAUDE.md`. Decisions: [ADR 0003](../adr/0003-player-phase2.md), [ADR 0004](../adr/0004-player-portable-data.md), [ADR 0005](../adr/0005-saves-phase3.md), [ADR 0006](../adr/0006-sessions-phase4.md), [ADR 0007](../adr/0007-phase5.md), [ADR 0009](../adr/0009-finish-poc.md), [ADR 0013](../adr/0013-opengl-hardware-rendering.md), [ADR 0014](../adr/0014-player-ui-pass.md).
 
 ## Structure
 
@@ -30,7 +34,9 @@ Summary for users: [player.md](../guides/app.md#data-directory).
 
 Portable by default: `<directory of the executable>/data` (ROM cache, `profiles.json`, `device.json`, `hubs/<id>/` incl. saves, `system/`, `probe/`), provided a real write test succeeds there. Otherwise it falls back to AppData (`QStandardPaths::AppDataLocation`) with a log note (`uzume.profiles`). If the portable folder has no `profiles.json` yet, existing AppData content is copied once (the source remains unchanged, nothing is overwritten, `device_id` is preserved, the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir` and `UZUME_DATA_DIR` take precedence.
 
-## Users, uploads, firmware, appearance ([ADR 0007](../adr/0007-phase5.md))
+## Users, uploads, firmware, appearance
+
+Decision: [ADR 0007](../adr/0007-phase5.md).
 
 - **Invite codes:** on the pairing step choose "I have an invite code", enter code and display name. 200: paired immediately (credential stored like a normal pairing); 202: the usual "Waiting for admin approval". Errors (`invite_invalid`, `display_name_taken`, rate limit) are shown in place. CLI: `uzume-cli redeem-invite <address> --code FB-XXXX-XXXX --name <name> [--accept-fingerprint]`. A user disabled on the server (`user_disabled`) gets "This user is disabled on the Hub" on the connection screen; the credential is kept, there is no retry loop (Retry is a manual action).
 - **ROM upload:** "Upload ROM" in the Library header, only if the handshake has `uploads_v1`. The file is streamed (not read into memory) with progress; "Already in the library" selects the existing game (409). The file dialog is `QtQuick.Dialogs`; if that QML module is missing (Linux: apt `qml6-module-qtquick-dialogs`), a path field is shown instead. CLI: `game upload <file> [--title T]`.
@@ -40,7 +46,7 @@ Portable by default: `<directory of the executable>/data` (ROM cache, `profiles.
 - **Emulation page** (sidebar "Emulation", design 3e): system cards (core name + version, "Ready · core from the Hub" (a core found outside the server cache, e.g. via a test path variable, reads "Ready · included in the Player"), firmware "Built-in BIOS" / "Firmware from Hub · verified" / "Firmware required/missing"), level switch Global | System / Core | Game (0.10, ADR 0022 D6: per-game core, speed-up and core options, "Reset"), group "Uzume" (Fullscreen on start: the window goes fullscreen while a game is shown; Default multiview: PiP, Row or Grid 2x2 (Row was "side-by-side" before 0.14), applied when a game starts) and a group with the options **the core reports** (libretro core options V2/V1/variables incl. categories, values, defaults; shown as selects, nothing invented). The core is loaded once without a game to read them (not possible while a game runs: only one core per process) and the result is cached in `<data>/cache/core-options/<core_id>.json`. Settings are local, stored as explicit overrides only in `<data>/settings/emulation.json` (`global`, `systems.<id>.options`, `games.<id>`); effective value = game > system/core > global > manifest default > core default; "reset" removes the key. Values apply at the next launch (a game that is running shows "Restart required"). Uzume keeps control of `melonds_sysfile_mode`, `melonds_firmware_nds_path` (firmware path from the server) and the options marked in `locked_core_options` of the manifest (screen layout, on-screen display, touch mode; the render mode is not locked since 0.5, so the Emulation page offers Software/OpenGL, ADR 0013): they are not shown and user overrides for them never reach the core.
 - **Controllers page and gamepads** (sidebar "Controllers", design 3f): SDL3 gamepads (`SDL_INIT_GAMEPAD` only, no SDL video; events pumped by a Qt timer) with hotplug; the first connected gamepad is P1 and drives the game together with the keyboard (merged joypad mask). Gamepads are off if SDL does not initialise (handshake `input.gamepad` reports this); keyboard and mouse always work. Chain: physical binding -> local profile -> Uzume input -> system profile `nds` -> libretro joypad. Built-in, read-only profiles "Standard Gamepad" (NDS A = east button) and "Keyboard · Standard" (map below); own profiles can be duplicated, renamed, deleted, reset and remapped with "Press a button…" (gamepad buttons, D-pad, left stick as D-pad, triggers as buttons; keyboard keys, Esc cancels). A device gets its profile assigned (gamepads by SDL GUID). Mouse = DS touch (fixed). The input test shows the live Uzume inputs of the selected device. A LID row appears only for input profiles that have a lid input (none yet). Profiles are stored in `<data>/settings/controllers.json` and stay local; they are never synchronized.
 
-## Runtime details (0.7.x)
+## Runtime details
 
 - **Controller split:** `PlayerController` delegates to `CoreCatalog`, `GameDetail`, `HubPresenter` and `GameStarter` (`ui/`, [ADR 0017](../adr/0017-player-tech-debt.md) D3). Session visibility lives in `settings/player.json`; a core whose major version differs from the server's expected one blocks the launch (D1).
 - **Speed-up:** libretro fast-forward with a selectable speed (1.5x to 8x); the screen frame rate stays at the base rate and hardware frames are scaled down on the GPU before the readback ([ADR 0018](../adr/0018-player-speed-up.md), [ADR 0013](../adr/0013-opengl-hardware-rendering.md)). Readback uses PBOs; `UZUME_SYNC_READBACK=1` forces the synchronous path.
@@ -58,7 +64,7 @@ Portable by default: `<directory of the executable>/data` (ROM cache, `profiles.
 - **Core cache:** a verified core file is memoised by size, mtime and change time; files written less than 2 s before the check are always re-hashed.
 - **Identity:** the sidebar shows the server user name from the handshake `user` (stored per server profile) above the device name; the app icon comes from the logo spec (`scripts/make-icons.py`).
 
-## Version and automatic updates (0.3)
+## Version and automatic updates
 
 Spec: [ADR 0011](../adr/0011-automatic-updates.md) and `docs/roadmap.md`; user-facing description: [updates.md](../guides/updates.md).
 

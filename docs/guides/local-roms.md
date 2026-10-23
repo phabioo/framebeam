@@ -1,5 +1,7 @@
 # Local ROMs
 
+At a glance: Play ROMs from your own folders without uploading them: add folders in Settings › Library folders, the app scans and registers them. Why: [ADR 0025](../adr/0025-local-roms.md).
+
 Since 0.12 you can play ROMs from your own folders without uploading them to the Uzume server. Use only homebrew or ROMs you dumped yourself.
 
 ## Library folders

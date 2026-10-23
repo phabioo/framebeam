@@ -1,5 +1,9 @@
 # Updates and releases
 
+At a glance: How the server and the Windows app update themselves, update channels, promoting a beta to a release and rollback. Format and mechanics: [update-index.md](../reference/update-index.md), [server-internals.md](../reference/server-internals.md).
+
+Contents: [Server](#server), [App (Windows MSI install)](#app-windows-msi-install), [Channels](#channels), [Promote a beta to a release](#promote-a-beta-to-a-release), [Rollback](#rollback).
+
 How the server and the Windows app update themselves, and how a beta is promoted to a release. Decisions: [ADR 0011](../adr/0011-automatic-updates.md). Mechanics (index format, install path, root helper): [server-internals.md](../reference/server-internals.md), [app-internals.md](../reference/app-internals.md), [update-index.md](../reference/update-index.md).
 
 ## Server

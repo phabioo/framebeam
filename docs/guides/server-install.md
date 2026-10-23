@@ -1,5 +1,9 @@
 # Install the server on Linux
 
+At a glance: Install the server on Linux as a systemd service: the Debian package (recommended) or the script `install-server.sh`; then first setup from the app, upgrade, certificate renewal, offline cores and uninstall. Flags: [server-configuration.md](server-configuration.md). Docker instead: [server-docker.md](server-docker.md).
+
+Contents: [Install the Debian package (recommended)](#install-the-debian-package-recommended), [Install with install-server.sh](#install-with-install-serversh), [1. Get the binary](#1-get-the-binary), [2. Install](#2-install), [First setup](#first-setup), [Admin account](#admin-account), [TLS fingerprint](#tls-fingerprint), [Upgrade](#upgrade), [Renew the certificate](#renew-the-certificate), [Import cores offline](#import-cores-offline), [Uninstall](#uninstall), [Files](#files), [Coming from FrameBeam](#coming-from-framebeam), [Migrating an existing manual data dir](#migrating-an-existing-manual-data-dir).
+
 Two ways to run the Uzume server as a systemd service: the Debian package (recommended on Debian / Raspberry Pi OS, the only type that can update itself) or the script `packaging/linux/install-server.sh` (any systemd Linux). For flags and environment variables see [server-configuration.md](server-configuration.md); for apps outside your LAN see [sessions-over-the-internet.md](sessions-over-the-internet.md). Already running Docker? Use the official image instead: [server-docker.md](server-docker.md).
 
 ## Install the Debian package (recommended)

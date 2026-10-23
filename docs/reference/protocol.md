@@ -1,5 +1,9 @@
 # Protocol reference
 
+At a glance: The shared protocol of server and app: OpenAPI spec `protocol/openapi/uzume.yaml`, WSS message schemas in `protocol/schemas/`, handshake features, endpoint table, security and setup codes, join link, WSS messages and the history per milestone. `protocol_version` is 1.
+
+Contents: [Security code and setup code](#security-code-and-setup-code), [Join link](#join-link), [WSS messages (/api/v1/ws)](#wss-messages-apiv1ws).
+
 Shared protocol definition for server and app: `protocol/openapi/uzume.yaml` (OpenAPI 3.0.3) and `protocol/schemas/` (WSS message schemas, draft 2020-12, with examples). Summary and navigation: [protocol/README.md](../../protocol/README.md). Rules for agents: `protocol/CLAUDE.md`.
 
 - Current `protocol_version`: **1** (integer, separate from product versions). Server and app each report `protocol_version` and `min_protocol_version`.

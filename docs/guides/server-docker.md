@@ -1,5 +1,9 @@
 # Run the server in Docker
 
+At a glance: Run the server as a non-root container (amd64, arm64) with the volume `/data`: image, `docker run` or compose, volumes and permissions, upgrade, backup. Flags: [server-configuration.md](server-configuration.md).
+
+Contents: [Image](#image), [docker run](#docker-run), [docker compose](#docker-compose), [Volumes and permissions](#volumes-and-permissions), [Upgrade](#upgrade), [Backup](#backup), [Build the image yourself](#build-the-image-yourself).
+
 The official image runs the Uzume server as a non-root container for `linux/amd64` and `linux/arm64` (Raspberry Pi 5 included). Decisions: [ADR 0029](../adr/0029-operations-and-safety.md) D1. For flags and environment variables see [server-configuration.md](server-configuration.md); for apps outside your LAN see [sessions-over-the-internet.md](sessions-over-the-internet.md). The Debian package ([server-install.md](server-install.md)) stays the recommended install on Debian; use the image when you already run Docker (NAS, home server).
 
 ## Image

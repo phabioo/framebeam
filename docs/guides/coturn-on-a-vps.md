@@ -1,5 +1,7 @@
 # coturn on a VPS
 
+At a glance: Set up a coturn TURN relay on a small VPS in six steps (install, secret, config, firewall, tell the server, check). Only needed for Sessions between apps that cannot connect directly; see [sessions-over-the-internet.md](sessions-over-the-internet.md).
+
 Run your own TURN relay on a small VPS and let the Uzume server hand it to apps. The VPS relays only the Session stream of apps that cannot connect directly; saves, ROMs and the server itself stay where they are, so the server needs no router port forward for the relay. Hostnames below are examples: `hub.example.org` is the server, `turn.example.org` the VPS.
 
 ## 1. Install

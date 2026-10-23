@@ -7,7 +7,7 @@
 
 ## Context
 
-The 0.14 UI scan (`docs/design/`, Round 3) found that Esc does not pause in fullscreen, that viewers cannot see a paused game, and that Multiview uses Grid 2x2 with an empty slot for three Sessions. Round 3 specifies the screens ([design/README.md](../design/README.md#round-3-screens-2026-10-12-014-ui-gaps-and-multiview)).
+The 0.14 UI scan (`docs/design/`, Round 3) found that Esc does not pause in fullscreen, that viewers cannot see a paused game, and that Multiview uses Grid 2x2 with an empty slot for three Sessions. Round 3 specifies the screens ([design/README.md](../design/legacy/README.md#round-3-screens-2026-10-12-014-ui-gaps-and-multiview)).
 
 ## Decisions
 
