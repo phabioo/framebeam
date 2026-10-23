@@ -304,13 +304,59 @@ Item {
     }
     function removeUser(u: var) {
         dialogs.ask({ title: qsTr("Remove %1?").arg(u.display_name),
-                      text: qsTr("%1 is deleted for good, with their devices, saves and save history. Games they added to the library stay. To keep the saves, turn %1 off instead.").arg(u.display_name),
+                      text: qsTr("%1 is deleted for good, with their devices, saves and save history. Games they added to the library stay. Download the saves first, or turn %1 off instead to keep them.").arg(u.display_name),
                       action: qsTr("Remove"), danger: true,
+                      secondary: { action: qsTr("Download saves…"), run: () => root.askSavesTarget(u) },
                       run: (finish) => root.call("DELETE", "/admin/users/" + encodeURIComponent(u.id), undefined, (ok, d, code, message) => {
                           finish(ok, ok ? "" : root.errorText(code, message))
                           if (ok) { root.selectedId = ""; root.say(qsTr("%1 was removed.").arg(u.display_name), "done") }
                           root.reload()
                       }) })
+    }
+
+    // Download all saves of a person as one zip, from the Remove dialog (the save dialog is native: tests call startSavesDownload).
+    property int savesDownloadId: -1
+    property string savesDownloadUser: ""
+    function askSavesTarget(u: var) {
+        root.savesDownloadUser = u.id
+        savesLoader.suggested = "uzume-saves-" + (u.username ?? u.display_name).replace(/[^A-Za-z0-9._-]+/g, "_") + ".zip"
+        savesLoader.open()
+    }
+    function startSavesDownload(userId: string, target: string) {
+        dialogs.askNote("busy", "")
+        root.savesDownloadId = root.admin.download("/admin/users/" + encodeURIComponent(userId) + "/saves/export", target)
+    }
+    Connections {
+        target: root.admin
+        function onDownloadFinished(id, ok, filePath, message) {
+            if (id !== root.savesDownloadId) return
+            root.savesDownloadId = -1
+            if (ok) dialogs.askNote("done", qsTr("Saves downloaded to %1.").arg(filePath.split(/[\\/]/).pop()))
+            else dialogs.askNote("error", root.errorText("", message))
+        }
+    }
+    Loader {
+        id: savesLoader
+        property string suggested: ""
+        active: false
+        source: "AdminSaveDialog.qml"
+        function open() {
+            if (item) {
+                item.prepare(savesLoader.suggested)
+                item.open()
+            } else {
+                active = true
+            }
+        }
+        onLoaded: {
+            item.player = root.player
+            item.title = qsTr("Save the saves")
+            item.suffix = "zip"
+            item.chosen.connect((target) => root.startSavesDownload(root.savesDownloadUser, target))
+            item.prepare(savesLoader.suggested)
+            item.open()
+        }
+        onStatusChanged: if (status === Loader.Error) dialogs.askNote("error", qsTr("The file dialog is not available in this installation."))
     }
 
     // ------------------------------------------------------------ page

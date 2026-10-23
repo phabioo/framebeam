@@ -380,7 +380,8 @@ bool FakeHub::handleDirectory(QSslSocket* sock, const FakeRequest& req, const QS
   const QString action = seg.value(2);
 
   if (kind == QLatin1String("users")) {
-    if (action == QLatin1String("games")) return false;   // a person's saves (/admin/users/{id}/games/...) use adminRoutes
+    // a person's saves (/admin/users/{id}/games/...) and the saves export (/admin/users/{id}/saves/export) use adminRoutes
+    if (action == QLatin1String("games") || action == QLatin1String("saves")) return false;
     if (seg.size() == 1 && m == "GET") {
       count();
       respond(sock, 200, json({{QStringLiteral("users"), dirUsers}}));

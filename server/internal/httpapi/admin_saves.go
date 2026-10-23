@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"io"
 
 	"github.com/phabioo/uzume/server/internal/api"
 	"github.com/phabioo/uzume/server/internal/hub"
@@ -213,4 +214,26 @@ func (s *Server) UploadAdminSaveFile(ctx context.Context, req api.UploadAdminSav
 		return nil, err
 	}
 	return api.UploadAdminSaveFile200JSONResponse(toAPISlot(sl)), nil
+}
+
+// ExportAdminUserSaves streams all saves of a user as one zip (read-only, no confirmation: the admin downloads it before
+// removing the person). A failure after the first byte aborts the stream, so the client sees a broken download.
+func (s *Server) ExportAdminUserSaves(ctx context.Context, req api.ExportAdminUserSavesRequestObject) (api.ExportAdminUserSavesResponseObject, error) {
+	if err := requireAdmin(ctx); err != nil {
+		return nil, err
+	}
+	u, err := s.svc.GetUser(ctx, req.UserId)
+	if err != nil {
+		return nil, err
+	}
+	pr, pw := io.Pipe()
+	go func() {
+		err := s.svc.WriteUserSavesExport(context.WithoutCancel(ctx), u.ID, pw)
+		if err != nil {
+			s.log.Error("saves export incomplete", "user_id", u.ID, "err", err)
+		}
+		pw.CloseWithError(err)
+	}()
+	cd := `attachment; filename="uzume-saves-` + hub.ExportName(u.Username, u.ID) + `.zip"`
+	return api.ExportAdminUserSaves200ApplicationzipResponse{Body: pr, Headers: api.ExportAdminUserSaves200ResponseHeaders{ContentDisposition: &cd}}, nil
 }
