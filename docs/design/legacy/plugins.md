@@ -1,6 +1,6 @@
 # Design: plugin platform (Player and Hub)
 
-Plugin API v1 is planned for 0.11 and not implemented; this file specifies drawn screens only. Interface: [../architecture/12-plugins.md](../architecture/12-plugins.md) §16, [ADR 0023](../adr/0023-plugins.md) (proposed). Where a drawing and §16 differ, §16 was aligned in the same PR (decisions.md, items 6-19). Index and screen table: [README.md](README.md). Tokens: [tokens.md](tokens.md) (section "Additions of the plugin handoff"). Decisions and open points: [decisions.md](decisions.md) (items 6-19, open points ao-bf).
+Plugin API v1 is planned for 0.11 and not implemented; this file specifies drawn screens only. Interface: [../architecture/12-plugins.md](../../architecture/12-plugins.md) §16, [ADR 0023](../../adr/0023-plugins.md) (proposed). Where a drawing and §16 differ, §16 was aligned in the same PR (decisions.md, items 6-19). Index and screen table: [README.md](../README.md). Tokens: [tokens.md](tokens.md) (section "Additions of the plugin handoff"). Decisions and open points: [decisions.md](decisions.md) (items 6-19, open points ao-bf).
 
 ## Source and supersession
 

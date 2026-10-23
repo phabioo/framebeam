@@ -105,7 +105,7 @@ class ProfileStore {
   // for every further one.
   QString newAccountDeviceId(const QString& hubId) const;
 
-  // Hub edit (Settings > Hubs, docs/design/player.md 3p): only host and port of a saved Hub change. hubId, pinned
+  // Hub edit (Settings > Hubs, docs/design/legacy/player.md 3p): only host and port of a saved Hub change. hubId, pinned
   // fingerprint, credentialRef, hubUserId and the scheme stay. Fails for an unknown Hub, an invalid input or a
   // target address that another saved Hub already uses.
   bool updateHubAddress(const QString& hubId, const QString& host, int port);

@@ -6,7 +6,7 @@
 
 ## Context
 
-Phase 3 adds versioned saves: the FrameBeam Player syncs the core's battery save with the FrameBeam Hub, and diverging saves are resolved explicitly by the user. The architecture (`docs/architecture/03-saves.md`, "Save sync" and "13. Save conflicts") fixes the principles; this ADR fixes the data model, protocol and behavior for the PoC. The architecture documents remain unchanged. Design: `docs/design/player.md#3d-player-save-conflict`, `docs/design/hub.md#3k-hub-saves`.
+Phase 3 adds versioned saves: the FrameBeam Player syncs the core's battery save with the FrameBeam Hub, and diverging saves are resolved explicitly by the user. The architecture (`docs/architecture/03-saves.md`, "Save sync" and "13. Save conflicts") fixes the principles; this ADR fixes the data model, protocol and behavior for the PoC. The architecture documents remain unchanged. Design: `docs/design/legacy/player.md#3d-player-save-conflict`, `docs/design/legacy/hub.md#3k-hub-saves`.
 
 ## Decisions
 

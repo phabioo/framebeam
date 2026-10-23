@@ -1,5 +1,5 @@
 #pragma once
-// ReportController: QML face of "Report a problem" (docs/design/player.md 6d). Owns the ProblemReport (built off the GUI
+// ReportController: QML face of "Report a problem" (docs/design/legacy/player.md 6d). Owns the ProblemReport (built off the GUI
 // thread when the dialog opens) and the ReportUploader; PlayerController exposes it as `report`. The dialog is
 // ReportProblemDialog.qml, hosted in Main.qml and opened from Settings -> Diagnostics and the in-game "⋯" menu.
 //

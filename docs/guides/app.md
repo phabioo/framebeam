@@ -1,6 +1,10 @@
 # Using the app
 
-Uzume (`client/`, the app) connects to a server, keeps your library and saves in sync, runs games locally and shares or watches Sessions. Feature overview: [features.md](../features.md). Internals: [player-internals.md](../reference/player-internals.md).
+At a glance: How to install and use the Uzume app: connect and pair, play, share and watch Sessions, run a server on this PC, collect logs and report problems. Administration of the server is in the app (SERVER group, Settings › Server). What it does: [features.md](../features.md).
+
+Contents: [Install](#install), [Play on this PC and share](#play-on-this-pc-and-share), [Set up a server on this PC](#set-up-a-server-on-this-pc), [Connect and pair](#connect-and-pair), [Play](#play), [Plugins (developer mode)](#plugins-developer-mode), [Collect logs](#collect-logs), [Connection check](#connection-check), [Report a problem](#report-a-problem), [Data directory](#data-directory), [Command line and environment](#command-line-and-environment), [Multiview](#multiview).
+
+Uzume (`client/`, the app) connects to a server, keeps your library and saves in sync, runs games locally and shares or watches Sessions. Feature overview: [features.md](../features.md). Internals: [app-internals.md](../reference/app-internals.md).
 
 ## Install
 
@@ -63,7 +67,7 @@ Plugin runtime of 0.11 ([API reference](plugin-api.md), [design](../architecture
 
 ## Collect logs
 
-When something does not work, hand over one file instead of describing it: Settings → Diagnostics → "Collect logs…" opens a save dialog (default name `uzume-diagnostics-<UTC timestamp>.zip` in Desktop or Downloads) and writes the bundle in the background; "Show in folder" then opens its folder. Without the window (for example when the app does not start): `Uzume --collect-logs out.zip [--data-dir <path>]` (offline, reads only the data directory, refuses to overwrite an existing file). Same layout as the server bundle ([hub-configuration.md](hub-configuration.md)):
+When something does not work, hand over one file instead of describing it: Settings → Diagnostics → "Collect logs…" opens a save dialog (default name `uzume-diagnostics-<UTC timestamp>.zip` in Desktop or Downloads) and writes the bundle in the background; "Show in folder" then opens its folder. Without the window (for example when the app does not start): `Uzume --collect-logs out.zip [--data-dir <path>]` (offline, reads only the data directory, refuses to overwrite an existing file). Same layout as the server bundle ([server-configuration.md](server-configuration.md)):
 
 | Entry | Content |
 |---|---|
@@ -136,6 +140,6 @@ uzume-cli <command> ...            # run without arguments for the usage text
 
 Diagnostics (F3), 0.15: the Emulation Frame row shows a `zero-copy` part (`9.4 ms · emu 7.1 · zero-copy 0.2 (60/s)`) while the game view is drawn from the GPU, and a `readback` part only while readback runs. The Resolution row shows ` → shown W×H` for the zero-copy size instead of ` → read back W×H`. The host row ends with `· GPU-direct` for NVENC, AMF and QSV.
 
-## Multiview (0.14)
+## Multiview
 
 Layouts: PiP (the picture-in-picture tile sits inside the main tile), Row for 2-3 Sessions and Grid 2x2 from 4 Sessions (disabled below 4; no empty slot). "Side by side" now only names the DS screen layout. Diagnostics are docked next to the tiles and float only in fullscreen. When a host pauses, viewers see "Paused by <name>" on the frozen tile ([protocol](../../protocol/datachannel.md)); a host older than 0.14 sends no such state. The fullscreen toolbar has a Pause button. Settings > Updates offers the channel Off | Stable | Beta ([updates](updates.md)).

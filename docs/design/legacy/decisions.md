@@ -1,6 +1,6 @@
 # Design decisions and open points
 
-Decisions on the design handoff, deviations from the architecture and the open points per handoff round. Index and screen table: [README.md](README.md).
+Decisions on the design handoff, deviations from the architecture and the open points per handoff round. Index and screen table: [README.md](../README.md).
 
 ## Decisions (Fabio, 2026-10-07)
 
@@ -8,11 +8,11 @@ Decisions on the design handoff, deviations from the architecture and the open p
 2. Cyan is intentionally also the warning color; there is no separate warning color. Warnings (conflict, hub too old, awaiting approval, relayed) therefore read as "needs attention", not as danger; errors keep their red. Amended 2026-10-11: plugin states use the amber warning tone (item 6); the built Player and Hub states stay as they are.
 3. 3q "Hub Settings revised" supersedes 3o. 3o stays in the source only as reference and is marked superseded in the table.
 4. Logo: concept 4a "Frame & Beam", palette "signal" ([logo.md](logo.md)).
-5. Requested by Fabio (2026-10-07), implemented in 0.6 per [ADR 0014](../adr/0014-player-ui-pass.md) (accepted): split the in-game diagnostics into emulator diagnostics and streaming diagnostics, shown separately. The handoff draws this as 3t-3y; Fabio accepted the design on 2026-10-08.
+5. Requested by Fabio (2026-10-07), implemented in 0.6 per [ADR 0014](../../adr/0014-player-ui-pass.md) (accepted): split the in-game diagnostics into emulator diagnostics and streaming diagnostics, shown separately. The handoff draws this as 3t-3y; Fabio accepted the design on 2026-10-08.
 
 ## Decisions (Fabio, 2026-10-11, plugin handoff)
 
-Source: Claude Design handoff "Plugins + SoulLink" and its correction round 2, imported in [plugins.md](plugins.md). Design only; plugin API v1 is not implemented. Alignment with the architecture: [../architecture/12-plugins.md](../architecture/12-plugins.md) §16.
+Source: Claude Design handoff "Plugins + SoulLink" and its correction round 2, imported in [plugins.md](plugins.md). Design only; plugin API v1 is not implemented. Alignment with the architecture: [../architecture/12-plugins.md](../../architecture/12-plugins.md) §16.
 
 6. Amber is the warning tone for plugin states (unverified, paused, pending, manual, HP mid), dark `#e5b45a` on `#2a2414`, light `#8a5a00` on `#f7ecd6` ([tokens.md](tokens.md)). It supersedes decision 2 ("cyan only") for those states; plugins pick the tone "warning", never a hex.
 7. Player colours (Max blue, Lena pink, Jonas lime, Sam violet) identify people only; they never carry status and are neither cyan nor near the danger red. Cyan stays for open, selection and focus.
@@ -36,8 +36,8 @@ Deviations from the architecture (plugin handoff), aligned in §16 in the same c
 Source: Claude Design handoff "Round 3" (`source/round-3-hub.dc.html`, `round-3-player-a.dc.html`, `round-3-player-b.dc.html`, sheet `round-3-sheet.dc.html`), answering the 0.14 UI scan (finding IDs H1.., P1.., D1..; the sheet's handoff table maps every artboard to its IDs). Specification: [hub.md](hub.md), [player.md](player.md), [plugins.md](plugins.md); new tokens: [tokens.md](tokens.md#additions-of-round-3-2026-10-12).
 
 20. Viewers see that a game is paused. This overrides open point v (2026-10-08, "not shown to viewers"): the frozen remote tile shows "Paused by <name>" in side by side (Row), Grid, PiP and fullscreen; the owner's own tile shows no such label. Needs a pause signal from the host to its viewers (finding P37; the paused state is local-only today).
-21. Esc always pauses and opens the pause overlay, in a window and in fullscreen (finding P34). The overlay has "Resume" and "Leave fullscreen"; F11 toggles fullscreen and is the only key that leaves fullscreen. This replaces the fixed role in [ADR 0014](../adr/0014-player-ui-pass.md) D4 ("leave fullscreen, else pause") and refines open points d and u; the ADR text is not edited here, a follow-up ADR in the FrameBeam repository is needed before the Player changes. Gamepad: Select + Start pauses (3f-4).
-22. The Multiview layout "Side by side" is renamed "Row": Row for 2-3 Sessions, Grid 2x2 from 4 Sessions, PiP unchanged (finding P38). "Side by side" stays the name of the DS screen layout (Stacked | Side by side | Top only). This supersedes in part open point l and [ADR 0014](../adr/0014-player-ui-pass.md) D13 (Default Multiview offers PiP, Side-by-Side and Grid 2x2) and the roadmap wording "2x2 from three"; the Default Multiview options become PiP, Row, Grid 2x2. The ADR body is not edited here (no supersession field in its format); a "superseded in part by" note is proposed to the FrameBeam repository.
+21. Esc always pauses and opens the pause overlay, in a window and in fullscreen (finding P34). The overlay has "Resume" and "Leave fullscreen"; F11 toggles fullscreen and is the only key that leaves fullscreen. This replaces the fixed role in [ADR 0014](../../adr/0014-player-ui-pass.md) D4 ("leave fullscreen, else pause") and refines open points d and u; the ADR text is not edited here, a follow-up ADR in the FrameBeam repository is needed before the Player changes. Gamepad: Select + Start pauses (3f-4).
+22. The Multiview layout "Side by side" is renamed "Row": Row for 2-3 Sessions, Grid 2x2 from 4 Sessions, PiP unchanged (finding P38). "Side by side" stays the name of the DS screen layout (Stacked | Side by side | Top only). This supersedes in part open point l and [ADR 0014](../../adr/0014-player-ui-pass.md) D13 (Default Multiview offers PiP, Side-by-Side and Grid 2x2) and the roadmap wording "2x2 from three"; the Default Multiview options become PiP, Row, Grid 2x2. The ADR body is not edited here (no supersession field in its format); a "superseded in part by" note is proposed to the FrameBeam repository.
 23. Cross-cutting rules of the Round 3 sheet (`round-3-sheet.dc.html`, artboard 0-2); they apply to every Hub and Player screen:
     - Dates and times (H12, P25): under 1 minute "just now"; under 1 hour "5 min ago"; today "today 18:52"; yesterday "yesterday 18:52"; this year "16 Oct"; other years "3 Mar 2025"; tooltip with the full value "16 Oct 2026, 18:52:07"; seconds never in lists.
     - Row actions (H11, H20): at most one visible secondary action (bordered button); everything else in a "⋯" menu (30 x 30 px, last column); destructive items in red text, last group after a divider, label ends with "…"; the confirmation dialog names the object and the consequence and has a red primary button.

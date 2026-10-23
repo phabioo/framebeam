@@ -1,6 +1,10 @@
 # Server configuration
 
-Reference for running the Uzume server binary: commands, flags and environment variables, certificates. For installation see [hub-install.md](hub-install.md).
+At a glance: Reference for running the server: commands, flags and environment variables (`UZUME_*`), TURN, reverse proxy, certificate, limits, data directory. Everyday settings are in the app (Settings › Server). Install first: [server-install.md](server-install.md).
+
+Contents: [Commands](#commands), [Server commands](#server-commands), [Flags and environment](#flags-and-environment), [Settings in the app](#settings-in-the-app), [Diagnostics bundle](#diagnostics-bundle), [Problem reports](#problem-reports), [Status page and metrics endpoint](#status-page-and-metrics-endpoint), [Reverse proxy](#reverse-proxy), [Certificate](#certificate), [Resumable ROM uploads](#resumable-rom-uploads), [Limits for unauthenticated requests](#limits-for-unauthenticated-requests), [Core packages](#core-packages), [Run export](#run-export), [Plugins](#plugins), [Windows](#windows), [Data directory](#data-directory).
+
+Reference for running the Uzume server binary: commands, flags and environment variables, certificates. For installation see [server-install.md](server-install.md).
 
 ## Commands
 
@@ -18,8 +22,8 @@ uzume-server code [-json]                     # the security code (and SHA-256 f
 uzume-server reset-admin [-user NAME] [-json] # a one-time admin password; nothing else is touched
 uzume-server status [-json]                   # version, address, codes, set up or not, backups
 uzume-server update [-check] [-yes]           # install the newest version of the channel (-check only looks)
-uzume-server backup [--out DIR]               # make a backup now; also `backup list|config|verify` (see hub-backup.md)
-uzume-server restore <file>                   # restore a backup; the server must be stopped (see hub-backup.md)
+uzume-server backup [--out DIR]               # make a backup now; also `backup list|config|verify` (see server-backup.md)
+uzume-server restore <file>                   # restore a backup; the server must be stopped (see server-backup.md)
 uzume-server reset [-confirm NAME] [-no-backup]  # delete all data and start fresh; the server must be stopped
 ```
 
@@ -38,7 +42,7 @@ uzume-server update check|stage [-channel stable|beta]   # machine-readable upda
 uzume-server rollback --list                  # earlier versions, see updates.md
 ```
 
-On a systemd install use the script instead of calling the binary for `renew-cert` and `import-cores`: `sudo packaging/linux/install-server.sh renew-cert` / `import-cores <dir>` (it uses the service's data dir and user and restarts the service where needed), see [hub-install.md](hub-install.md).
+On a systemd install use the script instead of calling the binary for `renew-cert` and `import-cores`: `sudo packaging/linux/install-server.sh renew-cert` / `import-cores <dir>` (it uses the service's data dir and user and restarts the service where needed), see [server-install.md](server-install.md).
 
 Without an admin the server still starts and prints a setup banner with a **setup code** (see [Server commands](#server-commands)): the app on another PC sets the server up with it. A server on the same PC is set up by the app through the loopback endpoints (`/api/v1/local/*`); `setup-admin` creates the first admin without the app. A request counts as local only if the TCP peer is loopback, it carries none of `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, and its `Host` header is `localhost` or a loopback IP. Requests that arrive through a trusted proxy (`-trusted-proxy`) are never local. See [Reverse proxy](#reverse-proxy).
 
@@ -52,7 +56,7 @@ Where to run them:
 |---|---|
 | Linux (package) | `sudo uzume-server <command>` (or `sudo -u uzume uzume-server <command>`); the data folder belongs to the service user |
 | Windows | in a terminal **as administrator** (the data folder is under `%ProgramData%\Uzume\Server`); without administrator rights the commands answer "access denied" and say so |
-| Docker | `docker exec -it uzume-server uzume-server <command>` for `setup-code`, `code`, `reset-admin`, `status`, `update` and `backup`; `restore` and `reset` need the server stopped, see [hub-docker.md](hub-docker.md) |
+| Docker | `docker exec -it uzume-server uzume-server <command>` for `setup-code`, `code`, `reset-admin`, `status`, `update` and `backup`; `restore` and `reset` need the server stopped, see [server-docker.md](server-docker.md) |
 
 All of them except `reset` and `restore` work with the server running (they share the database like `setup-admin`) and also with it stopped.
 
@@ -63,7 +67,7 @@ All of them except `reset` and `restore` work with the server running (they shar
 | `reset-admin [-user NAME] [-json]` | Sets a **one-time temporary password** for an admin and prints it once; the admin must choose a new one at the next sign-in. Ends that user's sign-in lock. Saves, users, games and devices stay untouched (devices stay signed in). With one admin `-user` is optional; with several it is required and the error lists the names. Without an admin: "Not set up yet: use uzume-server setup-code". |
 | `status [-json]` | Version and channel, whether the server is running (the data folder lock is tried and released at once), "ready for setup" (with the current setup code, a new one is created if none is valid) or "set up" (users and admins), the address(es), the security code, the backup folder with the last backup, and the commands. Before the first start nothing is created. |
 | `update [-check] [-yes] [-confirm-breaking]` | Looks for a newer version on the server's update channel and installs it like **Install update** in the app: the update is staged and handed to the root helper (Linux) or the update service (Windows). `-check` only looks (`-channel` then picks the channel). In a container it prints the image tag to pull instead. The sub-commands `update check`, `stage`, `apply-staged` and `watch` stay (see [updates.md](updates.md)). |
-| `backup`, `restore <file>` | See [hub-backup.md](hub-backup.md). `restore` needs the server stopped. |
+| `backup`, `restore <file>` | See [server-backup.md](server-backup.md). `restore` needs the server stopped. |
 | `reset [-confirm NAME] [-no-backup]` | Deletes **all server data** in the data folder: database (accounts, devices, run state), saves, ROM library, firmware, plugins, the self-generated certificate and the import folder inside it. The server must be stopped (the data folder lock is taken like for `restore`; the error names how to stop it on your platform). You type the server name, or pass it with `-confirm`. First a safety backup **without ROMs** is written to the configured backup folder, else `<data-dir>/backups`; `-no-backup` skips it. Kept: the `backups` and `logs` folders, and everything outside the data folder (own certificate and key, `server.env`, a ROM library or import folder elsewhere). Afterwards the next start creates a new database and certificate (the security code changes) and prints a new setup code. |
 
 ### Setup code and security code
@@ -191,7 +195,7 @@ If the server does not come up or the app cannot reach it, `uzume-server diagnos
 
 ## Problem reports
 
-Apps send reports with Settings → Diagnostics → "Report a problem…" ([player.md](player.md)). Admins find them under SERVER › Reports ("n new" badge; "n new reports" is information, not a Status problem). The list shows reports newest first with the filters All / New / Seen; a report shows who sent it (user, device, app version, OS), the text, the linked event if any, and its files for download or as one zip. Opening a report does not mark it seen: "Mark as seen" does. Delete is in the "⋯" menu and asks first. Reports are kept until an admin deletes them (the files live in `<data>/reports/<id>/`; they are part of the data directory backup).
+Apps send reports with Settings → Diagnostics → "Report a problem…" ([app.md](app.md)). Admins find them under SERVER › Reports ("n new" badge; "n new reports" is information, not a Status problem). The list shows reports newest first with the filters All / New / Seen; a report shows who sent it (user, device, app version, OS), the text, the linked event if any, and its files for download or as one zip. Opening a report does not mark it seen: "Mark as seen" does. Delete is in the "⋯" menu and asks first. Reports are kept until an admin deletes them (the files live in `<data>/reports/<id>/`; they are part of the data directory backup).
 
 Limits: 25 MB and 12 files per report, description up to 8000 characters, 5 reports per device and hour (429). Text attachments pass the server redactor again on receipt (tokens, passwords, TURN credentials, cookies become `[redacted]`). The server logs only report id and device, never the content.
 
@@ -255,7 +259,7 @@ The certificate's SHA-256 fingerprint is printed to the log at startup (`journal
 
 - The server creates a self-signed certificate (ECDSA P-256, 10 years) under `<data-dir>/tls/`. At startup it renews it when it is expired or expires within 30 days; the previous pair stays as `cert.pem.prev` / `key.pem.prev`. The Settings page shows "Expires within 30 days".
 - `uzume-server renew-cert [-data-dir <dir>]` renews on demand and prints the certificate directory it renewed. It refuses when `-tls-cert` / `-tls-key` are set. Own certificates are never modified.
-- A renewed certificate has a new fingerprint, which apps must confirm ([ADR 0009](../adr/0009-finish-poc.md)); see [player.md](player.md).
+- A renewed certificate has a new fingerprint, which apps must confirm ([ADR 0009](../adr/0009-finish-poc.md)); see [app.md](app.md).
 - On a systemd install do not call `uzume-server renew-cert` directly: another user or `-data-dir` renews a different certificate, and root would create files the service cannot read. Use `install-server.sh renew-cert`.
 
 ## Resumable ROM uploads
@@ -315,7 +319,7 @@ Install with the Uzume MSI (feature server; see [packaging.md](packaging.md)), u
 
 ## Data directory
 
-Default `/var/lib/uzume`: `uzume.db` (SQLite, metadata only), `saves/`, `firmware/<system>/`, `tls/`, `cores/`, `updates/`, and `backups/` (database backups before schema migrations, newest 5), `plugins/`, `hub.lock` (held by the running server). Full server backups (database, saves, plugins, settings, optionally ROMs) go to a folder of your choice, not into the data folder: see [hub-backup.md](hub-backup.md). ROMs, saves and firmware are files; they are never stored in SQLite.
+Default `/var/lib/uzume`: `uzume.db` (SQLite, metadata only), `saves/`, `firmware/<system>/`, `tls/`, `cores/`, `updates/`, and `backups/` (database backups before schema migrations, newest 5), `plugins/`, `hub.lock` (held by the running server). Full server backups (database, saves, plugins, settings, optionally ROMs) go to a folder of your choice, not into the data folder: see [server-backup.md](server-backup.md). ROMs, saves and firmware are files; they are never stored in SQLite.
 
 - **Staging area.** `tmp/` holds uploads and staged files of the running server. Only the serving process cleans it at start (leftovers of a crash); CLI commands such as `import-cores`, `import-plugins` and `setup-admin` open the data directory next to the running service and leave `tmp/` alone. A firmware `.bak` left by a crash is restored when the firmware file is missing, otherwise removed.
 - **Newer database.** The server refuses to start when `uzume.db` has a schema newer than the binary knows (after a downgrade or a rolled-back update): "database schema N is newer than this server knows". Install the matching version or restore a copy from `backups/hub-*.db`. "Go back" in Settings → Updates (or `uzume-server rollback`) does this with the right backup and a safety backup, see [updates](updates.md#rollback).

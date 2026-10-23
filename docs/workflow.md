@@ -1,5 +1,7 @@
 # Working with Claude Code
 
+How Uzume is built with Claude Code: Opus orchestrates and delegates packages by brief to Sonnet agents, Haiku searches; one package per thread and PR. Below: [Roles](#roles) and the [brief template](#brief-template), [token-saving rules](#token-saving-rules), [packages, PRs and docs rules](#packages-and-prs), the [phase plan](#phase-plan), and what the cloud can verify. Build and test commands: [development.md](development.md).
+
 ## Hybrid mode
 
 - Development happens in Claude Code cloud sessions.
@@ -77,7 +79,14 @@ Do not return full logs or file contents. Do not commit.
 
 - One PR per package with green CI, one topic per PR.
 - Every PR description has a `## Changelog` section (`### Added|Changed|Fixed|Removed|Security`, optional `Server:`/`App:` prefix (`Hub:`/`Player:` still accepted), or `none` for CI, docs, test and refactoring-only PRs); the check "Changelog section" requires it ([ADR 0028](adr/0028-release-notes-and-changelogs.md)).
-- At every milestone, the PR updates `docs/roadmap.md` (status), the status line in `README.md`, `docs/features.md` and the affected guides under `docs/guides/`; READMEs stay short, detail goes to `docs/`.
+- At every milestone, the PR updates the docs by the rules below; READMEs stay short, detail goes to `docs/`.
+
+### Docs rules (decided by Fabio, 2026-10-23)
+
+- Every document starts with a short overview that fits on one screen: what it is, where we stand, where to go next. Detail follows further down or in a linked document; long lists, history and special cases never come first.
+- Each fact lives in exactly one place: status and plan in [roadmap.md](roadmap.md), finished work in [history.md](history.md) and `CHANGELOG.md`, reasons in the [ADRs](adr/README.md), what Uzume does today in [features.md](features.md), how to use it in `docs/guides/`, how to develop in [development.md](development.md).
+- A finished milestone becomes one row in the roadmap's "Where we stand" table; its section moves to `docs/history.md`. The README status stays one sentence (version and a link to the roadmap). The check `scripts/check-doc-links.py` fails when a README paragraph exceeds 600 characters.
+- Update `docs/features.md` and the affected guides when behaviour changes.
 
 ## Phase plan
 

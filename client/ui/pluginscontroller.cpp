@@ -88,7 +88,7 @@ QString originText(const QString& origin) {
   return PluginsController::tr("Local file");
 }
 
-// Plain-language permission (docs/design/plugins.md 4b), the manifest names stay in the plugin API reference.
+// Plain-language permission (docs/design/legacy/plugins.md 4b), the manifest names stay in the plugin API reference.
 QString permissionLabel(const QString& p) {
   if (p == QLatin1String("memory.read")) return PluginsController::tr("Read game memory");
   if (p == QLatin1String("rom.read")) return PluginsController::tr("Read your game file");

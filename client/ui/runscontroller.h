@@ -1,5 +1,5 @@
 #pragma once
-// RunsController: the Runs screen of the Player (docs/design/plugins.md 4j-2). Owns the RunClient of the active Hub and
+// RunsController: the Runs screen of the Player (docs/design/legacy/plugins.md 4j-2). Owns the RunClient of the active Hub and
 // presents it to QML: invite cards, runs by group, one run in detail (participants, status actions, event log), the
 // "Start a run" dialog and "Play run", which first makes sure the exact Hub copy of every plugin of the run is on this
 // device and then asks the PlayerController to start the participant's game with the run context.

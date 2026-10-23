@@ -1,7 +1,7 @@
 import QtQuick
 import Uzume.App
 
-// Controller glyph chip (design "PadGlyph and the D-pad icons", source/pad-glyph.dc.html), drawn like the key caps of the
+// Controller glyph chip (design "PadGlyph and the D-pad icons", legacy/source/pad-glyph.dc.html), drawn like the key caps of the
 // design system (UzKeyCap / UzGamepadHint): square, 1 px `ink-2` frame, Mono; pressed in the input test fills it with Yamabuki.
 // g: A B X Y LB RB LT RT View Menu | cross circle square triangle L1 R1 L2 R2 Create Options | up down left right;
 // any other text (Select, Start, Shift, Enter, key names) is drawn as text. Round chip for single letters and the four

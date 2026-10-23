@@ -3,7 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// Plugin console (docs/design/plugins.md 4d-4-2 and 4d-console-error): last tab of the game panel, Developer mode only.
+// Plugin console (docs/design/legacy/plugins.md 4d-4-2 and 4d-console-error): last tab of the game panel, Developer mode only.
 // Plugin select with status dot, Reload, WATCHED, EVENTS, LOG, and the memory regions the core exposes (for checking the
 // memory map of a core with a real game). In the active theme tokens (the game view is dark). Newest events and log lines first.
 Item {

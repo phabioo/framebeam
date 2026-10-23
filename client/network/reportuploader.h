@@ -3,7 +3,7 @@
 // request is asynchronous (QNetworkAccessManager), so the GUI thread never blocks; the body is built by
 // ProblemReport::multipartBody() off the GUI thread.
 //
-// States (docs/design/player.md 6d-2):
+// States (docs/design/legacy/player.md 6d-2):
 //   Idle     nothing to do
 //   Sending  request in flight, progress(sent, total)
 //   Sent     the Hub stored it: reportId()

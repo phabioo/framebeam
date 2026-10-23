@@ -44,5 +44,28 @@ for f in files:
         elif frag and target.endswith('.md') and frag not in get_anchors(target):
             print(f'{f}: missing anchor {t}')
             bad += 1
+
+# Docs rule (docs/workflow.md): the root README stays a one-screen overview. A paragraph or list item over this many
+# characters (outside code blocks and HTML) fails the check.
+README_MAX_PARAGRAPH = 600
+readme = os.path.join(root, 'README.md')
+if os.path.exists(readme):
+    text = open(readme, encoding='utf-8').read()
+    text = re.sub(r'```.*?```', '', text, flags=re.S)
+    text = re.sub(r'<!--.*?-->', '', text, flags=re.S)
+    text = re.sub(r'<[^>]+>', '', text)
+    for block in re.split(r'\n\s*\n', text):
+        items, cur = [], []
+        for line in block.split('\n'):
+            if re.match(r'\s*([-*]|\d+\.)\s', line) and cur:
+                items.append(' '.join(cur))
+                cur = []
+            cur.append(line.strip())
+        items.append(' '.join(cur))
+        for item in items:
+            if len(item) > README_MAX_PARAGRAPH:
+                print(f'README.md: paragraph of {len(item)} characters (limit {README_MAX_PARAGRAPH}), '
+                      f'move detail to docs/ and link it: "{item[:60]}..."')
+                bad += 1
 print('broken:', bad, 'files:', len(files))
 sys.exit(1 if bad else 0)

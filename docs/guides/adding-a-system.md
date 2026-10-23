@@ -1,5 +1,9 @@
 # Adding a system
 
+At a glance: How to add a game system (for example `snes`) to the server and the app. A system is mostly data: one JSON on the server, one manifest on the app, optionally a core profile. Start at step 1, verify with step 8. Why: [ADR 0024](../adr/0024-system-template-and-game-boy.md).
+
+Contents: [1. Server definition](#1-server-definition), [2. App system manifest](#2-app-system-manifest), [3. Core profile (optional)](#3-core-profile-optional), [4. Firmware](#4-firmware), [5. Library and saves](#5-library-and-saves), [6. Game identity (plugins)](#6-game-identity-plugins), [7. Tests that cover it automatically](#7-tests-that-cover-it-automatically), [8. Verify locally](#8-verify-locally), [9. Docs](#9-docs).
+
 Since 0.13 ([ADR 0024](../adr/0024-system-template-and-game-boy.md)) a system is mostly data: one JSON file on the server, one on the app, optionally a core profile. The only code step is a new game-header reader (step 6) when no existing one fits. No SQL migration, no CMake edit. Worked example: `gba`.
 
 Pick an id (lowercase, for example `snes`). Use it everywhere below. The server and app files must agree; a test checks it.

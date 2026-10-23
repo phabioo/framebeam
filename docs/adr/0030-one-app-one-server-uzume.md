@@ -122,7 +122,7 @@ Consequences:
 
 ### D9 Milestone
 
-- One milestone 0.18 "Uzume" with twelve packages in the order of the [roadmap](../roadmap.md#018-uzume-one-app-one-server-new-name). Every merge is a beta and must stay usable.
+- One milestone 0.18 "Uzume" with twelve packages in the order of the [roadmap](../history.md#018-uzume-one-app-one-server-new-name). Every merge is a beta and must stay usable.
 - The waves move by one: 0.19 Player comfort and library, 0.20 Emulation, 0.21 Together, 0.22 Plugins, 0.23 Platforms. 1.0 is unchanged.
 
 ## Rejected

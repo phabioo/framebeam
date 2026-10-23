@@ -28,7 +28,7 @@ Details only as needed from `docs/architecture/` (index: `docs/architecture/READ
 - FFmpeg (libavcodec) with NVENC/QSV/AMF, OpenH264 as software fallback; encoder order h264_nvenc, h264_qsv, h264_amf, libopenh264, libx264 (ADR 0006 D5; the Windows vcpkg FFmpeg enables `nvcodec`, `qsv` and `amf` since 0.1.1, ADR 0009 D7; opening them needs a GPU and is verified only locally, otherwise it falls back to libopenh264); GPU-direct encoding (ADR 0019): `CudaGlCapture` feeds CUDA frames to a second `VideoEncoder` (`h264_nvenc`); failures fall back to readback frames, never to the sticky encoder failure; `UZUME_DISABLE_GPU_ENCODE=1` and a forced `UZUME_H264_ENCODER` keep readback; audio output via Qt Multimedia, SDL3 only for gamepads (ADR 0007); WebRTC with libdatachannel (ADR 0001, `04-sessions-and-multiview.md`).
 - C++20 as baseline; C++23 only if MSVC, GCC and AppleClang support it. vcpkg (manifest) + CMake presets.
 - Firmware missing: "Firmware required/missing", block launch.
-- Design: app UI `docs/design/README.md`, `docs/design/player.md`, `docs/design/tokens.md`.
+- Design: app UI `docs/design/README.md`, `docs/design/legacy/player.md`, `docs/design/legacy/tokens.md`.
 
 - Runtime environment variables are read through `core/envvar.h` (`uzume::env::get/bytes/isSet/intValue`): `UZUME_<X>` only. Build/test-only variables (`UZUME_MELONDS_DS_CORE`, `UZUME_SHOT_DIR`, ...) are read directly.
 

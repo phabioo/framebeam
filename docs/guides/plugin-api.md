@@ -1,5 +1,9 @@
 # Plugin API reference (API 1)
 
+At a glance: Reference for authors of Uzume plugins (API 1): manifest, permissions, sandbox, the `fb` API, UI blocks, runs, installing and developer mode. A minimal example is at the end. Publishing an official plugin: [plugin-publishing.md](plugin-publishing.md). Why: [ADR 0023](../adr/0023-plugins.md).
+
+Contents: [Manifest](#manifest), [Permissions](#permissions), [Sandbox and limits](#sandbox-and-limits), [API](#api), [Installing plugins and origins](#installing-plugins-and-origins), [Developer mode](#developer-mode), [Minimal example](#minimal-example).
+
 For authors of Uzume plugins. Design background: `docs/architecture/12-plugins.md`, `docs/adr/0023-plugins.md`.
 This page describes what the app runtime implements today. Parts marked as coming later are not available yet.
 
