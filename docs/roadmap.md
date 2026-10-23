@@ -1,6 +1,6 @@
 # Roadmap
 
-Status and plan of Uzume after the proof of concept: what is finished, what comes next up to 1.0 and what is deliberately left for later. Work is cut into one work package per thread and PR (see [workflow](workflow.md)). Next up: 0.19 (app comfort and library). Finished milestones and the decisions behind the old numbering are in [history](history.md); what the product does today is in [features](features.md).
+Status and plan of Uzume after the proof of concept: what is finished, what comes next up to 1.0 and what is deliberately left for later. Work is cut into one work package per thread and PR (see [workflow](workflow.md)). Next up: 0.20 (emulation). Finished milestones and the decisions behind the old numbering are in [history](history.md); what the product does today is in [features](features.md).
 
 ## Goal 1.0
 
@@ -37,7 +37,8 @@ Decided by Fabio on 2026-10-11: 1.0 is reached when a group of friends completes
 | 0.16 | Release workflow and changelogs | [ADR 0028](adr/0028-release-notes-and-changelogs.md) |
 | 0.17 | Operations and safety | [ADR 0029](adr/0029-operations-and-safety.md) |
 | 0.18 | Uzume: one app, one server, new name | [ADR 0030](adr/0030-one-app-one-server-uzume.md) |
-| 0.19 to 0.24, 1.0 | Planned, see below | |
+| 0.19 | App comfort and library | [ADR 0030](adr/0030-one-app-one-server-uzume.md) D8 |
+| 0.20 to 0.24, 1.0 | Planned, see below | |
 
 Not all items of the finished milestones are closed. Open leftovers are recorded in their [history](history.md) sections, among them: the 0.11 plugin open points (non-admin plugin upload, Azahar memory maps), the 0.16 "What's new" screen and plugin repository PR templates, the 0.10.x library speed with many games.
 
@@ -47,34 +48,29 @@ Not all items of the finished milestones are closed. Open leftovers are recorded
 
 Tests only Fabio can do at the end: "Play on this PC" on a fresh Windows user (no UAC), "Share with others" (one UAC, data and pairing kept, service port), "Stop sharing" (others cannot connect, accounts and saves stay), "Share again", fresh install of the server and the app on a new PC, sign-in on a second PC and user switching, the GHCR package `uzume-server` set to public, plugin index and plugins signed again with "Publish plugin".
 
+## 0.19 leftovers
+
+- The Continue tile meta shows only the system (no save slot or version).
+- The audio output device switch applies only on the next start.
+- The video rows of board 6g-1 (Audio & video) are missing.
+- Per-game layout, swap and bottom window apply on the next start.
+- Screenshot usage per user and game has no own endpoint beyond the storage overview.
+- The clean-up "states of deleted games" waits for save states (0.20).
+
+Tests only Fabio can do at the end: audio on Windows (volume, mute, mute in background); screenshots: real capture with GPU cores, Save as dialog on Windows, Select + Y on a gamepad; screen layouts: bottom window on a second monitor, Windows zero-copy with the window open, touch in that window, Select + Right on a pad; per-game overrides: hold-Select hotkey sheet on a pad, per-game pad and keyboard profiles in a real game, the dialog in dark and light; both Storage pages visually and clean-ups on real data; integer scaling and the Continue block visually.
+
 ## Open milestones
 
 Planned, in this order. Each section is the work list; check an item off here and, when the milestone is finished, move the section to [history](history.md) and add a row above.
 
 | Version | Theme |
 |---|---|
-| [0.19](#019-player-comfort-and-library) | App comfort and library: audio, scaling, screenshots, play time, favorites, storage overview, overrides, DS/3DS screen layouts |
 | [0.20](#020-emulation) | Emulation: save states, rewind, run-ahead, `memory.write`, snapshots, cheats |
 | [0.21](#021-randomizer) | Randomizer: game variants, tools catalog, plugin, runs with their own randomized game |
 | [0.22](#022-plugins) | Plugins: developer console, run recap, Discord Rich Presence, tracker plugins |
 | [0.23](#023-together) | Together: online status, notifications, ready check, chat, viewer role, audio mixer, voice chat, controller hand-over |
 | [0.24](#024-platforms) | Platforms: Linux app package, Vulkan |
 | [1.0](#10-test-phase) | Test phase and the SoulLink run |
-
-## 0.19 Player comfort and library
-
-Decided by Fabio on 2026-10-21 (as 0.18; renumbered on 2026-10-22). The screens are drawn in the Uzume design (library, game page, in-game panel, Settings › This PC); no own design round, and no Hub web parts any more.
-
-Cut into 8 packages on 2026-10-23, one thread and PR each: wave A packages 1 to 4 in parallel, wave B screenshots (after play time, migration and OpenAPI numbers) and screen layouts (after scaling, same display path), wave C storage overview (after screenshots) and per-game overrides (after screen layouts).
-
-- [x] Start and 0.18 leftovers: drop the `web_sessions` table, dead web paths in `action_href`, unused server functions, the "Server web interface" device label, old "Set up a Hub on this PC" wording in the docs (S)
-- [x] Audio stage 1: master volume, mute, hotkeys, "mute in background" (S)
-- [x] Integer scaling and aspect ratio options; "Continue playing" tile in the Library (S)
-- [x] Screenshot hotkey with storage on the server (per game, optionally per run) and a gallery in the app (S-M)
-- [x] Play time per game, run and user (the server counts from Session and game start events); favorites, collections and recently played (per user on the server, filters in the app) (M)
-- [x] Storage overview in the app (Settings › This PC › Storage and Server › Storage: ROMs, saves, snapshots, cores, backups, screenshots; clean-up suggestions) (S)
-- [x] Per-game overrides for core options, layout and controller profile (builds on the Game override page of 0.10) (M)
-- [x] NDS and 3DS screen layouts: hotkey switch, bottom screen in its own window or on a second monitor (M)
 
 ## 0.20 Emulation
 
