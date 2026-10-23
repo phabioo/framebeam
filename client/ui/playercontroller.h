@@ -286,7 +286,7 @@ class PlayerController : public QObject {
   Q_INVOKABLE void retryConnection();
   Q_INVOKABLE void removeHub(const QString& hubId);  // empty: discard the running attempt
   // Settings > Hubs > Edit (D3): only host and port of a saved Hub change; hubId, pinned fingerprint, credential and
-  // Hub user stay. validateHubAddress returns the messages of docs/design/player.md 3p (empty = valid).
+  // Hub user stay. validateHubAddress returns the messages of docs/design/legacy/player.md 3p (empty = valid).
   // editHub reconnects when it is the active Hub; a different certificate at the new address then goes through
   // the "certificate changed" flow and is never accepted silently.
   Q_INVOKABLE QStringList validateHubAddress(const QString& host, const QString& port) const;
@@ -339,7 +339,7 @@ class PlayerController : public QObject {
   // fb.ui.open("screen") / "Open" in Settings > Plugins outside a game: selects the plugin's tab when it runs as the opened run's
   // view, else asks the window to show the plugin screen sheet (pluginScreenRequested). Plugins have no sidebar entry.
   Q_INVOKABLE void openPluginScreen(const QString& pluginId);
-  Q_INVOKABLE void showRuns();  // Runs screen (docs/design/plugins.md 4j-2)
+  Q_INVOKABLE void showRuns();  // Runs screen (docs/design/legacy/plugins.md 4j-2)
   // Admin area: screen "server" on a page (status | users | systems | plugins | reports; unknown -> status). Only for
   // admins of a server with admin_v1 (otherwise the screen shows the member block); reads the server status again.
   Q_INVOKABLE void showServerPage(const QString& page);

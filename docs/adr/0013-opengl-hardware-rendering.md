@@ -6,7 +6,7 @@
 
 ## Context
 
-Roadmap 0.5 (`docs/roadmap.md`) gives the Player an OpenGL context for libretro cores. Until now the libretro backend handles only software framebuffers and answers `RETRO_ENVIRONMENT_SET_HW_RENDER` with false. Cores that need hardware rendering (Azahar/3DS, planned as 0.8 at the time and 0.10 since the reorder of 2026-10-09, later N64 and GameCube/Wii) cannot run, and melonDS DS has its OpenGL renderer and internal resolution option locked (`docs/design/player.md`, Emulation page). The Player's frame path is: core frame as XRGB8888 in CPU memory, then `GameView`, multiview and the Session encoder (ADR 0006).
+Roadmap 0.5 (`docs/roadmap.md`) gives the Player an OpenGL context for libretro cores. Until now the libretro backend handles only software framebuffers and answers `RETRO_ENVIRONMENT_SET_HW_RENDER` with false. Cores that need hardware rendering (Azahar/3DS, planned as 0.8 at the time and 0.10 since the reorder of 2026-10-09, later N64 and GameCube/Wii) cannot run, and melonDS DS has its OpenGL renderer and internal resolution option locked (`docs/design/legacy/player.md`, Emulation page). The Player's frame path is: core frame as XRGB8888 in CPU memory, then `GameView`, multiview and the Session encoder (ADR 0006).
 
 ## Decisions
 

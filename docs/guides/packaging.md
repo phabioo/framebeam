@@ -1,6 +1,6 @@
 # Packaging
 
-Release artifacts and how they are built (PoC platforms: [07-poc-scope.md](../architecture/07-poc-scope.md); other platforms are planned, see [08-repo-and-open-points.md](../architecture/08-repo-and-open-points.md)): the Windows MSI for app and server (below), the server `.deb` (package `uzume-server`; ships `/usr/share/doc/uzume-server/copyright` and `THIRD-PARTY-NOTICES.txt`; the raw server binaries on a release come with `LICENSE` and `THIRD-PARTY-NOTICES-hub.txt`; regenerate with `make notices`) and the systemd script ([hub-install.md](hub-install.md)). macOS is dropped (2026-10-11); a Linux app package follows after 1.0 ([roadmap](../roadmap.md)).
+Release artifacts and how they are built (PoC platforms: [07-poc-scope.md](../architecture/07-poc-scope.md); other platforms are planned, see [08-repo-and-open-points.md](../architecture/08-repo-and-open-points.md)): the Windows MSI for app and server (below), the server `.deb` (package `uzume-server`; ships `/usr/share/doc/uzume-server/copyright` and `THIRD-PARTY-NOTICES.txt`; the raw server binaries on a release come with `LICENSE` and `THIRD-PARTY-NOTICES-hub.txt`; regenerate with `make notices`) and the systemd script ([server-install.md](server-install.md)). macOS is dropped (2026-10-11); a Linux app package follows after 1.0 ([roadmap](../roadmap.md)).
 
 ## Windows installer
 

@@ -197,7 +197,7 @@ QtObject {
         }
     }
 
-    // ---- Plugin building blocks (docs/design/plugins.md "Building blocks"). Plugins choose tones, size names and player
+    // ---- Plugin building blocks (docs/design/legacy/plugins.md "Building blocks"). Plugins choose tones, size names and player
     // numbers only; the mapping to colors and pixels lives here. `dark` is passed explicitly because in-game surfaces stay
     // dark while the rest of the app follows `Theme.dark`. One yellow: the "warning" tone is the accent, "info" is plain ink.
     function toneFg(tone: string, dark: bool): color {

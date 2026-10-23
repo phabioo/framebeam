@@ -10,4 +10,4 @@ A short tour for a server with two apps, using only homebrew ROMs or dummy files
 6. Connect a gamepad and remap it on Controllers.
 7. Install the app via the `uzume-windows-x64-msi` artifact.
 
-Keyboard defaults: see [player.md](player.md).
+Keyboard defaults: see [player.md](app.md).

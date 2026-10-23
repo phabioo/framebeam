@@ -1,6 +1,6 @@
 # App internals
 
-How the Uzume (`client/`, C++20/Qt 6/QML) is built and what it does in detail. Using it: [player.md](../guides/player.md). Build and test: [development.md](../development.md). Rules for agents: `client/CLAUDE.md`. Decisions: [ADR 0003](../adr/0003-player-phase2.md), [ADR 0004](../adr/0004-player-portable-data.md), [ADR 0005](../adr/0005-saves-phase3.md), [ADR 0006](../adr/0006-sessions-phase4.md), [ADR 0007](../adr/0007-phase5.md), [ADR 0009](../adr/0009-finish-poc.md), [ADR 0013](../adr/0013-opengl-hardware-rendering.md), [ADR 0014](../adr/0014-player-ui-pass.md).
+How the Uzume (`client/`, C++20/Qt 6/QML) is built and what it does in detail. Using it: [player.md](../guides/app.md). Build and test: [development.md](../development.md). Rules for agents: `client/CLAUDE.md`. Decisions: [ADR 0003](../adr/0003-player-phase2.md), [ADR 0004](../adr/0004-player-portable-data.md), [ADR 0005](../adr/0005-saves-phase3.md), [ADR 0006](../adr/0006-sessions-phase4.md), [ADR 0007](../adr/0007-phase5.md), [ADR 0009](../adr/0009-finish-poc.md), [ADR 0013](../adr/0013-opengl-hardware-rendering.md), [ADR 0014](../adr/0014-player-ui-pass.md).
 
 ## Structure
 
@@ -26,7 +26,7 @@ How the Uzume (`client/`, C++20/Qt 6/QML) is built and what it does in detail. U
 
 ## Data storage
 
-Summary for users: [player.md](../guides/player.md#data-directory).
+Summary for users: [player.md](../guides/app.md#data-directory).
 
 Portable by default: `<directory of the executable>/data` (ROM cache, `profiles.json`, `device.json`, `hubs/<id>/` incl. saves, `system/`, `probe/`), provided a real write test succeeds there. Otherwise it falls back to AppData (`QStandardPaths::AppDataLocation`) with a log note (`uzume.profiles`). If the portable folder has no `profiles.json` yet, existing AppData content is copied once (the source remains unchanged, nothing is overwritten, `device_id` is preserved, the ROM cache is re-downloaded). Credentials stay in the OS credential store. `--data-dir` and `UZUME_DATA_DIR` take precedence.
 

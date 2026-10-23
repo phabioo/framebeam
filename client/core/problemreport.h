@@ -1,5 +1,5 @@
 #pragma once
-// "Report a problem" (0.17, docs/design/player.md 6d): a short description plus a few attachments that go to the user's
+// "Report a problem" (0.17, docs/design/legacy/player.md 6d): a short description plus a few attachments that go to the user's
 // own Hub (POST /reports, feature reports_v1) or into a zip file. This class only builds the report; sending is
 // network/reportuploader.h. Everything here is redacted (core/diagbundle.h redact()); never included: passwords, the
 // Hub pairing token, ROMs, saves.

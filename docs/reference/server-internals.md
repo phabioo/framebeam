@@ -1,12 +1,12 @@
 # Server internals
 
-How the Uzume server (`server/`, Go, SQLite) is built and behaves. Running it: [hub-install.md](../guides/hub-install.md), [hub-configuration.md](../guides/hub-configuration.md). Rules for agents: `server/CLAUDE.md`.
+How the Uzume server (`server/`, Go, SQLite) is built and behaves. Running it: [server-install.md](../guides/server-install.md), [server-configuration.md](../guides/server-configuration.md). Rules for agents: `server/CLAUDE.md`.
 
 ## Code layout
 
 Layout of `internal/`: `api` (generated from OpenAPI via `make generate`, oapi-codegen), `config`, `store` (SQLite, embedded SQL migrations 0001-0016, backup before migrating an existing DB), `auth` (Argon2id, tokens), `tlsutil`, `updates` (signed updates index, SemVer, selection, staging, root apply helper), `hub` (service layer for the API), `httpapi` (OpenAPI implementation incl. the WSS endpoint in `ws.go`; tests validate against `protocol/openapi/uzume.yaml`), `version`.
 
-No web interface: since 0.18 (package 12, [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D2) the server serves only the REST API (`/api/v1`, admin under `/api/v1/admin/...`), WSS signaling, file transfer, `/.well-known/uzume` and the optional `/metrics`; there are no HTML pages, cookies, templates or static assets. Administration is in the app. For the internet-facing hardening (login and pairing limits, minimum password length 12 via `hub.MinPasswordLen`, read deadlines, 512 connection cap, TURN relay limits) see [hub-configuration.md](../guides/hub-configuration.md#turn-security).
+No web interface: since 0.18 (package 12, [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D2) the server serves only the REST API (`/api/v1`, admin under `/api/v1/admin/...`), WSS signaling, file transfer, `/.well-known/uzume` and the optional `/metrics`; there are no HTML pages, cookies, templates or static assets. Administration is in the app. For the internet-facing hardening (login and pairing limits, minimum password length 12 via `hub.MinPasswordLen`, read deadlines, 512 connection cap, TURN relay limits) see [server-configuration.md](../guides/server-configuration.md#turn-security).
 
 ## Saves and Sessions
 

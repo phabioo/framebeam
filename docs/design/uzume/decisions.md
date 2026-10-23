@@ -4,7 +4,7 @@ What the designer decided on the index boards and what was accepted in the revie
 
 Boards summarised here: [`SAllIndex`](../source/uzume/SAllIndex.dc.html) (index of all four sheets, 293 boards, 21 open gaps all accepted, list of closed items); the sheet indexes and the "Later" list of `S04H` are summarised in the sections below.
 
-Older decisions of the FrameBeam Rounds 1 to 4 are in [../decisions.md](../decisions.md); they stay valid only for behaviour the Uzume boards do not cover.
+Older decisions of the FrameBeam Rounds 1 to 4 are in [../decisions.md](../legacy/decisions.md); they stay valid only for behaviour the Uzume boards do not cover.
 
 ## Open points
 

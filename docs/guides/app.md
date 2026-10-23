@@ -1,6 +1,6 @@
 # Using the app
 
-Uzume (`client/`, the app) connects to a server, keeps your library and saves in sync, runs games locally and shares or watches Sessions. Feature overview: [features.md](../features.md). Internals: [player-internals.md](../reference/player-internals.md).
+Uzume (`client/`, the app) connects to a server, keeps your library and saves in sync, runs games locally and shares or watches Sessions. Feature overview: [features.md](../features.md). Internals: [app-internals.md](../reference/app-internals.md).
 
 ## Install
 
@@ -63,7 +63,7 @@ Plugin runtime of 0.11 ([API reference](plugin-api.md), [design](../architecture
 
 ## Collect logs
 
-When something does not work, hand over one file instead of describing it: Settings → Diagnostics → "Collect logs…" opens a save dialog (default name `uzume-diagnostics-<UTC timestamp>.zip` in Desktop or Downloads) and writes the bundle in the background; "Show in folder" then opens its folder. Without the window (for example when the app does not start): `Uzume --collect-logs out.zip [--data-dir <path>]` (offline, reads only the data directory, refuses to overwrite an existing file). Same layout as the server bundle ([hub-configuration.md](hub-configuration.md)):
+When something does not work, hand over one file instead of describing it: Settings → Diagnostics → "Collect logs…" opens a save dialog (default name `uzume-diagnostics-<UTC timestamp>.zip` in Desktop or Downloads) and writes the bundle in the background; "Show in folder" then opens its folder. Without the window (for example when the app does not start): `Uzume --collect-logs out.zip [--data-dir <path>]` (offline, reads only the data directory, refuses to overwrite an existing file). Same layout as the server bundle ([server-configuration.md](server-configuration.md)):
 
 | Entry | Content |
 |---|---|

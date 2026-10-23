@@ -1,7 +1,7 @@
 import QtQuick
 import Uzume.App
 
-// Plugin icon chip (docs/design/plugins.md 4e): the plugin's icon.png, else its monogram in mono, on a surface chip.
+// Plugin icon chip (docs/design/legacy/plugins.md 4e): the plugin's icon.png, else its monogram in mono, on a surface chip.
 // Used by the panel tabs, the rail, HUD widgets, the tile strip and the sidebar. `dot` adds the 6 px tab dot
 // ("news" = Yamabuki, "paused" = accent text) at the top right.
 Item {

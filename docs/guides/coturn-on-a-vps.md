@@ -70,7 +70,7 @@ Alternatively on the server (`/etc/uzume/server.env` or the service environment)
 UZUME_TURN_EXTERNAL="name=vps;urls=turn:turn.example.org:3478?transport=udp,turn:turn.example.org:3478?transport=tcp,turns:turn.example.org:5349?transport=tcp;secret-file=/etc/uzume/turn-vps.secret"
 ```
 
-Leave out the `turns:` URL without TLS. Restart the server after editing `server.env` (not needed when you add it in the app). Settings › Server › Network & sharing lists the server under "External TURN servers". You can keep `-turn` on as well; apps then get both and ICE picks a working path. For a provider that only gives a fixed login use `mode=static;username=...;password-file=...` instead (see [hub-configuration.md](hub-configuration.md)).
+Leave out the `turns:` URL without TLS. Restart the server after editing `server.env` (not needed when you add it in the app). Settings › Server › Network & sharing lists the server under "External TURN servers". You can keep `-turn` on as well; apps then get both and ICE picks a working path. For a provider that only gives a fixed login use `mode=static;username=...;password-file=...` instead (see [server-configuration.md](server-configuration.md)).
 
 ## 6. Check
 

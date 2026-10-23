@@ -7,7 +7,7 @@
 
 ## Context
 
-Roadmap 0.7 (`docs/roadmap.md`) brings the FrameBeam Hub web interface to the v4 design (`docs/design/hub.md`, 3j-3s), makes navigation swap content instead of loading whole pages, updates the UI live, and replaces editing `hub.env` for network and retention values with a Settings form. Before 0.7 the sidebar loaded full pages, Clients polled every 15 s and TURN, port and retention were configured only by flags and `hub.env` (ADR 0012).
+Roadmap 0.7 (`docs/roadmap.md`) brings the FrameBeam Hub web interface to the v4 design (`docs/design/legacy/hub.md`, 3j-3s), makes navigation swap content instead of loading whole pages, updates the UI live, and replaces editing `hub.env` for network and retention values with a Settings form. Before 0.7 the sidebar loaded full pages, Clients polled every 15 s and TURN, port and retention were configured only by flags and `hub.env` (ADR 0012).
 
 ## Decisions
 

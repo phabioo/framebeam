@@ -6,7 +6,7 @@
 
 ## Context
 
-Phase 4 adds Session sharing: a FrameBeam Player shares the game it is running, other Players of the same Hub watch and listen over direct WebRTC, and a Player shows a local and a remote Session as picture-in-picture or side-by-side. The architecture (`docs/architecture/04-sessions-and-multiview.md`, sections 4 and 5; `07-poc-scope.md`) fixes the principles: the Hub manages metadata, visibility, presence and signaling and never touches media. This ADR fixes data model, protocol, media path and UI behavior for the PoC. Design: `docs/design/player.md` screens 3c (Sessions on this Hub), 3g, 3h, 3i.
+Phase 4 adds Session sharing: a FrameBeam Player shares the game it is running, other Players of the same Hub watch and listen over direct WebRTC, and a Player shows a local and a remote Session as picture-in-picture or side-by-side. The architecture (`docs/architecture/04-sessions-and-multiview.md`, sections 4 and 5; `07-poc-scope.md`) fixes the principles: the Hub manages metadata, visibility, presence and signaling and never touches media. This ADR fixes data model, protocol, media path and UI behavior for the PoC. Design: `docs/design/legacy/player.md` screens 3c (Sessions on this Hub), 3g, 3h, 3i.
 
 ## Decisions
 

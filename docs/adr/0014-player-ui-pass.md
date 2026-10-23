@@ -21,7 +21,7 @@ The section column of 3p is a jump list. The main area is one scrolling page wit
 
 ### D3 Editing a saved Hub
 
-Editing changes only host and port. `hubId`, pinned fingerprint, credential and Hub user stay. Validation rules and messages follow `docs/design/player.md` 3p; the validator is C++ and unit-tested. Editing the active Hub reconnects to the new address. A different certificate at the new address goes through the existing "certificate changed" flow and is never accepted silently.
+Editing changes only host and port. `hubId`, pinned fingerprint, credential and Hub user stay. Validation rules and messages follow `docs/design/legacy/player.md` 3p; the validator is C++ and unit-tested. Editing the active Hub reconnects to the new address. A different certificate at the new address goes through the existing "certificate changed" flow and is never accepted silently.
 
 ### D4 Keys (open points d, r)
 

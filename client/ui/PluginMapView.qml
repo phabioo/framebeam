@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// map block (docs/design/plugins.md "Map view"): background image of any aspect fit inside the view (contain), markers in image
+// map block (docs/design/legacy/plugins.md "Map view"): background image of any aspect fit inside the view (contain), markers in image
 // coordinates, zoom and pan, clusters per `area` below 60 % zoom, popover above the selected marker, filter segment,
 // collapsible legend. Emits action(action, {kind: "route"|"player", id}) on selection and
 // action(action, {kind: "filter", value}) on a filter change. Gamepad hooks: zoomIn, zoomOut, fit, panBy, moveFocus.

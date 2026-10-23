@@ -1,5 +1,5 @@
 #pragma once
-// Plugin UI v1, runtime side without Lua: validation/conversion of block trees (spec: docs/design/plugins.md building
+// Plugin UI v1, runtime side without Lua: validation/conversion of block trees (spec: docs/design/legacy/plugins.md building
 // blocks) and the thread-safe store through which the plugin thread hands trees, titles, badges and toasts to the UI.
 #include <QHash>
 #include <QMap>

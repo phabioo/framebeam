@@ -4,11 +4,11 @@ Start with the [root README](../README.md) for what Uzume is and a quick start.
 
 ## Guides (running Uzume)
 
-- [Using the app](guides/player.md): install, pairing, playing, data directory, CLI and environment
-- [Server installation](guides/hub-install.md): Debian package and systemd script on Linux / Raspberry Pi
-- [Server in Docker](guides/hub-docker.md): official image (amd64, arm64), volumes, compose, upgrade by pulling
-- [Server backup and restore](guides/hub-backup.md): one archive, schedule, retention, `uzume-server backup` / `restore`, admin API, restore on a new machine
-- [Server configuration](guides/hub-configuration.md): commands, all flags and environment variables, certificates
+- [Using the app](guides/app.md): install, pairing, playing, data directory, CLI and environment
+- [Server installation](guides/server-install.md): Debian package and systemd script on Linux / Raspberry Pi
+- [Server in Docker](guides/server-docker.md): official image (amd64, arm64), volumes, compose, upgrade by pulling
+- [Server backup and restore](guides/server-backup.md): one archive, schedule, retention, `uzume-server backup` / `restore`, admin API, restore on a new machine
+- [Server configuration](guides/server-configuration.md): commands, all flags and environment variables, certificates
 - [Sessions: LAN and internet](guides/sessions-over-the-internet.md): testing on a LAN, port forwards, TURN relay
 - [coturn on a VPS](guides/coturn-on-a-vps.md): own external TURN relay for the server
 - [Saves](guides/saves.md): sync, conflicts, history, restore, retention
@@ -24,7 +24,7 @@ Start with the [root README](../README.md) for what Uzume is and a quick start.
 
 - [Features as built](features.md)
 - [Protocol](reference/protocol.md) (endpoints, errors, WSS messages) and [update index](reference/update-index.md)
-- [Server internals](reference/hub-internals.md), [App internals](reference/player-internals.md)
+- [Server internals](reference/server-internals.md), [App internals](reference/app-internals.md)
 
 ## Project
 
@@ -33,7 +33,7 @@ Start with the [root README](../README.md) for what Uzume is and a quick start.
 - [Working with Claude Code](workflow.md): roles, briefs, phase plan
 - Legal: [LICENSE](../LICENSE), [NOTICE.md](../NOTICE.md) (trademarks, disclaimer), [third-party notices](../THIRD-PARTY-NOTICES.md), [CONTRIBUTING.md](../CONTRIBUTING.md), [CLA](../CLA.md)
 - [Architecture](architecture/README.md): design basis of the PoC (index; read only the file you need)
-- [Design](design/README.md): screens, tokens, logo; [decisions](design/decisions.md); [Uzume design](design/uzume/README.md) (valid from 0.18 on)
+- [Design](design/README.md): screens, tokens, logo; [decisions](design/legacy/decisions.md); [Uzume design](design/uzume/README.md) (valid from 0.18 on)
 - Decisions (ADRs, historical records):
   [0001 stack additions](adr/0001-stack-additions.md),
   [0002 protocol and server phase 1](adr/0002-protocol-and-hub-phase1.md),

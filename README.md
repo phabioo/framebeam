@@ -33,9 +33,9 @@ The official plugins live in their own repositories under github.com/phabioo: [`
 sudo apt install ./uzume-server_<version>_arm64.deb
 ```
 
-The server prints a setup banner with a setup code (also `uzume-server setup-code`); you enter it in the app to create the admin account. Other Linux systems, ports and options: [Server installation](docs/guides/hub-install.md), [Server configuration](docs/guides/hub-configuration.md).
+The server prints a setup banner with a setup code (also `uzume-server setup-code`); you enter it in the app to create the admin account. Other Linux systems, ports and options: [Server installation](docs/guides/server-install.md), [Server configuration](docs/guides/server-configuration.md).
 
-**2. Install the app** (Windows): run the MSI from the releases; the installer asks how you will use Uzume (only on this PC, share with others, or server only). It ships no emulator core; the app downloads it from the server on first use. See [Using the app](docs/guides/player.md).
+**2. Install the app** (Windows): run the MSI from the releases; the installer asks how you will use Uzume (only on this PC, share with others, or server only). It ships no emulator core; the app downloads it from the server on first use. See [Using the app](docs/guides/app.md).
 
 **3. Pair:** start the app, enter the server address (or open an invite link), compare the security code with the server's and confirm, then sign in with your user name and password; an admin creates users and invites under SERVER › Users.
 
@@ -62,7 +62,7 @@ Prerequisites, make targets, dependency scripts, CI and versioning: [docs/develo
 
 Index: [docs/README.md](docs/README.md). Most used:
 
-- [Using the app](docs/guides/player.md), [Server installation](docs/guides/hub-install.md), [Server configuration](docs/guides/hub-configuration.md)
+- [Using the app](docs/guides/app.md), [Server installation](docs/guides/server-install.md), [Server configuration](docs/guides/server-configuration.md)
 - [Updates and releases](docs/guides/updates.md), [Sessions](docs/guides/sessions-over-the-internet.md), [Saves](docs/guides/saves.md)
 - [Roadmap](docs/roadmap.md), [Architecture](docs/architecture/README.md), [Decisions (ADRs)](docs/adr/), [Design](docs/design/README.md), [Working with Claude Code](docs/workflow.md)
 

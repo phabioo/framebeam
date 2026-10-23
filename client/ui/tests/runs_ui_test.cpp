@@ -1,4 +1,4 @@
-// Runs in the Player UI (docs/design/plugins.md 4j-2, 0.18 package 9): the sidebar entry (the Hub announces runs_v1; no plugin
+// Runs in the Player UI (docs/design/legacy/plugins.md 4j-2, 0.18 package 9): the sidebar entry (the Hub announces runs_v1; no plugin
 // needed), the invite card with the game picker, the run view in tabs (Board, Log, one tab per plugin with a screen), status
 // actions, "Start a run" (Rules: None or a plugin), and "Play run" (Hub copies of the run's plugins, the run's own save slot).
 // Synthetic plugins and a fake Hub only. With UZUME_SCREENSHOT_DIR=<dir> the views are also saved as PNGs (dark and light) for the review.

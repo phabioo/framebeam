@@ -1,4 +1,4 @@
-// SettingsRow in isolation (player.md "SettingsRow"): control column alignment, the changed-dot slot, description clamp with
+// SettingsRow in isolation (docs/design/legacy/player.md "SettingsRow"): control column alignment, the changed-dot slot, description clamp with
 // More / Less and the option list, segment -> select fallback, disabled reason, narrow layout. Offscreen, no hub.
 #include <QQmlComponent>
 #include <QQmlEngine>

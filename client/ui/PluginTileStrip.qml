@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import Uzume.App
 
-// Tile strip of a remote Multiview tile (docs/design/plugins.md 4e): 20 high, shows the first text row of the plugin's tile
+// Tile strip of a remote Multiview tile (docs/design/legacy/plugins.md 4e): 20 high, shows the first text row of the plugin's tile
 // tree (with the player colour dot of its first avatar and "▾"); a click or A expands it to at most 300 x 120 over the top
 // screen with a header strip ("▴"). Drawn on the stage with the stage-appropriate `surface` plane. One strip per tile; the tile "⋯" menu (in MultiviewArea) picks the plugin.
 Item {

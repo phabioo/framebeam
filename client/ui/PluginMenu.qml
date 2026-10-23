@@ -1,7 +1,7 @@
 import QtQuick
 import Uzume.App
 
-// Small in-game menu for the plugin surfaces (HUD "⋯", notice "⋯", tile "⋯"; docs/design/plugins.md 4e, 4g-2): `surface` plane, `rule` frame, 32 px items. Fills its parent as a click-away scrim and places the menu next to
+// Small in-game menu for the plugin surfaces (HUD "⋯", notice "⋯", tile "⋯"; docs/design/legacy/plugins.md 4e, 4g-2): `surface` plane, `rule` frame, 32 px items. Fills its parent as a click-away scrim and places the menu next to
 // `anchorItem`, kept inside the parent. Items: {id, text, trailing?, checked?, divider?} or a row of glyph choices
 // {id, text, choices: [{id, glyph, tip}]}; `picked(id)` is emitted with the item id (or the choice id).
 Item {

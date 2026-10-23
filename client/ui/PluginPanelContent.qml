@@ -3,7 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// Content of a plugin tab in the game panel (docs/design/plugins.md 4e): the plugin's "panel" tree in the active theme under a
+// Content of a plugin tab in the game panel (docs/design/legacy/plugins.md 4e): the plugin's "panel" tree in the active theme under a
 // "DRAWN BY <PLUGIN>" line (play-and-plugins.md, boards 5b-1 / 5b-2). A paused
 // plugin keeps its last tree, dimmed and without input, under a "Paused" banner with "Restart plugin".
 Item {

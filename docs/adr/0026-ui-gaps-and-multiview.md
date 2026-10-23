@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-10-12
-- Deciders: Fabio, via the Claude Design "Round 3" handoff (decisions 20-23 in [design/decisions.md](../design/decisions.md)). Details marked "default" are working defaults that Fabio can still change.
+- Deciders: Fabio, via the Claude Design "Round 3" handoff (decisions 20-23 in [design/legacy/decisions.md](../design/legacy/decisions.md)). Details marked "default" are working defaults that Fabio can still change.
 - Supersedes in part: [ADR 0014](0014-player-ui-pass.md) D4 (Esc) and refines D13 (Default Multiview).
 
 ## Context
@@ -25,7 +25,7 @@ Viewers see that a game is paused: "Paused by <name>" on the frozen remote tile 
 
 ### D4 Cross-cutting UI rules
 
-Dates, row actions, pill colors (amber = needs your judgment, cyan = information or in progress, green ok, grey neutral, red destructive text only), add-to-list pattern, content widths, plurals and the responsive Hub follow sheet 0-2 as recorded in [design/decisions.md](../design/decisions.md) decisions 20-23 and the open-point answers bg-bk.
+Dates, row actions, pill colors (amber = needs your judgment, cyan = information or in progress, green ok, grey neutral, red destructive text only), add-to-list pattern, content widths, plurals and the responsive Hub follow sheet 0-2 as recorded in [design/legacy/decisions.md](../design/legacy/decisions.md) decisions 20-23 and the open-point answers bg-bk.
 
 ### D5 Small rules
 

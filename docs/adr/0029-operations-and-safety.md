@@ -75,5 +75,5 @@ Finishes [ADR 0011](0011-automatic-updates.md) D8. Single-plugin rollback is not
 
 - Fabio must set the GHCR package `framebeam-hub` to public after the first push (package settings), otherwise `docker pull` needs a login.
 - Docker users update with `docker compose pull && docker compose up -d`; the Hub keeps its database copy in `/data/backups` before a schema migration.
-- The guides are [hub-docker.md](../guides/hub-docker.md) and [hub-backup.md](../guides/hub-backup.md).
+- The guides are [server-docker.md](../guides/server-docker.md) and [server-backup.md](../guides/server-backup.md).
 - The Hub now holds `hub.lock` in the data folder while it runs; a second Hub on the same folder refuses to start.

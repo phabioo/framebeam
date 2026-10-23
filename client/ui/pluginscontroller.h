@@ -1,7 +1,7 @@
 #pragma once
 // PluginsController: the plugin runtime inside the Player. Owns the PluginManager (<data>/plugins), the PluginHost and
 // the memory adapter; starts the plugins that match a game when it runs, and serves Settings -> Plugins and the
-// Plugin console tab of the game panel (docs/design/plugins.md 4a, 4d). Plugin failures never block or slow the game:
+// Plugin console tab of the game panel (docs/design/legacy/plugins.md 4a, 4d). Plugin failures never block or slow the game:
 // they only show in the console and the Player log.
 #include <QHash>
 #include <QMap>
