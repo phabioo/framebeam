@@ -161,6 +161,33 @@ class PlayerSettingsTest : public QObject {
     QCOMPARE(PlayerSettings(dir.path()).sessionVisibility(), QStringLiteral("invite_only"));
   }
 
+  void bottomWindowGeometryRoundTrip() {
+    QTemporaryDir dir;
+    {
+      PlayerSettings s(dir.path());
+      QVERIFY(!s.bottomWindowGeometry().valid());  // never placed
+      PlayerSettings::WindowGeometry g;
+      g.x = -1920;  // a monitor left of the main one
+      g.y = 40;
+      g.width = 640;
+      g.height = 480;
+      g.screen = QStringLiteral("DP-2");
+      QVERIFY(s.setBottomWindowGeometry(g));
+      QVERIFY(s.setAppearance(A::Light));  // other keys stay
+    }
+    PlayerSettings s(dir.path());
+    const PlayerSettings::WindowGeometry g = s.bottomWindowGeometry();
+    QVERIFY(g.valid());
+    QCOMPARE(g.x, -1920);
+    QCOMPARE(g.y, 40);
+    QCOMPARE(g.width, 640);
+    QCOMPARE(g.height, 480);
+    QCOMPARE(g.screen, QStringLiteral("DP-2"));
+    QCOMPARE(s.appearance(), A::Light);
+    QVERIFY(s.setBottomWindowGeometry(PlayerSettings::WindowGeometry()));  // invalid removes it
+    QVERIFY(!PlayerSettings(dir.path()).bottomWindowGeometry().valid());
+  }
+
   void saveSlotPerHubAndGame() {
     QTemporaryDir dir;
     {

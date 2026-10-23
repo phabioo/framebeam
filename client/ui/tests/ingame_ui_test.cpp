@@ -4,10 +4,12 @@
 // on its own), the "Now running" strip in the sidebar. Preview game and FakeHub, no core needed.
 #include <QQmlContext>
 #include <QQmlProperty>
+#include <QQuickWindow>
 #include <QtTest>
 
 #include "audiocontroller.h"
 #include "fakehub.h"
+#include "gameview.h"
 #include "savestore.h"
 #include "savesync.h"
 #include "testsupport.h"
@@ -1078,6 +1080,91 @@ class InGameUiTest : public QObject {
     QVERIFY(gs->isPaused());  // leaving fullscreen does not resume
     QTest::keyClick(h.window, Qt::Key_Escape);
     QTRY_VERIFY(!gs->isPaused());
+  }
+
+  // 0.19 package 6: F7 opens the layout menu (layouts, Swap screens, Bottom screen in its own window), Shift+F7 swaps, Select + Right
+  // cycles; every change toasts; the bottom-screen window is a second top-level window that closes with the game.
+  void layoutMenuHotkeysAndBottomWindow() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    pair(hub, h, false);
+    startPreview(h, false);
+    SessionController* ctl = h.controller->sessions();
+    resize(h, 1440, 900);
+    const auto bottomWindows = [&]() {
+      QList<QQuickWindow*> out;
+      for (QWindow* w : QGuiApplication::allWindows()) {
+        auto* qw = qobject_cast<QQuickWindow*>(w);
+        if (qw && qw != h.window && qw->isVisible() && qw->title().contains(QStringLiteral("bottom screen"))) out.append(qw);
+      }
+      return out;
+    };
+
+    // F7 opens the menu below the Layout button; the layouts, Swap and the window item are in it.
+    QVERIFY(!shown(h, "menuItem_layout_large"));
+    QTest::keyClick(h.window, Qt::Key_F7);
+    QTRY_VERIFY(shown(h, "menuItem_layout_large"));
+    for (const char* n : {"menuItem_layout_stacked", "menuItem_layout_side", "menuItem_layout_top", "menuItem_layout_bottom", "menuItem_swap", "menuItem_bottomWindow"})
+      QVERIFY2(shown(h, n), n);
+    QVERIFY(h.click("menuItem_layout_large"));
+    QCOMPARE(ctl->screenLayout(), QStringLiteral("large"));
+    QTRY_VERIFY(shown(h, "layoutToast"));
+    QCOMPARE(textOf(visibleItem(h, "layoutToast")), QStringLiteral("Layout: Large top / small bottom"));
+    QTRY_VERIFY(!shown(h, "menuItem_layout_large"));
+
+    // F7 again closes it (the game view has the focus again after the menu closed).
+    QTest::keyClick(h.window, Qt::Key_F7);
+    QTRY_VERIFY(shown(h, "menuItem_layout_large"));
+    QTest::keyClick(h.window, Qt::Key_Escape);
+    QTRY_VERIFY(!shown(h, "menuItem_layout_large"));
+    QVERIFY(!h.controller->gameSession()->isPaused());  // Esc closed the menu, it did not pause
+
+    // Shift+F7 swaps directly and toasts.
+    QTest::keyClick(h.window, Qt::Key_F7, Qt::ShiftModifier);
+    QTRY_VERIFY(ctl->screenSwap());
+    QTRY_COMPARE(textOf(visibleItem(h, "layoutToast")), QStringLiteral("Screens swapped"));
+    QTest::keyClick(h.window, Qt::Key_F7, Qt::ShiftModifier);
+    QTRY_VERIFY(!ctl->screenSwap());
+
+    // Gamepad Select + Right cycles through the layouts of the system and wraps.
+    const QStringList all = ctl->watchLayouts();
+    QCOMPARE(all.size(), 5);
+    ctl->setScreenLayout(QStringLiteral("bottom"));
+    emit h.controller->controllers()->padHotkeyTriggered(QStringLiteral("layout"));
+    QTRY_COMPARE(ctl->screenLayout(), QStringLiteral("stacked"));
+    emit h.controller->controllers()->padHotkeyTriggered(QStringLiteral("layout"));
+    QTRY_COMPARE(ctl->screenLayout(), QStringLiteral("side"));
+    QTRY_COMPARE(textOf(visibleItem(h, "layoutToast")), QStringLiteral("Layout: Side by side"));
+
+    // Bottom screen in its own window: a second window, the main view shows the top screen only.
+    QTest::keyClick(h.window, Qt::Key_F7);
+    QTRY_VERIFY(shown(h, "menuItem_bottomWindow"));
+    QVERIFY(h.click("menuItem_bottomWindow"));
+    QVERIFY(ctl->bottomWindow());
+    QTRY_COMPARE(bottomWindows().size(), 1);
+    QCOMPARE(ctl->viewLayout(), QStringLiteral("top"));
+    QCOMPARE(ctl->screenLayout(), QStringLiteral("side"));  // the chosen layout is kept for when the window closes
+    QQuickWindow* second = bottomWindows().first();
+    auto* bottomView = second->findChild<GameView*>(QStringLiteral("bottomScreenView"));
+    QVERIFY(bottomView != nullptr);
+    QVERIFY(bottomView->cpuOnly());
+    QCOMPARE(bottomView->layout(), QStringLiteral("bottom"));
+    QTRY_VERIFY(!bottomView->placement().targets.isEmpty() && !bottomView->placement().targets.at(1).isEmpty());
+    // A touch there maps to the middle of the lower half of the frame.
+    const auto touch = bottomView->touchTarget(bottomView->placement().targets.at(1).center(), false);
+    QVERIFY(touch.has_value() && qAbs(touch->y() - 0.75) < 1e-6);
+    // Closing the window turns the mode off again.
+    second->close();
+    QTRY_VERIFY(!ctl->bottomWindow());
+    QTRY_VERIFY(bottomWindows().isEmpty());
+    QCOMPARE(ctl->viewLayout(), QStringLiteral("side"));
+
+    // Leaving the game closes it as well.
+    ctl->chooseBottomWindow(true);
+    QTRY_COMPARE(bottomWindows().size(), 1);
+    ctl->gameEnded();
+    QTRY_VERIFY(bottomWindows().isEmpty());
+    QVERIFY(!ctl->bottomWindow());
   }
 
   // 0.19 audio stage 1: +/- change the volume by the step and show a replacing toast, M mutes, the header button opens the

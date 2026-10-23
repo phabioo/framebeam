@@ -127,7 +127,7 @@ class GameSession : public QObject {
   // Tests and screenshots: pretend the core supports fast-forward (preview only).
   void setPreviewFastForwardSupported(bool supported);
 
-  // Player hotkeys (configured keys, default F11/F3/F5/Space) and Escape belong to the Player: never mapped to a joypad
+  // Player hotkeys (configured keys, default F11/F3/F5/Space/F7) and Escape belong to the Player: never mapped to a joypad
   // button, never forwarded. The hotkey keys are set by the PlayerController from the Controllers settings.
   bool isReservedKey(int qtKey) const;
   void setHotkeyKeys(const QSet<int>& keys) { hotkeyKeys_ = keys; }
@@ -146,6 +146,9 @@ class GameSession : public QObject {
   // maximum over all views and, while the own Session is shared, the encoder's size. No view = no limit.
   void setViewSize(const QObject* view, const QSize& pixels);
   void setShareSize(const QSize& pixels);
+  // A view that always draws the CPU frame (the bottom-screen window): while one exists the readback keeps running even
+  // with zero-copy display active, at the size those views need (0.19 package 6).
+  void setCpuConsumer(const QObject* view, bool on);
   QSize readbackLimit() const { return limit_; }
 
   // GPU-direct Session encoding (ADR 0019): the target for the Session encode texture of the running game, nullptr =
@@ -251,12 +254,13 @@ class GameSession : public QObject {
   quint64 runnerGen_ = 0;  // bumped per runner and by teardown(): events of a runner that is gone are dropped (PE-6)
   AudioOutput audio_;
   KeyboardJoypad keys_;
-  QSet<int> hotkeyKeys_{Qt::Key_F11, Qt::Key_F3, Qt::Key_F5, Qt::Key_Space};
+  QSet<int> hotkeyKeys_{Qt::Key_F11, Qt::Key_F3, Qt::Key_F5, Qt::Key_Space, Qt::Key_F7};
   QSet<int> reservedCombos_;
   quint32 pad_ = 0;
   bool inputBlocked_ = false;
   emu::DisplayProfile display_;
   QHash<const QObject*, QSize> viewSizes_;
+  QSet<const QObject*> cpuViews_;
   QSize shareSize_;
   QSize limit_;
   QVector<std::function<void(const QImage&, const QString&)>> captureWaiters_;

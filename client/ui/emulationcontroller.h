@@ -95,6 +95,8 @@ class EmulationController : public QObject {
   static constexpr const char* kFullscreenKey = "uzume.fullscreen_on_start";
   static constexpr const char* kMultiviewKey = "uzume.default_multiview";
   static constexpr const char* kScreenLayoutKey = "uzume.screen_layout";  // default DS/3DS screen layout (3e-3)
+  static constexpr const char* kScreenSwapKey = "uzume.screen_swap";      // off | on: bottom screen where the top one would be
+  static constexpr const char* kBottomWindowKey = "uzume.bottom_window";  // off | on: bottom screen in its own window at game start
   static constexpr const char* kIntegerScaleKey = "uzume.integer_scale";  // 0.19 picture: "off" | "on"
   static constexpr const char* kAspectRatioKey = "uzume.aspect_ratio";    // 0.19 picture: "core" | "4:3" | "stretch"
   static constexpr const char* kSpeedUpRatioKey = "uzume.speedup_ratio";

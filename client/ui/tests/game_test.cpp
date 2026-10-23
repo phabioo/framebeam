@@ -6,6 +6,7 @@
 
 #include "fakehub.h"
 #include "gameview.h"
+#include "screenlayout.h"
 #include "testsupport.h"
 
 using namespace uzume;
@@ -15,6 +16,65 @@ using uitest::Harness;
 class GameTest : public QObject {
   Q_OBJECT
  private slots:
+  // 0.19 package 6: the view draws every layout (and swap) and sends touches to the bottom screen wherever it is drawn.
+  void viewLayoutsSwapAndTouch() {
+    for (const bool threeDs : {false, true}) {
+      emu::DisplayProfile profile;
+      profile.layout = QStringLiteral("vertical");
+      if (threeDs) {
+        profile.screens = {{QStringLiteral("top"), 400, 240, false, QStringLiteral("center")}, {QStringLiteral("bottom"), 320, 240, true, QStringLiteral("center")}};
+      } else {
+        profile.screens = {{QStringLiteral("top"), 256, 192, false}, {QStringLiteral("bottom"), 256, 192, true}};
+      }
+      GameSession gs;
+      QImage frame(profile.frameSize(), QImage::Format_RGB32);
+      frame.fill(QColor(40, 90, 140));
+      gs.setPreview(QStringLiteral("t"), frame, profile, EmulationDiagnostics());
+      QQuickWindow window;
+      window.resize(1100, 800);
+      GameView view;
+      view.setParentItem(window.contentItem());
+      view.setSize(QSizeF(1000, 700));
+      view.setIntegerScale(false);
+      view.setSession(&gs);
+      for (const QString& layout : screenLayoutsFor(2)) {
+        for (const bool swap : {false, true}) {
+          view.setLayout(layout);
+          view.setSwap(swap);
+          const ScreenPlacement pl = view.placement();
+          const QString tag = QStringLiteral("%1 swap=%2 3ds=%3").arg(layout).arg(swap).arg(threeDs);
+          QCOMPARE(pl.targets.size(), 2);
+          QVERIFY2(QRectF(0, 0, 1000, 700).contains(view.frameRect()), qPrintable(tag));
+          const bool topHidden = layout == QLatin1String("bottom"), bottomHidden = layout == QLatin1String("top");
+          QCOMPARE(pl.targets[0].isEmpty(), topHidden);
+          QCOMPARE(pl.targets[1].isEmpty(), bottomHidden);
+          if (layoutSupportsSwap(layout) && swap && layout == QLatin1String("stacked")) QVERIFY2(pl.targets[1].bottom() <= pl.targets[0].top() + 0.5, qPrintable(tag));
+          const auto hit = view.touchTarget(pl.targets[1].center(), false);
+          if (bottomHidden) {
+            QVERIFY2(!hit.has_value(), qPrintable(tag));  // the touch screen is not drawn: nothing to touch
+            continue;
+          }
+          QVERIFY2(hit.has_value(), qPrintable(tag));
+          QVERIFY(qAbs(hit->x() - 0.5) < 1e-6 && qAbs(hit->y() - 0.75) < 1e-6);
+          if (!topHidden) QVERIFY2(!view.touchTarget(pl.targets[0].center(), false).has_value(), qPrintable(tag));
+        }
+      }
+      // Unknown layouts fall back to stacked; the old stored values stay valid.
+      view.setSwap(false);
+      view.setLayout(QStringLiteral("bogus"));
+      QCOMPARE(view.layout(), QStringLiteral("stacked"));
+      for (const char* old : {"stacked", "side", "top"}) {
+        view.setLayout(QString::fromLatin1(old));
+        QCOMPARE(view.layout(), QString::fromLatin1(old));
+      }
+      // The readback limit follows the screens that are really drawn (bottom only: the bottom screen at its size).
+      view.setLayout(QStringLiteral("bottom"));
+      const qreal dpr = window.effectiveDevicePixelRatio();
+      const QRectF b = view.placement().targets[1];
+      QCOMPARE(gs.readbackLimit().width(), int(qCeil(profile.frameSize().width() * (b.width() / profile.screens[1].width) * dpr - 1e-6)));
+    }
+  }
+
   // The view reports the physical pixel size it shows the frame at; the session derives the readback limit.
   void viewReportsPhysicalSizeToSession() {
     emu::DisplayProfile profile;

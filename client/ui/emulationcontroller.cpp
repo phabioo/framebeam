@@ -28,9 +28,25 @@ const QList<EmulationController::FbOption>& EmulationController::uzumeOptions() 
        QStringLiteral("pip")},
       {QString::fromLatin1(kScreenLayoutKey),
        QObject::tr("DS and 3DS screen layout"),
-       QObject::tr("Stacked, Side by side or Top only. Systems can override."),
-       {{QStringLiteral("stacked"), QObject::tr("Stacked")}, {QStringLiteral("side"), QObject::tr("Side by side")}, {QStringLiteral("top"), QObject::tr("Top only")}},
+       QObject::tr("How the two screens are drawn. Systems and games can override. In game, F7 opens the layout menu."),
+       {{QStringLiteral("stacked"), QObject::tr("Stacked")},
+        {QStringLiteral("side"), QObject::tr("Side by side")},
+        {QStringLiteral("large"), QObject::tr("Large top / small bottom")},
+        {QStringLiteral("top"), QObject::tr("Top screen only")},
+        {QStringLiteral("bottom"), QObject::tr("Bottom screen only")}},
        QStringLiteral("stacked"),
+       true},
+      {QString::fromLatin1(kScreenSwapKey),
+       QObject::tr("Swap screens"),
+       QObject::tr("Draws the bottom screen where the top one would be. Not used by the single-screen layouts."),
+       {{QStringLiteral("off"), QObject::tr("Off")}, {QStringLiteral("on"), QObject::tr("On")}},
+       QStringLiteral("off"),
+       true},
+      {QString::fromLatin1(kBottomWindowKey),
+       QObject::tr("Bottom screen in its own window"),
+       QObject::tr("Opens a second window with the bottom screen (touch works there); the game view shows the top screen only."),
+       {{QStringLiteral("off"), QObject::tr("Off")}, {QStringLiteral("on"), QObject::tr("On")}},
+       QStringLiteral("off"),
        true},
       {QString::fromLatin1(kSpeedUpRatioKey),
        QObject::tr("Speed-up speed"),
@@ -617,7 +633,8 @@ void EmulationController::rebuild() {
       for (const FbOption& o : uzumeOptions()) {
         if (!o.perSystem) continue;
         // The screen layout only exists for systems with two screens (DS, 3DS); "Overrides Defaults for DS games."
-        if (o.key == QLatin1String(kScreenLayoutKey) && (man == nullptr || man->display.screens.size() < 2)) continue;
+        const bool twoScreen = o.key == QLatin1String(kScreenLayoutKey) || o.key == QLatin1String(kScreenSwapKey) || o.key == QLatin1String(kBottomWindowKey);
+        if (twoScreen && (man == nullptr || man->display.screens.size() < 2)) continue;
         fb.append(row(o.key, o.label, o.description, o.category, o.values, QString(), o.defaultValue, true));
       }
       groups.prepend(QVariantMap{{QStringLiteral("id"), QStringLiteral("uzume")},

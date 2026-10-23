@@ -630,6 +630,10 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
                            runStart_.pending() && runStart_.gameId == launchGame_.id ? runStart_.runId : QString());
     // Screen layout default of the system (Emulation > Defaults / system), the in-game switch overrides it for this game only.
     sessions_->setScreenLayout(emulation_->uzumeValue(QString::fromLatin1(EmulationController::kScreenLayoutKey), launchGame_.system, launchGame_.id));
+    if (session_.screenCount() >= 2) {  // swap and the bottom-screen window exist for two-screen systems only
+      sessions_->setScreenSwap(emulation_->uzumeValue(QString::fromLatin1(EmulationController::kScreenSwapKey), launchGame_.system, launchGame_.id) == QLatin1String("on"));
+      sessions_->setBottomWindow(emulation_->uzumeValue(QString::fromLatin1(EmulationController::kBottomWindowKey), launchGame_.system, launchGame_.id) == QLatin1String("on"));
+    }
     applyUzumeOptions();  // picture options of the game (gameActive_ is set now)
     // Plugins start asynchronously after the game: they never delay it, failures only show in the console and the log.
     plugins_->gameStarted(launchGame_.system, launchRom_, launchGame_.romSha256, launchGame_.title,
@@ -1424,6 +1428,24 @@ QStringList PlayerController::uploadFilters() const { return uploads_->filters()
 
 QVariantList PlayerController::hubs() const { return hubPresenter_->hubs(); }
 QVariantMap PlayerController::pairing() const { return hubPresenter_->pairing(); }
+QVariantMap PlayerController::bottomWindowGeometry() const {
+  if (!settings_) return {};
+  const PlayerSettings::WindowGeometry g = settings_->bottomWindowGeometry();
+  if (!g.valid()) return {};
+  return {{QStringLiteral("x"), g.x}, {QStringLiteral("y"), g.y}, {QStringLiteral("width"), g.width}, {QStringLiteral("height"), g.height}, {QStringLiteral("screen"), g.screen}};
+}
+
+void PlayerController::saveBottomWindowGeometry(int x, int y, int width, int height, const QString& screenName) {
+  if (!settings_) return;
+  PlayerSettings::WindowGeometry g;
+  g.x = x;
+  g.y = y;
+  g.width = width;
+  g.height = height;
+  g.screen = screenName;
+  settings_->setBottomWindowGeometry(g);
+}
+
 QString PlayerController::whenText(const QString& iso) const { return TimeFormat::whenIso(iso); }
 QString PlayerController::fullTimeText(const QString& iso) const { return TimeFormat::fullIso(iso); }
 QString PlayerController::formatFingerprint(const QString& fp) { return HubPresenter::formatFingerprint(fp); }

@@ -335,7 +335,8 @@ Item {
                 GameView {
                     session: root.player.gameSession
                     objectName: "gameViewMulti"
-                    layout: root.ctl.screenLayout
+                    layout: root.ctl.viewLayout
+                    swap: root.ctl.viewSwap
                     strictInteger: root.ctl.integerScale
                     aspectRatio: root.ctl.aspectRatio
                     Component.onCompleted: root.localReady(this)
@@ -349,6 +350,7 @@ Item {
                     controller: root.ctl
                     surfaceId: tile.modelData
                     layout: root.ctl.screenLayout
+                    swap: root.ctl.screenSwap
                 }
             }
 
