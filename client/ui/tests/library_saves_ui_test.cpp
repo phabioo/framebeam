@@ -261,16 +261,16 @@ class LibrarySavesUiTest : public QObject {
       QVERIFY(s.libraryReadyFirst());
     }
     // The "Ready" chip: every result is ready, the toggle is disabled and no divider is shown
-    QVERIFY(h.click("filterReady"));
+    lib->setFilter(QStringLiteral("ready"));
     QTRY_VERIFY(!shown(h, "notReadyDivider"));
     QVERIFY(!h.item("readyFirstToggle")->isEnabled());
     QCOMPARE(textOf(h, "libraryCount"), QStringLiteral("3 of 5 games"));
-    QVERIFY(h.click("filterAll"));
+    lib->setFilter(QStringLiteral("all"));
     QTRY_VERIFY(shown(h, "notReadyDivider"));
     QVERIFY(h.item("readyFirstToggle")->isEnabled());
 
     // Search + chip -> empty result with the hint and both actions (decision ac for the count)
-    QVERIFY(h.click("filterDownload"));  // g2, g5
+    lib->setFilter(QStringLiteral("download"));  // g2, g5
     QVERIFY(h.item("searchField")->setProperty("text", QStringLiteral("moon")));
     QTRY_VERIFY(shown(h, "libraryEmptyText"));
     QCOMPARE(titleOf(h, "libraryEmptyText"), QStringLiteral("No games not downloaded match “moon”"));

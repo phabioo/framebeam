@@ -134,44 +134,6 @@ Rectangle {
                 color: Theme.muted
             }
 
-            // Collections (3c-0, Uzume 0.19): "All · 10", "Favourites · 3", one chip per collection and "+ Collection". The menu of the
-            // open collection (Rename..., Delete collection...) sits at the end of the row. Hidden on a server without collections.
-            Flow {
-                id: collectionRow
-                objectName: "collectionChips"
-                visible: root.player.library.personalSupported
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                spacing: Theme.space1
-                Repeater {
-                    model: root.player.library.collectionChips
-                    delegate: UzChip {
-                        required property var modelData
-                        objectName: "collection_" + modelData.value
-                        text: modelData.label
-                        count: modelData.count
-                        maxWidth: Math.max(120, collectionRow.width)
-                        active: root.player.library.collectionFilter === modelData.value
-                        onClicked: root.player.library.collectionFilter = modelData.value
-                    }
-                }
-                UzChip {
-                    objectName: "collectionNew"
-                    text: qsTr("+ Collection")
-                    onClicked: collectionDialogs.openNew("")
-                }
-                UzIconButton {
-                    id: collectionMore
-                    objectName: "collectionMenuButton"
-                    visible: !["all", "favorites"].includes(root.player.library.collectionFilter)
-                    height: Theme.row28
-                    width: Theme.row28
-                    glyph: "more"
-                    on: collectionMenu.opened
-                    Accessible.name: qsTr("Collection menu")
-                    onClicked: collectionMenu.openFor(collectionMore)
-                }
-            }
             UzMenu {
                 id: collectionMenu
                 objectName: "collectionMenu"
@@ -183,7 +145,7 @@ Rectangle {
                 }
             }
 
-            // Filter chips with counts ("All · 10"), sort and "Ready first" on the same row; they wrap under the chips in a
+            // Collection chips, status select, sort and "Ready first" on the same row; they wrap under the chips in a
             // narrow column (3c-6). The count of the result is not repeated as text (P11).
             Item {
                 id: toolbar
@@ -200,37 +162,65 @@ Rectangle {
                     return w + Math.max(0, n - 1) * Theme.space1
                 }
                 // Sort + "Ready first" side by side; in a narrow toolbar they wrap into two lines when they do not fit
-                readonly property real controlsNatural: sortControl.implicitWidth + controls.spacing + readyFirst.implicitWidth
+                readonly property real controlsNatural: statusSelect.implicitWidth + sortControl.implicitWidth + readyFirst.implicitWidth + 2 * controls.spacing
                 readonly property bool narrow: width < chipsNatural + controlsNatural + 24
-                implicitHeight: narrow ? chipRow.height + Theme.space1 + controls.height : Math.max(Theme.row36, chipRow.height)
+                implicitHeight: narrow ? (chipRow.visible ? chipRow.height + Theme.space1 : 0) + controls.height : Math.max(Theme.row36, chipRow.visible ? chipRow.height : 0)
+                // Collections (3c-0, Uzume 0.19): "All · 10", "Favourites · 3", one chip per collection and "+ Collection"; the menu of
+                // the open collection (Rename..., Delete collection...) ends the row. Hidden on a server without collections.
                 Flow {
                     id: chipRow
-                    objectName: "filterChips"
+                    objectName: "collectionChips"
+                    visible: root.player.library.personalSupported
                     width: toolbar.width
                     spacing: Theme.space1
                     Repeater {
-                        model: [
-                            { name: "filterAll", value: "all", label: qsTr("All") },
-                            { name: "filterReady", value: "ready", label: qsTr("Ready") },
-                            { name: "filterAttention", value: "attention", label: qsTr("Needs attention") },
-                            { name: "filterDownload", value: "download", label: qsTr("Not downloaded") }
-                        ]
+                        model: root.player.library.collectionChips
                         delegate: UzChip {
                             required property var modelData
-                            objectName: modelData.name
+                            objectName: "collection_" + modelData.value
                             text: modelData.label
-                            count: root.player.library.counts[modelData.value]
-                            active: root.player.library.filter === modelData.value
-                            onClicked: root.player.library.filter = modelData.value
+                            count: modelData.count
+                            maxWidth: Math.max(120, chipRow.width)
+                            active: root.player.library.collectionFilter === modelData.value
+                            onClicked: root.player.library.collectionFilter = modelData.value
                         }
+                    }
+                    UzChip {
+                        objectName: "collectionNew"
+                        text: qsTr("+ Collection")
+                        onClicked: collectionDialogs.openNew("")
+                    }
+                    UzIconButton {
+                        id: collectionMore
+                        objectName: "collectionMenuButton"
+                        visible: !["all", "favorites"].includes(root.player.library.collectionFilter)
+                        height: Theme.row28
+                        width: Theme.row28
+                        glyph: "more"
+                        on: collectionMenu.opened
+                        Accessible.name: qsTr("Collection menu")
+                        onClicked: collectionMenu.openFor(collectionMore)
                     }
                 }
                 Flow {
                     id: controls
                     width: toolbar.narrow ? toolbar.width : toolbar.controlsNatural
                     spacing: Theme.space2
-                    y: toolbar.narrow ? chipRow.height + Theme.space1 : 0
+                    y: toolbar.narrow && chipRow.visible ? chipRow.height + Theme.space1 : 0
                     x: toolbar.narrow ? 0 : toolbar.width - width
+                    UzSelect {
+                        id: statusSelect
+                        objectName: "statusSelect"
+                        implicitWidth: 190
+                        height: Theme.row36
+                        Accessible.name: qsTr("Status")
+                        current: root.player.library.filter
+                        // The closed field reads "Status: Ready · 3"; the counts follow the search.
+                        model: [["all", qsTr("All")], ["ready", qsTr("Ready")], ["attention", qsTr("Needs attention")], ["download", qsTr("Not downloaded")]].map(o => ({
+                            value: o[0],
+                            label: (o[0] === root.player.library.filter ? qsTr("Status: ") : "") + o[1] + " · " + root.player.library.counts[o[0]] }))
+                        onPicked: (value) => root.player.library.filter = value
+                    }
                     SortControl {
                         id: sortControl
                         current: root.player.library.sortKey

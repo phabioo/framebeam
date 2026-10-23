@@ -410,7 +410,7 @@ QString LibraryModel::playedDateText(qint64 msecs, const QDate& today) {
 QVariantList LibraryModel::continueEntriesAt(const QDate& today) const {
   QList<QPair<qint64, const Item*>> played;
   for (const Item& it : items_) {
-    const qint64 at = lastPlayed_.value(it.game.id, 0);
+    const qint64 at = lastPlayedOf(it);  // newer of the server's and this device's
     if (at > 0) played.append({at, &it});
   }
   std::stable_sort(played.begin(), played.end(), [](const auto& a, const auto& b) {
@@ -464,6 +464,7 @@ void LibraryModel::afterPersonalChange() {
     emit dataChanged(index(0), index(static_cast<int>(visible_.size()) - 1));
   }
   emit countChanged();
+  emit continueChanged();
   emit collectionsChanged();
 }
 

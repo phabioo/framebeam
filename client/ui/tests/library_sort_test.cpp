@@ -415,6 +415,32 @@ class LibrarySortTest : public QObject {
              QDateTime(QDate(2026, 10, 24), QTime(9, 0), Qt::UTC).toMSecsSinceEpoch());
   }
 
+  // The Continue block uses the merged last played: a game played on another PC (server only) shows, and a server update
+  // (the reload after a game) announces it.
+  void continueUsesServerLastPlayed() {
+    LibraryModel m;
+    fill(m);
+    QSignalSpy spy(&m, &LibraryModel::continueChanged);
+    QVERIFY(m.continueEntriesAt(QDate(2026, 10, 23)).isEmpty());  // nothing played anywhere
+    QList<GameEntry> games;
+    for (int i = 0; i < m.rowCount(); ++i) games.append(*m.game(m.data(m.index(i, 0), LibraryModel::GameIdRole).toString()));
+    for (GameEntry& g : games) {
+      if (g.id == QLatin1String("a3")) {
+        g.personal.known = true;
+        g.personal.lastPlayedAt = QStringLiteral("2026-10-22T12:00:00Z");
+      }
+    }
+    spy.clear();
+    m.setGames(games, [](const GameEntry&) { return st(RomState::Ready); });
+    QVERIFY(spy.count() >= 1);
+    const QVariantList e = m.continueEntriesAt(QDate(2026, 10, 23));
+    QCOMPARE(e.size(), 1);
+    QCOMPARE(e.first().toMap().value("gameId").toString(), QStringLiteral("a3"));
+    // A newer local play comes first
+    m.noteLastPlayed(QStringLiteral("a1"), QDateTime(QDate(2026, 10, 23), QTime(9, 0), Qt::UTC).toMSecsSinceEpoch());
+    QCOMPARE(m.continueEntriesAt(QDate(2026, 10, 23)).first().toMap().value("gameId").toString(), QStringLiteral("a1"));
+  }
+
   void sortByPlayTimeAndPlayedFallsBackToName() {
     LibraryModel m;
     fillPersonal(m);
