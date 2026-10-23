@@ -288,9 +288,9 @@ func TestRetentionKeepsVersionsOfOpenConflicts(t *testing.T) {
 func TestRestoreFromWebRecordsWebDevice(t *testing.T) {
 	e, _ := newComfortEnv(t, nil)
 	e.put(e.devA, 0, []byte("one"), hub.SyncFinalSessionEnd)
-	sl, err := e.svc.RestoreSaveVersion(ctx, hub.RestoreInput{UserID: e.user.ID, DeviceID: hub.WebDeviceID(e.user.ID), GameID: e.game.ID,
+	sl, err := e.svc.RestoreSaveVersion(ctx, hub.RestoreInput{UserID: e.user.ID, DeviceID: hub.AdminDeviceID(e.user.ID), GameID: e.game.ID,
 		Slot: "default", Version: 1, ExpectedRevision: 1})
-	if err != nil || sl.Current.DeviceName != "Server web interface" {
+	if err != nil || sl.Current.DeviceName != "Server admin" {
 		t.Fatalf("%+v %v", sl.Current, err)
 	}
 }
@@ -362,7 +362,7 @@ func TestDeleteSaveVersionDropsUnreferencedFile(t *testing.T) {
 func TestCreateSaveSlot(t *testing.T) {
 	e, _ := newComfortEnv(t, nil)
 	e.put(e.devA, 0, []byte("one"), hub.SyncCheckpoint)
-	u, g, web := e.user.ID, e.game.ID, hub.WebDeviceID(e.user.ID)
+	u, g, web := e.user.ID, e.game.ID, hub.AdminDeviceID(e.user.ID)
 	sl, err := e.svc.CreateSaveSlot(ctx, u, g, "default", "speedrun", web)
 	if err != nil {
 		t.Fatal(err)

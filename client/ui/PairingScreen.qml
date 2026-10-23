@@ -13,7 +13,7 @@ Rectangle {
     // A Hub this device knew (it connected before) that no longer has this device's pairing.
     readonly property bool pairAgain: info.pairAgain === true
     // Approval step is ready for input (request approval or redeem an invite)
-    // "Set up a Hub on this PC": the Hub on this PC pairs the Player with an admin sign-in instead of an approval.
+    // "Set up a server on this PC": the Hub on this PC pairs the Player with an admin sign-in instead of an approval.
     readonly property var local: player.localHub
     readonly property bool localForm: local.phase === "needsSetup" || local.phase === "needsSignIn" || local.phase === "working"
     readonly property bool canChoose: !root.localForm && (root.phase === "needsPairing" || root.phase === "denied" || root.phase === "expired")

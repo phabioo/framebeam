@@ -851,7 +851,7 @@ class SaveSyncTest : public QObject {
 
   void conflictResolvedElsewhereClearsTheLocalMarker() {
     makeOpenConflict();
-    hub_->saves[kGame].conflicts[0].status = QStringLiteral("resolved_hub");  // e.g. in the Hub web interface
+    hub_->saves[kGame].conflicts[0].status = QStringLiteral("resolved_hub");  // e.g. in the server admin
     QCOMPARE(loadConflict().kind, SaveSync::SlotConflict::Outcome::None);
     QVERIFY(SaveStore::loadState(gdir()).conflictId.isEmpty());
     QVERIFY(sync_->kind(kGame) != SaveSync::Kind::Conflict);
@@ -1050,8 +1050,8 @@ class SaveSyncTest : public QObject {
     QCOMPARE(spy.count(), 1);
     QVERIFY(!spy.at(0).at(1).toBool());
     sync_->beginSession();
-    u.deviceId = QStringLiteral("00000000-0000-0000-0000-000000000000");  // Hub web interface, any reason string
-    u.deviceName = QStringLiteral("Server web interface");
+    u.deviceId = QStringLiteral("00000000-0000-0000-0000-000000000000");  // server admin, any reason string
+    u.deviceName = QStringLiteral("Server admin");
     u.reason = QStringLiteral("conflict_resolution");
     sync_->handleSaveUpdate(u);
     QCOMPARE(spy.count(), 2);

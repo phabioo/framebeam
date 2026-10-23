@@ -51,7 +51,7 @@ func adminStatusBody(st statusinfo.Status) api.AdminStatus {
 			sev = api.AdminProblemSeverityError
 		}
 		out.Problems = append(out.Problems, api.AdminProblem{Id: p.ID, Title: p.Title, Detail: p.Detail, Severity: sev,
-			ActionLabel: strPtr(p.ActionLabel), ActionHref: strPtr(p.ActionHref)})
+			ActionLabel: strPtr(p.ActionLabel)})
 	}
 	if st.CPUOK {
 		c := float32(st.CPUPercent)

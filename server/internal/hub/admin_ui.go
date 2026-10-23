@@ -90,9 +90,6 @@ func (s *Service) SetUserRole(ctx context.Context, actorID, userID string, role 
 		if _, err := tx.ExecContext(ctx, `UPDATE users SET role = 'user' WHERE id = ?`, userID); err != nil {
 			return internal(err)
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM web_sessions WHERE user_id = ?`, userID); err != nil {
-			return internal(err)
-		}
 		return internal2(tx.Commit())
 	}
 	return badRequest("role must be admin or user")

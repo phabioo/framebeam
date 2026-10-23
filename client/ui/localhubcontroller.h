@@ -1,5 +1,5 @@
 #pragma once
-// LocalHubController: "Set up a Hub on this PC" (0.9 "One installer"). Installs the Hub when none is registered
+// LocalHubController: "Set up a server on this PC" (0.9 "One installer"). Installs the Hub when none is registered
 // (Windows MSI), connects to the Hub on this PC over loopback (its self-signed certificate is trusted automatically for
 // exactly this address), creates the first Hub admin or signs in as an existing admin, and edits the Hub's local
 // settings (network sharing, ROM folder) afterwards.
@@ -187,7 +187,7 @@ class LocalHubController : public QObject {
   // Child on the data of the former service: elevated `sharing start`, mode "service".
   Q_INVOKABLE void shareAgain();
 
-  // Button "Set up a Hub on this PC" (also `--setup-local-hub` after the MSI install).
+  // Button "Set up a server on this PC" (also `--setup-local-hub` after the MSI install).
   Q_INVOKABLE void start();
   // Like start(), but waits up to ~30 s for the freshly installed Hub service (`--setup-local-hub`).
   Q_INVOKABLE void startAfterInstall();
@@ -277,7 +277,7 @@ class LocalHubController : public QObject {
   localhub::Info info_;
   int retries_ = 0;
   bool setupForm_ = false;  // the last form was "Create the Hub admin"
-  bool active_ = false;  // a "Set up a Hub on this PC" attempt is running: its loopback address is trusted automatically
+  bool active_ = false;  // a "Set up a server on this PC" attempt is running: its loopback address is trusted automatically
   QString phase_ = QStringLiteral("idle");
   QString error_;
   bool networkSharing_ = false;

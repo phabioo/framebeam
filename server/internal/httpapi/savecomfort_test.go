@@ -165,13 +165,13 @@ func TestSaveUpdatedPush(t *testing.T) {
 
 	// A change made in the app goes to every connected device of the user, with the nil device.
 	settleAll()
-	if _, err := s.svc.RestoreSaveVersion(context.Background(), hub.RestoreInput{UserID: s.admin.ID, DeviceID: hub.WebDeviceID(s.admin.ID),
+	if _, err := s.svc.RestoreSaveVersion(context.Background(), hub.RestoreInput{UserID: s.admin.ID, DeviceID: hub.AdminDeviceID(s.admin.ID),
 		GameID: s.game.ID, Slot: "default", Version: 1, ExpectedRevision: 4}); err != nil {
 		t.Fatal(err)
 	}
 	for _, w := range []*wsClient{w1, w2} {
 		p = await(w)
-		if p.Revision != 5 || p.Reason != "restore" || p.DeviceID != "00000000-0000-0000-0000-000000000000" || p.DeviceName != "Server web interface" {
+		if p.Revision != 5 || p.Reason != "restore" || p.DeviceID != "00000000-0000-0000-0000-000000000000" || p.DeviceName != "Server admin" {
 			t.Fatalf("%+v", p)
 		}
 	}

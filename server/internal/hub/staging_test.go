@@ -68,7 +68,7 @@ func TestNewSlotNameRejectsWindowsReserved(t *testing.T) {
 	}
 	e, _ := newComfortEnv(t, nil)
 	e.put(e.devA, 0, []byte("one"), hub.SyncCheckpoint)
-	if _, err := e.svc.CreateSaveSlot(ctx, e.user.ID, e.game.ID, "default", "nul", hub.WebDeviceID(e.user.ID)); err == nil {
+	if _, err := e.svc.CreateSaveSlot(ctx, e.user.ID, e.game.ID, "default", "nul", hub.AdminDeviceID(e.user.ID)); err == nil {
 		t.Fatal("reserved slot created")
 	}
 }
