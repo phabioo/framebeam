@@ -1261,11 +1261,13 @@ class EmulationControllersTest : public QObject {
     QVERIFY(h.click("tabHotkeys"));
     QVERIFY(visible(h, "hotkeysInfo"));
     QCOMPARE(text(h, "hotkeysInfo"), QStringLiteral("Uzume hotkeys work on the keyboard and on a gamepad (hold the hotkey button, then press another one) and are never sent to the game."));
-    QCOMPARE(c->hotkeyRows().size(), 8);  // seven actions + the fixed Esc row
+    QCOMPARE(c->hotkeyRows().size(), 9);  // eight actions + the fixed Esc row
     QCOMPARE(text(h, "hotkeyText_fullscreen"), QStringLiteral("F11"));
     QCOMPARE(text(h, "hotkeyText_diagnostics"), QStringLiteral("F3"));
     QCOMPARE(text(h, "hotkeyText_snapshot"), QStringLiteral("F5"));
     QCOMPARE(text(h, "hotkeyText_escape"), QStringLiteral("Esc"));
+    QCOMPARE(text(h, "hotkeyText_screenshot"), QStringLiteral("F12"));
+    QCOMPARE(text(h, "hotkeyPadText_screenshot"), QStringLiteral("Select+Y"));
     QCOMPARE(text(h, "hotkeyPadText_fullscreen"), QStringLiteral("Select+B"));  // Uzume hotkeys get gamepad defaults (P36, design 9b-1)
     QCOMPARE(text(h, "hotkeyPadText_diagnostics"), QStringLiteral("Select+R3"));
     QCOMPARE(text(h, "hotkeyPadText_snapshot"), QStringLiteral("Select+LB"));

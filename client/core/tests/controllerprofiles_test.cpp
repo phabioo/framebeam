@@ -96,7 +96,7 @@ class ControllerProfilesTest : public QObject {
   void hotkeyDefaultsAndConflicts() {
     QTemporaryDir dir;
     ControllerProfiles p(dir.path());
-    QCOMPARE(hotkeyDefs().size(), 7);
+    QCOMPARE(hotkeyDefs().size(), 8);
     // Audio hotkeys (0.19): +, -, M and Select + D-pad up / down / X; no key or button is used twice.
     QCOMPARE(p.hotkey(QStringLiteral("volumeUp")), int(Qt::Key_Plus));
     QCOMPARE(p.hotkey(QStringLiteral("volumeDown")), int(Qt::Key_Minus));
@@ -104,6 +104,17 @@ class ControllerProfilesTest : public QObject {
     QCOMPARE(p.padHotkey(QStringLiteral("volumeUp")), QStringLiteral("pad:dpup"));
     QCOMPARE(p.padHotkey(QStringLiteral("volumeDown")), QStringLiteral("pad:dpdown"));
     QCOMPARE(p.padHotkey(QStringLiteral("mute")), QStringLiteral("pad:x"));
+    QCOMPARE(p.hotkey(QStringLiteral("screenshot")), int(Qt::Key_F12));
+    QCOMPARE(p.padHotkey(QStringLiteral("screenshot")), QStringLiteral("pad:y"));
+    // No default shares a key or a pad button with another one.
+    QSet<int> keys;
+    QSet<QString> pads;
+    for (const HotkeyDef& d : hotkeyDefs()) {
+      QVERIFY2(!keys.contains(d.defaultKey), qPrintable(d.id));
+      QVERIFY2(!pads.contains(d.defaultPad), qPrintable(d.id));
+      keys.insert(d.defaultKey);
+      pads.insert(d.defaultPad);
+    }
     {
       QSet<int> keys;
       QSet<QString> pads;

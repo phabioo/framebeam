@@ -44,6 +44,8 @@ qt_add_qml_module(uzume_ui
     keyedrowsmodel.h keyedrowsmodel.cpp
     runscontroller.h runscontroller.cpp
     personalcontroller.h personalcontroller.cpp
+    screenshotcontroller.h screenshotcontroller.cpp
+    screenshotimageprovider.h screenshotimageprovider.cpp
     connectioncheckcontroller.h connectioncheckcontroller.cpp
     onboardingcontroller.h onboardingcontroller.cpp
     accountscontroller.h accountscontroller.cpp
@@ -235,6 +237,9 @@ qt_add_qml_module(uzume_ui
     AdminPeople.qml
     AdminAskDialog.qml
     CollectionDialogs.qml
+    ScreenshotStrip.qml
+    ScreenshotViewer.qml
+    ScreenshotSaveDialog.qml
     LibraryAdminBar.qml
     LibraryContinue.qml
     LibraryAdminDetails.qml

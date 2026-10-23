@@ -743,6 +743,8 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
   } else if (req.path == QLatin1String("/api/v1/sessions") || req.path.startsWith(QLatin1String("/api/v1/sessions/")) ||
              req.path == QLatin1String("/api/v1/users")) {
     handleSessions(sock, req);
+  } else if (req.path.startsWith(QLatin1String("/api/v1/runs/")) && req.path.contains(QLatin1String("/screenshots")) && handleScreenshots(sock, req)) {
+    // answered
   } else if (req.path == QLatin1String("/api/v1/runs") || req.path.startsWith(QLatin1String("/api/v1/runs/"))) {
     handleRuns(sock, req);
   } else if (req.method == "POST" && req.path == QLatin1String("/api/v1/reports")) {
@@ -807,6 +809,8 @@ void FakeHub::handle(QSslSocket* sock, const FakeRequest& req) {
     respond(sock, 201, json({{QStringLiteral("id"), reports.size()}}));
   } else if (req.path == QLatin1String("/api/v1/account") || req.path.startsWith(QLatin1String("/api/v1/account/"))) {
     handleAccount(sock, req);
+  } else if (handleScreenshots(sock, req)) {
+    // answered
   } else if (handleLocalRoms(sock, req)) {
     // answered
   } else if (handleCollections(sock, req)) {
@@ -2263,6 +2267,105 @@ bool FakeHub::handleCollections(QSslSocket* sock, const FakeRequest& req) {
     if (req.method == "PUT") ids.append(parts.at(2));
     c.insert(QStringLiteral("game_ids"), QJsonArray::fromStringList(ids));
     collections.replace(at, c);
+    respond(sock, 204, {});
+  } else {
+    respondError(sock, 405, QStringLiteral("method_not_allowed"));
+  }
+  return true;
+}
+
+// Screenshots (Uzume 0.19): POST/GET /games/{id}/screenshots, GET /runs/{id}/screenshots, GET /screenshots/{id}/content, DELETE
+// /screenshots/{id}. The caller is the paired fake person (u_test_1, "Tester").
+bool FakeHub::handleScreenshots(QSslSocket* sock, const FakeRequest& req) {
+  static const QString kGames = QStringLiteral("/api/v1/games/");
+  static const QString kRuns = QStringLiteral("/api/v1/runs/");
+  static const QString kShots = QStringLiteral("/api/v1/screenshots/");
+  const QString path = req.path.left(req.path.indexOf(QLatin1Char('?')) < 0 ? req.path.size() : req.path.indexOf(QLatin1Char('?')));
+  const bool gameRoute = path.startsWith(kGames) && path.endsWith(QLatin1String("/screenshots"));
+  const bool runRoute = path.startsWith(kRuns) && path.endsWith(QLatin1String("/screenshots"));
+  const bool shotRoute = path.startsWith(kShots);
+  if (!gameRoute && !runRoute && !shotRoute) {
+    return false;
+  }
+  if (screenshotsUnsupported) {
+    respondError(sock, 404, QStringLiteral("not_found"));
+    return true;
+  }
+  const auto json = [](const QJsonObject& o) { return QJsonDocument(o).toJson(QJsonDocument::Compact); };
+  const auto listOf = [&](const std::function<bool(const QJsonObject&)>& match) {
+    QJsonArray arr;
+    qint64 total = 0;
+    for (qsizetype i = screenshots.size() - 1; i >= 0; --i) {  // newest first
+      const QJsonObject m = screenshots.at(i).meta;
+      if (!match(m)) continue;
+      arr.append(m);
+      total += screenshots.at(i).png.size();
+    }
+    return json({{QStringLiteral("screenshots"), arr}, {QStringLiteral("total_bytes"), double(total)}});
+  };
+  if (gameRoute) {
+    const QString gameId = path.mid(kGames.size()).chopped(QStringLiteral("/screenshots").size());
+    if (req.method == "GET") {
+      respond(sock, 200, listOf([&](const QJsonObject& m) {
+        return m.value(QStringLiteral("game_id")).toString() == gameId && m.value(QStringLiteral("user_id")).toString() == QLatin1String("u_test_1");
+      }));
+    } else if (req.method == "POST") {
+      if (screenshotFailNext > 0) {
+        --screenshotFailNext;
+        respondError(sock, 503, QStringLiteral("unavailable"));
+        return true;
+      }
+      if (req.body.size() > screenshotMaxBytes) {
+        respondError(sock, 413, QStringLiteral("payload_too_large"));
+        return true;
+      }
+      // PNG signature and the IHDR size (no image library in the network tests)
+      const auto be32 = [&](int at) {
+        return (quint32(quint8(req.body.at(at))) << 24) | (quint32(quint8(req.body.at(at + 1))) << 16) | (quint32(quint8(req.body.at(at + 2))) << 8) |
+               quint32(quint8(req.body.at(at + 3)));
+      };
+      if (req.body.size() < 24 || !req.body.startsWith(QByteArray("\x89PNG\r\n\x1a\n", 8))) {
+        respondError(sock, 400, QStringLiteral("invalid_image"));
+        return true;
+      }
+      const QUrlQuery q(req.path.contains(QLatin1Char('?')) ? req.path.mid(req.path.indexOf(QLatin1Char('?')) + 1) : QString());
+      const QString runId = q.queryItemValue(QStringLiteral("run_id"));
+      FakeScreenshot s;
+      s.png = req.body;
+      s.meta = QJsonObject{{QStringLiteral("id"), QStringLiteral("s%1").arg(++screenshotSeq_)},
+                           {QStringLiteral("game_id"), gameId},
+                           {QStringLiteral("run_id"), runId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(runId)},
+                           {QStringLiteral("user_id"), QStringLiteral("u_test_1")},
+                           {QStringLiteral("user_name"), QStringLiteral("Tester")},
+                           {QStringLiteral("created_at"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
+                           {QStringLiteral("width"), int(be32(16))},
+                           {QStringLiteral("height"), int(be32(20))},
+                           {QStringLiteral("size_bytes"), double(req.body.size())}};
+      screenshots.append(s);
+      respond(sock, 201, json(s.meta));
+    } else {
+      respondError(sock, 405, QStringLiteral("method_not_allowed"));
+    }
+    return true;
+  }
+  if (runRoute) {
+    const QString runId = QUrl::fromPercentEncoding(path.mid(kRuns.size()).chopped(QStringLiteral("/screenshots").size()).toUtf8());
+    respond(sock, 200, listOf([&](const QJsonObject& m) { return m.value(QStringLiteral("run_id")).toString() == runId; }));
+    return true;
+  }
+  QString rest = path.mid(kShots.size());
+  const bool content = rest.endsWith(QLatin1String("/content"));
+  if (content) rest.chop(QStringLiteral("/content").size());
+  qsizetype at = -1;
+  for (qsizetype i = 0; i < screenshots.size(); ++i) {
+    if (screenshots.at(i).meta.value(QStringLiteral("id")).toString() == rest) at = i;
+  }
+  if (at < 0) {
+    respondError(sock, 404, QStringLiteral("not_found"));
+  } else if (content && req.method == "GET") {
+    respond(sock, 200, screenshots.at(at).png, "image/png");
+  } else if (!content && req.method == "DELETE") {
+    screenshots.removeAt(at);
     respond(sock, 204, {});
   } else {
     respondError(sock, 405, QStringLiteral("method_not_allowed"));

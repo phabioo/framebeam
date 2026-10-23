@@ -298,6 +298,19 @@ class FakeHub : public QTcpServer {
   int collectionFailNext = 0;           // next N collection / favourite changes answer 503
   bool handleCollections(QSslSocket* sock, const FakeRequest& req);
 
+  // Screenshots (Uzume 0.19): POST/GET /games/{id}/screenshots (own), GET /runs/{id}/screenshots, GET /screenshots/{id}/content,
+  // DELETE /screenshots/{id}. In-memory, the caller is u_test_1 "Tester". A body that is no PNG answers 400 invalid_image, one over
+  // `screenshotMaxBytes` 413 payload_too_large.
+  struct FakeScreenshot {
+    QJsonObject meta;  // as served
+    QByteArray png;
+  };
+  QList<FakeScreenshot> screenshots;  // oldest first
+  bool screenshotsUnsupported = true;  // the routes answer 404 (a server before 0.19); tests of 0.19 turn it off
+  int screenshotFailNext = 0;          // next N uploads answer 503
+  qint64 screenshotMaxBytes = 16ll * 1024 * 1024;
+  bool handleScreenshots(QSslSocket* sock, const FakeRequest& req);
+
   // Observation
   QList<FakeRequest> requests;
   int count(const QString& pathPrefix) const;
@@ -360,5 +373,6 @@ class FakeHub : public QTcpServer {
   QDateTime confirmLockedUntil_;
   int confirmWrong_ = 0;
   int tokenRequests_ = 0;
+  int screenshotSeq_ = 0;
   bool truncated_ = false;
 };

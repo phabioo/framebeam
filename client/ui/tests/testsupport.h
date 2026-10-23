@@ -237,6 +237,7 @@ struct Harness {
     controller->connection()->setPollIntervalMs(80);
     engine = std::make_unique<QQmlApplicationEngine>();
     engine->addImportPath(QStringLiteral("qrc:/qt/qml"));
+    engine->addImageProvider(QStringLiteral("screenshots"), controller->createScreenshotImageProvider());
     engine->setInitialProperties({{QStringLiteral("player"), QVariant::fromValue(controller.get())}});
     engine->load(QUrl(QStringLiteral("qrc:/qt/qml/Uzume/App/Main.qml")));
     if (engine->rootObjects().isEmpty()) {

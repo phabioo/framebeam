@@ -146,6 +146,8 @@ Rectangle {
                         it.push({ label: qsTr("Speed-up speed: %1×").arg(r[i]), hint: cur(Math.abs(root.session.fastForwardRatio - Number(r[i])) < 0.001), name: "speed_" + r[i] })
                 }
             }
+            if (root.own && root.session.active)
+                it.push({ label: qsTr("Take screenshot"), shortcut: root.key(root.hotkeys.screenshot), name: "screenshot" })
             it.push({ label: qsTr("Fullscreen"), shortcut: root.key(root.hotkeys.fullscreen), name: "fullscreen" })
             it.push({ label: root.diag.open ? qsTr("Hide diagnostics") : qsTr("Diagnostics"), shortcut: root.key(root.hotkeys.diagnostics), name: "diagnostics" })
             if (root.own) {
@@ -169,6 +171,7 @@ Rectangle {
         else if (name === "multiview") root.ctl.tab = "multiview"
         else if (name.indexOf("layout_") === 0) root.ctl.screenLayout = name.substring(7)
         else if (name.indexOf("speed_") === 0) root.session.fastForwardRatio = Number(name.substring(6))
+        else if (name === "screenshot") root.player.screenshots.capture()
         else if (name === "fullscreen") root.fullscreenRequested()
         else if (name === "diagnostics") root.diag.toggle()
         else if (name === "reset") root.resetRequested()

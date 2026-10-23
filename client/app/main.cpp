@@ -263,6 +263,7 @@ int main(int argc, char* argv[]) {
   QQmlApplicationEngine engine;
   engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
   engine.addImageProvider(QStringLiteral("fbplugin"), new uzume::ui::PluginImageProvider(controller.plugins()->imageSources()));
+  engine.addImageProvider(QStringLiteral("screenshots"), controller.createScreenshotImageProvider());
   engine.setInitialProperties({{QStringLiteral("player"), QVariant::fromValue(&controller)}});
   engine.load(QUrl(QStringLiteral("qrc:/qt/qml/Uzume/App/Main.qml")));
   if (engine.rootObjects().isEmpty()) {
