@@ -54,6 +54,11 @@ case "$1" in
       fi
       systemctl start uzume-server-update.path || true
     fi
+    # First install: how to set the server up (design 8h-1). Upgrades stay quiet.
+    if [ -z "$2" ]; then
+      echo "uzume-server: installed. Set it up from Uzume on another PC (Set up a server > On another device):"
+      echo "uzume-server:   sudo uzume-server status   shows the address, security code and setup code"
+    fi
     ;;
   abort-upgrade|abort-remove|abort-deconfigure)
     ;;

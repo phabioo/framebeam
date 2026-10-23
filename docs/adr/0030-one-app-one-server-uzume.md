@@ -104,6 +104,7 @@ Consequences:
 - **Only on this PC** replaces the standalone mode of ADR 0021 D7: the app starts the server as a child process on loopback, per user, with data in the user's folder, without a service and without UAC.
 - **Share with others** turns it into the system service once (one UAC prompt, data moved, never overwritten); **Stop sharing** returns to "On this PC" and keeps accounts and saves.
 - The MSI keeps the UpgradeCode, so it replaces an installed FrameBeam product. It does not take over data: a FrameBeam install is not migrated (amendment of D1).
+- Amendment (package 11, 2026-10-23), as built: the MSI shows the three options as "Uzume", "Uzume with a server on this PC" and "Only the server" (design 8l). The app package always carries the server program (`bin\uzume-server.exe`) for "Only on this PC"; a server install adds the service copy in `Program Files\Uzume\Server`. "Share with others" runs the MSI with the server and `IMPORT_SERVER_DATA`, which imports the per-user server data before the service starts. The finish page of a server-only install shows the setup code in an elevated window (the MSI cannot read the administrators-only data folder in its UI). Maintenance has no Change (the scope of an installed product is fixed); Remove can also delete the server data. On Linux only the server is packaged in 0.18 (`uzume-server`, conflicting with `framebeam-hub`); the app package `uzume` comes with the Linux app in 0.23.
 
 ### D7 Runs without a plugin
 
