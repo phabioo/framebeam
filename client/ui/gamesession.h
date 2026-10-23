@@ -217,6 +217,9 @@ class GameSession : public QObject {
   // Multiview: exactly one surface is audible. A muted session keeps running, its audio is dropped.
   void setAudioMuted(bool muted);
   bool audioMuted() const { return audioMuted_; }
+  // Master volume of this PC (AudioController): software gain 0..1 on what this app plays. The Session share is unaffected.
+  void setMasterGain(double gain) { audio_.setVolume(gain); }
+  void setAudioDevice(const QByteArray& id) { audio_.setDeviceId(id); }  // applies on the next start
 
  signals:
   void stateChanged();

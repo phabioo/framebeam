@@ -96,9 +96,28 @@ class ControllerProfilesTest : public QObject {
   void hotkeyDefaultsAndConflicts() {
     QTemporaryDir dir;
     ControllerProfiles p(dir.path());
-    QCOMPARE(hotkeyDefs().size(), 5);
+    QCOMPARE(hotkeyDefs().size(), 8);
     QCOMPARE(p.hotkey(QStringLiteral("layout")), int(Qt::Key_F7));
     QCOMPARE(p.padHotkey(QStringLiteral("layout")), QStringLiteral("pad:dpright"));
+    // Audio hotkeys (0.19): +, -, M and Select + D-pad up / down / X; no key or button is used twice.
+    QCOMPARE(p.hotkey(QStringLiteral("volumeUp")), int(Qt::Key_Plus));
+    QCOMPARE(p.hotkey(QStringLiteral("volumeDown")), int(Qt::Key_Minus));
+    QCOMPARE(p.hotkey(QStringLiteral("mute")), int(Qt::Key_M));
+    QCOMPARE(p.padHotkey(QStringLiteral("volumeUp")), QStringLiteral("pad:dpup"));
+    QCOMPARE(p.padHotkey(QStringLiteral("volumeDown")), QStringLiteral("pad:dpdown"));
+    QCOMPARE(p.padHotkey(QStringLiteral("mute")), QStringLiteral("pad:x"));
+    {
+      QSet<int> keys;
+      QSet<QString> pads;
+      for (const HotkeyDef& d : hotkeyDefs()) {
+        QVERIFY2(!keys.contains(d.defaultKey), qPrintable(d.id));
+        keys.insert(d.defaultKey);
+        if (!d.defaultPad.isEmpty()) {
+          QVERIFY2(!pads.contains(d.defaultPad), qPrintable(d.id));
+          pads.insert(d.defaultPad);
+        }
+      }
+    }
     QCOMPARE(p.hotkey(QStringLiteral("fullscreen")), int(Qt::Key_F11));
     QCOMPARE(p.hotkey(QStringLiteral("diagnostics")), int(Qt::Key_F3));
     QCOMPARE(p.hotkey(QStringLiteral("snapshot")), int(Qt::Key_F5));

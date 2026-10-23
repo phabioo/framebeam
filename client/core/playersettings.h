@@ -154,6 +154,22 @@ class PlayerSettings {
   };
   WindowGeometry bottomWindowGeometry() const;
   bool setBottomWindowGeometry(const WindowGeometry& g);  // invalid removes it
+  // Audio (0.19 stage 1), per PC. Master volume 0..100 % (default 100) and mute apply to everything the app plays; "mute when
+  // in the background" (default on) silences the local game while the window is inactive; volume step 5 or 10 (default 5);
+  // "show volume on screen" (default on); output device id (base64 of QAudioDevice::id(); empty = system default).
+  static constexpr int kDefaultVolume = 100;
+  int audioVolume() const { return audioVolume_; }
+  bool setAudioVolume(int percent);  // clamped to 0..100
+  bool audioMuted() const { return audioMuted_; }
+  bool setAudioMuted(bool muted);
+  bool audioMuteInBackground() const { return audioMuteInBackground_; }
+  bool setAudioMuteInBackground(bool on);
+  int audioVolumeStep() const { return audioVolumeStep_; }
+  bool setAudioVolumeStep(int percent);  // 5 or 10; anything else is rejected (false)
+  bool audioShowVolume() const { return audioShowVolume_; }
+  bool setAudioShowVolume(bool on);
+  QString audioOutputDevice() const { return audioOutputDevice_; }
+  bool setAudioOutputDevice(const QString& id);  // empty = system default
 
   // Visibility of the own shared Session: "private" | "hub_users" | "invite_only"; "" = not chosen yet (the caller's default).
   QString sessionVisibility() const { return sessionVisibility_; }
@@ -187,6 +203,12 @@ class PlayerSettings {
   QString pluginLanguage_ = QStringLiteral("auto");
   bool pluginHudAllHidden_ = false;
   qint64 romCacheLimit_ = kDefaultRomCacheLimitBytes;
+  int audioVolume_ = kDefaultVolume;
+  bool audioMuted_ = false;
+  bool audioMuteInBackground_ = true;
+  int audioVolumeStep_ = 5;
+  bool audioShowVolume_ = true;
+  QString audioOutputDevice_;
 };
 
 }  // namespace uzume

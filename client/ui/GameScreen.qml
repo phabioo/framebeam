@@ -201,6 +201,9 @@ Rectangle {
         else if (action === "layout") root.openLayoutMenu()
         else if (action === "swap") { if (root.screenLayouts.length > 1) root.ctl.chooseScreenSwap(!root.ctl.screenSwap) }
         else if (action === "nextLayout") root.cycleLayout()
+        else if (action === "volumeUp") root.player.audio.volumeUp()
+        else if (action === "volumeDown") root.player.audio.volumeDown()
+        else if (action === "mute") root.player.audio.toggleMute()
         else return false
         return true
     }
@@ -246,7 +249,7 @@ Rectangle {
         if (action !== "") {
             // Shift + the layout key swaps the screens directly
             if (action === "layout" && (e.modifiers & Qt.ShiftModifier)) action = "swap"
-            if (!(action === "speedup" && e.isAutoRepeat)) root.runHotkey(action)
+            if (!e.isAutoRepeat || action === "volumeUp" || action === "volumeDown") root.runHotkey(action)
             e.accepted = true   // the key never reaches the core (GameSession::isReservedKey)
         } else if (e.key === Qt.Key_Escape) {
             if (!e.isAutoRepeat && !root.textFieldFocused()) root.handleEscape()
@@ -417,6 +420,21 @@ Rectangle {
                     z: 12
                     readonly property real maxToastWidth: Math.max(240, playArea.width - 2 * Theme.space3)
 
+                    // Volume by hotkey ("Show volume on screen"): one line that replaces itself and goes after 1.5 s
+                    UzToast {
+                        id: volumeToast
+                        objectName: "volumeToast"
+                        visible: text !== ""
+                        width: Math.min(implicitWidth, toasts.maxToastWidth)
+                        kind: "done"
+                        closable: false
+                        text: ""
+                        Timer { id: volumeToastTimer; interval: 1500; onTriggered: volumeToast.text = "" }
+                        Connections {
+                            target: root.player.audio
+                            function onVolumeNotice(text) { volumeToast.text = text; volumeToastTimer.restart() }
+                        }
+                    }
                     UzToast {
                         objectName: "fastForwardIndicator"
                         visible: root.session.fastForward && !root.session.paused

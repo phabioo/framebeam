@@ -16,6 +16,7 @@
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
+#include "audiocontroller.h"
 #include "connectioncheckcontroller.h"
 #include "controllerscontroller.h"
 #include "core_locator.h"
@@ -119,6 +120,7 @@ class PlayerController : public QObject {
   // Emulation page (3e), Controllers page (3f), applied settings
   Q_PROPERTY(uzume::ui::EmulationController* emulation READ emulation CONSTANT)
   Q_PROPERTY(uzume::ui::ControllersController* controllers READ controllers CONSTANT)
+  Q_PROPERTY(uzume::ui::AudioController* audio READ audio CONSTANT)
   Q_PROPERTY(bool fullscreenOnStart READ fullscreenOnStart NOTIFY emulationSettingsChanged)  // effective Uzume option
   // Sessions (3c list, 3g panel, multiview, diagnostics)
   Q_PROPERTY(uzume::ui::SessionController* sessions READ sessions CONSTANT)
@@ -229,6 +231,7 @@ class PlayerController : public QObject {
   bool collectingDiagnostics() const { return collectingDiagnostics_; }
   EmulationController* emulation() { return emulation_.get(); }
   ControllersController* controllers() { return controllers_.get(); }
+  AudioController* audio() { return audio_.get(); }
   bool fullscreenOnStart() const;
   QString currentSystemId() const;
   QString appearance() const;
@@ -484,6 +487,7 @@ class PlayerController : public QObject {
   std::unique_ptr<SaveHistoryController> history_;  // after saves_/conn_: destroyed first
   std::unique_ptr<EmulationController> emulation_;
   std::unique_ptr<ControllersController> controllers_;
+  std::unique_ptr<AudioController> audio_;  // master volume, mute, background mute (0.19)
   // Helpers (after everything they reference): they read/write the state below through references.
   std::unique_ptr<CoreCatalog> catalog_;
   std::unique_ptr<GameDetail> detail_;

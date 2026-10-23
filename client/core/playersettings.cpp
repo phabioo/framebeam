@@ -11,6 +11,7 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStringList>
+#include <algorithm>
 
 #include "savestore.h"
 
@@ -55,6 +56,12 @@ constexpr const char* kLibraryReadyFirstKey = "library_ready_first";
 constexpr const char* kRomCacheLimitKey = "rom_cache_limit_bytes";
 constexpr const char* kLibraryFoldersKey = "library_folders";
 constexpr const char* kLastPlayedKey = "last_played";  // { hub_id: { game_id: epoch ms } }
+constexpr const char* kAudioVolumeKey = "audio_volume";
+constexpr const char* kAudioMutedKey = "audio_muted";
+constexpr const char* kAudioMuteBgKey = "audio_mute_in_background";
+constexpr const char* kAudioStepKey = "audio_volume_step";
+constexpr const char* kAudioShowVolumeKey = "audio_show_volume";
+constexpr const char* kAudioDeviceKey = "audio_output_device";
 constexpr const char* kSaveSlotsKey = "save_slots";  // { hub_id: { game_id: slot } }
 }
 
@@ -88,6 +95,14 @@ PlayerSettings::PlayerSettings(const QString& baseDir)
   displayName_ = raw_.value(QLatin1String(kDisplayNameKey)).toString();
   if (const QString lang = raw_.value(QLatin1String(kPluginLanguageKey)).toString(); isValidPluginLanguage(lang)) pluginLanguage_ = lang;
   pluginHudAllHidden_ = raw_.value(QLatin1String(kPluginHudAllHiddenKey)).toBool(false);
+  if (const QJsonValue v = raw_.value(QLatin1String(kAudioVolumeKey)); v.isDouble()) {
+    audioVolume_ = std::clamp(static_cast<int>(v.toDouble()), 0, 100);
+  }
+  audioMuted_ = raw_.value(QLatin1String(kAudioMutedKey)).toBool(false);
+  audioMuteInBackground_ = raw_.value(QLatin1String(kAudioMuteBgKey)).toBool(true);
+  if (const int st = raw_.value(QLatin1String(kAudioStepKey)).toInt(5); st == 5 || st == 10) audioVolumeStep_ = st;
+  audioShowVolume_ = raw_.value(QLatin1String(kAudioShowVolumeKey)).toBool(true);
+  audioOutputDevice_ = raw_.value(QLatin1String(kAudioDeviceKey)).toString();
   diagEmulationOpen_ = raw_.value(QLatin1String(kDiagEmulationKey)).toBool(true);
   diagStreamingOpen_ = raw_.value(QLatin1String(kDiagStreamingKey)).toBool(true);
   const QString sort = raw_.value(QLatin1String(kLibrarySortKey)).toString();
@@ -209,6 +224,47 @@ bool PlayerSettings::setDiagnosticsOpen(bool open) {
 bool PlayerSettings::setDeveloperMode(bool on) {
   developerMode_ = on;
   raw_.insert(QLatin1String(kDeveloperModeKey), on);
+  return save();
+}
+
+bool PlayerSettings::setAudioVolume(int percent) {
+  audioVolume_ = std::clamp(percent, 0, 100);
+  raw_.insert(QLatin1String(kAudioVolumeKey), audioVolume_);
+  return save();
+}
+
+bool PlayerSettings::setAudioMuted(bool muted) {
+  audioMuted_ = muted;
+  raw_.insert(QLatin1String(kAudioMutedKey), muted);
+  return save();
+}
+
+bool PlayerSettings::setAudioMuteInBackground(bool on) {
+  audioMuteInBackground_ = on;
+  raw_.insert(QLatin1String(kAudioMuteBgKey), on);
+  return save();
+}
+
+bool PlayerSettings::setAudioVolumeStep(int percent) {
+  if (percent != 5 && percent != 10) return false;
+  audioVolumeStep_ = percent;
+  raw_.insert(QLatin1String(kAudioStepKey), percent);
+  return save();
+}
+
+bool PlayerSettings::setAudioShowVolume(bool on) {
+  audioShowVolume_ = on;
+  raw_.insert(QLatin1String(kAudioShowVolumeKey), on);
+  return save();
+}
+
+bool PlayerSettings::setAudioOutputDevice(const QString& id) {
+  audioOutputDevice_ = id;
+  if (id.isEmpty()) {
+    raw_.remove(QLatin1String(kAudioDeviceKey));
+  } else {
+    raw_.insert(QLatin1String(kAudioDeviceKey), id);
+  }
   return save();
 }
 

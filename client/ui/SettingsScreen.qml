@@ -21,6 +21,7 @@ Rectangle {
         { id: "updates", name: qsTr("Updates") },
         { id: "hubs", name: qsTr("Servers") },
         { id: "appearance", name: qsTr("Appearance") },
+        { id: "audio", name: qsTr("Audio & video") },
         { id: "library", name: qsTr("Library folders") },
         { id: "storage", name: qsTr("Storage") },
         { id: "plugins", name: qsTr("Plugins") },
@@ -126,6 +127,7 @@ Rectangle {
         case "account": return secAccount
         case "hubs": return secHubs
         case "appearance": return secAppearance
+        case "audio": return secAudio
         case "library": return secLibrary
         case "storage": return secStorage
         case "plugins": return secPlugins
@@ -156,7 +158,7 @@ Rectangle {
         }
         const probe = flick.contentY + 80
         let best = "account"
-        for (const n of ["account", "updates", "hubs", "appearance", "library", "storage", "plugins", "diagnostics"]) {
+        for (const n of ["account", "updates", "hubs", "appearance", "audio", "library", "storage", "plugins", "diagnostics"]) {
             if (sectionItem(n).y + content.y <= probe) {
                 best = n
             }
@@ -274,6 +276,7 @@ Rectangle {
                                                                        : qsTr("%1 saved").arg(root.savedHubs.length))
                                       : sec.modelData.id === "appearance" ? (root.player.appearance === "light" ? qsTr("Light")
                                                                              : root.player.appearance === "system" ? qsTr("System") : qsTr("Dark"))
+                                      : sec.modelData.id === "audio" ? (root.player.audio.muted ? qsTr("Muted") : qsTr("Volume %1 %").arg(root.player.audio.volume))
                                       : sec.modelData.id === "library" ? root.libraryNavText()
                                       : sec.modelData.id === "storage" ? qsTr("%1 of %2").arg(root.player.romCache.usedText).arg(root.player.romCache.limitText)
                                       : sec.modelData.id === "plugins" ? root.player.plugins.summary
@@ -1091,6 +1094,70 @@ Rectangle {
                         ]
                         current: root.player.appearance
                         onValuePicked: value => root.player.appearance = value
+                    }
+                }
+
+                // ------------------------------------------------------------------ AUDIO & VIDEO (6g-1)
+                ColumnLayout {
+                    id: secAudio
+                    visible: root.scope === "pc"
+                    objectName: "audioSection"
+                    Layout.fillWidth: true
+                    spacing: Theme.space15
+                    UzSectionLabel { Layout.fillWidth: true; text: qsTr("Audio & video") }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.rule; Layout.topMargin: -Theme.space05 }
+                    UzSettingsRow {
+                        objectName: "audioOutputRow"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Output")
+                        description: qsTr("Where the app plays sound. A running game switches on its next start; if the device is gone, the system default is used.")
+                        ctrl: "select"
+                        controlName: "audioOutputSelect"
+                        values: root.player.audio.outputDevices
+                        current: root.player.audio.outputDevice
+                        onValuePicked: value => root.player.audio.outputDevice = value
+                    }
+                    UzSettingsRow {
+                        objectName: "audioMuteBackgroundRow"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Mute when in the background")
+                        description: qsTr("Sessions you watch stay audible.")
+                        ctrl: "toggle"
+                        toggleName: "audioMuteBackgroundToggle"
+                        checked: root.player.audio.muteInBackground
+                        onToggled: on => root.player.audio.muteInBackground = on
+                    }
+                    UzSettingsRow {
+                        objectName: "audioVolumeStepRow"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Volume steps")
+                        description: qsTr("How much the volume hotkeys and the Sound slider change at a time.")
+                        ctrl: "segment"
+                        controlName: "audioVolumeStepSegment"
+                        values: [
+                            { value: "5", label: qsTr("5 %"), name: "audioStep5" },
+                            { value: "10", label: qsTr("10 %"), name: "audioStep10" }
+                        ]
+                        current: String(root.player.audio.volumeStep)
+                        onValuePicked: value => root.player.audio.volumeStep = Number(value)
+                    }
+                    UzSettingsRow {
+                        objectName: "audioShowVolumeRow"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        resetMode: "none"
+                        label: qsTr("Show volume on screen")
+                        description: qsTr("A short notice in the game when you change the volume with a hotkey.")
+                        ctrl: "toggle"
+                        toggleName: "audioShowVolumeToggle"
+                        checked: root.player.audio.showVolume
+                        onToggled: on => root.player.audio.showVolume = on
                     }
                 }
 

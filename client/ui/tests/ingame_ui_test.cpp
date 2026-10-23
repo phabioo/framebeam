@@ -7,6 +7,7 @@
 #include <QQuickWindow>
 #include <QtTest>
 
+#include "audiocontroller.h"
 #include "fakehub.h"
 #include "gameview.h"
 #include "savestore.h"
@@ -1164,6 +1165,79 @@ class InGameUiTest : public QObject {
     ctl->gameEnded();
     QTRY_VERIFY(bottomWindows().isEmpty());
     QVERIFY(!ctl->bottomWindow());
+  }
+
+  // 0.19 audio stage 1: +/- change the volume by the step and show a replacing toast, M mutes, the header button opens the
+  // Sound popover, "Sound settings" opens Settings > Audio & video with its rows.
+  void volumeHotkeysToastPopoverAndSettings() {
+    FakeHub hub(QStringLiteral("a"));
+    Harness h;
+    pair(hub, h, false);
+    startPreview(h, false);
+    resize(h, 1440, 900);
+    AudioController* audio = h.controller->audio();
+    QCOMPARE(audio->volume(), 100);
+    QVERIFY(!shown(h, "volumeToast"));
+
+    QTest::keyClick(h.window, Qt::Key_Minus);
+    QTRY_COMPARE(audio->volume(), 95);
+    QTRY_VERIFY(shown(h, "volumeToast"));
+    QCOMPARE(textOf(visibleItem(h, "volumeToast")), QStringLiteral("Volume 95 %"));
+    audio->setVolumeStep(10);
+    QTest::keyClick(h.window, Qt::Key_Minus);
+    QTRY_COMPARE(audio->volume(), 85);
+    QCOMPARE(textOf(visibleItem(h, "volumeToast")), QStringLiteral("Volume 85 %"));   // replaces itself
+    QTest::keyClick(h.window, Qt::Key_Plus);
+    QTRY_COMPARE(audio->volume(), 95);
+    QTRY_VERIFY_WITH_TIMEOUT(!shown(h, "volumeToast"), 4000);                          // gone after 1.5 s
+
+    QTest::keyClick(h.window, Qt::Key_M);
+    QTRY_VERIFY(audio->muted());
+    QTRY_COMPARE(textOf(visibleItem(h, "volumeToast")), QStringLiteral("Muted"));
+    QCOMPARE(h.controller->gameSession()->audio().volume(), 0.0);   // the local output follows
+    QTest::keyClick(h.window, Qt::Key_M);
+    QTRY_VERIFY(!audio->muted());
+    QTRY_COMPARE(textOf(visibleItem(h, "volumeToast")), QStringLiteral("Sound on · 95 %"));
+    QCOMPARE(h.controller->gameSession()->audio().volume(), 0.95);
+    QTest::keyClick(h.window, Qt::Key_M);   // muted; volume up unmutes
+    QTRY_VERIFY(audio->muted());
+    QTest::keyClick(h.window, Qt::Key_Plus);
+    QTRY_VERIFY(!audio->muted());
+    QCOMPARE(audio->volume(), 100);
+
+    audio->setShowVolume(false);
+    QTest::qWait(1700);
+    QTest::keyClick(h.window, Qt::Key_Minus);
+    QTRY_COMPARE(audio->volume(), 90);
+    QVERIFY(!shown(h, "volumeToast"));
+    audio->setShowVolume(true);
+
+    // Header button -> Sound popover with the slider
+    QVERIFY(shown(h, "volumeButton"));
+    QVERIFY(h.click("volumeButton"));
+    QTRY_VERIFY(shown(h, "soundVolumeSlider"));
+    QQuickItem* slider = visibleItem(h, "soundVolumeSlider");
+    QVERIFY(slider != nullptr);
+    QCOMPARE(slider->property("value").toInt(), 90);
+    QVERIFY(h.click("soundMuteButton"));
+    QTRY_VERIFY(audio->muted());
+    QTRY_COMPARE(textOf(visibleItem(h, "soundMuteButton")), QStringLiteral("Unmute"));
+    QVERIFY(h.click("soundMuteButton"));
+    QTRY_VERIFY(!audio->muted());
+    QVERIFY(textOf(visibleItem(h, "soundBackgroundLine")).contains(QStringLiteral("on")));
+
+    // Sound settings -> Settings, Audio & video section
+    QVERIFY(h.click("soundSettingsButton"));
+    QTRY_COMPARE(h.controller->screen(), QStringLiteral("settings"));
+    QTRY_VERIFY(shown(h, "audioOutputSelect") && shown(h, "audioMuteBackgroundToggle") && shown(h, "audioVolumeStepSegment") && shown(h, "audioShowVolumeToggle"));
+    QVERIFY(h.click("audioStep10"));
+    QTRY_COMPARE(audio->volumeStep(), 10);
+    QVERIFY(h.click("audioStep5"));
+    QTRY_COMPARE(audio->volumeStep(), 5);
+    QVERIFY(audio->muteInBackground());
+    QVERIFY(h.click("audioMuteBackgroundToggle"));
+    QTRY_VERIFY(!audio->muteInBackground());
+    QVERIFY(h.item("audioOutputSelect") != nullptr);
   }
 
   void sidebarNowRunningStrip() {
