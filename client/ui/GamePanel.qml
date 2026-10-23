@@ -3,17 +3,17 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Uzume.App
 
-// GamePanel (docs/design/player.md "GamePanel", 3g-2/3g-3, 3r-2, 3h-2, 3i-2). Side panel of the game view, 340 wide (320 at
-// 1280), collapsible to a 48 px rail. Your game: SHARING, SAVE and "Quit game" pinned at the bottom. In the Multiview the
-// panel follows the selected tile: your tile = the full panel with a tile header, a remote tile = who, connection, "Audio
-// here", "Remove from multiview".
+// Side panel of the game view (boards 3g-1, 3r): 320 wide on `ground`, one `rule` line at the left, run tabs on top (Session, the
+// plugin tabs, the Plugin console in Developer mode), collapsible to a 48 px rail. The Session tab of your game: Sharing, Save and
+// Quit as numbered sections and the hint row (F3, F4) at the bottom. In the Multiview the panel follows the selected tile: your tile =
+// the Session tab with a tile header, a remote tile = who, connection, "Audio here", "Remove from multiview". Diagnostics are not a tab
+// any more: F3 opens the block on the stage (GameScreen).
 Rectangle {
     id: root
     required property PlayerController player
     readonly property SessionController ctl: player.sessions
     readonly property SaveHistoryController saves: player.saveHistory
     readonly property GameSession gameSession: player.gameSession
-    property bool compact: false
     property bool collapsed: false
     property bool multi: false
     property string tile: "local"
@@ -21,17 +21,13 @@ Rectangle {
     readonly property int tileNo: ctl.surfaceOrder.indexOf(tile) + 1
     readonly property var tileInfo: ctl.surfaceInfo[tile] || ({})
     readonly property var tileLink: ctl.surfaceLinks[tile] || null
-    readonly property DiagnosticsModel diag: ctl.diagnostics
-    // Diagnostics are docked as a panel tab while they are open (3h-3); fullscreen uses the floating overlay (the panel is hidden then).
-    readonly property bool diagTab: diag.open
-    readonly property bool diagTabOpen: diagTab && panelTab === "diag"
     readonly property string hubWord: qsTr("this server")
     readonly property bool quitting: player.quitting
     readonly property string shareText: ctl.shared ? qsTr("Shared · %1 watching").arg(ctl.viewerCount) : qsTr("Not shared")
     // "Manage saves" opens the saves view (SavesView, the one of the Library) inside the panel; the game keeps running.
     property bool savesOpen: false
-    // Tabs of the panel (docs/design/plugins.md 4e): "game" | "plugin:<pluginId>" (panel tab of a plugin, in install order)
-    // | "console" (Plugin console, Developer mode only, last tab; 4d-4-2).
+    // Tabs of the panel: "game" | "plugin:<pluginId>" (panel tab of a plugin, in install order) | "console" (Plugin console,
+    // Developer mode only, last tab).
     property string panelTab: "game"
     readonly property PluginsController plugins: player.plugins
     readonly property var pluginTabs: plugins.panelTabs
@@ -43,28 +39,25 @@ Rectangle {
         return null
     }
     readonly property bool pluginTabOpen: pluginTab !== null && root.localTile
-    readonly property bool hasTabs: root.plugins.consoleAvailable || pluginTabs.length > 0 || diagTab
-    // Tab model: Game, the plugin tabs, the Plugin console.
+    // Tab model: Session, the plugin tabs, the Plugin console.
     readonly property var tabEntries: {
-        var out = [{ id: "game", kind: "game", name: root.localTile ? qsTr("Game") : qsTr("Tile"), icon: "", dot: "", origin: "official", mark: "" }]
-        if (!root.localTile) {   // a remote tile has no plugin tabs; Diagnostics are about every tile
-            if (diagTab) out.push({ id: "diag", kind: "diag", name: qsTr("Diagnostics"), icon: "", dot: "", origin: "official", mark: "◉" })
-            return out
-        }
+        var out = [{ id: "game", kind: "game", name: root.localTile ? qsTr("Session") : qsTr("Tile"), icon: "", dot: "", origin: "official", mark: "" }]
+        if (!root.localTile) return out   // a remote tile has no plugin tabs
         var t = pluginTabs
         for (var i = 0; i < t.length; ++i)
             out.push({ id: "plugin:" + t[i].pluginId, kind: "plugin", name: t[i].title || t[i].name, pluginName: t[i].name || t[i].title,
                        icon: t[i].icon || "", dot: t[i].dot || "", origin: t[i].origin || "local", mark: "" })
-        if (diagTab) out.push({ id: "diag", kind: "diag", name: qsTr("Diagnostics"), icon: "", dot: "", origin: "official", mark: "◉" })
         if (root.plugins.consoleAvailable)
             out.push({ id: "console", kind: "console", name: qsTr("Plugin console"), icon: "", dot: "", origin: "official", mark: ">_" })
         return out
     }
-    // Fitting (4e): 1-2 tabs show labels while they fit; with 3 or more only Game and the open tab keep their label; if it
-    // is still too wide the last tabs move into the "+n ▾" popover.
+    // Fitting: 1-2 tabs show labels while they fit; with 3 or more only Session and the open tab keep their label (the others
+    // shrink to their icon); if it is still too wide the last tabs move into the "+n ▾" popover.
+    readonly property int tabGap: 22
+    readonly property int iconTabWidth: 28
     readonly property var tabPlan: {
-        var all = tabEntries, n = all.length, avail = tabBar.width - 24, gapW = 2
-        function labelW(e) { return (e.kind === "game" ? 0 : 24) + Math.ceil(tabFm.advanceWidth(e.name)) + 18 }
+        var all = tabEntries, n = all.length, avail = tabBar.width - 2 * Theme.space3, gapW = root.tabGap
+        function labelW(e) { return Math.ceil(tabFm.advanceWidth(e.name)) + (e.dot !== "" ? 10 : 0) }
         var labelAll = n <= 2
         if (labelAll) {
             var sum = (n - 1) * gapW
@@ -76,32 +69,32 @@ Rectangle {
             shown.push({ e: all[i], label: labelAll || all[i].kind === "game" || all[i].id === root.panelTab })
         function total() {
             var w = (shown.length - 1) * gapW
-            for (var j = 0; j < shown.length; ++j) w += shown[j].label ? labelW(shown[j].e) : 36
+            for (var j = 0; j < shown.length; ++j) w += shown[j].label ? labelW(shown[j].e) : root.iconTabWidth
             return w
         }
         var overflow = []
-        // The "+n ▾" tab measured with the real font (46 stays the minimum), so a wide font cannot push it out of the bar.
-        function overflowW(count) { return count > 0 ? Math.max(46, Math.ceil(tabFm.advanceWidth("+" + count + " ▾")) + 18 + gapW) : 0 }
-        while (total() + overflowW(overflow.length) > avail && shown.length > 1) {
+        // The "+n ▾" tab measured with the real font, so a wide font cannot push it out of the bar.
+        function overflowW(count) { return count > 0 ? Math.ceil(tabFm.advanceWidth("+" + count + " ▾")) + gapW : 0 }
+        while (total() + overflowW(overflow.length) > avail && shown.length > 2) {   // Session and one more tab always stay
             var idx = -1
             for (var m = shown.length - 1; m > 0; --m) if (shown[m].e.id !== root.panelTab) { idx = m; break }
             if (idx < 0) break
             overflow.unshift(shown.splice(idx, 1)[0].e)
         }
-        // Game and the open tab alone can still be wider than the bar (very wide font): their labels then elide to a share of it.
+        // Session and the open tab alone can still be wider than the bar (very wide font): their labels then elide to a share of it.
         var textSum = 0, labeled = 0
         for (var q = 0; q < shown.length; ++q) if (shown[q].label) { ++labeled; textSum += Math.ceil(tabFm.advanceWidth(shown[q].e.name)) }
         var fixedW = total() - textSum + overflowW(overflow.length)
         var textMax = labeled > 0 && fixedW + textSum > avail ? Math.max(16, Math.floor((avail - fixedW) / labeled)) : 100000
         return { shown: shown, overflow: overflow, textMax: textMax }
     }
-    FontMetrics { id: tabFm; font.pixelSize: 13 }
+    FontMetrics { id: tabFm; font.family: Theme.sans; font.pixelSize: 13 }
     function openTab(id) {
         root.closeSaves()
         root.panelTab = id
         if (root.collapsed) root.collapseToggled()
     }
-    // Alt+1 ... Alt+9: tab n of the tab bar (Game, the plugin tabs, the Plugin console); false = no such tab.
+    // Alt+1 ... Alt+9: tab n of the tab bar (Session, the plugin tabs, the Plugin console); false = no such tab.
     function openTabNumber(n) {
         var t = root.tabEntries
         if (n < 1 || n > t.length || !root.localTile) return false
@@ -112,7 +105,7 @@ Rectangle {
     signal collapseToggled()
     signal savesClosed()
     signal selectLocalRequested()
-    // The "+n ▾" popover lives in the game screen (it has to open over the play area, not over the sharing section, P41).
+    // The "+n ▾" popover lives in the game screen (it has to open over the play area, not over the sharing section).
     readonly property Item overflowAnchor: overflowTab
     property bool overflowOpen: false
     signal overflowRequested()
@@ -121,19 +114,6 @@ Rectangle {
         if (!root.savesOpen) return
         root.savesOpen = false
         root.savesClosed()
-    }
-    // F3 / the header button open the Diagnostics tab and select it; closing them (or "Hide diagnostics") removes it.
-    Connections {
-        target: root.diag
-        function onOpenChanged() {
-            if (root.diag.open) {
-                root.closeSaves()
-                root.panelTab = "diag"
-                if (root.collapsed) root.collapseToggled()
-            } else if (root.panelTab === "diag") {
-                root.panelTab = "game"
-            }
-        }
     }
     Connections {
         target: root.player.plugins
@@ -148,11 +128,11 @@ Rectangle {
     }
 
     objectName: "gamePanel"
-    color: Theme.gameHeader
-    implicitWidth: collapsed ? 48 : (compact ? 320 : 340)
+    color: Theme.ground
+    implicitWidth: collapsed ? Theme.row48 : Theme.sidePanel
     clip: true
 
-    Rectangle { anchors.left: parent.left; width: 1; height: parent.height; color: Theme.gameBorder }
+    Rectangle { anchors.left: parent.left; width: 1; height: parent.height; color: Theme.rule }
 
     function slotLabel() {
         var opts = saves.slotOptions
@@ -182,46 +162,41 @@ Rectangle {
         objectName: "panelRail"
         visible: root.collapsed
         anchors.top: parent.top
-        anchors.topMargin: 12
+        anchors.topMargin: Theme.space15
         anchors.horizontalCenter: parent.horizontalCenter
-        spacing: 14
-        GameButton {
+        spacing: Theme.space2
+        UzIconButton {
             objectName: "panelExpandButton"
             anchors.horizontalCenter: parent.horizontalCenter
-            look: "surface"
-            fixedWidth: 32
-            implicitHeight: 32
-            glyph: "⇤"
-            tip: qsTr("Show panel")
+            focusPolicy: Qt.TabFocus
+            glyph: "left"
+            glyphSize: 14
+            Accessible.name: qsTr("Show panel")
+            ToolTip.visible: hovered
+            ToolTip.delay: 500
+            ToolTip.text: qsTr("Show panel")
             onClicked: root.collapseToggled()
         }
         Rectangle {
             visible: root.multi
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 20; height: 20; radius: 0
-            color: Theme.gameSelection
+            width: 20; height: 20
+            color: Theme.playerColor(root.tileNo, Theme.dark)
             UzMono { anchors.centerIn: parent; text: String(root.tileNo); font.pixelSize: 11; color: Theme.onPerson }
         }
         Rectangle {
             id: railDot
             objectName: "panelRailShareDot"
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 8; height: 8; radius: 0
-            color: root.ctl.shared ? Theme.gameOk : Theme.gameMeta
+            width: 8; height: 8
+            color: root.ctl.shared ? Theme.ok : "transparent"
+            border.width: root.ctl.shared ? 0 : 1
+            border.color: Theme.dim
             HoverHandler { id: dotHover }
             ToolTip.visible: dotHover.hovered
             ToolTip.text: root.shareText
         }
-        GameIcon {
-            visible: root.localTile
-            anchors.horizontalCenter: parent.horizontalCenter
-            kind: "diamond"
-            color: Theme.gameMeta
-            HoverHandler { id: diaHover }
-            ToolTip.visible: diaHover.hovered
-            ToolTip.text: qsTr("Save snapshot · %1").arg(root.player.controllers.hotkeyHints.snapshot)
-        }
-        // One icon per plugin tab; a click opens the panel on that tab (3i-2, 4e)
+        // One icon per plugin tab; a click opens the panel on that tab
         Repeater {
             model: root.localTile ? root.pluginTabs : []
             delegate: PluginTabIcon {
@@ -230,7 +205,7 @@ Rectangle {
                 objectName: "panelRailTab_" + modelData.pluginId
                 anchors.horizontalCenter: parent.horizontalCenter
                 size: 22
-                chipRadius: 6
+                chipRadius: 0
                 name: modelData.name || modelData.title
                 icon: modelData.icon || ""
                 dot: modelData.dot || ""
@@ -249,23 +224,22 @@ Rectangle {
         anchors.leftMargin: 1
         spacing: 0
 
-        // Tile header (Multiview)
-        Rectangle {
+        // Tile header (Multiview): person square, "TILE 2 · YOUR GAME"
+        Item {
             objectName: "panelTileHeader"
             Layout.fillWidth: true
             visible: root.multi
-            implicitHeight: 52
-            color: "transparent"
-            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.gameBorder }
+            implicitHeight: Theme.row48
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 24
-                anchors.rightMargin: 16
-                spacing: 10
+                anchors.leftMargin: Theme.space3
+                anchors.rightMargin: Theme.space2
+                spacing: Theme.space1
                 Rectangle {
                     objectName: "panelTileBadge"
-                    Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 0
-                    color: Theme.gameSelection
+                    Layout.preferredWidth: 20; Layout.preferredHeight: 20
+                    color: Theme.playerColor(root.tileNo, Theme.dark)
                     UzMono { anchors.centerIn: parent; text: String(root.tileNo); font.pixelSize: 11; color: Theme.onPerson }
                 }
                 UzMono {
@@ -274,36 +248,26 @@ Rectangle {
                     Layout.minimumWidth: 0
                     elide: Text.ElideRight
                     text: root.localTile ? qsTr("TILE %1 · YOUR GAME").arg(root.tileNo) : qsTr("TILE %1 · WATCHING").arg(root.tileNo)
-                    font.pixelSize: 11
-                    font.letterSpacing: 0.9
-                    color: Theme.gameBadgeText
-                }
-                GameButton {
-                    objectName: "panelCollapseButton"
-                    look: "surface"
-                    fixedWidth: 28
-                    implicitHeight: 28
-                    glyph: "⇥"
-                    tip: qsTr("Hide panel")
-                    onClicked: root.collapseToggled()
+                    font.pixelSize: 10
+                    font.letterSpacing: 1.4
+                    color: Theme.dim
                 }
             }
         }
 
-        // Tab bar: while plugins offer a panel tab or the Plugin console exists (Developer mode and plugins running for this game)
-        Rectangle {
+        // Tab bar (run tabs): Session, the plugin tabs, the Plugin console. A remote tile has no tabs.
+        Item {
             id: tabBar
             objectName: "panelTabBar"
             Layout.fillWidth: true
-            visible: !root.savesOpen && (root.localTile ? root.hasTabs : root.diagTab)
-            implicitHeight: 44
-            color: "transparent"
-            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.gameBorder }
+            visible: !root.savesOpen && root.localTile
+            implicitHeight: Theme.row48
+            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
             Row {
                 anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                spacing: 2
+                anchors.leftMargin: Theme.space3
+                anchors.rightMargin: Theme.space3
+                spacing: root.tabGap
                 Repeater {
                     model: root.tabPlan.shown
                     delegate: Item {
@@ -314,44 +278,61 @@ Rectangle {
                         readonly property bool open: root.panelTab === entry.id
                         readonly property string marker: root.originMarker(entry.origin)
                         objectName: "panelTab_" + entry.id
-                        height: 44
-                        width: tabRow.implicitWidth + 18
+                        height: Theme.row48
+                        width: tabRow.implicitWidth
+                        activeFocusOnTab: true
                         Accessible.role: Accessible.PageTab
                         Accessible.name: entry.name
+                        Accessible.selected: open
+                        Keys.onPressed: (event) => {
+                            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.panelTab = tabItem.entry.id; event.accepted = true }
+                        }
                         Row {
                             id: tabRow
-                            anchors.centerIn: parent
+                            anchors.verticalCenter: parent.verticalCenter
                             spacing: 6
                             PluginTabIcon {
-                                visible: tabItem.entry.kind === "plugin"
+                                visible: tabItem.entry.kind === "plugin" && !tabItem.showLabel
                                 anchors.verticalCenter: parent.verticalCenter
+                                size: root.iconTabWidth - 8
+                                chipRadius: 0
                                 name: tabItem.entry.pluginName || tabItem.entry.name
                                 icon: tabItem.entry.icon
                                 dot: tabItem.entry.dot
                             }
                             UzMono {
-                                visible: tabItem.entry.mark !== ""
+                                visible: tabItem.entry.mark !== "" && !tabItem.showLabel
                                 text: tabItem.entry.mark
                                 font.pixelSize: 12
-                                color: tabItem.open ? Theme.gameText : Theme.gameTextMuted
+                                color: tabItem.open ? Theme.ink : Theme.muted
                                 anchors.verticalCenter: parent.verticalCenter
                             }
-                            UzLabel {
+                            Text {
                                 objectName: "panelTabLabel"
                                 visible: tabItem.showLabel
                                 text: tabItem.entry.name
+                                textFormat: Text.PlainText
                                 width: Math.min(implicitWidth, root.tabPlan.textMax)
                                 elide: Text.ElideRight
+                                font.family: Theme.sans
                                 font.pixelSize: 13
                                 font.weight: tabItem.open ? Font.Medium : Font.Normal
-                                color: tabItem.open ? Theme.gameText : Theme.gameTextMuted
+                                color: tabItem.open || tabHover.hovered ? Theme.ink : Theme.muted
                                 anchors.verticalCenter: parent.verticalCenter
                             }
+                            Rectangle {   // news / paused marker of a plugin tab
+                                objectName: "tabDot"
+                                visible: tabItem.showLabel && tabItem.entry.dot !== ""
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 4; height: 4
+                                color: Theme.accent
+                            }
                         }
-                        Rectangle { visible: tabItem.open; anchors.bottom: parent.bottom; width: parent.width; height: 2; color: Theme.gameAccent }
+                        Rectangle { visible: tabItem.open; anchors.bottom: parent.bottom; width: parent.width; height: 2; color: Theme.accent }
+                        UzFocusRing { visible: tabItem.activeFocus }
                         TapHandler { onTapped: root.panelTab = tabItem.entry.id }
                         HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
-                        ToolTip.visible: tabHover.hovered && !tabItem.showLabel
+                        ToolTip.visible: tabHover.hovered && (!tabItem.showLabel || tabItem.marker !== "")
                         ToolTip.delay: 400
                         ToolTip.text: tabItem.entry.name + (tabItem.marker !== "" ? " · " + tabItem.marker : "")
                     }
@@ -360,23 +341,25 @@ Rectangle {
                     id: overflowTab
                     objectName: "panelTabOverflow"
                     visible: root.tabPlan.overflow.length > 0
-                    height: 44
-                    width: overflowLabel.implicitWidth + 18
+                    height: Theme.row48
+                    width: overflowLabel.implicitWidth
                     readonly property bool hasNews: {
                         var o = root.tabPlan.overflow
                         for (var i = 0; i < o.length; ++i) if (o[i].dot !== "") return true
                         return false
                     }
-                    UzLabel {
+                    Text {
                         id: overflowLabel
-                        anchors.centerIn: parent
+                        anchors.verticalCenter: parent.verticalCenter
                         text: "+" + root.tabPlan.overflow.length + " ▾"
+                        textFormat: Text.PlainText
+                        font.family: Theme.sans
                         font.pixelSize: 13
-                        color: root.overflowOpen ? Theme.gameText : Theme.gameTextMuted
+                        color: root.overflowOpen || overflowHover.hovered ? Theme.ink : Theme.muted
                     }
-                    Rectangle { visible: overflowTab.hasNews; x: parent.width - 12; y: 11; width: 6; height: 6; radius: 0; color: Theme.gameAccent }
+                    Rectangle { visible: overflowTab.hasNews; x: parent.width + 2; y: 14; width: 4; height: 4; color: Theme.accent }
                     TapHandler { onTapped: root.overflowRequested() }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    HoverHandler { id: overflowHover; cursorShape: Qt.PointingHandCursor }
                 }
             }
         }
@@ -413,40 +396,14 @@ Rectangle {
             }
         }
 
-        // ---- docked diagnostics (3h-3) ----
-        Flickable {
-            id: diagBox
-            objectName: "gamePanelDiagnostics"
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumWidth: 0
-            visible: root.diagTabOpen && !root.savesOpen
-            contentWidth: width
-            contentHeight: dockedDiag.implicitHeight + 40
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            DiagnosticsOverlay {
-                id: dockedDiag
-                objectName: "diagnosticsOverlay"
-                docked: true
-                x: 20
-                y: 16
-                width: diagBox.width - 40
-                model: root.diag
-                hotkey: root.player.controllers.hotkeyHints.diagnostics
-                multi: root.multi
-                tileBadges: { var m = {}, o = root.ctl.surfaceOrder; for (var i = 0; i < o.length; ++i) m[o[i]] = i + 1; return m }
-            }
-        }
-
-        // ---- your game ----
+        // ---- your game: Session tab ----
         Flickable {
             id: flick
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root.localTile && !root.savesOpen && !root.consoleTab && !root.pluginTabOpen && !root.diagTabOpen
+            visible: root.localTile && !root.savesOpen && !root.consoleTab && !root.pluginTabOpen
             contentWidth: width
-            contentHeight: col.implicitHeight + 40
+            contentHeight: col.implicitHeight + 2 * Theme.space3
             clip: true
             boundsBehavior: Flickable.StopAtBounds
 
@@ -455,129 +412,126 @@ Rectangle {
             // out (seen with Qt 6.8 on Windows).
             Column {
                 id: col
-                x: 24
+                x: Theme.space3
                 y: 20
-                width: flick.width - 48
-                spacing: 20
+                width: flick.width - 2 * Theme.space3
+                spacing: Theme.space2
 
-                Rectangle {
+                // Notices as a quiet line with a Yamabuki / danger start rule
+                Item {
                     objectName: "panelHubBanner"
                     width: col.width
                     visible: root.ctl.hubLink !== "online"
-                    implicitHeight: bannerText.implicitHeight + 16
+                    implicitHeight: bannerText.implicitHeight
                     height: implicitHeight
-                    radius: 0
-                    color: Theme.gameOnBg
-                    UzLabel {
+                    Rectangle { width: 2; height: parent.height; color: Theme.accent }
+                    Text {
                         id: bannerText
-                        anchors.fill: parent
-                        anchors.margins: 8
+                        x: Theme.space15
+                        width: parent.width - Theme.space15
                         wrapMode: Text.WordWrap
-                        font.pixelSize: 12
-                        color: Theme.gameAccent
+                        textFormat: Text.PlainText
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.small.size
+                        lineHeight: Theme.roles.small.line
+                        lineHeightMode: Text.FixedHeight
+                        color: Theme.ink2
                         text: root.ctl.shared ? qsTr("Server not reachable · reconnecting. The running Session continues until the server ends it.")
                                               : qsTr("Server not reachable · reconnecting. Sharing needs a server connection.")
                     }
                 }
-                Rectangle {
+                Item {
                     objectName: "panelMessage"
                     width: col.width
                     visible: root.ctl.message !== ""
-                    implicitHeight: msgText.implicitHeight + 16
+                    implicitHeight: msgText.implicitHeight
                     height: implicitHeight
-                    radius: 0
-                    color: root.ctl.messageIsError ? Theme.gameDangerBg : Theme.gameHover
-                    UzLabel {
+                    Rectangle { width: 2; height: parent.height; color: root.ctl.messageIsError ? Theme.danger : Theme.rule }
+                    Text {
                         id: msgText
-                        anchors.fill: parent
-                        anchors.margins: 8
+                        x: Theme.space15
+                        width: parent.width - Theme.space15
                         wrapMode: Text.WordWrap
-                        font.pixelSize: 12
-                        color: root.ctl.messageIsError ? Theme.errorText : Theme.gameText
+                        textFormat: Text.PlainText
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.small.size
+                        lineHeight: Theme.roles.small.line
+                        lineHeightMode: Text.FixedHeight
+                        color: root.ctl.messageIsError ? Theme.danger : Theme.ink2
                         text: root.ctl.message
                     }
                 }
 
                 // Audio of this tile (Multiview; your tile has no remote-style panel, so the control lives here)
-                GameButton {
+                UzButton {
                     objectName: "audioButton_local"
+                    width: Math.min(implicitWidth, parent.width)
                     visible: root.multi && root.ctl.hasLocalGame
-                    width: col.width
-                    implicitHeight: 36
-                    look: "outlined"
+                    size: "sm"
+                    focusPolicy: Qt.NoFocus
                     on: root.ctl.audioFocus === "local"
                     enabled: !on
-                    text: on ? qsTr("♪ Audio plays from this tile") : qsTr("♪ Audio here")
+                    text: on ? qsTr("Audio plays from this tile") : qsTr("Audio here")
                     onClicked: root.ctl.audioHere("local")
                 }
 
-                // SHARING
+                // 01 SHARING
                 Column {
                     id: shareBlock
                     objectName: "sharingBlock"
                     width: col.width
-                    spacing: 10
-                    RowLayout {
+                    spacing: Theme.space15
+                    UzSectionLabel {
+                        objectName: "panelShareState"
                         width: parent.width
-                        spacing: 8
-                        Eyebrow { Layout.fillWidth: true; Layout.minimumWidth: 0; text: qsTr("Sharing") }
-                        SharePill {
-                            objectName: "panelShareState"
-                            bare: true
-                            on: root.ctl.shared
-                            text: root.shareText
+                        number: 1
+                        text: qsTr("Sharing")
+                        meta: root.player.hubName
+                    }
+                    Column {
+                        width: parent.width
+                        spacing: Theme.space05
+                        Text {
+                            width: parent.width
+                            elide: Text.ElideRight
+                            text: qsTr("Who can watch")
+                            textFormat: Text.PlainText
+                            font.family: Theme.sans
+                            font.pixelSize: Theme.roles.fieldLabel.size
+                            font.weight: Theme.roles.fieldLabel.weight
+                            color: Theme.ink2
                         }
-                        GameButton {
-                            objectName: "panelCollapseButtonSession"
-                            visible: !root.multi
-                            look: "surface"
-                            fixedWidth: 28
-                            implicitHeight: 28
-                            glyph: "⇥"
-                            tip: qsTr("Hide panel")
-                            onClicked: root.collapseToggled()
+                        UzSegmented {
+                            objectName: "visibilitySegment"
+                            width: parent.width
+                            stretch: true
+                            current: root.ctl.visibility
+                            options: [
+                                { value: "private", label: qsTr("Only me"), name: "visPrivate" },
+                                { value: "hub_users", label: qsTr("On the server"), name: "visHubUsers" },
+                                { value: "invite_only", label: qsTr("Invite only"), name: "visInviteOnly" }
+                            ]
+                            onPicked: (v) => root.ctl.setVisibility(v)
                         }
                     }
-                    GameSegment {
-                        objectName: "visibilitySegment"
-                        width: parent.width
-                        bordered: true
-                        stretch: true
-                        padX: 6
-                        current: root.ctl.visibility
-                        options: [
-                            { value: "private", label: qsTr("Private"), name: "visPrivate" },
-                            { value: "hub_users", label: qsTr("Everyone here"), name: "visHubUsers" },
-                            { value: "invite_only", label: qsTr("Invite only"), name: "visInviteOnly" }
-                        ]
-                        onPicked: (v) => root.ctl.setVisibility(v)
-                    }
-                    UzLabel {
+                    Text {
                         objectName: "visibilityHint"
                         width: parent.width
                         wrapMode: Text.WordWrap
-                        lineHeight: 1.25
-                        font.pixelSize: 12
-                        color: Theme.gameMeta
+                        textFormat: Text.PlainText
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.small.size
+                        lineHeight: Theme.roles.small.line
+                        lineHeightMode: Text.FixedHeight
+                        color: Theme.muted
                         text: {
                             var v = root.ctl.visibility
                             if (root.ctl.shared)
                                 return v === "invite_only" ? qsTr("Only invited users can watch. They send no input and cannot invite others.")
                                                            : qsTr("Everyone on %1 can watch. Viewers send no input.").arg(root.hubWord)
-                            if (v === "private") return qsTr("Only you can see this game. Choose Everyone here or Invite only, then share.")
+                            if (v === "private") return qsTr("Only you can see this game. Choose On the server or Invite only, then share.")
                             return v === "hub_users" ? qsTr("Not shared yet. Share to let everyone here watch.") : qsTr("Not shared yet. Share to let invited users watch.")
                         }
-                    }
-                    UzButton {
-                        objectName: "shareButton"
-                        visible: !root.ctl.shared
-                        width: parent.width
-                        implicitHeight: 40
-                        focusPolicy: Qt.NoFocus
-                        kind: "primary"
-                        text: root.ctl.shareBusy ? qsTr("Sharing…") : qsTr("Share Session")
-                        enabled: !root.ctl.shareBusy && root.ctl.available && root.ctl.hubLink === "online"
-                        onClicked: root.ctl.shareSession()
                     }
 
                     // Watchers and invited users (only while shared)
@@ -586,183 +540,140 @@ Rectangle {
                         objectName: "participantsBlock"
                         width: parent.width
                         visible: root.ctl.shared
-                        spacing: 6
-                        UzLabel {
+                        spacing: Theme.space1
+                        UzMono {
                             objectName: "participantsTitle"
                             width: parent.width
                             elide: Text.ElideRight
                             text: root.ctl.participantsTitle
-                            font.pixelSize: 11
-                            font.family: Theme.mono
-                            font.letterSpacing: 0.9
-                            color: Theme.gameFaint
+                            font.pixelSize: 10
+                            font.letterSpacing: 1.4
+                            color: Theme.dim
                             visible: root.ctl.participants.length > 0
                         }
-                        UzLabel {
+                        Text {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             visible: root.ctl.participants.length === 0 && root.ctl.visibility === "invite_only"
                             text: qsTr("Nobody invited yet.")
-                            font.pixelSize: 12
-                            color: Theme.gameMeta
+                            textFormat: Text.PlainText
+                            font.family: Theme.sans
+                            font.pixelSize: Theme.roles.small.size
+                            color: Theme.muted
                         }
-                        Rectangle {
+                        Column {
+                            id: plist
                             width: parent.width
                             visible: root.ctl.participants.length > 0
-                            implicitHeight: plist.implicitHeight + 2
-                            height: implicitHeight
-                            radius: 0
-                            color: Theme.gameGroupBg
-                            border.width: 1
-                            border.color: Theme.gameGroupBorder
-                            Column {
-                                id: plist
-                                x: 1
-                                y: 1
-                                width: parent.width - 2
-                                Repeater {
-                                    model: root.ctl.participants
-                                    // Anchored row: the action is pinned to the right edge, the text takes the rest and
-                                    // elides, so the action cannot leave the panel.
-                                    delegate: Item {
-                                        id: prow
-                                        required property var modelData
-                                        required property int index
-                                        objectName: "participant_" + modelData.id
-                                        width: plist.width
-                                        implicitHeight: 44
-                                        height: 44
-                                        Rectangle {
-                                            visible: prow.index < root.ctl.participants.length - 1
-                                            anchors.bottom: parent.bottom
-                                            width: parent.width
-                                            height: 1
-                                            color: Theme.gameGroupBorder
-                                        }
-                                        Rectangle {
-                                            id: pav
-                                            anchors.left: parent.left
-                                            anchors.leftMargin: 10
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            width: 26; height: 26; radius: 0
-                                            color: Theme.gameSegmentOn
-                                            UzLabel { anchors.centerIn: parent; text: ((prow.modelData.name || "?").charAt(0)).toUpperCase(); font.pixelSize: 12; font.weight: Font.DemiBold; color: Theme.gameText }
-                                        }
-                                        UzButton {
-                                            id: pbtn
-                                            objectName: (prow.modelData.kind === "viewer" ? "remove_" : "withdraw_") + prow.modelData.id
-                                            kind: "link"
-                                            anchors.right: parent.right
-                                            anchors.rightMargin: 6
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            implicitHeight: 28
-                                            implicitWidth: Math.max(48, implicitContentWidth + 16)
-                                            font.pixelSize: 12
-                                            focusPolicy: Qt.NoFocus
-                                            text: prow.modelData.action
-                                            contentItem: Text {
-                                                horizontalAlignment: Text.AlignHCenter
-                                                verticalAlignment: Text.AlignVCenter
-                                                text: pbtn.text
-                                                font: pbtn.font
-                                                color: pbtn.hovered ? Theme.gameText : Theme.gameTextMuted
-                                                textFormat: Text.PlainText
-                                                Rectangle { anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; width: parent.contentWidth; height: 1; color: parent.color }
-                                            }
-                                            onClicked: prow.modelData.kind === "viewer" ? root.ctl.removeViewer(prow.modelData.id)
-                                                                                       : root.ctl.withdrawInvite(prow.modelData.id)
-                                        }
-                                        UzTag {
-                                            id: ppill
-                                            objectName: "participantPill"
-                                            anchors.right: pbtn.left
-                                            anchors.rightMargin: 4
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            visible: prow.modelData.kind === "viewer" && !!prow.modelData.connection
-                                            small: true
-                                            text: prow.modelData.connection || ""
-                                            tone: prow.modelData.connectionTone || "neutral"
-                                        }
-                                        ColumnLayout {
-                                            anchors.left: pav.right
-                                            anchors.leftMargin: 10
-                                            anchors.right: ppill.visible ? ppill.left : pbtn.left
-                                            anchors.rightMargin: 6
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 0
-                                            UzLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: prow.modelData.name; font.pixelSize: 13; color: Theme.gameText }
-                                            RowLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 5
-                                                Rectangle { implicitWidth: 5; implicitHeight: 5; radius: 0; color: prow.modelData.online ? Theme.gameOk : Theme.gameMeta }
-                                                UzLabel { objectName: "participantStatus"; Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: prow.modelData.status; font.pixelSize: 11; color: Theme.gameMeta }
-                                            }
-                                        }
+                            Repeater {
+                                model: root.ctl.participants
+                                // Anchored row: the action is pinned to the right edge, the text takes the rest and
+                                // elides, so the action cannot leave the panel.
+                                delegate: Item {
+                                    id: prow
+                                    required property var modelData
+                                    required property int index
+                                    objectName: "participant_" + modelData.id
+                                    width: plist.width
+                                    implicitHeight: Theme.row44
+                                    height: Theme.row44
+                                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.rule2 }
+                                    UzAvatar {
+                                        id: pav
+                                        anchors.left: parent.left
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        name: prow.modelData.name || ""
+                                        person: prow.index + 2
+                                        size: 28
+                                        status: prow.modelData.online ? "online" : "offline"
+                                    }
+                                    UzButton {
+                                        id: pbtn
+                                        objectName: (prow.modelData.kind === "viewer" ? "remove_" : "withdraw_") + prow.modelData.id
+                                        kind: "link"
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        hPadding: 8
+                                        font.pixelSize: Theme.roles.small.size
+                                        focusPolicy: Qt.NoFocus
+                                        text: prow.modelData.action
+                                        onClicked: prow.modelData.kind === "viewer" ? root.ctl.removeViewer(prow.modelData.id)
+                                                                                   : root.ctl.withdrawInvite(prow.modelData.id)
+                                    }
+                                    UzTag {
+                                        id: ppill
+                                        objectName: "participantPill"
+                                        anchors.right: pbtn.left
+                                        anchors.rightMargin: Theme.space05
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        visible: prow.modelData.kind === "viewer" && !!prow.modelData.connection
+                                        small: true
+                                        text: prow.modelData.connection || ""
+                                        tone: prow.modelData.connectionTone || "neutral"
+                                    }
+                                    ColumnLayout {
+                                        anchors.left: pav.right
+                                        anchors.leftMargin: Theme.space15
+                                        anchors.right: ppill.visible ? ppill.left : pbtn.left
+                                        anchors.rightMargin: Theme.space1
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 0
+                                        UzLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: prow.modelData.name; font.pixelSize: Theme.roles.itemTitleSm.size; font.weight: Theme.roles.itemTitleSm.weight; color: Theme.ink }
+                                        UzLabel { objectName: "participantStatus"; Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: prow.modelData.status; font.pixelSize: Theme.roles.small.size; color: Theme.muted }
                                     }
                                 }
                             }
                         }
-                        // Relay hint (D9)
-                        Rectangle {
+                        // Relay hint
+                        Item {
                             objectName: "relayHint"
                             width: parent.width
                             visible: root.ctl.relayHint !== ""
-                            implicitHeight: relayRow.implicitHeight + 18
+                            implicitHeight: relayText.implicitHeight
                             height: implicitHeight
-                            radius: 0
-                            color: Theme.infoBg
-                            border.width: 1
-                            border.color: Theme.infoBorder
-                            RowLayout {
-                                id: relayRow
-                                anchors.fill: parent
-                                anchors.margins: 9
-                                spacing: 8
-                                UzLabel { text: "ⓘ"; font.pixelSize: 12; color: Theme.gameAccent; Layout.alignment: Qt.AlignTop }
-                                UzLabel {
-                                    objectName: "relayHintText"
-                                    Layout.fillWidth: true
-                                    Layout.minimumWidth: 0
-                                    text: root.ctl.relayHint
-                                    wrapMode: Text.WordWrap
-                                    font.pixelSize: 12
-                                    color: Theme.infoText
-                                }
+                            Rectangle { width: 2; height: parent.height; color: Theme.rule }
+                            Text {
+                                id: relayText
+                                objectName: "relayHintText"
+                                x: Theme.space15
+                                width: parent.width - Theme.space15
+                                text: root.ctl.relayHint
+                                textFormat: Text.PlainText
+                                wrapMode: Text.WordWrap
+                                font.family: Theme.sans
+                                font.pixelSize: Theme.roles.small.size
+                                lineHeight: Theme.roles.small.line
+                                lineHeightMode: Text.FixedHeight
+                                color: Theme.ink2
                             }
                         }
                     }
 
-                    // Invite a hub user (Invite only, shared)
+                    // Invite a server user (Invite only, shared)
                     Column {
                         id: invBlock
                         objectName: "inviteBlock"
                         width: parent.width
                         visible: root.ctl.shared && root.ctl.visibility === "invite_only"
-                        spacing: 8
+                        spacing: Theme.space1
                         UzField {
                             id: inviteField
                             objectName: "inviteField"
                             width: parent.width
-                            implicitHeight: 34
-                            font.family: Qt.application.font.family
-                            color: Theme.gameText
-                            placeholderText: qsTr("+ Invite someone…")
-                            background: Rectangle {
-                                radius: 0
-                                color: "transparent"
-                                border.width: 1
-                                border.color: inviteField.activeFocus ? Theme.gameAccent : Theme.gameKeyLine
-                            }
+                            implicitHeight: Theme.row32
+                            placeholderText: qsTr("Invite someone…")
                             onTextChanged: root.ctl.searchUsers(text)
                         }
-                        UzLabel {
+                        Text {
                             objectName: "userSearchHint"
                             width: parent.width
                             visible: root.ctl.userSearchHint.length > 0
                             wrapMode: Text.WordWrap
                             text: root.ctl.userSearchHint
-                            font.pixelSize: 12
-                            color: Theme.gameMeta
+                            textFormat: Text.PlainText
+                            font.family: Theme.sans
+                            font.pixelSize: Theme.roles.small.size
+                            color: Theme.muted
                         }
                         Repeater {
                             model: root.ctl.userResults
@@ -771,28 +682,32 @@ Rectangle {
                                 required property var modelData
                                 objectName: "userResult_" + modelData.id
                                 width: invBlock.width
-                                spacing: 10
-                                Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 0; color: urow.modelData.online ? Theme.gameOk : Theme.gameMeta }
+                                spacing: Theme.space15
+                                Rectangle {
+                                    implicitWidth: 8; implicitHeight: 8
+                                    color: urow.modelData.online ? Theme.ok : "transparent"
+                                    border.width: urow.modelData.online ? 0 : 1
+                                    border.color: Theme.dim
+                                }
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     Layout.minimumWidth: 0
                                     Layout.preferredWidth: 0
                                     spacing: 0
-                                    UzLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: urow.modelData.name; font.pixelSize: 13; color: Theme.gameText }
+                                    UzLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; elide: Text.ElideRight; text: urow.modelData.name; font.pixelSize: Theme.roles.itemTitleSm.size; color: Theme.ink }
                                     UzLabel {
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
                                         text: urow.modelData.hint
                                         wrapMode: Text.WordWrap
-                                        font.pixelSize: 11
-                                        color: Theme.gameMeta
+                                        font.pixelSize: Theme.roles.small.size
+                                        color: Theme.muted
                                     }
                                 }
                                 UzButton {
                                     objectName: "invite_" + urow.modelData.id
-                                    implicitHeight: 28
+                                    size: "sm"
                                     kind: "primary"
-                                    font.pixelSize: 12
                                     focusPolicy: Qt.NoFocus
                                     text: qsTr("Invite")
                                     onClicked: { root.ctl.invite(urow.modelData.id); inviteField.text = "" }
@@ -801,96 +716,86 @@ Rectangle {
                         }
                     }
 
-                    UzButton {
-                        objectName: "shareButton"
-                        visible: root.ctl.shared
+                    Flow {
                         width: parent.width
-                        implicitHeight: 36
-                        focusPolicy: Qt.NoFocus
-                        text: qsTr("Stop sharing")
-                        onClicked: root.ctl.stopSharing()
+                        spacing: Theme.space1
+                        UzButton {
+                            objectName: "shareButton"
+                            visible: !root.ctl.shared
+                            size: "sm"
+                            focusPolicy: Qt.NoFocus
+                            kind: "primary"
+                            text: root.ctl.shareBusy ? qsTr("Sharing…") : qsTr("Share Session")
+                            enabled: !root.ctl.shareBusy && root.ctl.available && root.ctl.hubLink === "online"
+                            onClicked: root.ctl.shareSession()
+                        }
+                        UzButton {
+                            objectName: "shareButton"
+                            visible: root.ctl.shared
+                            size: "sm"
+                            kind: "ghost"
+                            focusPolicy: Qt.NoFocus
+                            text: qsTr("Stop sharing")
+                            onClicked: root.ctl.stopSharing()
+                        }
                     }
                 }
 
-                Rectangle { width: col.width; height: 1; color: Theme.gameBorder; visible: saveBlock.visible }
-
-                // SAVE
+                // 02 SAVE
                 Column {
                     id: saveBlock
                     objectName: "saveSlotBlock"
                     width: col.width
                     visible: root.gameSession.active && root.saves.slotsAvailable
-                    spacing: 10
-                    RowLayout {
+                    spacing: Theme.space15
+                    UzSectionLabel {
                         width: parent.width
-                        Eyebrow { Layout.fillWidth: true; Layout.minimumWidth: 0; text: qsTr("Save") }
-                        UzButton {
-                            id: manageBtn
-                            objectName: "manageSavesButton"
-                            kind: "link"
-                            focusPolicy: Qt.NoFocus
-                            implicitHeight: 24
-                            font.pixelSize: 12
-                            text: qsTr("Manage saves →")
-                            contentItem: Text {
-                                horizontalAlignment: Text.AlignRight
-                                verticalAlignment: Text.AlignVCenter
-                                text: manageBtn.text
-                                textFormat: Text.PlainText
-                                font: manageBtn.font
-                                color: manageBtn.hovered ? Theme.gameText : Theme.gameBadgeText
-                            }
-                            onClicked: root.savesOpen = true
-                        }
+                        number: 2
+                        text: qsTr("Save")
+                        meta: root.slotLabel() + (root.saves.history.length > 0 ? " · " + root.saves.history[0].versionText : "")
                     }
-                    RowLayout {
-                        width: parent.width
-                        spacing: 8
-                        UzLabel {
-                            objectName: "saveSlotLabel"
-                            Layout.minimumWidth: 0
-                            elide: Text.ElideRight
-                            text: root.slotLabel()
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                            color: Theme.gameText
-                        }
-                        UzMono {
-                            objectName: "saveVersionLabel"
-                            visible: root.saves.history.length > 0
-                            text: root.saves.history.length > 0 ? root.saves.history[0].versionText : ""
-                            font.pixelSize: 12
-                            color: Theme.gameTextMuted
-                        }
-                        Item { Layout.fillWidth: true }
-                        UzLabel {
-                            Layout.minimumWidth: 0
-                            elide: Text.ElideRight
-                            text: qsTr("✓ Saved")
-                            font.pixelSize: 12
-                            color: Theme.gameOk
-                        }
+                    Row {
+                        spacing: Theme.space1
+                        UzTag { objectName: "saveStateTag"; tone: "ok"; text: qsTr("Saved") }
                     }
-                    GameButton {
-                        objectName: "gameSnapshotButton"
-                        width: parent.width
-                        implicitHeight: 36
-                        look: "outlined"
-                        iconKind: "diamond"
-                        text: root.saves.busy ? qsTr("Saving snapshot…") : qsTr("Save snapshot")
-                        hint: root.player.controllers.hotkeyHints.snapshot
-                        enabled: root.saves.available && !root.saves.busy
-                        onClicked: root.saves.createSnapshotInGame("")
-                    }
-                    UzLabel {
+                    Text {
                         objectName: "gameSnapshotMessage"
                         width: parent.width
                         wrapMode: Text.WordWrap
-                        lineHeight: 1.25
-                        font.pixelSize: 12
+                        textFormat: Text.PlainText
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.small.size
+                        lineHeight: Theme.roles.small.line
+                        lineHeightMode: Text.FixedHeight
                         text: root.saves.message !== "" ? root.saves.message
                               : qsTr("Saved to “%1” · final sync on pause or quit").arg(root.slotLabel())
-                        color: root.saves.message === "" ? Theme.gameMeta : (root.saves.messageIsError ? Theme.gameDanger : Theme.gameOk)
+                        color: root.saves.message === "" ? Theme.muted : (root.saves.messageIsError ? Theme.danger : Theme.ok)
+                    }
+                    Flow {
+                        width: parent.width
+                        spacing: Theme.space1
+                        UzButton {
+                            objectName: "gameSnapshotButton"
+                            size: "sm"
+                            focusPolicy: Qt.NoFocus
+                            text: root.saves.busy ? qsTr("Saving snapshot…") : qsTr("Save snapshot")
+                            enabled: root.saves.available && !root.saves.busy
+                            onClicked: root.saves.createSnapshotInGame("")
+                        }
+                        UzKbd {
+                            objectName: "snapshotKey"
+                            visible: root.player.controllers.hotkeyHints.snapshot !== ""
+                            height: Theme.row32
+                            keys: root.player.controllers.hotkeyHints.snapshot
+                        }
+                        UzButton {
+                            objectName: "manageSavesButton"
+                            size: "sm"
+                            kind: "ghost"
+                            focusPolicy: Qt.NoFocus
+                            text: qsTr("Manage saves")
+                            onClicked: root.savesOpen = true
+                        }
                     }
                 }
             }
@@ -907,10 +812,10 @@ Rectangle {
             clip: true
             Loader {
                 anchors.fill: parent
-                anchors.topMargin: 16
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                anchors.bottomMargin: 8
+                anchors.topMargin: Theme.space2
+                anchors.leftMargin: Theme.space3
+                anchors.rightMargin: Theme.space3
+                anchors.bottomMargin: Theme.space1
                 active: savesBox.visible
                 sourceComponent: SavesView {
                     player: root.player
@@ -922,61 +827,90 @@ Rectangle {
             }
         }
 
-        // Quit game: pinned at the bottom of your game's panel
-        Rectangle {
+        // Quit stays reachable on the Session tab and in the saves view: a footer under the scrolling page.
+        Item {
+            id: quitFooter
             Layout.fillWidth: true
-            visible: root.localTile
-            implicitHeight: quitCol.implicitHeight + 36
-            color: "transparent"
-            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.gameBorder }
+            visible: root.localTile && !root.consoleTab && !root.pluginTabOpen
+            implicitHeight: quitBlock.implicitHeight + 2 * Theme.space2
+            Rectangle { width: parent.width; height: 1; color: Theme.rule }
+            // 03 QUIT
             Column {
-                id: quitCol
-                x: 24
-                y: 16
-                width: parent.width - 48
-                spacing: 8
-                UzButton {
-                    objectName: "endGameButton"
-                    visible: !root.quitting
+                id: quitBlock
+                objectName: "quitBlock"
+                x: Theme.space3
+                y: Theme.space2
+                width: parent.width - 2 * Theme.space3
+                spacing: Theme.space15
+                UzSectionLabel { width: parent.width; number: root.saves.slotsAvailable && root.gameSession.active ? 3 : 2; text: qsTr("Quit") }
+                Flow {
                     width: parent.width
-                    implicitHeight: 40
-                    focusPolicy: Qt.NoFocus
-                    text: qsTr("Quit game")
-                    background: Rectangle { radius: 0; color: parent.hovered ? Theme.gameSegmentOn : Theme.gameHover }
-                    onClicked: root.player.requestQuit()
+                    spacing: Theme.space1
+                    UzButton {
+                        id: endGameButton
+                        objectName: "endGameButton"
+                        visible: !root.quitting
+                        size: "sm"
+                        focusPolicy: Qt.NoFocus
+                        text: qsTr("Quit game")
+                        onClicked: root.player.requestQuit()
+                    }
+                    Text {
+                        objectName: "quitNote"
+                        visible: !root.quitting
+                        height: Theme.row32
+                        verticalAlignment: Text.AlignVCenter
+                        width: Math.min(implicitWidth, quitBlock.width)
+                        elide: Text.ElideRight
+                        text: qsTr("Saves and syncs first.")
+                        textFormat: Text.PlainText
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.small.size
+                        color: Theme.muted
+                    }
                 }
-                UzLabel {
-                    objectName: "quitNote"
-                    visible: !root.quitting
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: qsTr("Saves and syncs first")
-                    font.pixelSize: 12
-                    color: Theme.gameFaint
-                }
-                Rectangle {
+                Column {
                     objectName: "quittingBox"
                     visible: root.quitting
                     width: parent.width
-                    implicitHeight: qcol.implicitHeight + 24
-                    height: implicitHeight
-                    radius: 0
-                    color: Theme.gameTrack
-                    border.width: 1
-                    border.color: Theme.gameGroupBorder
-                    ColumnLayout {
-                        id: qcol
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 6
-                        RowLayout {
-                            spacing: 8
-                            UzSpinner { size: 14; color: Theme.gameAccent }
-                            UzLabel { Layout.fillWidth: true; Layout.minimumWidth: 0; text: qsTr("Saving and syncing…"); font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.gameText; elide: Text.ElideRight }
+                    spacing: Theme.space05
+                    Row {
+                        spacing: Theme.space1
+                        UzSpinner { size: 14; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("Saving and syncing…")
+                            textFormat: Text.PlainText
+                            font.family: Theme.sans
+                            font.pixelSize: Theme.roles.itemTitleSm.size
+                            font.weight: Theme.roles.itemTitleSm.weight
+                            color: Theme.ink
                         }
-                        UzLabel { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: qsTr("Returns to the Library when done."); font.pixelSize: 12; color: Theme.gameFaint }
+                    }
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Returns to the Library when done.")
+                        textFormat: Text.PlainText
+                        font.family: Theme.sans
+                        font.pixelSize: Theme.roles.small.size
+                        color: Theme.muted
                     }
                 }
+            }
+        }
+
+        // Hint row (F3, F4): the keys that exist; shown with the Session tab
+        UzHintRow {
+            objectName: "panelHintRow"
+            Layout.fillWidth: true
+            visible: flick.visible
+            hints: {
+                var h = []
+                var d = root.player.controllers.hotkeyHints.diagnostics
+                if (d) h.push({ kbd: d, label: qsTr("Diagnostics") })
+                if (root.plugins.hudWidgets.length > 0) h.push({ kbd: "F4", label: qsTr("Plugin HUD") })
+                return h
             }
         }
 
@@ -986,32 +920,32 @@ Rectangle {
             objectName: "remotePanel"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: !root.localTile && !root.diagTabOpen
+            visible: !root.localTile
             Column {
-                x: 24
+                x: Theme.space3
                 y: 20
-                width: parent.width - 48
-                spacing: 16
+                width: parent.width - 2 * Theme.space3
+                spacing: Theme.space2
                 RowLayout {
                     width: parent.width
-                    spacing: 12
-                    Rectangle {
-                        Layout.preferredWidth: 36; Layout.preferredHeight: 36; radius: 0
-                        color: Theme.gameSegmentOn
-                        UzLabel { anchors.centerIn: parent; text: ((root.tileInfo.who || "?").charAt(0)).toUpperCase(); font.pixelSize: 14; font.weight: Font.DemiBold; color: Theme.gameText }
+                    spacing: Theme.space15
+                    UzAvatar {
+                        name: root.tileInfo.who || ""
+                        person: root.tileNo
+                        size: 40
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         Layout.preferredWidth: 0
                         spacing: 0
-                        UzLabel { objectName: "remoteWho"; Layout.fillWidth: true; elide: Text.ElideRight; text: root.tileInfo.who || ""; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.gameText }
-                        UzLabel { objectName: "remoteGame"; Layout.fillWidth: true; elide: Text.ElideRight; text: root.tileInfo.game || ""; font.pixelSize: 13; color: Theme.gameTextMuted }
+                        UzLabel { objectName: "remoteWho"; Layout.fillWidth: true; elide: Text.ElideRight; text: root.tileInfo.who || ""; font.pixelSize: Theme.roles.headerTitle.size; font.weight: Theme.roles.headerTitle.weight; color: Theme.ink }
+                        UzLabel { objectName: "remoteGame"; Layout.fillWidth: true; elide: Text.ElideRight; text: root.tileInfo.game || ""; font.pixelSize: Theme.roles.buttonSm.size; color: Theme.muted }
                     }
                 }
                 RowLayout {
                     width: parent.width
-                    spacing: 10
+                    spacing: Theme.space15
                     UzTag {
                         objectName: "remoteLinkPill"
                         visible: root.tileLink !== null
@@ -1024,8 +958,8 @@ Rectangle {
                         Layout.minimumWidth: 0
                         elide: Text.ElideRight
                         text: (root.tileInfo.visibility || "") + (root.sinceText(root.tileInfo.since || "") !== "" ? " · " + root.sinceText(root.tileInfo.since || "") : "")
-                        font.pixelSize: 12
-                        color: Theme.gameMeta
+                        font.pixelSize: Theme.roles.small.size
+                        color: Theme.muted
                     }
                 }
                 UzTag {
@@ -1035,79 +969,72 @@ Rectangle {
                     tone: "neutral"
                     text: qsTr("❚❚ Paused by %1").arg(root.tileInfo.pausedBy || root.tileInfo.who || "") + root.pausedFor(root.tileInfo.pausedAt || 0)
                 }
-                GameButton {
-                    objectName: "audioButton_" + root.tile
+                Flow {
                     width: parent.width
-                    implicitHeight: 36
-                    look: "outlined"
-                    readonly property bool here: root.ctl.audioFocus === root.tile
-                    on: here
-                    enabled: !here
-                    text: here ? qsTr("♪ Audio plays from this tile") : qsTr("♪ Audio here")
-                    onClicked: root.ctl.audioHere(root.tile)
+                    spacing: Theme.space1
+                    UzButton {
+                        objectName: "audioButton_" + root.tile
+                        size: "sm"
+                        focusPolicy: Qt.NoFocus
+                        readonly property bool here: root.ctl.audioFocus === root.tile
+                        on: here
+                        enabled: !here
+                        text: here ? qsTr("Audio plays from this tile") : qsTr("Audio here")
+                        onClicked: root.ctl.audioHere(root.tile)
+                    }
                 }
-                GameButton {
+                UzButton {
                     objectName: "removeButton_" + root.tile
-                    width: parent.width
-                    implicitHeight: 36
-                    look: "outlined"
+                    size: "sm"
+                    kind: "ghost"
+                    focusPolicy: Qt.NoFocus
                     text: qsTr("Remove from multiview")
                     onClicked: root.ctl.removeSurface(root.tile)
                 }
-                UzLabel {
+                Text {
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    lineHeight: 1.25
-                    font.pixelSize: 12
-                    color: Theme.gameMeta
+                    textFormat: Text.PlainText
+                    font.family: Theme.sans
+                    font.pixelSize: Theme.roles.small.size
+                    lineHeight: Theme.roles.small.line
+                    lineHeightMode: Text.FixedHeight
+                    color: Theme.muted
                     text: root.tileInfo.paused === true
                           ? qsTr("You only watch and listen. %1’s picture stays frozen until they resume.").arg(root.tileInfo.who || qsTr("The host"))
                           : qsTr("You only watch and listen. %1 sees you as a viewer.").arg(root.tileInfo.who || qsTr("The host"))
                 }
             }
-            Rectangle {
+            Item {
                 visible: root.ctl.hasLocalGame
                 anchors.bottom: parent.bottom
                 width: parent.width
-                implicitHeight: 52
-                height: 52
-                color: "transparent"
-                Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.gameBorder }
+                implicitHeight: Theme.row48 + Theme.space1
+                height: implicitHeight
+                Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.rule2 }
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 24
-                    anchors.rightMargin: 24
-                    spacing: 10
+                    anchors.leftMargin: Theme.space3
+                    anchors.rightMargin: Theme.space3
+                    spacing: Theme.space15
                     Rectangle {
-                        Layout.preferredWidth: 20; Layout.preferredHeight: 20; radius: 0
-                        color: Theme.gameBadge
-                        UzMono { anchors.centerIn: parent; text: String(root.ctl.surfaceOrder.indexOf("local") + 1); font.pixelSize: 11; color: Theme.gameBadgeText }
+                        Layout.preferredWidth: 8; Layout.preferredHeight: 8
+                        color: Theme.playerColor(root.ctl.surfaceOrder.indexOf("local") + 1, Theme.dark)
                     }
                     UzLabel {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         elide: Text.ElideRight
                         text: qsTr("Your game runs in tile %1").arg(root.ctl.surfaceOrder.indexOf("local") + 1)
-                        font.pixelSize: 12
-                        color: Theme.gameTextMuted
+                        font.pixelSize: Theme.roles.small.size
+                        color: Theme.muted
                     }
                     UzButton {
-                        id: selBtn
                         objectName: "selectLocalTile"
                         kind: "link"
                         focusPolicy: Qt.NoFocus
-                        implicitHeight: 28
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.roles.small.size
                         text: qsTr("Select")
-                        contentItem: Text {
-                            horizontalAlignment: Text.AlignRight
-                            verticalAlignment: Text.AlignVCenter
-                            text: selBtn.text
-                            textFormat: Text.PlainText
-                            font: selBtn.font
-                            color: Theme.gameText
-                            Rectangle { anchors.bottom: parent.bottom; anchors.right: parent.right; width: parent.contentWidth; height: 1; color: parent.color }
-                        }
                         onClicked: root.selectLocalRequested()
                     }
                 }

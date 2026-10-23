@@ -126,18 +126,18 @@ class ControllerProfilesTest : public QObject {
     {
       ControllerProfiles p(dir.path());
       QCOMPARE(p.padHotkeyModifier(), QStringLiteral("pad:back"));
-      QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:rightshoulder"));
+      QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:righttrigger"));
       QCOMPARE(p.padHotkey(QStringLiteral("snapshot")), QStringLiteral("pad:leftshoulder"));
       QCOMPARE(p.padHotkey(QStringLiteral("diagnostics")), QStringLiteral("pad:rightstick"));
-      QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:y"));   // Uzume hotkeys have gamepad defaults (3f-4)
+      QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:b"));   // Uzume hotkeys have gamepad defaults (3f-4)
       QCOMPARE(p.hotkeysChangedCount(), 0);
-      QCOMPARE(padHotkeyLabel(p.padHotkey(QStringLiteral("speedup")), p.padHotkeyModifier()), QStringLiteral("Select+RB"));
+      QCOMPARE(padHotkeyLabel(p.padHotkey(QStringLiteral("speedup")), p.padHotkeyModifier()), QStringLiteral("Select+RT"));
       QCOMPARE(padHotkeyLabel(p.padHotkey(QStringLiteral("diagnostics")), p.padHotkeyModifier()), QStringLiteral("Select+R3"));
       QCOMPARE(padHotkeyLabel(QStringLiteral("solo:pad:paddle1"), p.padHotkeyModifier()), tokenLabel(QStringLiteral("pad:paddle1")));
       QVERIFY(!QFile::exists(p.filePath()));
 
-      QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("pad:rightshoulder")));   // used by speed-up
-      QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("solo:pad:rightshoulder")));
+      QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("pad:righttrigger")));   // used by speed-up
+      QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("solo:pad:righttrigger")));
       QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("pad:back")));            // the hotkey button
       QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("pad:guide")));
       QVERIFY(!p.setPadHotkey(QStringLiteral("fullscreen"), QStringLiteral("key:65")));
@@ -164,13 +164,13 @@ class ControllerProfilesTest : public QObject {
     QCOMPARE(p.padHotkeyModifier(), QStringLiteral("pad:start"));
     QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("solo:pad:paddle1"));
     QCOMPARE(p.padHotkey(QStringLiteral("snapshot")), QString());
-    QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:rightshoulder"));
+    QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:righttrigger"));
     QVERIFY(p.resetPadHotkey(QStringLiteral("snapshot")));
     QCOMPARE(p.padHotkey(QStringLiteral("snapshot")), QStringLiteral("pad:leftshoulder"));
     QVERIFY(p.resetPadHotkeyModifier());
     QVERIFY(p.resetHotkeys());
     QCOMPARE(p.hotkeysChangedCount(), 0);
-    QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:y"));
+    QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:b"));
   }
 
   void padHotkeysOldFilesAndBrokenEntries() {
@@ -184,7 +184,7 @@ class ControllerProfilesTest : public QObject {
     {
       ControllerProfiles p(dir.path());
       QCOMPARE(p.hotkey(QStringLiteral("fullscreen")), int(Qt::Key_F10));
-      QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:rightshoulder"));
+      QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:righttrigger"));
       QCOMPARE(p.padHotkeyModifier(), QStringLiteral("pad:back"));
     }
     QVERIFY(f.open(QIODevice::WriteOnly));
@@ -197,7 +197,7 @@ class ControllerProfilesTest : public QObject {
     QCOMPARE(p.padHotkey(QStringLiteral("fullscreen")), QStringLiteral("pad:leftshoulder"));
     QCOMPARE(p.padHotkey(QStringLiteral("snapshot")), QString());                                 // default clashes with fullscreen
     QCOMPARE(p.padHotkey(QStringLiteral("diagnostics")), QStringLiteral("pad:rightstick"));       // guide is invalid
-    QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:rightshoulder"));        // the modifier is not an action button
+    QCOMPARE(p.padHotkey(QStringLiteral("speedup")), QStringLiteral("pad:righttrigger"));        // the modifier is not an action button
   }
 
   void hotkeysPersistAndUnknownKeysSurvive() {

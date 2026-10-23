@@ -109,7 +109,7 @@ Item {
                                 elide: Text.ElideRight
                                 text: entry.modelData.label
                                 textFormat: Text.PlainText
-                                font.pixelSize: Theme.fontSmall
+                                font.pixelSize: Theme.roles.buttonSm.size
                                 color: !entry.usable ? Theme.disabledInk : (entry.danger ? Theme.danger : Theme.ink)
                             }
                         }

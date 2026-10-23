@@ -210,10 +210,10 @@ ApplicationWindow {
     Component {
         id: tipBackground
         Rectangle {
-            radius: Theme.radius6
-            color: Theme.popupBg
+            radius: 0
+            color: Theme.surface
             border.width: 1
-            border.color: Theme.borderPopup
+            border.color: Theme.rule
         }
     }
     Component {
@@ -222,8 +222,8 @@ ApplicationWindow {
             property var tip: null
             text: tip ? tip.text : ""
             textFormat: Text.PlainText
-            font.pixelSize: Theme.fontMeta
-            color: Theme.text
+            font.pixelSize: Theme.roles.small.size
+            color: Theme.ink
             wrapMode: Text.Wrap
         }
     }

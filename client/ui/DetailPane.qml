@@ -53,14 +53,14 @@ Rectangle {
     }
     NumberAnimation { id: fadeIn; target: flick; property: "opacity"; from: 0.35; to: 1; duration: Theme.durPage }
 
-    color: Theme.bgPanel
+    color: Theme.ground
     implicitWidth: Theme.detailWidth
 
     Rectangle {
         anchors.left: parent.left
         width: 1
         height: parent.height
-        color: Theme.borderSidebar
+        color: Theme.rule
     }
 
     UzLabel {
@@ -69,15 +69,15 @@ Rectangle {
         visible: !root.hasGame && root.player.library.totalCount > 0
         anchors.centerIn: parent
         text: qsTr("Select a game from the Library.")
-        color: Theme.textFaint
-        font.pixelSize: Theme.fontSmall
+        color: Theme.dim
+        font.pixelSize: Theme.roles.input.size
     }
 
     ColumnLayout {
         visible: root.hasGame
         anchors.fill: parent
-        anchors.margins: 28
-        spacing: 18
+        anchors.margins: Theme.space3
+        spacing: Theme.space2
 
         Flickable {
             id: flick
@@ -93,25 +93,27 @@ Rectangle {
             ColumnLayout {
                 id: content
                 width: flick.width
-                spacing: 18
+                spacing: Theme.space2
 
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    spacing: Theme.space16
+                    spacing: Theme.space2
+                    // Cover placeholder (design-system.md "GameCover"): `placeholder` plane, 1 px `placeholder-rule`, monogram.
                     Rectangle {
                         implicitWidth: root.running ? 96 : 112
                         implicitHeight: root.running ? 96 : 112
-                        radius: Theme.radius8
-                        color: Theme.tile
+                        color: Theme.placeholder
+                        border.width: 1
+                        border.color: Theme.placeholderRule
                         UzLabel {
                             anchors.left: parent.left
                             anchors.bottom: parent.bottom
-                            anchors.margins: 10
+                            anchors.margins: Theme.space1
                             text: root.game.monogram || ""
                             font.pixelSize: 34
                             font.weight: Font.DemiBold
-                            color: Theme.monogram
+                            color: Theme.placeholderRule
                         }
                     }
                     ColumnLayout {
@@ -119,14 +121,14 @@ Rectangle {
                         Layout.minimumWidth: 0
                         Layout.preferredWidth: 1
                         Layout.alignment: Qt.AlignTop
-                        spacing: Theme.space6
+                        spacing: Theme.space1
                         UzMono {
                             objectName: "detailCaption"
                             visible: root.game.localFile === true && !root.running
                             Layout.fillWidth: true
                             text: root.game.onHub ? qsTr("LOCAL COPY OF A HUB GAME") : qsTr("LOCAL FILE · NOT ON HUB")
                             color: Theme.accentText
-                            font.pixelSize: Theme.fontMono
+                            font.pixelSize: Theme.roles.meta11.size
                             Layout.preferredWidth: 1
                             wrapMode: Text.WordWrap   // wraps instead of "LOCAL COPY OF A HUB GA…" at 960 (R-P22)
                         }
@@ -145,10 +147,12 @@ Rectangle {
                             Layout.preferredWidth: 1
                             wrapMode: Text.Wrap
                             text: root.game.title || ""
-                            font.pixelSize: Theme.fontDetail
-                            font.weight: Font.DemiBold
+                            font.pixelSize: Theme.roles.dialogTitle.size
+                            font.weight: Theme.roles.dialogTitle.weight
+                            font.letterSpacing: Theme.roles.dialogTitle.spacing
                         }
-                        UzLabel {
+                        // Meta line of the game page: `SYSTEM · CORE VERSION` in the Mono meta role.
+                        UzMono {
                             objectName: "detailSystem"
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -157,8 +161,10 @@ Rectangle {
                                   ? qsTr("%1 · %2 %3").arg(root.game.systemName || "").arg(root.game.coreLabelText || "").arg(root.game.coreVersionText)
                                   : ((root.game.coreLabelText || "") !== "" ? qsTr("%1 · %2").arg(root.game.systemName || "").arg(root.game.coreLabelText)
                                                                               : (root.game.systemName || ""))
-                            color: Theme.textMuted
-                            font.pixelSize: Theme.fontSmall
+                            color: Theme.muted
+                            font.pixelSize: Theme.roles.meta.size
+                            font.letterSpacing: Theme.roles.meta.spacing
+                            font.capitalization: Font.AllUppercase
                             elide: Text.ElideRight
                             HoverHandler { id: systemHover }
                             ToolTip.visible: systemHover.hovered && truncated
@@ -172,8 +178,8 @@ Rectangle {
                             Layout.minimumWidth: 0
                             Layout.preferredWidth: 1
                             text: root.game.coreNotice || ""
-                            color: Theme.textMuted
-                            font.pixelSize: Theme.fontMeta
+                            color: Theme.muted
+                            font.pixelSize: Theme.roles.small.size
                             wrapMode: Text.WordWrap
                         }
                     }
@@ -184,6 +190,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 0
+                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.rule }
                     Repeater {
                         model: root.running ? [
                             { label: qsTr("Running since"), text: root.sinceText, tone: "neutral", hint: "" },
@@ -208,12 +215,12 @@ Rectangle {
                             objectName: modelData.objName || ""
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
-                            implicitHeight: rowCol.height + 22
+                            implicitHeight: rowCol.height + 2 * Theme.space1
                             Rectangle {
                                 anchors.bottom: parent.bottom
                                 width: parent.width
                                 height: 1
-                                color: Theme.borderRow
+                                color: Theme.rule2
                             }
                             // Plain anchors and a Column, not nested layouts: the wrapped value used to get a stale height (hundreds of
                             // pixels, from a 1 px wide first layout pass) that the layouts never recomputed (R-P1).
@@ -222,20 +229,32 @@ Rectangle {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.top: parent.top
-                                anchors.topMargin: 11
-                                spacing: 4
+                                anchors.topMargin: Theme.space1
+                                spacing: Theme.space05
                                 Item {
                                     width: parent.width
                                     height: Math.max(rowLabel.implicitHeight, rowValue.implicitHeight)
-                                    UzLabel { id: rowLabel; anchors.left: parent.left; text: row.modelData.label; color: Theme.textMuted; font.pixelSize: 13 }
+                                    // Label column of the facts table (board S3c1): Mono section-label role, 96 px, value to its right.
+                                    UzMono {
+                                        id: rowLabel
+                                        anchors.left: parent.left
+                                        width: 96
+                                        text: row.modelData.label
+                                        elide: Text.ElideRight
+                                        color: Theme.dim
+                                        font.pixelSize: Theme.roles.sectionLabel.size
+                                        font.weight: Theme.roles.sectionLabel.weight
+                                        font.letterSpacing: Theme.roles.sectionLabel.spacing
+                                        font.capitalization: Font.AllUppercase
+                                    }
                                     UzLabel {
                                         id: rowValue
                                         // The value takes the rest of the row and wraps: a long status text must never widen the pane.
                                         // A file path is cut in the middle instead (the full path is the tooltip).
                                         anchors.left: rowLabel.right
-                                        anchors.leftMargin: 12
+                                        anchors.leftMargin: Theme.space15
                                         anchors.right: parent.right
-                                        horizontalAlignment: Text.AlignRight
+                                        horizontalAlignment: Text.AlignLeft
                                         wrapMode: row.modelData.mono === true ? Text.NoWrap : Text.Wrap
                                         elide: row.modelData.mono === true ? Text.ElideMiddle : Text.ElideNone
                                         HoverHandler { id: valHover }
@@ -245,16 +264,17 @@ Rectangle {
                                         objectName: "detailRowValue"
                                         text: (row.modelData.tone === "ok" ? "✓ " : ((row.modelData.tone === "warn" || row.modelData.tone === "amber") ? "▲ " : (row.modelData.tone === "error" ? "✕ " : "")))
                                               + (row.modelData.text || "")
-                                        font.pixelSize: Theme.fontSmall
-                                        color: row.modelData.tone === "neutral" ? Theme.text : Theme.toneColor(row.modelData.tone)
+                                        font.pixelSize: Theme.roles.input.size
+                                        color: row.modelData.tone === "neutral" ? Theme.ink2 : Theme.toneColor(row.modelData.tone)
                                     }
                                 }
                                 UzMono {
                                     visible: (row.modelData.hint || "") !== ""
-                                    width: parent.width
+                                    x: 96 + Theme.space15
+                                    width: parent.width - x
                                     text: row.modelData.hint || ""
                                     wrapMode: Text.WrapAnywhere
-                                    font.pixelSize: Theme.fontMono
+                                    font.pixelSize: Theme.roles.meta11.size
                                 }
                             }
                         }
@@ -282,9 +302,10 @@ Rectangle {
                     Layout.minimumWidth: 0
                     Layout.preferredWidth: 1
                     wrapMode: Text.Wrap
-                    lineHeight: 1.3
-                    color: Theme.textMeta
-                    font.pixelSize: Theme.fontMeta
+                    lineHeight: 18
+                    lineHeightMode: Text.FixedHeight
+                    color: Theme.muted
+                    font.pixelSize: Theme.roles.small.size
                     text: qsTr("The game stays loaded and paused while you browse, change settings or watch someone else’s session.")
                 }
                 UzButton {
@@ -300,15 +321,16 @@ Rectangle {
                     visible: root.game.localOnly === true && !root.running
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    spacing: 8
+                    spacing: Theme.space1
                     UzLabel {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         Layout.preferredWidth: 1
                         wrapMode: Text.Wrap
-                        lineHeight: 1.3
-                        color: Theme.textMeta
-                        font.pixelSize: Theme.fontMeta
+                        lineHeight: 18
+                    lineHeightMode: Text.FixedHeight
+                        color: Theme.muted
+                        font.pixelSize: Theme.roles.small.size
                         text: root.game.localFile === true
                               ? qsTr("Only you see this game. Its file stays on this device until you upload it to the server.")
                               : qsTr("Only you see this game. Its file is not on this device and not on the server.")
@@ -320,8 +342,8 @@ Rectangle {
                         Layout.minimumWidth: 0
                         Layout.preferredWidth: 1
                         wrapMode: Text.Wrap
-                        font.pixelSize: Theme.fontMeta
-                        color: root.player.upload.isError ? Theme.errorText : Theme.text
+                        font.pixelSize: Theme.roles.small.size
+                        color: root.player.upload.isError ? Theme.danger : Theme.ink
                         text: root.player.upload.active
                               ? qsTr("Uploading · %1 %").arg(Math.round(root.player.upload.progress * 100))
                               : root.player.upload.message
@@ -330,12 +352,10 @@ Rectangle {
                         objectName: "localUploadProgress"
                         visible: root.player.upload.active && root.player.upload.gameId === root.game.id
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 4
-                        radius: 0
-                        color: Theme.surfaceRaised
+                        Layout.preferredHeight: 2
+                        color: Theme.rule
                         Rectangle {
                             height: parent.height
-                            radius: 0
                             width: parent.width * root.player.upload.progress
                             color: Theme.accent
                         }
@@ -347,7 +367,7 @@ Rectangle {
                     visible: !root.running
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    spacing: 10
+                    spacing: Theme.space15
                     Eyebrow { text: qsTr("Start") }
                     Repeater {
                         model: root.game.checklist || []
@@ -356,7 +376,7 @@ Rectangle {
                             required property var modelData
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
-                            spacing: 12
+                            spacing: Theme.space15
                             Item {
                                 Layout.alignment: Qt.AlignTop
                                 Layout.preferredWidth: 18
@@ -366,9 +386,9 @@ Rectangle {
                                     width: 10
                                     height: 10
                                     radius: 0
-                                    color: step.modelData.state === "done" ? Theme.accent : (step.modelData.state === "error" ? Theme.pluginWarn : "transparent")
+                                    color: step.modelData.state === "done" ? Theme.accent : (step.modelData.state === "error" ? Theme.accentText : "transparent")
                                     border.width: (step.modelData.state === "done" || step.modelData.state === "error") ? 0 : 1.5
-                                    border.color: step.modelData.state === "active" ? Theme.accent : Theme.textDisabled
+                                    border.color: step.modelData.state === "active" ? Theme.accent : Theme.disabledInk
                                 }
                             }
                             ColumnLayout {
@@ -379,15 +399,15 @@ Rectangle {
                                     Layout.fillWidth: true
                                     text: step.modelData.label
                                     wrapMode: Text.WordWrap
-                                    font.pixelSize: Theme.fontSmall
-                                    color: step.modelData.state === "pending" ? Theme.textFaint : Theme.text
+                                    font.pixelSize: Theme.roles.input.size
+                                    color: step.modelData.state === "pending" ? Theme.dim : Theme.ink
                                 }
                                 UzMono {
                                     visible: (step.modelData.meta || "") !== ""
                                     Layout.fillWidth: true
                                     text: step.modelData.meta || ""
                                     wrapMode: Text.WordWrap
-                                    font.pixelSize: Theme.fontMono
+                                    font.pixelSize: Theme.roles.meta11.size
                                 }
                             }
                         }
@@ -398,17 +418,17 @@ Rectangle {
                     visible: (root.game.error || "") !== "" && !root.running
                     objectName: "startError"
                     Layout.fillWidth: true
-                    implicitHeight: errText.implicitHeight + 24
-                    radius: Theme.radius8
-                    color: Theme.errorBg
+                    implicitHeight: errText.implicitHeight + 2 * Theme.space15
+                    color: Theme.dangerTint
+                    Rectangle { width: 2; height: parent.height; color: Theme.danger }
                     UzLabel {
                         id: errText
                         anchors.fill: parent
-                        anchors.margins: 12
+                        anchors.margins: Theme.space15
                         text: root.game.error || ""
                         wrapMode: Text.WordWrap
-                        font.pixelSize: Theme.fontSmall
-                        color: Theme.errorText
+                        font.pixelSize: Theme.roles.input.size
+                        color: Theme.danger
                     }
                 }
             }
@@ -431,9 +451,8 @@ Rectangle {
             objectName: "playButton"
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            implicitHeight: 48
+            implicitHeight: Theme.row44
             kind: "primary"
-            font.pixelSize: Theme.fontSection
             busy: root.game.busy === true
             busyOnClick: true
             text: root.running ? qsTr("▶ Resume") : (root.game.playLabel || qsTr("Play"))
@@ -447,11 +466,11 @@ Rectangle {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             Layout.preferredWidth: 1
-            Layout.topMargin: -10
+            Layout.topMargin: -Theme.space1
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
-            color: Theme.pluginWarn
-            font.pixelSize: Theme.fontMeta
+            color: Theme.accentText
+            font.pixelSize: Theme.roles.small.size
             text: root.game.playDisabledReason || ""
         }
         // Secondary actions: two equal buttons for a local file (3c-7: Upload to Hub / Play and share, Remove from library) and for a
@@ -464,17 +483,17 @@ Rectangle {
             visible: !root.running && (offlineError || localRow)
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            spacing: 8
+            spacing: Theme.space1
             UzButton {
                 objectName: secondaryRow.offlineError ? "retryConnectionButton"
                             : (root.game.onHub ? "playShareButton" : "uploadToHubButton")
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
                 Layout.minimumWidth: 0
-                implicitHeight: 40
+                implicitHeight: Theme.row36
                 implicitWidth: 0
                 hPadding: 16
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 text: secondaryRow.offlineError ? qsTr("Retry connection")
                       : (root.game.onHub ? qsTr("Play and share") : qsTr("Upload to server"))
                 enabled: secondaryRow.offlineError ? true
@@ -488,10 +507,10 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
                 Layout.minimumWidth: 0
-                implicitHeight: 40
+                implicitHeight: Theme.row36
                 implicitWidth: 0
                 hPadding: 16
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.roles.input.size
                 text: secondaryRow.offlineError ? qsTr("Server settings") : qsTr("Remove from library")
                 enabled: secondaryRow.offlineError ? true : !root.player.upload.active
                 onClicked: secondaryRow.offlineError ? root.player.showSettings() : root.player.removeFromLibrary(root.game.id)
@@ -502,7 +521,7 @@ Rectangle {
             visible: !secondaryRow.visible && (root.player.sessions.available || root.running)
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            implicitHeight: 44
+            implicitHeight: Theme.row36
             text: root.game.running === true ? qsTr("Quit game") : qsTr("Play and share Session")
             enabled: (root.running && !root.player.quitting) || (root.game.canPlay === true && !root.confirming)
             onClicked: root.running ? root.player.requestQuit() : root.player.playAndShareSelected()
@@ -514,8 +533,8 @@ Rectangle {
             Layout.minimumWidth: 0
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
-            color: Theme.textFaint
-            font.pixelSize: Theme.fontMeta
+            color: Theme.dim
+            font.pixelSize: Theme.roles.small.size
             text: root.player.quitting ? qsTr("Saving and syncing…") : qsTr("Quit saves and syncs to the server first")
         }
         UzLabel {
@@ -523,8 +542,8 @@ Rectangle {
             visible: root.player.sessions.available && root.game.running !== true
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
-            color: Theme.textFaint
-            font.pixelSize: Theme.fontMeta
+            color: Theme.dim
+            font.pixelSize: Theme.roles.small.size
             text: qsTr("Visibility: %1 · change it in the Session panel")
                   .arg(root.player.sessions.visibility === "private" ? qsTr("Private")
                        : root.player.sessions.visibility === "invite_only" ? qsTr("Invite only") : qsTr("Everyone here"))

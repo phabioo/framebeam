@@ -34,13 +34,12 @@ Rectangle {
     readonly property alias menuOpen: menu.visible
 
     objectName: "sortControl"
-    implicitHeight: 32
-    implicitWidth: label.implicitWidth + 36 + 14
+    implicitHeight: Theme.row36
+    implicitWidth: label.implicitWidth + 2 * Theme.space15 + 14 + Theme.space1
     Layout.minimumWidth: 0
-    radius: Theme.radius7
-    color: Theme.surface
-    border.width: activeFocus || menu.visible ? 1.5 : 1
-    border.color: activeFocus || menu.visible ? Theme.accent : (hover.hovered ? Theme.borderButton : Theme.borderInput)
+    color: menu.visible ? Theme.pressed : (Theme.dark ? "transparent" : Theme.surface)
+    border.width: 1
+    border.color: menu.visible ? Theme.ink : (hover.hovered ? Theme.ink2 : Theme.rule)
     activeFocusOnTab: true
     Accessible.role: Accessible.ComboBox
     Accessible.name: qsTr("Sort: %1").arg(currentLabel)
@@ -48,27 +47,29 @@ Rectangle {
     Row {
         id: row
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 10
-        spacing: 6
+        anchors.leftMargin: Theme.space15
+        anchors.rightMargin: Theme.space15
+        spacing: Theme.space1
         Text {
             id: label
             anchors.verticalCenter: parent.verticalCenter
-            width: Math.min(implicitWidth, Math.max(0, root.width - 12 - 10 - arrow.implicitWidth - parent.spacing))
+            width: Math.min(implicitWidth, Math.max(0, root.width - 2 * Theme.space15 - arrow.width - parent.spacing))
             elide: Text.ElideRight
             textFormat: Text.StyledText
-            text: "<font color='" + Theme.textMeta + "'>" + qsTr("Sort:") + "</font> " + root.currentLabel
-            font.pixelSize: Theme.fontSmall
-            color: Theme.text
+            text: "<font color='" + Theme.muted + "'>" + qsTr("Sort:") + "</font> " + root.currentLabel
+            font.family: Theme.sans
+            font.pixelSize: Theme.roles.input.size
+            color: Theme.ink
         }
-        Text {
+        UzGlyph {
             id: arrow
             anchors.verticalCenter: parent.verticalCenter
-            text: menu.visible ? "▴" : "▾"
-            font.pixelSize: Theme.fontMono
-            color: Theme.textFaint
+            name: menu.visible ? "chevronUp" : "chevronDown"
+            size: 14
+            color: Theme.muted
         }
     }
+    UzFocusRing { visible: root.activeFocus }
     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
     TapHandler { onTapped: { root.forceActiveFocus(); menu.visible ? menu.close() : menu.open() } }
     Keys.onPressed: (event) => {
@@ -83,15 +84,16 @@ Rectangle {
         objectName: "sortMenu"
         parent: root
         x: root.width - width
-        y: root.height + 4
+        y: root.height + Theme.space05
         width: 252
-        padding: 4
+        padding: 1
+        topPadding: 1 + Theme.space05
+        bottomPadding: 1 + Theme.space05
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         background: Rectangle {
-            radius: Theme.radius8
-            color: Theme.popupBg
+            color: Theme.surface
             border.width: 1
-            border.color: Theme.borderPopup
+            border.color: Theme.rule
         }
         contentItem: ColumnLayout {
             spacing: 0
@@ -105,9 +107,9 @@ Rectangle {
                     spacing: 0
                     Eyebrow {
                         Layout.fillWidth: true
-                        Layout.topMargin: sec.index === 0 ? 4 : 8
-                        Layout.leftMargin: 8
-                        Layout.bottomMargin: 2
+                        Layout.topMargin: sec.index === 0 ? Theme.space05 : Theme.space1
+                        Layout.leftMargin: Theme.space15
+                        Layout.bottomMargin: Theme.space05
                         text: sec.modelData.header
                     }
                     Repeater {
@@ -115,52 +117,56 @@ Rectangle {
                         delegate: ItemDelegate {
                             id: item
                             required property var modelData
+                            readonly property bool selected: modelData.value === root.current
                             objectName: "sort_" + modelData.value
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
-                            implicitHeight: 30
+                            implicitHeight: Theme.row32
                             padding: 0
-                            leftPadding: 8
-                            rightPadding: 8
+                            leftPadding: Theme.space15
+                            rightPadding: Theme.space15
                             onClicked: { const key = item.modelData.value; menu.close(); root.picked(key) }
                             contentItem: Row {
-                                spacing: 4
-                                Text {
-                                    width: 16
+                                spacing: Theme.space1
+                                Item {
+                                    width: 14
+                                    height: 14
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: item.modelData.value === root.current ? "✓" : ""
-                                    font.pixelSize: Theme.fontSmall
-                                    color: Theme.accentText
+                                    UzGlyph { anchors.centerIn: parent; visible: item.selected; name: "check"; size: 14; color: Theme.accentText }
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: item.width - 16 - 4 - 16
+                                    width: Math.max(0, item.width - 2 * Theme.space15 - 14 - parent.spacing)
                                     text: item.modelData.label
                                     textFormat: Text.PlainText
                                     elide: Text.ElideRight
-                                    font.pixelSize: Theme.fontSmall
-                                    color: Theme.text
+                                    font.family: Theme.sans
+                                    font.pixelSize: Theme.roles.input.size
+                                    font.weight: item.selected ? Font.Medium : Font.Normal
+                                    color: Theme.ink
                                 }
                             }
                             background: Rectangle {
-                                radius: Theme.radius6
-                                color: item.highlighted || item.hovered ? Theme.surfaceRaised : "transparent"
+                                color: item.highlighted || item.hovered ? Theme.hover : "transparent"
+                                Rectangle { visible: item.selected; width: 2; height: parent.height; color: Theme.accent }
+                                UzFocusRing { inset: true; visible: item.highlighted }
                             }
                         }
                     }
                 }
             }
-            Rectangle { Layout.fillWidth: true; Layout.topMargin: 6; height: 1; color: Theme.borderSidebar }
+            Rectangle { Layout.fillWidth: true; Layout.topMargin: Theme.space1; height: 1; color: Theme.rule2 }
             Text {
                 Layout.fillWidth: true
-                Layout.topMargin: 6
-                Layout.leftMargin: 8
-                Layout.rightMargin: 8
-                Layout.bottomMargin: 4
+                Layout.topMargin: Theme.space1
+                Layout.leftMargin: Theme.space15
+                Layout.rightMargin: Theme.space15
+                Layout.bottomMargin: Theme.space1
                 text: qsTr("Never played games come last. Sort and Ready first are saved on this device.")
                 wrapMode: Text.WordWrap
-                font.pixelSize: Theme.fontMono
-                color: Theme.textFaint
+                font.family: Theme.sans
+                font.pixelSize: Theme.roles.small.size
+                color: Theme.dim
             }
         }
     }
