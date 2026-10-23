@@ -31,7 +31,8 @@ Rectangle {
     readonly property Item moreAnchor: moreButton
     readonly property Item layoutAnchor: layoutButton
     readonly property Item speedAnchor: speedValueButton
-    readonly property bool menuOpen: moreMenu.opened || layoutMenu.opened || speedMenu.opened
+    readonly property bool menuOpen: moreMenu.opened || layoutMenu.opened || speedMenu.opened || soundPopover.opened
+    readonly property var audio: player.audio
     signal fullscreenRequested()
     signal resetRequested()
     signal panelToggled()
@@ -94,11 +95,12 @@ Rectangle {
             const add = (x) => { w += x + (n > 0 ? gap : 0); ++n }
             if (watchingOnly) {
                 if (ctl.tab !== "session" && ctl.surfaceCount >= 1) add(addButton.implicitWidth)
-                add(panelButton.implicitWidth); add(leaveButton.implicitWidth); add(moreButton.implicitWidth)
+                add(volumeButton.implicitWidth); add(panelButton.implicitWidth); add(leaveButton.implicitWidth); add(moreButton.implicitWidth)
             } else {
                 if (l < 1 && watchers.length > 0) add(watchers.length * 16 + 8 + Theme.space1)
                 if (l < 3 && own) add(pauseButton.implicitWidth)
                 if (l < 3 && own && session.fastForwardAvailable) add(fastForwardButton.implicitWidth + (l < 1 ? speedValueButton.implicitWidth : 0))
+                add(volumeButton.implicitWidth)
                 if (l < 1 && layouts.length > 1) add(layoutButton.implicitWidth)
                 if (!multi && l < 2) add(viewButton.implicitWidth)
                 if (multi && ctl.surfaceCount >= 1) add(addButton.implicitWidth)
@@ -206,6 +208,57 @@ Rectangle {
         value: Number(Math.round(root.session.fastForwardRatio * 10) / 10)
         menuWidth: 160
         onChosen: (item) => root.session.fastForwardRatio = Number(item.value)
+    }
+
+    // Sound (board 3g-9): the master volume of this PC. Voice and plugin sound rows come with 0.21.
+    UzPopover {
+        id: soundPopover
+        objectName: "soundPopover"
+        label: qsTr("Sound")
+        popWidth: 320
+        UzSlider {
+            id: soundSlider
+            objectName: "soundVolumeSlider"
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.space2
+            Layout.rightMargin: Theme.space2
+            Layout.topMargin: Theme.space1
+            label: qsTr("My game")
+            from: 0
+            to: 100
+            stepSize: root.audio.volumeStep
+            muted: root.audio.muted
+            onMoved: root.audio.setVolume(Math.round(value))
+            Binding { target: soundSlider; property: "value"; value: root.audio.volume }   // survives the key nudges
+        }
+        Text {
+            objectName: "soundBackgroundLine"
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.space2
+            Layout.rightMargin: Theme.space2
+            Layout.topMargin: Theme.space1
+            Layout.bottomMargin: Theme.space15
+            text: qsTr("Muted in the background: %1").arg(root.audio.muteInBackground ? qsTr("on") : qsTr("off"))
+            textFormat: Text.PlainText
+            font.family: Theme.sans
+            font.pixelSize: Theme.roles.small.size
+            color: Theme.muted
+        }
+        actions: [
+            UzButton {
+                objectName: "soundMuteButton"
+                size: "sm"
+                text: root.audio.muted ? qsTr("Unmute") : qsTr("Mute all")
+                onClicked: root.audio.setMuted(!root.audio.muted)
+            },
+            UzButton {
+                objectName: "soundSettingsButton"
+                size: "sm"
+                kind: "link"
+                text: qsTr("Sound settings")
+                onClicked: { soundPopover.close(); root.player.leaveGameView(); root.player.showSettingsSection("audio") }
+            }
+        ]
     }
 
     RowLayout {
@@ -355,6 +408,18 @@ Rectangle {
                 on: speedMenu.opened
                 Accessible.name: qsTr("Speed-up speed")
                 onClicked: speedMenu.opened ? speedMenu.close() : speedMenu.openFor(speedValueButton, "below", true)
+            }
+            UzIconButton {
+                id: volumeButton
+                objectName: "volumeButton"
+                focusPolicy: Qt.TabFocus
+                glyph: root.audio.effectiveMuted ? "volumeOff" : "volume"
+                on: soundPopover.opened
+                Accessible.name: qsTr("Sound")
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+                ToolTip.text: root.audio.muted ? qsTr("Sound · muted") : qsTr("Sound · %1 %").arg(root.audio.volume)
+                onClicked: soundPopover.opened ? soundPopover.close() : soundPopover.openFor(volumeButton, "below", "end")
             }
             UzButton {
                 id: layoutButton

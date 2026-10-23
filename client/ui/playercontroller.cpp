@@ -363,6 +363,20 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   connect(conn_.get(), &HubConnection::handshakeProblemsChanged, this, &PlayerController::hubChanged);
 
   sessions_ = std::make_unique<SessionController>(conn_.get(), profiles_.get(), &session_);
+  // Master volume and mute: one software gain for the local game and one for watched sessions (the share is unaffected).
+  audio_ = std::make_unique<AudioController>(settings_.get());
+  const auto syncAudio = [this]() {
+    session_.setMasterGain(audio_->localGain());
+    sessions_->setRemoteGain(audio_->remoteGain());
+  };
+  const auto syncAudioDevice = [this]() {
+    session_.setAudioDevice(audio_->deviceIdBytes());
+    sessions_->setRemoteAudioDevice(audio_->deviceIdBytes());
+  };
+  connect(audio_.get(), &AudioController::gainsChanged, this, syncAudio);
+  connect(audio_.get(), &AudioController::changed, this, syncAudioDevice);
+  syncAudio();
+  syncAudioDevice();
   sessions_->setPlayerSettings(settings_.get());  // diagnostics overlay states live in settings/player.json (0.6 D5)
   runClient_ = std::make_unique<RunClient>(conn_.get(), sessions_->socket(), profiles_->baseDir());
   runs_ = std::make_unique<RunsController>(runClient_.get(), plugins_.get(), library_.get(), conn_.get());
