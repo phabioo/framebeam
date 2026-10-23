@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QByteArray>
+#include <QList>
+#include <functional>
 #include <QHash>
 #include <QString>
 #include <QStringList>
@@ -48,6 +50,20 @@ class CoreCache {
   // Best effort (a file still loaded on Windows cannot be deleted): failures are skipped, never reported as an error.
   // Returns the number of version folders removed.
   // `alsoKeepVersion` protects a second version (a running game's core while a newer one was staged).
+  // Clean-up suggestion "unused cores" (Settings > This PC > Storage): cached versions of this platform that are not the newest of
+  // their core and not `inUseVersion(coreId)` (the running game's core). Sizes are the bytes of the package folder.
+  struct StaleVersion {
+    QString coreId;
+    QString version;
+    qint64 bytes = 0;
+  };
+  QList<StaleVersion> staleVersions(const QString& platform, const std::function<QString(const QString&)>& inUseVersion = {}) const;
+  // Removes exactly staleVersions(); best effort. Returns the bytes freed and the number of version folders removed.
+  struct PruneResult {
+    qint64 freedBytes = 0;
+    int removed = 0;
+  };
+  PruneResult removeStaleVersions(const QString& platform, const std::function<QString(const QString&)>& inUseVersion = {}) const;
   int prune(const QString& coreId, const QString& platform, int keepNewest, const QString& inUseVersion,
             const QString& alsoKeepVersion = QString()) const;
 

@@ -34,7 +34,7 @@ Rectangle {
     readonly property var helpItems: {
         switch (root.currentSection) {
         case "appearance": return [{ text: qsTr("Theme is per PC; your favourites and collections follow your account.") }]
-        case "storage": return [{ title: qsTr("Nothing on the server"), text: qsTr("This only removes copies on this PC. Saves are always on %1 and never part of a clean-up.").arg(root.player.hubName !== "" ? root.player.hubName : qsTr("your server")) }]
+        case "storage": return [{ title: qsTr("Nothing on the server"), text: qsTr("Clean-up only removes copies on this PC: games that download again, unused cores. Saves are always on %1 and never part of a clean-up.").arg(root.player.hubName !== "" ? root.player.hubName : qsTr("your server")) }]
         case "library": return [{ text: qsTr("Uzume tells the server which games you have; the files stay on this PC.") }]
         default: return [{ text: qsTr("These settings only affect this PC and your account.") }]
         }
@@ -278,7 +278,7 @@ Rectangle {
                                                                              : root.player.appearance === "system" ? qsTr("System") : qsTr("Dark"))
                                       : sec.modelData.id === "audio" ? (root.player.audio.muted ? qsTr("Muted") : qsTr("Volume %1 %").arg(root.player.audio.volume))
                                       : sec.modelData.id === "library" ? root.libraryNavText()
-                                      : sec.modelData.id === "storage" ? qsTr("%1 of %2").arg(root.player.romCache.usedText).arg(root.player.romCache.limitText)
+                                      : sec.modelData.id === "storage" ? (root.player.localStorage.report.usedText !== undefined ? qsTr("%1 used").arg(root.player.localStorage.report.usedText) : qsTr("%1 of %2").arg(root.player.romCache.usedText).arg(root.player.romCache.limitText))
                                       : sec.modelData.id === "plugins" ? root.player.plugins.summary
                                       : qsTr("Logs and support")
                             }
@@ -1170,7 +1170,7 @@ Rectangle {
                     player: root.player
                 }
 
-                // ------------------------------------------------------------------ ROM CACHE
+                // ------------------------------------------------------------------ STORAGE (overview, clean-up, ROM cache)
                 ColumnLayout {
                     id: secStorage
                     visible: root.scope === "pc"
@@ -1181,6 +1181,11 @@ Rectangle {
                     property string clearResult: ""
                     UzSectionLabel { Layout.fillWidth: true; text: qsTr("Storage") }
                     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.rule; Layout.topMargin: -Theme.space05 }
+                    LocalStorageBlock {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        player: root.player
+                    }
                     UzSettingsRow {
                         objectName: "romCacheLimitRow"
                         Layout.fillWidth: true

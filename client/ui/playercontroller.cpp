@@ -153,16 +153,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   probeCoreVersions_ = options.probeCoreVersions;
   coreUpdater_ = std::make_unique<CoreUpdater>(conn_.get(), coreCache_.get());
   // A running game keeps its loaded core: pruning never removes the version it uses while a newer one is staged.
-  const auto inUseVersion = [this](const QString& coreId) -> QString {
-    if (!session_.isActive()) {
-      return {};
-    }
-    const emu::SystemManifest* man = catalog_ ? catalog_->manifestFor(launchGame_) : nullptr;
-    if (man == nullptr || man->coreId != coreId) {
-      return {};
-    }
-    return catalog_->locateCore(*man).version;
-  };
+  const auto inUseVersion = [this](const QString& coreId) { return inUseCoreVersion(coreId); };
   coreUpdater_->setInUseProvider(inUseVersion);
   connect(coreUpdater_.get(), &CoreUpdater::statusChanged, this, &PlayerController::coreUpdateChanged);
   connect(coreUpdater_.get(), &CoreUpdater::updated, this, [this](const CoreUpdater::Candidate& c, const CoreResult&) {
@@ -389,6 +380,25 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   screenshots_->setRunNameLookup([this](const QString& runId) {
     const auto run = runClient_ ? runClient_->run(runId) : std::nullopt;
     return run ? run->name : QString();
+  });
+  localStorage_ = std::make_unique<LocalStorageController>([this]() {
+    LocalStorageInput in;
+    in.dataDir = profiles_->baseDir();
+    in.firmwareDir = fwCache_->dir();
+    in.roms = *cache_;
+    in.cores = *coreCache_;
+    in.platform = CoreCache::currentPlatform();
+    in.protectedHashes = protectedRomHashes();
+    const emu::SystemManifest* man = session_.isActive() && catalog_ ? catalog_->manifestFor(launchGame_) : nullptr;
+    if (man != nullptr) {
+      in.inUseCoreId = man->coreId;
+      in.inUseCoreVersion = inUseCoreVersion(man->coreId);
+    }
+    return in;
+  });
+  connect(localStorage_.get(), &LocalStorageController::gamesRemoved, this, [this]() {
+    emit romCacheChanged();
+    emit selectedGameChanged();  // a removed ROM turns "ready" back into "download needed"
   });
   connect(&model_, &LibraryModel::collectionsChanged, this, &PlayerController::selectedGameChanged);
   connect(runs_.get(), &RunsController::launchRequested, this, &PlayerController::startRunGame);
@@ -1225,6 +1235,18 @@ QString formatBytes(qint64 bytes) {
   return LibraryModel::formatSize(bytes);
 }
 }  // namespace
+
+// A running game keeps its loaded core: clean-up and pruning never remove the version it uses.
+QString PlayerController::inUseCoreVersion(const QString& coreId) const {
+  if (!session_.isActive()) {
+    return {};
+  }
+  const emu::SystemManifest* man = catalog_ ? catalog_->manifestFor(launchGame_) : nullptr;
+  if (man == nullptr || man->coreId != coreId) {
+    return {};
+  }
+  return catalog_->locateCore(*man).version;
+}
 
 QSet<QString> PlayerController::protectedRomHashes() const {
   QSet<QString> keep = downloader_ ? downloader_->activeHashes() : QSet<QString>();

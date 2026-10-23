@@ -40,6 +40,7 @@
 #include "hubpresenter.h"
 #include "hubsystems.h"
 #include "librarymodel.h"
+#include "localstoragecontroller.h"
 #include "playphase.h"
 #include "pluginscontroller.h"
 #include "personalcontroller.h"
@@ -152,6 +153,7 @@ class PlayerController : public QObject {
   // Favourites and collections of the signed-in person (3c-0, 3c-1, 3c-4)
   Q_PROPERTY(uzume::ui::PersonalController* personal READ personal CONSTANT)
   Q_PROPERTY(uzume::ui::ScreenshotController* screenshots READ screenshots CONSTANT)
+  Q_PROPERTY(uzume::ui::LocalStorageController* localStorage READ localStorage CONSTANT)  // Settings > This PC > Storage (0.19)
   // Connection check dialog (design 6e): Hub reachable, STUN, TURN, NAT type, test connection
   Q_PROPERTY(uzume::ui::ConnectionCheckController* connectionCheck READ connectionCheck CONSTANT)
   // Save slot picker, history/restore, snapshots, "save changed elsewhere" notice (ADR 0012 D7)
@@ -222,6 +224,7 @@ class PlayerController : public QObject {
   RunsController* runs() { return runs_.get(); }
   PersonalController* personal() { return personal_.get(); }
   ScreenshotController* screenshots() { return screenshots_.get(); }
+  LocalStorageController* localStorage() { return localStorage_.get(); }
   // image://screenshots/<id>: for QQmlEngine::addImageProvider (the engine takes ownership); the cache belongs to the controller.
   ScreenshotImageProvider* createScreenshotImageProvider() { return new ScreenshotImageProvider(screenshots_->cache()); }
   SaveHistoryController* saveHistory() { return history_.get(); }
@@ -255,6 +258,8 @@ class PlayerController : public QObject {
   Q_INVOKABLE void refreshRomCache() { emit romCacheChanged(); }
   // Hashes that must stay in the cache: the game that is starting/running/in the background and active downloads.
   QSet<QString> protectedRomHashes() const;
+  // Version of `coreId` the running game has loaded (empty when no game runs or it uses another core).
+  QString inUseCoreVersion(const QString& coreId) const;
   bool canUpload() const;
   QVariantMap upload() const { return uploads_->upload(); }
   QStringList libraryFolders() const;
@@ -480,6 +485,7 @@ class PlayerController : public QObject {
   std::unique_ptr<OnboardingController> onboarding_;  // after localHub_ and conn_
   std::unique_ptr<AccountsController> accounts_;
   std::unique_ptr<PersonalController> personal_;
+  std::unique_ptr<LocalStorageController> localStorage_;  // measuring and clean-up of this PC's data (0.19)
   std::unique_ptr<ScreenshotController> screenshots_;  // screenshot hotkey and the game page strip (0.19)
   std::unique_ptr<PluginsController> plugins_;  // after settings_ and session_: destroyed before them
   std::unique_ptr<RunClient> runClient_;        // after sessions_ (the Hub socket) and plugins_

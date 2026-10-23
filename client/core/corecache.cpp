@@ -3,6 +3,7 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -181,6 +182,44 @@ int CoreCache::prune(const QString& coreId, const QString& platform, int keepNew
     QDir(QDir(root_).filePath(coreId)).rmdir(v);  // only succeeds when no other platform is cached for that version
   }
   return removed;
+}
+
+namespace {
+qint64 folderBytes(const QString& dir) {
+  qint64 n = 0;
+  QDirIterator it(dir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+  while (it.hasNext()) {
+    it.next();
+    n += it.fileInfo().size();
+  }
+  return n;
+}
+}  // namespace
+
+QList<CoreCache::StaleVersion> CoreCache::staleVersions(const QString& platform, const std::function<QString(const QString&)>& inUseVersion) const {
+  QList<StaleVersion> out;
+  if (root_.isEmpty()) return out;
+  for (const QString& coreId : QDir(root_).entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+    const QStringList vs = versions(coreId, platform);  // newest first; empty for an invalid id
+    const QString inUse = inUseVersion ? inUseVersion(coreId) : QString();
+    for (qsizetype i = 1; i < vs.size(); ++i) {
+      if (vs.at(i) == inUse) continue;
+      out.append({coreId, vs.at(i), folderBytes(packageDir(coreId, vs.at(i), platform))});
+    }
+  }
+  return out;
+}
+
+CoreCache::PruneResult CoreCache::removeStaleVersions(const QString& platform, const std::function<QString(const QString&)>& inUseVersion) const {
+  PruneResult r;
+  for (const StaleVersion& s : staleVersions(platform, inUseVersion)) {
+    const QString dir = packageDir(s.coreId, s.version, platform);
+    if (dir.isEmpty() || !QDir(dir).removeRecursively()) continue;
+    ++r.removed;
+    r.freedBytes += s.bytes;
+    QDir(QDir(root_).filePath(s.coreId)).rmdir(s.version);
+  }
+  return r;
 }
 
 QString CoreCache::libraryPathJustVerified(const QString& coreId, const QString& version, const QString& platform) const {

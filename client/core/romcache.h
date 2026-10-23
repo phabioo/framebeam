@@ -79,6 +79,13 @@ class RomCache {
   // Removes all finished ROM files except the protected ones (and those being downloaded).
   TrimResult clear(const QSet<QString>& protectedHashes = {}) const;
 
+  // Clean-up suggestion "games not played in N days" (Settings > This PC > Storage): finished ROM files whose last use is older than
+  // `cutoffMs` (Unix ms), never the protected ones (running game, downloads in progress) and never a file with a .part next to it.
+  // Oldest first. Saves are not part of this cache.
+  static constexpr int kUnusedGameDays = 60;
+  QList<Entry> unusedSince(qint64 cutoffMs, const QSet<QString>& protectedHashes = {}) const;
+  TrimResult removeUnusedSince(qint64 cutoffMs, const QSet<QString>& protectedHashes = {}) const;
+
   qint64 partSize(const QString& sha256, const QString& ext) const;
   void discardPart(const QString& sha256, const QString& ext) const;
   // Checks the .part file; Ok: renamed atomically + sidecar. HashMismatch: .part deleted.
