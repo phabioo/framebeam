@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>10h-1 Server › Tools</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}[style*="grid-template-rows"] .uz-toast{min-width:0;width:100%;box-sizing:border-box;height:auto;min-height:44px;padding-top:10px;padding-bottom:10px}[style*="grid-template-rows"] .uz-toast-action{white-space:nowrap}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Tools" groups="{{ groups }}" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:18px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="OFFERED TO APPS · LIKE CORES">Server</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Tools</h1>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="USED BY THE RANDOMIZER PLUGIN">Randomizer engine</x-import>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div style="display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:12px;min-height:32px;align-items:center;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)">ENGINE</span><span style="font-size:13px;line-height:18px;color:var(--ink-2)"><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">FVX · OPEN-SOURCE RANDOMIZER</span></span></div><div style="display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:12px;min-height:32px;align-items:center;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)">VERSION</span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">2.3.1 · checked today 09:00</span></div><div style="display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:12px;min-height:32px;align-items:center;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)">SIZE</span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">38 MB per PC · downloaded once</span></div><div style="display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:12px;min-height:32px;align-items:center;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)">PLATFORMS</span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">Windows · Linux</span></div><div style="display:grid;grid-template-columns:96px minmax(0,1fr);column-gap:12px;min-height:32px;align-items:center;border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)">LICENSE</span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">GPL-3.0 · <a href="#source" style="color:var(--accent-text)">source and license</a></span></div></div>
+        <div style="border-top:1px solid var(--rule)"><x-import component-from-global-scope="Uzume.SettingsRow" label="Offer to apps" help="Apps download the engine from Home server when someone builds a variant."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}" state="focus"></x-import></x-import></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:4px 0"><x-import component-from-global-scope="Uzume.StatusIcon" kind="warning" size="sm">Version 2.4.0 is available · 18 Oct</x-import><span style="margin-left:auto"><x-import component-from-global-scope="Uzume.Button" size="sm">Update to 2.4.0</x-import></span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="RUNS AND RECIPES PIN A VERSION">Versions kept</x-import>
+      <div role="table" style="display:flex;flex-direction:column;font-size:13px;line-height:18px">
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) 64px 104px;column-gap:12px;padding:0 8px 8px;border-bottom:1px solid var(--rule);font:500 10px/16px var(--font-mono);letter-spacing:.12em;color:var(--dim)"><span>VERSION</span><span>USED BY</span><span>SIZE</span><span></span></div>
+        <div role="row" aria-selected="true" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) 64px 104px;column-gap:12px;align-items:center;min-height:52px;padding:0 8px;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start)"><span style="display:flex;flex-direction:column;min-width:0"><span style=""><span style="display:flex;align-items:center;gap:8px">2.3.1 <x-import component-from-global-scope="Uzume.Tag" tone="ok">Offered</x-import></span></span><span style="font-size:12px;line-height:18px;color:var(--muted)">Imported 9 Oct</span></span><span style="font-size:13px;line-height:18px;color:var(--muted);font-weight:400">Ember Shuffle · 5 variant recipes</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">38 MB</span><span></span></div>
+        <div role="row" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) 64px 104px;column-gap:12px;align-items:center;min-height:52px;padding:0 8px;border-bottom:1px solid var(--rule-2)"><span style="display:flex;flex-direction:column;min-width:0"><span style="">2.2.0</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Imported 2 Sep</span></span><span style="font-size:13px;line-height:18px;color:var(--muted);font-weight:400">2 variant recipes</span><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">36 MB</span><x-import component-from-global-scope="Uzume.Button" variant="danger" size="sm">Remove…</x-import></div>
+      </div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · TOOLS · HOME SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "groups": [{"head": "Play", "items": ["Library", "Runs", "Emulation", "Controllers"]}, {"head": "Server", "server": true, "items": ["Status", "Users", "Systems & cores", "Tools", "Plugins", "Reports"]}]}, { noop: () => {}, help: [{ title: 'Tools', text: 'Programs Home server offers to apps, like cores. Apps run them on their own PC; game files never come here.' }, { title: 'Versions', text: 'Updating never changes a running run or an existing recipe. Home server keeps every version still in use.' }, { text: T(G('A', 'Choose'), ' ', G('B', 'Back')) }] });
+  }
+}
+</script>
+</body>
+</html>

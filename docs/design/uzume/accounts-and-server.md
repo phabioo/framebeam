@@ -247,19 +247,19 @@ Six states: buildbot unreachable (installed cores keep working), core download f
 
 ### 4i-app-1 Plugins · server
 
-Boards: [`S4i1`](../source/uzume/S4i1.dc.html) · [`S4i1Kinari`](../source/uzume/S4i1Kinari.dc.html). Built in: 0.18 package 8 (app admin area), 0.22 (plugins).
+Boards: [`S4i1`](../source/uzume/S4i1.dc.html) · [`S4i1Kinari`](../source/uzume/S4i1Kinari.dc.html). Built in: 0.18 package 8 (app admin area), 0.23 (plugins).
 
 "Plugins" (server group), primary Upload plugin.... Table plugin (name, version), origin `Tag` (Official ok, Not signed danger with "!"), permissions, users, `Toggle` On. **Official index** (signed, checked today): name, version, description, Add. Detail section for an uploaded plugin: "Uzume hasn't checked this file. People see a warning before turning it on.", Use previous version, Download file, Remove from server.... Plugin ID of the run plugin is `uzume.soullink`, the shared base `uzume.soullink-core`.
 
 ### 4i-app-2 Settings › This PC › Plugins
 
-Boards: [`S4i2`](../source/uzume/S4i2.dc.html) · [`S4i2Kinari`](../source/uzume/S4i2Kinari.dc.html). Built in: 0.18 package 10 (on this PC and sharing), 0.22 (plugins).
+Boards: [`S4i2`](../source/uzume/S4i2.dc.html) · [`S4i2Kinari`](../source/uzume/S4i2Kinari.dc.html). Built in: 0.18 package 10 (on this PC and sharing), 0.23 (plugins).
 
 Per-person plugin list in Settings › This PC: `SettingsRow` + `Toggle` per plugin ("1.4.0 · Official. Run board and panel in game. Hotkey Ctrl+H."; "Turned off on Home server. Offered once Max turns it on."), "Plugin panel position" `Select` (Left / Right), `SettingsDisclosure`. Removing one here uninstalls it from this PC only.
 
 ### 4i-app-3 Plugins · dialogs and states
 
-Boards: [`S4i3`](../source/uzume/S4i3.dc.html) · [`S4i3Kinari`](../source/uzume/S4i3Kinari.dc.html). Built in: 0.18 package 8 (app admin area), 0.22 (plugins).
+Boards: [`S4i3`](../source/uzume/S4i3.dc.html) · [`S4i3Kinari`](../source/uzume/S4i3Kinari.dc.html). Built in: 0.18 package 8 (app admin area), 0.23 (plugins).
 
 Six states: upload of an unsigned plugin (Checkbox per permission: Show panels in game, Share run progress, Read game memory; saved with the form), use previous version, index unreachable (last good copy), needs a newer server ("Splits Timer 0.6 needs server 0.18+"), member (Max manages plugins; Open my plugins), remove from server (people keep their copy; run data stays).
 

@@ -28,6 +28,10 @@
   {
    "id": "b4",
    "name": "4 Play and plugins"
+  },
+  {
+   "id": "b5",
+   "name": "5 Randomizer"
   }
  ],
  "boards": {
@@ -2306,7 +2310,7 @@
    "x": 0,
    "y": 0,
    "w": 1280,
-   "h": 2240,
+   "h": 2160,
    "page": "b0",
    "title": "Round 5 · All sheets · Index"
   },
@@ -2357,6 +2361,494 @@
    "h": 800,
    "page": "b4",
    "title": "4d-2 · Developer console · states · Kinari"
+  },
+  "S5Index.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 1720,
+   "page": "b5",
+   "title": "5 Randomizer · Index"
+  },
+  "S10a1.dc.html": {
+   "x": 0,
+   "y": 2120,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10a-1 · Game page · Randomize · Sumi"
+  },
+  "S10a1Kinari.dc.html": {
+   "x": 0,
+   "y": 3280,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10a-1 · Game page · Randomize · Kinari"
+  },
+  "S10a2.dc.html": {
+   "x": 1360,
+   "y": 2120,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10a-2 · Game page · delete a variant · Sumi"
+  },
+  "S10a2Kinari.dc.html": {
+   "x": 1360,
+   "y": 3280,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10a-2 · Game page · delete a variant · Kinari"
+  },
+  "S10a3.dc.html": {
+   "x": 2720,
+   "y": 2120,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10a-3 · Game page · variant states · Sumi"
+  },
+  "S10a3Kinari.dc.html": {
+   "x": 2720,
+   "y": 3280,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10a-3 · Game page · variant states · Kinari"
+  },
+  "S10aH.dc.html": {
+   "x": 4080,
+   "y": 2120,
+   "w": 1280,
+   "h": 1560,
+   "page": "b5",
+   "title": "10a-H · Game page · Randomize · Handoff"
+  },
+  "S10b1.dc.html": {
+   "x": 0,
+   "y": 4760,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10b-1 · Randomize dialog · Sumi"
+  },
+  "S10b1Kinari.dc.html": {
+   "x": 0,
+   "y": 5920,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10b-1 · Randomize dialog · Kinari"
+  },
+  "S10b2.dc.html": {
+   "x": 1360,
+   "y": 4760,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10b-2 · Randomize dialog · Custom and seed · Sumi"
+  },
+  "S10b2Kinari.dc.html": {
+   "x": 1360,
+   "y": 5920,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10b-2 · Randomize dialog · Custom and seed · Kinari"
+  },
+  "S10b3.dc.html": {
+   "x": 2720,
+   "y": 4760,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10b-3 · Randomize dialog · states · Sumi"
+  },
+  "S10b3Kinari.dc.html": {
+   "x": 2720,
+   "y": 5920,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10b-3 · Randomize dialog · states · Kinari"
+  },
+  "S10bH.dc.html": {
+   "x": 4080,
+   "y": 4760,
+   "w": 1280,
+   "h": 1480,
+   "page": "b5",
+   "title": "10b-H · Randomize dialog · Handoff"
+  },
+  "S10c1.dc.html": {
+   "x": 0,
+   "y": 7400,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10c-1 · Building a variant · Sumi"
+  },
+  "S10c1Kinari.dc.html": {
+   "x": 0,
+   "y": 8560,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10c-1 · Building a variant · Kinari"
+  },
+  "S10c2.dc.html": {
+   "x": 1360,
+   "y": 7400,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10c-2 · Variant ready · Sumi"
+  },
+  "S10c2Kinari.dc.html": {
+   "x": 1360,
+   "y": 8560,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10c-2 · Variant ready · Kinari"
+  },
+  "S10c3.dc.html": {
+   "x": 2720,
+   "y": 7400,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10c-3 · Building · states · Sumi"
+  },
+  "S10c3Kinari.dc.html": {
+   "x": 2720,
+   "y": 8560,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10c-3 · Building · states · Kinari"
+  },
+  "S10cH.dc.html": {
+   "x": 4080,
+   "y": 7400,
+   "w": 1280,
+   "h": 1560,
+   "page": "b5",
+   "title": "10c-H · Building a variant · Handoff"
+  },
+  "S10d1.dc.html": {
+   "x": 0,
+   "y": 10040,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10d-1 · Variant states · Sumi"
+  },
+  "S10d1Kinari.dc.html": {
+   "x": 0,
+   "y": 11200,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10d-1 · Variant states · Kinari"
+  },
+  "S10d2.dc.html": {
+   "x": 1360,
+   "y": 10040,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10d-2 · Engine not on this PC · Sumi"
+  },
+  "S10d2Kinari.dc.html": {
+   "x": 1360,
+   "y": 11200,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10d-2 · Engine not on this PC · Kinari"
+  },
+  "S10d3.dc.html": {
+   "x": 2720,
+   "y": 10040,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10d-3 · Build failed · Sumi"
+  },
+  "S10d3Kinari.dc.html": {
+   "x": 2720,
+   "y": 11200,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10d-3 · Build failed · Kinari"
+  },
+  "S10d4.dc.html": {
+   "x": 4080,
+   "y": 10040,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10d-4 · Variant states · offline and upkeep · Sumi"
+  },
+  "S10d4Kinari.dc.html": {
+   "x": 4080,
+   "y": 11200,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10d-4 · Variant states · offline and upkeep · Kinari"
+  },
+  "S10dH.dc.html": {
+   "x": 5440,
+   "y": 10040,
+   "w": 1280,
+   "h": 2040,
+   "page": "b5",
+   "title": "10d-H · Variant states · Handoff"
+  },
+  "S10e1.dc.html": {
+   "x": 0,
+   "y": 12680,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10e-1 · New run · Randomizer · Sumi"
+  },
+  "S10e1Kinari.dc.html": {
+   "x": 0,
+   "y": 13840,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10e-1 · New run · Randomizer · Kinari"
+  },
+  "S10e2.dc.html": {
+   "x": 1360,
+   "y": 12680,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10e-2 · New run · Randomizer states · Sumi"
+  },
+  "S10e2Kinari.dc.html": {
+   "x": 1360,
+   "y": 13840,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10e-2 · New run · Randomizer states · Kinari"
+  },
+  "S10eH.dc.html": {
+   "x": 2720,
+   "y": 12680,
+   "w": 1280,
+   "h": 1280,
+   "page": "b5",
+   "title": "10e-H · New run · Randomizer · Handoff"
+  },
+  "S10f1.dc.html": {
+   "x": 0,
+   "y": 15320,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10f-1 · Join a run · variant built here · Sumi"
+  },
+  "S10f1Kinari.dc.html": {
+   "x": 0,
+   "y": 16480,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10f-1 · Join a run · variant built here · Kinari"
+  },
+  "S10f2.dc.html": {
+   "x": 1360,
+   "y": 15320,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10f-2 · Join a run · bring my own variant · Sumi"
+  },
+  "S10f2Kinari.dc.html": {
+   "x": 1360,
+   "y": 16480,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10f-2 · Join a run · bring my own variant · Kinari"
+  },
+  "S10f3.dc.html": {
+   "x": 2720,
+   "y": 15320,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10f-3 · Play run · building your variant · Sumi"
+  },
+  "S10f3Kinari.dc.html": {
+   "x": 2720,
+   "y": 16480,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10f-3 · Play run · building your variant · Kinari"
+  },
+  "S10f4.dc.html": {
+   "x": 4080,
+   "y": 15320,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10f-4 · Run board · Game column · Sumi"
+  },
+  "S10f4Kinari.dc.html": {
+   "x": 4080,
+   "y": 16480,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10f-4 · Run board · Game column · Kinari"
+  },
+  "S10f5.dc.html": {
+   "x": 5440,
+   "y": 15320,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10f-5 · Join and play · states · Sumi"
+  },
+  "S10f5Kinari.dc.html": {
+   "x": 5440,
+   "y": 16480,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10f-5 · Join and play · states · Kinari"
+  },
+  "S10fH.dc.html": {
+   "x": 6800,
+   "y": 15320,
+   "w": 1280,
+   "h": 2320,
+   "page": "b5",
+   "title": "10f-H · Join and play a run with a variant · Handoff"
+  },
+  "S10g1.dc.html": {
+   "x": 0,
+   "y": 17960,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10g-1 · Library · variants · Sumi"
+  },
+  "S10g1Kinari.dc.html": {
+   "x": 0,
+   "y": 19120,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10g-1 · Library · variants · Kinari"
+  },
+  "S10g2.dc.html": {
+   "x": 1360,
+   "y": 17960,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10g-2 · Saves · slots with variants · Sumi"
+  },
+  "S10g2Kinari.dc.html": {
+   "x": 1360,
+   "y": 19120,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10g-2 · Saves · slots with variants · Kinari"
+  },
+  "S10g3.dc.html": {
+   "x": 2720,
+   "y": 17960,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10g-3 · Settings › This PC › Storage · variants · Sumi"
+  },
+  "S10g3Kinari.dc.html": {
+   "x": 2720,
+   "y": 19120,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10g-3 · Settings › This PC › Storage · variants · Kinari"
+  },
+  "S10gH.dc.html": {
+   "x": 4080,
+   "y": 17960,
+   "w": 1280,
+   "h": 1440,
+   "page": "b5",
+   "title": "10g-H · Library and slots · Handoff"
+  },
+  "S10h1.dc.html": {
+   "x": 0,
+   "y": 20600,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10h-1 · Server › Tools · Sumi"
+  },
+  "S10h1Kinari.dc.html": {
+   "x": 0,
+   "y": 21760,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10h-1 · Server › Tools · Kinari"
+  },
+  "S10h2.dc.html": {
+   "x": 1360,
+   "y": 20600,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10h-2 · Tools · states · Sumi"
+  },
+  "S10h2Kinari.dc.html": {
+   "x": 1360,
+   "y": 21760,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10h-2 · Tools · states · Kinari"
+  },
+  "S10h3.dc.html": {
+   "x": 2720,
+   "y": 20600,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10h-3 · Plugins · Randomizer official · Sumi"
+  },
+  "S10h3Kinari.dc.html": {
+   "x": 2720,
+   "y": 21760,
+   "w": 1280,
+   "h": 800,
+   "page": "b5",
+   "title": "10h-3 · Plugins · Randomizer official · Kinari"
+  },
+  "S10hH.dc.html": {
+   "x": 4080,
+   "y": 20600,
+   "w": 1280,
+   "h": 1560,
+   "page": "b5",
+   "title": "10h-H · Server admin · Tools · Handoff"
   }
  },
  "order": [
@@ -2655,7 +3147,68 @@
   "S4d1.dc.html",
   "S4d1Kinari.dc.html",
   "S4d2.dc.html",
-  "S4d2Kinari.dc.html"
+  "S4d2Kinari.dc.html",
+  "S5Index.dc.html",
+  "S10a1.dc.html",
+  "S10a1Kinari.dc.html",
+  "S10a2.dc.html",
+  "S10a2Kinari.dc.html",
+  "S10a3.dc.html",
+  "S10a3Kinari.dc.html",
+  "S10aH.dc.html",
+  "S10b1.dc.html",
+  "S10b1Kinari.dc.html",
+  "S10b2.dc.html",
+  "S10b2Kinari.dc.html",
+  "S10b3.dc.html",
+  "S10b3Kinari.dc.html",
+  "S10bH.dc.html",
+  "S10c1.dc.html",
+  "S10c1Kinari.dc.html",
+  "S10c2.dc.html",
+  "S10c2Kinari.dc.html",
+  "S10c3.dc.html",
+  "S10c3Kinari.dc.html",
+  "S10cH.dc.html",
+  "S10d1.dc.html",
+  "S10d1Kinari.dc.html",
+  "S10d2.dc.html",
+  "S10d2Kinari.dc.html",
+  "S10d3.dc.html",
+  "S10d3Kinari.dc.html",
+  "S10d4.dc.html",
+  "S10d4Kinari.dc.html",
+  "S10dH.dc.html",
+  "S10e1.dc.html",
+  "S10e1Kinari.dc.html",
+  "S10e2.dc.html",
+  "S10e2Kinari.dc.html",
+  "S10eH.dc.html",
+  "S10f1.dc.html",
+  "S10f1Kinari.dc.html",
+  "S10f2.dc.html",
+  "S10f2Kinari.dc.html",
+  "S10f3.dc.html",
+  "S10f3Kinari.dc.html",
+  "S10f4.dc.html",
+  "S10f4Kinari.dc.html",
+  "S10f5.dc.html",
+  "S10f5Kinari.dc.html",
+  "S10fH.dc.html",
+  "S10g1.dc.html",
+  "S10g1Kinari.dc.html",
+  "S10g2.dc.html",
+  "S10g2Kinari.dc.html",
+  "S10g3.dc.html",
+  "S10g3Kinari.dc.html",
+  "S10gH.dc.html",
+  "S10h1.dc.html",
+  "S10h1Kinari.dc.html",
+  "S10h2.dc.html",
+  "S10h2Kinari.dc.html",
+  "S10h3.dc.html",
+  "S10h3Kinari.dc.html",
+  "S10hH.dc.html"
  ],
  "notes": {
   "row04": {
@@ -2813,6 +3366,70 @@
    "text": "4d Plugin developer console",
    "kind": "title1",
    "maxW": 2640
+  },
+  "b5r10a": {
+   "x": 0,
+   "y": 1860,
+   "page": "b5",
+   "text": "10a Game page · Randomize",
+   "kind": "title1",
+   "maxW": 5360
+  },
+  "b5r10b": {
+   "x": 0,
+   "y": 4500,
+   "page": "b5",
+   "text": "10b Randomize dialog",
+   "kind": "title1",
+   "maxW": 5360
+  },
+  "b5r10c": {
+   "x": 0,
+   "y": 7140,
+   "page": "b5",
+   "text": "10c Building a variant",
+   "kind": "title1",
+   "maxW": 5360
+  },
+  "b5r10d": {
+   "x": 0,
+   "y": 9780,
+   "page": "b5",
+   "text": "10d Variant states",
+   "kind": "title1",
+   "maxW": 6720
+  },
+  "b5r10e": {
+   "x": 0,
+   "y": 12420,
+   "page": "b5",
+   "text": "10e New run · Randomizer",
+   "kind": "title1",
+   "maxW": 4000
+  },
+  "b5r10f": {
+   "x": 0,
+   "y": 15060,
+   "page": "b5",
+   "text": "10f Join and play a run with a variant",
+   "kind": "title1",
+   "maxW": 8080
+  },
+  "b5r10g": {
+   "x": 0,
+   "y": 17700,
+   "page": "b5",
+   "text": "10g Library and slots",
+   "kind": "title1",
+   "maxW": 5360
+  },
+  "b5r10h": {
+   "x": 0,
+   "y": 20340,
+   "page": "b5",
+   "text": "10h Server admin · Tools",
+   "kind": "title1",
+   "maxW": 5360
   }
  },
  "designSystems": [

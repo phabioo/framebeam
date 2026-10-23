@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>10g-2 Saves · slots with variants</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}[style*="grid-template-rows"] .uz-toast{min-width:0;width:100%;box-sizing:border-box;height:auto;min-height:44px;padding-top:10px;padding-bottom:10px}[style*="grid-template-rows"] .uz-toast-action{white-space:nowrap}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Library" groups="{{ groups }}" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:56px;padding:0 56px">
+    <div style="position:relative;padding:48px 24px 24px;display:flex;flex-direction:column;gap:18px;min-width:0">
+      <x-import component-from-global-scope="Uzume.RegisterMarks" inset="{{ zero }}"></x-import>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="3DS · EVERYTHING IS ON HOME SERVER">Coral Saga: Ember</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Saves and states</h1>
+        <x-import component-from-global-scope="Uzume.Tabs" items="{{ gtabs2 }}" active="Saves and states" size="lg"></x-import>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);column-gap:32px;align-items:start">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n2 }}" meta="WHAT THE GAME WRITES">Save</x-import>
+          <x-import component-from-global-scope="Uzume.Select" label="Slot" options="{{ slots }}" default-value="Randomizer #1" open="{{ yes }}" active-index="{{ one }}" gamepad="{{ yes }}"></x-import>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">Pick a slot. Variants and runs each have their own; restoring in one never changes another.</span>
+          <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div role="row" aria-selected="true" style="display:grid;grid-template-columns:64px minmax(0,1fr) 88px;column-gap:12px;align-items:center;min-height:52px;padding:0 8px;border-bottom:1px solid var(--rule-2);background:var(--selected);box-shadow:var(--marker-start)"><span style="font:500 11px/16px var(--font-mono);color:var(--ink)">v6</span><span style="display:flex;flex-direction:column;min-width:0"><span style=""><span style="display:flex;align-items:center;gap:8px">Yesterday 22:10 <x-import component-from-global-scope="Uzume.Tag" tone="ok">Current</x-import></span></span><span style="font-size:12px;line-height:18px;color:var(--muted)">Desktop-LivingRoom · in-game save</span></span><span></span></div><div role="row" style="display:grid;grid-template-columns:64px minmax(0,1fr) 88px;column-gap:12px;align-items:center;min-height:52px;padding:0 8px;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">v5</span><span style="display:flex;flex-direction:column;min-width:0"><span style="">Yesterday 21:32</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Desktop-LivingRoom · in-game save</span></span><x-import component-from-global-scope="Uzume.Button" size="sm">Restore</x-import></div><div role="row" style="display:grid;grid-template-columns:64px minmax(0,1fr) 88px;column-gap:12px;align-items:center;min-height:52px;padding:0 8px;border-bottom:1px solid var(--rule-2)"><span style="font:400 11px/16px var(--font-mono);color:var(--muted)">v4</span><span style="display:flex;flex-direction:column;min-width:0"><span style="">19 Oct 20:05</span><span style="font-size:12px;line-height:18px;color:var(--muted)">Laptop-Office · session end</span></span><x-import component-from-global-scope="Uzume.Button" size="sm">Restore</x-import></div><div style="padding:10px 8px"><span style="font-size:12px;line-height:18px;color:var(--muted)">3 older versions</span></div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n3 }}" meta="RANDOMIZER #1 ONLY">States</x-import>
+          <span style="font-size:12px;line-height:18px;color:var(--muted)">States made in a variant load only in that variant.</span>
+          <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div role="row" style="display:grid;grid-template-columns:56px minmax(0,1fr) 110px;column-gap:12px;align-items:center;min-height:52px;padding:0 0;border-bottom:1px solid var(--rule-2)"><span style="height:38px;border:1px solid var(--placeholder-rule);background:var(--placeholder);display:grid;place-items:center;font:500 10px/1 var(--font-mono);color:var(--muted)">1</span><span style="display:flex;flex-direction:column;min-width:0"><span style="">Slot 1</span><span style="font-size:12px;line-height:18px;color:var(--muted)">yesterday 22:02</span></span><x-import component-from-global-scope="Uzume.Button" size="sm">Play from state</x-import></div></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.OpenColumn" label="UZUME · CORAL SAGA: EMBER · HOME SERVER" lines="{{ oc }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "groups": [{"head": "Play", "items": ["Library", "Runs", "Emulation", "Controllers"]}, {"head": "Server", "server": true, "items": ["Status", "Users", "Systems & cores", "Tools", "Plugins", "Reports"]}], "gtabs2": ["Overview", "Saves and states", "Screenshots · 8"], "slots": [{"value": "Main", "label": "Main", "hint": "v31"}, {"value": "Randomizer #1", "label": "Randomizer #1", "hint": "Variant · v6"}, {"value": "Randomizer #2", "label": "Randomizer #2", "hint": "Variant · new"}, {"value": "Chaos night", "label": "Chaos night", "hint": "Variant · v9"}, {"value": "Run: Ember Route", "label": "Run: Ember Route", "hint": "Run · v44"}, {"value": "Run: Ember Shuffle", "label": "Run: Ember Shuffle", "hint": "Run · v3"}], "oc": ["6 SLOTS", "RANDOMIZER #1 V6"]}, { noop: () => {},  });
+  }
+}
+</script>
+</body>
+</html>
