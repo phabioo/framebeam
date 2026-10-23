@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>11h-1 Settings › Server › Cheat database</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}[style*="grid-template-rows"] .uz-toast{min-width:0;width:100%;box-sizing:border-box;height:auto;min-height:44px;padding-top:10px;padding-bottom:10px}[style*="grid-template-rows"] .uz-toast-action{white-space:nowrap}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;overflow:hidden">
+  <x-import component-from-global-scope="Uzume.AppNav" density="compact" active="Settings" badges="{{ badges }}" notifications="{{ three }}" online="{{ online }}" user="{{ max }}"></x-import>
+  <div style="width:232px;flex:none;box-sizing:border-box;border-right:1px solid var(--rule);padding:48px 16px 24px;display:flex;flex-direction:column;gap:14px">
+    <x-import component-from-global-scope="Uzume.Segmented" items="{{ scope }}" active="Server" label="Settings for"></x-import>
+    <span style="font-size:12px;line-height:18px;color:var(--muted);padding:0 12px">Affects everyone on Home server.</span>
+    <nav aria-label="Server settings" style="display:flex;flex-direction:column"><a href="#general" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">General</a><a href="#network" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Network &amp; sharing<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">INTERNET</span></a><a href="#signin" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Sign-in<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">PASSWORD</span></a><a href="#updates" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Updates<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">0.17.0</span></a><a href="#cheats" aria-current="page" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;font-weight:500;color:var(--ink);box-shadow:var(--marker-start);text-decoration:none">Cheat database<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">ON</span></a><a href="#backups" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Backups<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">03:00</span></a><a href="#storage" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Storage<span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">61 %</span></a><a href="#diag" style="min-height:32px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:14px;color:var(--muted);text-decoration:none">Diagnostics</a></nav>
+  </div>
+  <div style="flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 152px;column-gap:48px;padding:0 48px">
+    <div style="position:relative;padding:48px 0px 24px;display:flex;flex-direction:column;gap:16px;min-width:0">
+      
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="SERVER · HOME SERVER">Server</x-import>
+        <h1 style="margin:0;font-weight:300;font-size:40px;line-height:40px;letter-spacing:-0.02em;color:var(--ink)">Cheat database</h1>
+      </div>
+      <div style="border-top:1px solid var(--rule)">
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Download the cheat database" help="Home server downloads the list of known cheats so people can add them by name. Codes still run in the emulator on each PC."><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}" state="focus"></x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Source" help="Where the database comes from."><span style="font:400 12px/16px var(--font-mono);color:var(--ink)">https://server.example.com/cheats/db.zip</span></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Last updated" help="Today 04:00 · 5 systems · 2,412 games. Checks every night."><x-import component-from-global-scope="Uzume.Button" size="sm">Update now</x-import></x-import>
+        <x-import component-from-global-scope="Uzume.SettingsRow" label="Import from file…" help="For a server without internet: a database file you downloaded elsewhere."><x-import component-from-global-scope="Uzume.Button" size="sm">Import from file…</x-import></x-import>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px"><x-import component-from-global-scope="Uzume.StatusIcon" kind="done" size="sm">Up to date</x-import><span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim)">DB 2026-10-23 · 18 MB</span></div>
+    </div>
+    <div style="padding-top:48px;display:flex;min-height:0"><x-import component-from-global-scope="Uzume.HelpColumn" label="UZUME · SETTINGS · SERVER" items="{{ help }}"></x-import></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "scope": ["This PC", "Server"]}, { noop: () => {}, help: [{ title: 'What this is', text: 'A list of known cheats per game, matched by the game file. Cheats themselves come from the official Cheats plugin.' }, { text: 'People can always enter or import their own cheats, with or without the database.' }, { text: T(G('A', 'Choose'), ' ', G('B', 'Back')) }] });
+  }
+}
+</script>
+</body>
+</html>

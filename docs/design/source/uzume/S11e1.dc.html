@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>11e-1 New run · cheats rule</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}[style*="grid-template-rows"] .uz-toast{min-width:0;width:100%;box-sizing:border-box;height:auto;min-height:44px;padding-top:10px;padding-bottom:10px}[style*="grid-template-rows"] .uz-toast-action{white-space:nowrap}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="position:relative;width:1280px;height:800px;overflow:hidden;font-family:var(--font-sans)">
+  <dc-import name="S4j2" theme="{{ theme }}" hint-size="1280px,800px"></dc-import>
+  <div style="position:absolute;inset:0;z-index:8;background:var(--scrim);display:flex;align-items:center;justify-content:center;gap:24px">
+    <x-import component-from-global-scope="Uzume.Dialog" label="RUNS · NEW RUN" title="Start a run" size="lg" actions="{{ act }}" hints="{{ hints }}" on-close="{{ noop }}"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px"><x-import component-from-global-scope="Uzume.TextField" label="Name" default-value="Rally Night"></x-import><x-import component-from-global-scope="Uzume.Select" label="Game" options="{{ games }}" default-value="Harbor Rally"></x-import></div><div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 12px/16px var(--font-sans);color:var(--ink)">People</span><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px"><x-import component-from-global-scope="Uzume.Checkbox" label="Lena" default-checked="{{ yes }}" disabled="{{ yes }}"></x-import><x-import component-from-global-scope="Uzume.Checkbox" label="Max" default-checked="{{ yes }}"></x-import><x-import component-from-global-scope="Uzume.Checkbox" label="Jonas" default-checked="{{ yes }}"></x-import><x-import component-from-global-scope="Uzume.Checkbox" label="Sam"></x-import></div></div><div style="display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid var(--rule-2)"><span style="font:500 12px/16px var(--font-sans);color:var(--ink)">Rules</span><x-import component-from-global-scope="Uzume.Select" label="Run plugin" options="{{ rules }}" default-value="None"></x-import><div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 12px/16px var(--font-sans);color:var(--ink)">Cheats</span><x-import component-from-global-scope="Uzume.Segmented" items="{{ cheat }}" active="Off" label="Cheats"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">Allowed cheats show in the run log for everyone. You can change this later.</span></div></div><div style="display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)"><span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--muted)">SAVE SLOT</span><span style="font-size:13px;line-height:18px;color:var(--ink-2)">Each person gets <span style="font-family:var(--font-mono);font-size:12px">Run: Rally Night</span>. Main is not touched.</span></div></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "games": ["Harbor Rally", "Lumen Drift", "Coral Saga: Ember"], "cheat": ["Off", "Allowed, logged"], "rules": [{"value": "None", "label": "None", "hint": "A plain run"}, {"value": "SoulLink & Nuzlocke", "label": "SoulLink & Nuzlocke", "hint": "1.4.0"}]}, { noop: () => {}, act: [B('Start run', 'primary'), B('Cancel')], hints: [G('UpDown', 'Move'), G('LeftRight', 'Choose'), G('Start', 'Start run'), G('B', 'Cancel')] });
+  }
+}
+</script>
+</body>
+</html>

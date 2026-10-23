@@ -31,10 +31,11 @@ The boards need the Claude Design runtime `support.js`, which is not in the repo
 | [accounts-and-server.md](accounts-and-server.md) | Sheet 2: 8d switch user, 8e my account, 8f confirm it's you, 8g forgot password, 6f status, 3j library, 3s saves, 3n users, 3m devices, 3l systems and cores, 4i plugins, 3q server settings, 6d reports, 6a what's new, 7a setup assistant, Ma blocks | `S2Index`, `S2Blocks`, `S8d1` to `S8g1`, `S6f1` to `S7a2`, `S3j1` to `S3q7` |
 | [runs-and-server.md](runs-and-server.md) | Sheet 3: 4j runs, 4jh run board and recap, 8h what the server shows, 8i share with others, 8j on this PC, 8k server problems, 8l Windows installer, 8m Linux | `S3Index`, `S4j1` to `S4jh2`, `S8h1` to `S8m1` |
 | [play-and-plugins.md](play-and-plugins.md) | Sheet 4: 3c library and game page, 3g running game, 3r Multiview, 3e Emulation, 9a Controllers, Settings › This PC (9b, 6g, 9c, 6l, 6w, 6r), 4d developer console, 5 SoulLink & Nuzlocke | `S4Index`, `S3c0` to `S3g12`, `S3r1` to `S3r5`, `S3e1`, `S3e2`, `S9a1` to `S6r2`, `S4d1`, `S4d2`, `S5a1` to `S5i1` |
+| [cheats.md](cheats.md) | Sheet 4, family 11: 11a Cheats tab in game, 11b add or import, 11c cheat database, 11d consent, 11e and 11f run rule (linked on sheet 3), 11g save markers, 11h cheat database setting | `S11a1` to `S11h3`, linked `S11e1On3` to `S11f3On3` |
 | [randomizer.md](randomizer.md) | Sheet 5: 10a game page · Randomize, 10b Randomize dialog, 10c building, 10d variant states, 10e New run with Randomizer, 10f join and play, 10g Library, slots and Storage, 10h Server › Tools | `S5Index`, `S10a1` to `S10h3`, handoff sheets `S10aH` to `S10hH` |
 | [decisions.md](decisions.md) | The designer's decisions, the accepted review decisions and the open points | `SAllIndex`, index boards |
 
-`SAllIndex` (page "0 All sheets") is the index of all four sheets (293 boards) with the 21 accepted gaps in the design system; it is summarised in [decisions.md](decisions.md). Sheet 5 "Randomizer" (page "5 Randomizer", batch 5, 2026-10-23) was added later with its own index `S5Index`. `S04H` is the Round 5 index with the "Later" list.
+`SAllIndex` (page "0 All sheets") is the index of all four sheets (293 boards) with the 21 accepted gaps in the design system; it is summarised in [decisions.md](decisions.md). Sheet 5 "Randomizer" (page "5 Randomizer", batch 5, 2026-10-23) was added later with its own index `S5Index`. The cheats family 11 (2026-10-23) was added to sheet 4, with 11e and 11f linked on sheet 3; `SAllIndex` now counts 391 boards and 32 open gaps. `S04H` is the Round 5 index with the "Later" list.
 
 ## Roadmap packages
 
@@ -53,7 +54,7 @@ Each screen entry names the package that builds it. Milestone 0.18 ("Uzume: one 
 | 11 | Installer | 8l Windows installer, 8m Linux, 8h-3 |
 | 12 | Remove the web admin | no web page stays; the OBS stream view (5g) is not built as a web page |
 
-Later waves (build from the boards without their own design round): **0.19** player comfort and library (3c, parts of 3g, 9b, 6g, 6l, 3e, 9a), **0.20** emulation (save states, rewind, run-ahead, diagnostics), **0.21** together (People and Chat tabs, mixer, voice, notifications, Multiview marks), **0.22** randomizer (sheet 5, [randomizer.md](randomizer.md), [ADR 0031](../../adr/0031-game-variants-and-randomizer.md)), **0.23** plugins (developer console 4d, run recap, SoulLink screens), **0.24** platforms (Linux app, Vulkan; watching in the browser was dropped). Screens that only restyle an existing app screen fall to package 3; the "Built in" line names what each board adds beyond that.
+Later waves (build from the boards without their own design round): **0.19** player comfort and library (3c, parts of 3g, 9b, 6g, 6l, 3e, 9a), **0.20** emulation (save states, rewind, run-ahead, diagnostics, cheats: family 11, [cheats.md](cheats.md)), **0.21** together (People and Chat tabs, mixer, voice, notifications, Multiview marks), **0.22** randomizer (sheet 5, [randomizer.md](randomizer.md), [ADR 0031](../../adr/0031-game-variants-and-randomizer.md)), **0.23** plugins (developer console 4d, run recap, SoulLink screens), **0.24** platforms (Linux app, Vulkan; watching in the browser was dropped). Screens that only restyle an existing app screen fall to package 3; the "Built in" line names what each board adds beyond that.
 
 ## Terms and rules in one place
 

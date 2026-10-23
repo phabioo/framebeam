@@ -162,6 +162,21 @@ Gaps in the design system, accepted as the index describes them: Tools in AppNav
 
 Review fixes (applied in the canvas before the import): a different dump offers "Download the run's file · 1.8 GB" or "Ask Max to upload the run's file." instead of "Upload mine…", shown with an NDS game because 3DS variants depend only on title and update (10d-1d, 10f-5a); 10d-4 has seven panels, the run variant of a game update (10d-4g) stays on the pinned update with no rebuild button, the own variant (10d-4f) warns "The world may change; your save stays in its slot." Two review notes need no board change: adding a 3DS update on the server (10b-3d) needs the server-side 3DS updates of 0.22 (ADR 0031 D6), and the ready check (10f-5e) comes with 0.21; before that the run board shows Building.
 
+## Sheet 4 · Cheats (family 11, 2026-10-23)
+
+Canvas page "4 Play and plugins", 19 boards 11a to 11h with Kinari twins (11e and 11f linked on sheet 3), no new tokens; spec [cheats.md](cheats.md), built in 0.20. The designer's four decisions (marked New on `S4Index`) are proposed defaults until Fabio answers:
+
+| # | Decision | Status |
+|---|---|---|
+| 1 | The run rule is drawn on a plain run (Rally Night on Harbor Rally) started by Lena, a member: the run's creator and admins change the rule. | Proposed |
+| 2 | "Cheat database" is an item after Updates in Settings › Server (3q); Systems & cores (3l) is a page, not a settings list. Without a server the block is in Settings › This PC. | Proposed |
+| 3 | "Before cheats" is saved each time the first cheat of a play session goes on; consent is asked once per game. | Proposed |
+| 4 | Turning cheats off in a run uses the full confirm dialog (it changes other people's games); allowing them a lighter confirm. | Proposed |
+
+Gaps in the design system (items 28 to 32 on `SAllIndex`): a multi-line Mono code field with line numbers and per-line errors (planned as the `textarea` building block in 0.20); five panel tabs fit only without the Chat count; `StateBlock` has one action, so the empty Cheats tab draws two buttons; no disabled list container (shown at 55 % with `aria-disabled` under a notice); a board lives on one canvas page, so 11e and 11f are linked copies on sheet 3.
+
+Review fixes (applied in the canvas before the import): the unsupported example on 11a-1, 11a-3b and 11b-3 is `RAW` instead of `AR V3` (mGBA runs Action Replay MAX codes but no raw codes); the consent on 11d-1 says Main v14 "is kept as" "Before cheats" (a copy, not a rename).
+
 ## Cross-sheet rules (summary)
 
 - **Terms.** Hub = "Uzume server" or "the server", Player = "Uzume" or "the app"; "Stream" only in diagnostics. Session = a running or shared game session.

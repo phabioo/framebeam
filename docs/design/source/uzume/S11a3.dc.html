@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>11a-3 Cheats tab · states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/uzume/tokens.css">
+<link rel="stylesheet" href="ds/uzume/components/bundle.css">
+<script src="ds/uzume/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0}[style*="grid-template-rows"] .uz-toast{min-width:0;width:100%;box-sizing:border-box;height:auto;min-height:44px;padding-top:10px;padding-bottom:10px}[style*="grid-template-rows"] .uz-toast-action{white-space:nowrap}</style></helmet>
+<div class="uz" data-theme="{{ theme }}" style="width:1280px;height:800px;box-sizing:border-box;background:var(--ground);color:var(--ink);font-family:var(--font-sans);display:flex;flex-direction:column;overflow:hidden">
+  <div style="height:84px;flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:32px 56px 0 28px">
+    <x-import component-from-global-scope="Uzume.Lockup"></x-import>
+    <span style="font:400 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--dim);padding-top:2px">IN GAME · CHEATS · STATES</span>
+  </div>
+  <div style="flex:1;min-height:0;padding:16px 56px 40px;display:flex;flex-direction:column;gap:24px">
+    <x-import component-from-global-scope="Uzume.SectionLabel" number="{{ n1 }}" meta="6 STATES">Cheats tab</x-import>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule);flex:1;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 0;border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">11A-3A · NONE YET</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">No cheats for Lumen Drift yet</span>
+        <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Add your own code, or see what the cheat database has for this game.</p><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" size="sm">Add cheat</x-import><x-import component-from-global-scope="Uzume.Button" size="sm">Look in the cheat database</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">11A-3B · FORMAT NOT SUPPORTED</span>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:44px;padding:4px 0;border-bottom:1px solid var(--rule-2)"><span style="display:flex;flex-direction:column;min-width:0"><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;color:var(--disabled-ink)">Debug menu</span><span><span style="font:500 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)">RAW</span><span style="font-size:12px;line-height:16px;color:var(--muted)"> · not supported by mGBA</span></span></span><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ no }}" aria-label="Debug menu" disabled="{{ yes }}"></x-import></div></div><span data-note="1" style="font-size:12px;line-height:18px;color:var(--muted)">The row stays; its toggle is off and disabled, and the reason is in the meta line.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 20px 24px;border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">11A-3C · SEARCH, NO MATCH</span>
+        <x-import component-from-global-scope="Uzume.SearchField" default-value="jump" aria-label="Search cheats"></x-import><span style="font-size:12px;line-height:18px;color:var(--muted)">No cheats match “jump”.</span><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" variant="ghost" size="sm">Clear search</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 0;min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">11A-3D · ON THIS PC ONLY</span>
+        <span style="font-size:20px;line-height:28px;letter-spacing:-0.01em">Same without a server</span>
+        <p style="margin:0;font-size:14px;line-height:22px;color:var(--ink-2)">Cheats work the same when Uzume runs only on this PC. Your cheats and the safety copies stay on this PC.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 24px 0 24px;border-left:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">11A-3E · ACTS AFTER A RESET</span>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--rule)"><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:44px;padding:4px 0;border-bottom:1px solid var(--rule-2)"><span style="display:flex;flex-direction:column;min-width:0"><span style="display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;color:var(--ink)">All maps open<x-import component-from-global-scope="Uzume.Tag">After reset</x-import></span><span><span style="font:500 10px/16px var(--font-mono);letter-spacing:.06em;color:var(--muted)">GSA</span></span></span><x-import component-from-global-scope="Uzume.Toggle" default-checked="{{ yes }}" aria-label="All maps open"></x-import></div></div><span style="font-size:12px;line-height:18px;color:var(--muted)">This code works only from the start of the game.</span><div style="display:flex;align-items:center;gap:8px;"><x-import component-from-global-scope="Uzume.Button" size="sm">Reset game…</x-import></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:20px 0 0 24px;border-left:1px solid var(--rule-2);min-width:0">
+        <span style="font:500 10px/16px var(--font-mono);letter-spacing:.14em;color:var(--dim)">11A-3F · TURNED ON</span>
+        <x-import component-from-global-scope="Uzume.Toast" kind="done" action="Turn off">Infinite money is on</x-import><span data-note="1" style="font-size:12px;line-height:18px;color:var(--muted)">In a run, the run log also gets “Max turned on Infinite money”.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["sumi","kinari"],"default":"sumi","tsType":"string"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement, U = window.Uzume;
+    const B = (l, v, o) => h(U.Button, Object.assign({ key: l, variant: v }, o || {}), l);
+    const G = (k, l) => h(U.GamepadHint, { key: k + l, k: k, label: l });
+    const K = (k, l) => h(U.Kbd, { key: String(k) + (l || ''), keys: k, label: l });
+    const M = (t) => h('span', { key: t, style: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)' } }, t);
+    const T = (...parts) => h('span', null, ...parts);
+    return Object.assign({ theme: this.props.theme ?? 'sumi' }, {"n1": 1, "n2": 2, "n3": 3, "n4": 4, "zero": 0, "one": 1, "three": 3, "yes": true, "no": false, "s20": 20, "s28": 28, "s40": 40, "badges": {"Users": 1, "Reports": 2}, "online": [{"name": "Lena", "person": "momo", "playing": "Lumen Drift"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}], "max": {"name": "Max", "role": "Admin", "person": "wasurenagusa"}, "lena": {"name": "Lena", "role": "Member", "person": "momo"}, "local": {"name": "Max", "role": "This PC", "person": "wasurenagusa"}, "onlineM": [{"name": "Max", "person": "wasurenagusa", "playing": "Coral Saga: Ember"}, {"name": "Jonas", "person": "moegi", "playing": "Harbor Rally"}]}, { noop: () => {},  });
+  }
+}
+</script>
+</body>
+</html>

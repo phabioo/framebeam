@@ -1126,7 +1126,7 @@
    "x": 0,
    "y": 0,
    "w": 1280,
-   "h": 1480,
+   "h": 1520,
    "page": "b3",
    "title": "3 Runs and server · Index"
   },
@@ -1582,7 +1582,7 @@
    "x": 0,
    "y": 0,
    "w": 1280,
-   "h": 1660,
+   "h": 2080,
    "page": "b4",
    "title": "4 Play and plugins · Index"
   },
@@ -2310,7 +2310,7 @@
    "x": 0,
    "y": 0,
    "w": 1280,
-   "h": 2160,
+   "h": 2360,
    "page": "b0",
    "title": "Round 5 · All sheets · Index"
   },
@@ -2849,6 +2849,374 @@
    "h": 1560,
    "page": "b5",
    "title": "10h-H · Server admin · Tools · Handoff"
+  },
+  "S11a1.dc.html": {
+   "x": 0,
+   "y": 17840,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11a-1 · In game · Cheats tab · Sumi"
+  },
+  "S11a1Kinari.dc.html": {
+   "x": 0,
+   "y": 19000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11a-1 · In game · Cheats tab · Kinari"
+  },
+  "S11a2.dc.html": {
+   "x": 1360,
+   "y": 17840,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11a-2 · In game · Cheats off in a run · Sumi"
+  },
+  "S11a2Kinari.dc.html": {
+   "x": 1360,
+   "y": 19000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11a-2 · In game · Cheats off in a run · Kinari"
+  },
+  "S11a3.dc.html": {
+   "x": 2720,
+   "y": 17840,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11a-3 · Cheats tab · states · Sumi"
+  },
+  "S11a3Kinari.dc.html": {
+   "x": 2720,
+   "y": 19000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11a-3 · Cheats tab · states · Kinari"
+  },
+  "S11b1.dc.html": {
+   "x": 4080,
+   "y": 17840,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11b-1 · Add cheat · enter code · Sumi"
+  },
+  "S11b1Kinari.dc.html": {
+   "x": 4080,
+   "y": 19000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11b-1 · Add cheat · enter code · Kinari"
+  },
+  "S11b2.dc.html": {
+   "x": 5440,
+   "y": 17840,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11b-2 · Add cheat · line errors · Sumi"
+  },
+  "S11b2Kinari.dc.html": {
+   "x": 5440,
+   "y": 19000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11b-2 · Add cheat · line errors · Kinari"
+  },
+  "S11b3.dc.html": {
+   "x": 6800,
+   "y": 17840,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11b-3 · Import file · preview · Sumi"
+  },
+  "S11b3Kinari.dc.html": {
+   "x": 6800,
+   "y": 19000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11b-3 · Import file · preview · Kinari"
+  },
+  "S11b4.dc.html": {
+   "x": 8160,
+   "y": 17840,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11b-4 · Add or import · states · Sumi"
+  },
+  "S11b4Kinari.dc.html": {
+   "x": 8160,
+   "y": 19000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11b-4 · Add or import · states · Kinari"
+  },
+  "S11c1.dc.html": {
+   "x": 9520,
+   "y": 17840,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11c-1 · Cheat database · found · Sumi"
+  },
+  "S11c1Kinari.dc.html": {
+   "x": 9520,
+   "y": 19000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11c-1 · Cheat database · found · Kinari"
+  },
+  "S11c2.dc.html": {
+   "x": 10880,
+   "y": 17840,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11c-2 · Cheat database · states · Sumi"
+  },
+  "S11c2Kinari.dc.html": {
+   "x": 10880,
+   "y": 19000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11c-2 · Cheat database · states · Kinari"
+  },
+  "S11d1.dc.html": {
+   "x": 12240,
+   "y": 17840,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11d-1 · First-use consent · Sumi"
+  },
+  "S11d1Kinari.dc.html": {
+   "x": 12240,
+   "y": 19000,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11d-1 · First-use consent · Kinari"
+  },
+  "S11e1.dc.html": {
+   "x": 0,
+   "y": 20480,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11e-1 · New run · cheats rule · Sumi"
+  },
+  "S11e1Kinari.dc.html": {
+   "x": 0,
+   "y": 21640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11e-1 · New run · cheats rule · Kinari"
+  },
+  "S11f1.dc.html": {
+   "x": 1360,
+   "y": 20480,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11f-1 · Run · cheats rule and log · Sumi"
+  },
+  "S11f1Kinari.dc.html": {
+   "x": 1360,
+   "y": 21640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11f-1 · Run · cheats rule and log · Kinari"
+  },
+  "S11f2.dc.html": {
+   "x": 2720,
+   "y": 20480,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11f-2 · Run · change the cheats rule · Sumi"
+  },
+  "S11f2Kinari.dc.html": {
+   "x": 2720,
+   "y": 21640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11f-2 · Run · change the cheats rule · Kinari"
+  },
+  "S11f3.dc.html": {
+   "x": 4080,
+   "y": 20480,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11f-3 · Run · cheats rule states · Sumi"
+  },
+  "S11f3Kinari.dc.html": {
+   "x": 4080,
+   "y": 21640,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11f-3 · Run · cheats rule states · Kinari"
+  },
+  "S11g1.dc.html": {
+   "x": 0,
+   "y": 23120,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11g-1 · Saves · cheats marker · Sumi"
+  },
+  "S11g1Kinari.dc.html": {
+   "x": 0,
+   "y": 24280,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11g-1 · Saves · cheats marker · Kinari"
+  },
+  "S11g2.dc.html": {
+   "x": 1360,
+   "y": 23120,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11g-2 · Saves · restore before cheats · Sumi"
+  },
+  "S11g2Kinari.dc.html": {
+   "x": 1360,
+   "y": 24280,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11g-2 · Saves · restore before cheats · Kinari"
+  },
+  "S11h1.dc.html": {
+   "x": 2720,
+   "y": 23120,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11h-1 · Settings › Server › Cheat database · Sumi"
+  },
+  "S11h1Kinari.dc.html": {
+   "x": 2720,
+   "y": 24280,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11h-1 · Settings › Server › Cheat database · Kinari"
+  },
+  "S11h2.dc.html": {
+   "x": 4080,
+   "y": 23120,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11h-2 · Cheat database · states · Sumi"
+  },
+  "S11h2Kinari.dc.html": {
+   "x": 4080,
+   "y": 24280,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11h-2 · Cheat database · states · Kinari"
+  },
+  "S11h3.dc.html": {
+   "x": 5440,
+   "y": 23120,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11h-3 · Settings › This PC › Cheat database · Sumi"
+  },
+  "S11h3Kinari.dc.html": {
+   "x": 5440,
+   "y": 24280,
+   "w": 1280,
+   "h": 800,
+   "page": "b4",
+   "title": "11h-3 · Settings › This PC › Cheat database · Kinari"
+  },
+  "S11e1On3.dc.html": {
+   "x": 0,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "11e-1 · New run · cheats rule · Sumi · linked"
+  },
+  "S11e1On3Kinari.dc.html": {
+   "x": 0,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "11e-1 · New run · cheats rule · Kinari · linked"
+  },
+  "S11f1On3.dc.html": {
+   "x": 1360,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "11f-1 · Run · cheats rule and log · Sumi · linked"
+  },
+  "S11f1On3Kinari.dc.html": {
+   "x": 1360,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "11f-1 · Run · cheats rule and log · Kinari · linked"
+  },
+  "S11f2On3.dc.html": {
+   "x": 2720,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "11f-2 · Run · change the cheats rule · Sumi · linked"
+  },
+  "S11f2On3Kinari.dc.html": {
+   "x": 2720,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "11f-2 · Run · change the cheats rule · Kinari · linked"
+  },
+  "S11f3On3.dc.html": {
+   "x": 4080,
+   "y": 12560,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "11f-3 · Run · cheats rule states · Sumi · linked"
+  },
+  "S11f3On3Kinari.dc.html": {
+   "x": 4080,
+   "y": 13720,
+   "w": 1280,
+   "h": 800,
+   "page": "b3",
+   "title": "11f-3 · Run · cheats rule states · Kinari · linked"
   }
  },
  "order": [
@@ -3208,7 +3576,53 @@
   "S10h2Kinari.dc.html",
   "S10h3.dc.html",
   "S10h3Kinari.dc.html",
-  "S10hH.dc.html"
+  "S10hH.dc.html",
+  "S11a1.dc.html",
+  "S11a1Kinari.dc.html",
+  "S11a2.dc.html",
+  "S11a2Kinari.dc.html",
+  "S11a3.dc.html",
+  "S11a3Kinari.dc.html",
+  "S11b1.dc.html",
+  "S11b1Kinari.dc.html",
+  "S11b2.dc.html",
+  "S11b2Kinari.dc.html",
+  "S11b3.dc.html",
+  "S11b3Kinari.dc.html",
+  "S11b4.dc.html",
+  "S11b4Kinari.dc.html",
+  "S11c1.dc.html",
+  "S11c1Kinari.dc.html",
+  "S11c2.dc.html",
+  "S11c2Kinari.dc.html",
+  "S11d1.dc.html",
+  "S11d1Kinari.dc.html",
+  "S11e1.dc.html",
+  "S11e1Kinari.dc.html",
+  "S11f1.dc.html",
+  "S11f1Kinari.dc.html",
+  "S11f2.dc.html",
+  "S11f2Kinari.dc.html",
+  "S11f3.dc.html",
+  "S11f3Kinari.dc.html",
+  "S11g1.dc.html",
+  "S11g1Kinari.dc.html",
+  "S11g2.dc.html",
+  "S11g2Kinari.dc.html",
+  "S11h1.dc.html",
+  "S11h1Kinari.dc.html",
+  "S11h2.dc.html",
+  "S11h2Kinari.dc.html",
+  "S11h3.dc.html",
+  "S11h3Kinari.dc.html",
+  "S11e1On3.dc.html",
+  "S11e1On3Kinari.dc.html",
+  "S11f1On3.dc.html",
+  "S11f1On3Kinari.dc.html",
+  "S11f2On3.dc.html",
+  "S11f2On3Kinari.dc.html",
+  "S11f3On3.dc.html",
+  "S11f3On3Kinari.dc.html"
  ],
  "notes": {
   "row04": {
@@ -3428,6 +3842,38 @@
    "y": 20340,
    "page": "b5",
    "text": "10h Server admin · Tools",
+   "kind": "title1",
+   "maxW": 5360
+  },
+  "b4r11a": {
+   "x": 0,
+   "y": 17580,
+   "page": "b4",
+   "text": "11a–11d Cheats in game",
+   "kind": "title1",
+   "maxW": 13520
+  },
+  "b4r11e": {
+   "x": 0,
+   "y": 20220,
+   "page": "b4",
+   "text": "11e–11f Cheats rule in runs (also on 3 Runs and server)",
+   "kind": "title1",
+   "maxW": 5360
+  },
+  "b4r11g": {
+   "x": 0,
+   "y": 22860,
+   "page": "b4",
+   "text": "11g–11h Saves with cheats and the cheat database",
+   "kind": "title1",
+   "maxW": 6720
+  },
+  "b3r11": {
+   "x": 0,
+   "y": 12300,
+   "page": "b3",
+   "text": "11e–11f Cheats rule in runs · linked from 4 Play and plugins",
    "kind": "title1",
    "maxW": 5360
   }
