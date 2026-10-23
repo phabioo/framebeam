@@ -210,6 +210,14 @@ qt_add_qml_module(uzume_ui
     ServerSystemsPage.qml
     ServerSystemsFileDialog.qml
     ServerPluginsPage.qml
+    ServerSettingsPane.qml
+    ServerSettingsGeneral.qml
+    ServerSettingsNetwork.qml
+    ServerSettingsSignIn.qml
+    ServerSettingsUpdates.qml
+    ServerSettingsBackups.qml
+    ServerSettingsStorage.qml
+    ServerSettingsDiagnostics.qml
   RESOURCES
     fonts/IBMPlexSans-Light.ttf
     fonts/IBMPlexSans-Regular.ttf

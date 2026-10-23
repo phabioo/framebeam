@@ -168,6 +168,11 @@ Rectangle {
                 }
             }
 
+            Repeater {
+                model: root.scope === "server" ? serverPane.pages : []
+                delegate: serverPane.navDelegate
+            }
+
             Item { Layout.fillHeight: true }
         }
 
@@ -223,15 +228,11 @@ Rectangle {
                     }
                     Item { Layout.fillWidth: true }
                 }
-                // The server-wide settings arrive with the admin area; nothing of them exists in the app yet.
-                UzStateBlock {
-                    objectName: "settingsServerEmpty"
+                // Server settings (3q-app-1 to 3q-app-7): the pages are chosen in the second column, shown here.
+                ServerSettingsPane {
+                    id: serverPane
                     visible: root.scope === "server"
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: 520
-                    kind: "empty"
-                    title: qsTr("Nothing to set here yet")
-                    text: qsTr("Server settings arrive with the admin area.")
+                    player: root.player
                 }
 
                 // ------------------------------------------------------------------ UPDATES

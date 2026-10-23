@@ -283,6 +283,7 @@ void FakeHub::handleAdmin(QSslSocket* sock, const FakeRequest& req) {
   ++adminCalls[callKey];
   lastAdminBody = req.body;
   adminBodies[callKey] = req.body;
+  if (adminHook) adminHook(callKey);
   if (adminRoutes.contains(callKey)) {
     const AdminRoute& route = adminRoutes[callKey];
     respond(sock, route.status, route.body);

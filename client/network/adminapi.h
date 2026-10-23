@@ -6,7 +6,7 @@
 //
 // Three calls, one result type:
 //   request()  JSON in, JSON out (any method).
-//   download() GET streamed into a file: written to a temporary file next to the target and renamed on success, a
+//   download() GET (or POST, e.g. the diagnostics bundle) streamed into a file: written to a temporary file next to the target and renamed on success, a
 //              failed or cancelled transfer leaves nothing behind.
 //   upload()   local file as streamed request body (plugin or firmware files).
 // An error answer of a download (status not 2xx) is read as a normal JSON error, not written to the file.
@@ -49,7 +49,7 @@ class AdminApi : public QObject {
   // `body` invalid = no body; a map or list is sent as JSON. `done` is called exactly once (also for a refusal, from the
   // event loop). The returned reply (null for a refusal) can be aborted; done is then called with a network error.
   QPointer<QNetworkReply> request(const QString& method, const QString& path, const QVariant& body, Done done);
-  QPointer<QNetworkReply> download(const QString& path, const QString& targetFile, Done done);
+  QPointer<QNetworkReply> download(const QString& path, const QString& targetFile, Done done, const QString& method = QStringLiteral("GET"));
   QPointer<QNetworkReply> upload(const QString& method, const QString& path, const QString& sourceFile,
                                  const QString& contentType, Done done);
 

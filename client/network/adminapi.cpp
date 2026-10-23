@@ -108,7 +108,7 @@ QPointer<QNetworkReply> AdminApi::request(const QString& method, const QString& 
   return reply;
 }
 
-QPointer<QNetworkReply> AdminApi::download(const QString& path, const QString& targetFile, Done done) {
+QPointer<QNetworkReply> AdminApi::download(const QString& path, const QString& targetFile, Done done, const QString& method) {
   if (!pathAllowed(path)) {
     refuse(std::move(done), QStringLiteral("invalid_path"), tr("Unsupported request path."));
     return {};
@@ -118,7 +118,8 @@ QPointer<QNetworkReply> AdminApi::download(const QString& path, const QString& t
            targetFile.isEmpty() ? tr("No file chosen.") : tr("Not connected to a server."));
     return {};
   }
-  QNetworkReply* reply = conn_->authorizedGet(path);
+  QNetworkReply* reply = method == QLatin1String("POST") ? conn_->authorizedSend("POST", path, QByteArray(), {}, "application/json")
+                                                           : conn_->authorizedGet(path);
   if (reply == nullptr) {
     refuse(std::move(done), QStringLiteral("not_connected"), tr("Not connected to a server."));
     return {};

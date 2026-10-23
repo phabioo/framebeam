@@ -105,12 +105,12 @@ int AdminController::request(const QString& method, const QString& path, const Q
   return id;
 }
 
-int AdminController::download(const QString& path, const QString& fileUrlOrPath) {
+int AdminController::download(const QString& path, const QString& fileUrlOrPath, const QString& method) {
   Pending p;
   p.id = nextId_++;
   const QString file = AdminApi::localPath(fileUrlOrPath);
-  p.start = [this, path, file](const Pending& self) {
-    api_.download(path, file, [this, self](const AdminApi::Result& r) { onResult(self, r); });
+  p.start = [this, path, file, method](const Pending& self) {
+    api_.download(path, file, [this, self](const AdminApi::Result& r) { onResult(self, r); }, method);
   };
   p.deliver = [this, id = p.id](const AdminApi::Result& r) { emit downloadFinished(id, r.ok, r.filePath, r.message); };
   const int id = p.id;

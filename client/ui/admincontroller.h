@@ -84,7 +84,7 @@ class AdminController : public QObject {
 
   // Generic calls (see the header comment). The returned id is the one of the signal.
   Q_INVOKABLE int request(const QString& method, const QString& path, const QVariant& body = QVariant());
-  Q_INVOKABLE int download(const QString& path, const QString& fileUrlOrPath);
+  Q_INVOKABLE int download(const QString& path, const QString& fileUrlOrPath, const QString& method = QStringLiteral("GET"));
   Q_INVOKABLE int upload(const QString& method, const QString& path, const QString& fileUrlOrPath, const QString& contentType);
 
   Q_INVOKABLE void confirm(const QString& password);
