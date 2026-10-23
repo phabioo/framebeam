@@ -240,6 +240,14 @@ class AdminLibraryUiTest : public QObject {
     QVERIFY(h.clickWhenReady("manageSavesLink"));
     QTRY_VERIFY(shown(h, "savesAdminSwitch"));
     QVERIFY(h.item("savesScopeMine") != nullptr && h.item("savesScopeAll") != nullptr);
+    {
+      // The switch sits in the narrow Saves pane: with wide (Windows) fonts its segments must still stay inside it.
+      auto* sw = h.item("savesAdminSwitch");
+      auto* all = h.item("savesScopeAll");
+      const QRectF swRect = sw->mapRectToScene(QRectF(0, 0, sw->width(), sw->height()));
+      const QRectF allRect = all->mapRectToScene(QRectF(0, 0, all->width(), all->height()));
+      QVERIFY2(allRect.right() <= swRect.right() + 0.5, "the All users segment overflows the Saves pane");
+    }
 
     QVERIFY(h.click("savesScopeAll"));
     QTRY_VERIFY(shown(h, "savesAdminSheet"));

@@ -11,18 +11,26 @@ Item {
     objectName: "savesAdminSwitch"
     required property PlayerController player
     implicitHeight: row.implicitHeight
-    RowLayout {
+    // Label above the segments: the Saves pane is narrow (about 290 px), and with wide (Windows) fonts label and segments
+    // side by side overflow it. fillWidth + maximumWidth lets the segments shrink (elide) instead of growing past the pane.
+    ColumnLayout {
         id: row
         width: parent.width
-        spacing: Theme.space2
-        UzMono { text: qsTr("Show saves of").toUpperCase() }
+        spacing: Theme.space1
+        UzMono {
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            elide: Text.ElideRight
+            text: qsTr("Show saves of").toUpperCase()
+        }
         UzSegmented {
             objectName: "savesScopeSegment"
+            Layout.fillWidth: true
+            Layout.maximumWidth: implicitWidth
             options: [{ value: "mine", label: qsTr("Mine"), name: "savesScopeMine" }, { value: "all", label: qsTr("All users"), name: "savesScopeAll" }]
             current: sheet.shown ? "all" : "mine"
             onPicked: (value) => { if (value === "all") sheet.open(); else sheet.close() }
         }
-        Item { Layout.fillWidth: true }
     }
     SavesAdminSheet { id: sheet; player: root.player }
 }
