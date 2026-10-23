@@ -42,6 +42,7 @@ struct RunInfo {
   QString createdAt;
   QString updatedAt;
   QString statusBy;
+  QString saveSlot;  // Hub field save_slot ("run-" + 8 hex); runSaveSlot(runId) when the Hub does not send it
   QJsonObject settings;
   QList<RunPluginRef> plugins;
   QList<RunParticipant> participants;

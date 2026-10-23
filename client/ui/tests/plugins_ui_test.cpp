@@ -303,7 +303,7 @@ class PluginsUiTest : public QObject {
     link.version = "0.3.2";
     link.permissions = {"ui", "run.state"};
     link.requires_ = QJsonObject{{core.id, "^0.3"}};
-    link.ui = QJsonObject{{"panel", QJsonObject{{"title", "SoulLink"}}}};
+    link.ui = QJsonObject{{"panel", QJsonObject{{"title", "SoulLink"}}}, {"screen", QJsonObject{{"title", "Pairs"}}}};
     offer(core);
     offer(link);
     QVERIFY(hub.start());
@@ -393,6 +393,16 @@ class PluginsUiTest : public QObject {
     QVERIFY(h.item("pluginDetailVersion")->property("text").toString().startsWith(QStringLiteral("0.3.2 · up to date")));
     QCOMPARE(h.item("pluginDetailOrigin")->property("text").toString(), QStringLiteral("Server upload · unverified"));
     QVERIFY(qAbs(h.item("pluginDetailSheet")->width() - 460) < 1.0);
+    // ui.screen is the plugin's run tab; outside a run it opens from the detail sheet ("Open"), never from a sidebar row.
+    QCOMPARE(h.item("pluginAdds")->property("text").toString(), QStringLiteral("Adds: panel tab · run tab"));
+    QVERIFY(h.item("pluginDetailOpen") != nullptr && h.item("pluginDetailOpen")->isVisible());
+    QCOMPARE(h.item("pluginDetailOpen")->property("text").toString(), QStringLiteral("Open"));
+    QVERIFY(h.item("pluginDetailOpen")->isEnabled());  // on and without problems
+    for (const QVariant& v : pc->plugins()) {
+      const QVariantMap m = v.toMap();
+      QCOMPARE(m.value("hasScreen").toBool(), m.value("id").toString() == link.id);
+    }
+    QVERIFY(h.item("navPlugin_net.example.soullink") == nullptr);
     shot(h, QStringLiteral("4a-4-plugin-detail"));
     h.controller->setAppearance(QStringLiteral("light"));
     shot(h, QStringLiteral("4a-4-plugin-detail-light"));

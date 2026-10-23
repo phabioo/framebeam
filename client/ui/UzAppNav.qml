@@ -22,16 +22,12 @@ Rectangle {
         { label: qsTr("Reports"), name: "navServerReports", page: "reports" }
     ]
     readonly property var thisPcItems: [{ label: qsTr("Plugins"), name: "navThisPcPlugins", section: "plugins" }]
-    // One list for both groups and a delegate per entry that is only shown or hidden: the Repeater never adds or removes
-    // delegates when the server or the admin rights change. Replacing the delegates of a Repeater in the layout of a screen that
-    // is not shown (every screen has its own AppNav) left deleted items in that layout, and the next layout pass, when the
-    // screen was shown, crashed or never settled (ui_plugins).
-    readonly property var groupItems: root.thisPcItems.concat(root.serverItems)
-    function groupItemShown(entry: var): bool {
-        if (!root.hasServer) return entry.page === undefined
-        return root.player.admin.available && entry.page !== undefined
-    }
-    readonly property bool groupShown: root.hasServer ? root.player.admin.available : true
+    // The Repeater below gets every entry once and hides the ones that do not apply. Swapping the model with the connection state
+    // would destroy the delegates inside a layout that is hidden at that moment, and Qt 6.4 then crashes in
+    // QQuickGridLayoutBase::rearrange on the deleted items.
+    readonly property var groupEntries: serverItems.map(function (e) { return { label: e.label, name: e.name, page: e.page, server: true } })
+                                        .concat(thisPcItems.map(function (e) { return { label: e.label, name: e.name, section: e.section, server: false } }))
+    readonly property bool hasGroupItems: root.hasServer ? (root.player.admin.available && serverItems.length > 0) : thisPcItems.length > 0
     readonly property var online: root.hasServer ? root.player.sessions.sessions.filter(function (s) { return !s.invited }) : []
     color: Theme.ground
     implicitWidth: Theme.sidebarWidth
@@ -121,20 +117,21 @@ Rectangle {
             objectName: "navServerHead"
             Layout.fillWidth: true
             Layout.topMargin: root.compact ? 16 : 24
-            visible: root.groupShown
+            visible: root.hasGroupItems
             text: root.hasServer ? qsTr("Server") : qsTr("This PC")
         }
         ColumnLayout {
             Layout.fillWidth: true
             Layout.topMargin: Theme.space1
             spacing: 0
-            visible: root.groupShown
+            visible: root.hasGroupItems
             Repeater {
-                model: root.groupItems
+                id: groupItems
+                model: root.groupEntries
                 delegate: UzNavItem {
                     required property var modelData
+                    visible: modelData.server ? (root.hasServer && root.player.admin.available) : !root.hasServer
                     objectName: modelData.name
-                    visible: root.groupItemShown(modelData)
                     compact: root.compact
                     label: modelData.label
                     active: modelData.page !== undefined && root.player.screen === "server" && root.player.serverPage === modelData.page
@@ -162,12 +159,15 @@ Rectangle {
             Layout.topMargin: Theme.space1
             spacing: 0
             visible: root.online.length > 0
+            // Six fixed delegates, shown while there is an entry: a model that follows the Sessions list would rebuild the rows on
+            // every refresh (see groupEntries above).
             Repeater {
-                model: root.online.slice(0, 6)
+                model: 6
                 delegate: Item {
                     id: person
-                    required property var modelData
                     required property int index
+                    readonly property var modelData: root.online[index] || ({ who: "", game: "" })
+                    visible: index < root.online.length
                     objectName: "navOnlineRow"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0

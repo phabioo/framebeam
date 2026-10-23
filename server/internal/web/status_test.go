@@ -27,7 +27,7 @@ func navLabels(gs []navGroup) (eyebrows, labels []string) {
 }
 
 func TestNavGroupsAdmin(t *testing.T) {
-	gs := navGroups(navInput{Admin: true, Active: "status", Conflicts: 1, Firmware: 2, Pending: 1, ActiveRuns: 3, ShowRuns: true,
+	gs := navGroups(navInput{Admin: true, Active: "status", Conflicts: 1, Firmware: 2, Pending: 1, ActiveRuns: 3,
 		UpdateAvailable: true, StatusProblem: "Disk 92 %", NewReports: 2})
 	eb, labels := navLabels(gs)
 	if strings.Join(eb, "|") != "|SETUP|ADMIN" {
@@ -59,15 +59,15 @@ func TestNavGroupsAdmin(t *testing.T) {
 	if active != "status" {
 		t.Fatalf("active %q", active)
 	}
-	// Without a problem the Status item has no badge; Runs is hidden without the feature.
+	// Without a problem the Status item has no badge; Runs is always shown.
 	_, labels = navLabels(navGroups(navInput{Admin: true}))
-	if strings.Contains(strings.Join(labels, ","), "Runs") {
-		t.Fatal("Runs only with the feature")
+	if !strings.Contains(strings.Join(labels, ","), "Runs") {
+		t.Fatal("Runs is always visible")
 	}
 }
 
 func TestNavGroupsMember(t *testing.T) {
-	gs := navGroups(navInput{Admin: false, Active: "library", Conflicts: 2, Firmware: 5, Pending: 4, ShowRuns: true, StatusProblem: "Disk 99 %"})
+	gs := navGroups(navInput{Admin: false, Active: "library", Conflicts: 2, Firmware: 5, Pending: 4, StatusProblem: "Disk 99 %"})
 	eb, labels := navLabels(gs)
 	if got := strings.Join(labels, ","); got != "Library,Saves,Runs,Plugins,Settings" {
 		t.Fatalf("a member sees only Play and Settings: %s", got)
@@ -114,7 +114,7 @@ func TestMemberNavTemplate(t *testing.T) {
 		t.Fatal(err)
 	}
 	d := pageData{Title: "x", Nav: "library", Theme: "light", HubName: "Home", HubVersion: "v1", User: "Lena", Role: "User",
-		NavGroups: navGroups(navInput{Admin: false, Active: "library", ShowRuns: true})}
+		NavGroups: navGroups(navInput{Admin: false, Active: "library"})}
 	rec := httptest.NewRecorder()
 	srv.render(rec, 200, "notfound", "nav-fragment", d)
 	for _, bad := range []string{"SETUP", "ADMIN", "/status", "/systems", "/clients", "/users"} {

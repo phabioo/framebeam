@@ -33,6 +33,7 @@ Servers read the official index by default: `https://github.com/phabioo/uzume/re
 1. Release the plugin in its own repository (`phabioo/uzume-plugin-<name>`) with the `.fbplugin` file as a release asset.
 2. Run "Publish plugin" with `repo` (for example `phabioo/uzume-plugin-pokemon-core`) and `tag` (the release tag). The workflow downloads the `*.fbplugin` assets (secret `PLUGIN_REPOS_TOKEN`, a read-only PAT, when set, otherwise the workflow token; needed for private plugin repos), signs each with the release key, uploads it as `<plugin-id>-<version>.fbplugin` to the `plugin-index` release (versions never overwrite each other), adds it with `plugin-add`, then signs and uploads `plugin-index.json` and `plugin-index.json.sig`.
    The workflow must not overwrite an asset that is already published for this id and version (no `gh release upload --clobber` for an existing asset) and runs `plugin-add` without `-replace`; a re-run for an already published tag with a different file must fail. Release a new version instead.
-3. Without inputs the workflow only re-signs and publishes the existing index (an empty one when none exists yet).
+3. The optional input `remove_ids` (space- or comma-separated plugin ids) removes those ids from the index and, after the new index is signed and uploaded, deletes their `<id>-<version>.fbplugin` assets from the release; it works alone or together with `repo`/`tag` (the same id cannot be added and removed in one run).
+4. Without inputs the workflow only re-signs and publishes the existing index (an empty one when none exists yet).
 
 Servers pick up the change at their next check (every 24 h) or with "Check now".

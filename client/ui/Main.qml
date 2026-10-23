@@ -65,7 +65,7 @@ ApplicationWindow {
     StackLayout {
         id: stack
         anchors.fill: parent
-        currentIndex: ["connection", "pairing", "library", "game", "settings", "emulation", "controllers", "plugin", "runs", "server"].indexOf(window.player.screen)
+        currentIndex: ["connection", "pairing", "library", "game", "settings", "emulation", "controllers", "runs", "server"].indexOf(window.player.screen)
 
         ConnectionScreen { player: window.player }
         PairingScreen { player: window.player }
@@ -74,14 +74,13 @@ ApplicationWindow {
         SettingsScreen { id: settingsScreen; player: window.player }
         EmulationScreen { player: window.player }
         ControllersScreen { player: window.player }
-        PluginScreen { player: window.player }
         RunsScreen { player: window.player }
         ServerScreen { player: window.player }
     }
 
     // Hotkeys (frame.md "0-4 G"): Ctrl+1 to 4 Library, Runs, Emulation, Controllers; Ctrl+, Settings. Not in the game view,
     // not before a server is connected.
-    readonly property bool navHotkeys: ["library", "runs", "emulation", "controllers", "settings", "plugin", "server"].indexOf(window.player.screen) >= 0
+    readonly property bool navHotkeys: ["library", "runs", "emulation", "controllers", "settings", "server"].indexOf(window.player.screen) >= 0
     Shortcut { sequence: "Ctrl+1"; enabled: window.navHotkeys; onActivated: window.player.showLibrary() }
     Shortcut { sequence: "Ctrl+2"; enabled: window.navHotkeys && window.player.runs.available; onActivated: window.player.showRuns() }
     Shortcut { sequence: "Ctrl+3"; enabled: window.navHotkeys; onActivated: window.player.showEmulation() }
@@ -98,12 +97,29 @@ ApplicationWindow {
         }
     }
 
-    // fb.ui.open("screen") outside the game view: the plugin's sidebar screen (in the game view GameScreen shows the sheet).
+    // fb.ui.open("screen") outside the game view: the plugin's tab of the opened run, else the plugin screen sheet (in the game
+    // view GameScreen shows the sheet). "Open" in Settings > Plugins takes the same way.
+    property string screenSheetPlugin: ""
     Connections {
         target: window.player.plugins
         function onOpenRequested(pluginId, slot) {
-            if (slot === "screen" && window.player.screen !== "game") window.player.showPluginScreen(pluginId)
+            if (slot === "screen" && window.player.screen !== "game") window.player.openPluginScreen(pluginId)
         }
+    }
+    Connections {
+        target: window.player
+        function onPluginScreenRequested(pluginId) { window.screenSheetPlugin = pluginId }
+        function onScreenChanged() { window.screenSheetPlugin = "" }
+    }
+    PluginScreenSheet {
+        id: appScreenSheet
+        objectName: "appPluginScreenSheet"
+        player: window.player
+        pluginId: window.screenSheetPlugin
+        backText: qsTr("← Back")
+        anchors.fill: parent
+        z: 50
+        onCloseRequested: window.screenSheetPlugin = ""
     }
 
     // Page transition: short fade-in of the page that becomes current. Never in the game view.

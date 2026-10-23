@@ -521,6 +521,7 @@ void PluginsController::refreshPlugins() {
         {QStringLiteral("permissionsText"), permissionsText(p.manifest.permissions)},
         {QStringLiteral("updateVersion"), updateVersion},
         {QStringLiteral("adds"), p.manifest.ui.addsText()},
+        {QStringLiteral("hasScreen"), p.manifest.ui.screen},
         {QStringLiteral("subtitle"), subtitle},
         {QStringLiteral("needsLines"), needsLines},
         {QStringLiteral("depsOff"), depsOff},
@@ -557,20 +558,6 @@ QVariantMap PluginsController::hubOffer(const QString& pluginId, const QString& 
             {QStringLiteral("permissionsText"), permissionsText(p.permissions)}};
   }
   return {};
-}
-
-bool PluginsController::hasRunPlugin() const {
-  const PluginHubClient* hub = hubClient();
-  if (hub == nullptr) return false;
-  QSet<QString> offered;  // ids the current Hub offers with run.state
-  for (const HubPluginInfo& p : hub->plugins())
-    if (p.permissions.contains(QStringLiteral("run.state"))) offered.insert(p.id);
-  if (offered.isEmpty()) return false;
-  for (const plugins::PluginInfo& p : manager_->list())
-    if (offered.contains(p.manifest.id)) return true;
-  for (const plugins::PluginInfo& p : manager_->hubCopies())
-    if (offered.contains(p.manifest.id)) return true;
-  return false;
 }
 
 void PluginsController::gameStarted(const QString& system, const QString& romPath, const QString& sha256, const QString& title,
@@ -654,7 +641,7 @@ void PluginsController::stopGame(bool restartShell) {
 }
 
 // Shell context: while no game runs, the enabled plugins with ui.screen or ui.detail run with an empty game. While the Runs
-// screen shows a run (run view), the run's pinned plugins with ui.run (plus what they require) join them in the same host,
+// screen shows a run (run view), the run's pinned plugins with ui.run or ui.screen (plus what they require) join them in the same host,
 // with a read-only fb.run; a plugin that is in both sets runs once, as the run view instance.
 void PluginsController::updateShell() {
   if (inGame_) return;
@@ -669,7 +656,7 @@ void PluginsController::updateShell() {
     QStringList queue;
     for (const plugins::PluginInfo& p : rv.start) {
       byId.insert(p.manifest.id, p);
-      if (p.manifest.ui.run) queue << p.manifest.id;
+      if (p.manifest.ui.run || p.manifest.ui.screen) queue << p.manifest.id;
     }
     QSet<QString> want;
     while (!queue.isEmpty()) {
@@ -688,7 +675,7 @@ void PluginsController::updateShell() {
     QStringList lines;
     for (auto it = rv.problems.begin(); it != rv.problems.end(); ++it)
       for (const plugins::PluginInfo& c : manager_->hubCopies())
-        if (c.manifest.id == it.key() && c.manifest.ui.run) {
+        if (c.manifest.id == it.key() && (c.manifest.ui.run || c.manifest.ui.screen)) {
           lines << QStringLiteral("%1: %2").arg(c.manifest.name, it.value().join(QStringLiteral("; ")));
           break;
         }
@@ -988,7 +975,7 @@ void PluginsController::onUiChanged(const QString& id, const QString& what) {
     return;
   }
   emit slotChanged(id, what);
-  if (what == QLatin1String("run")) rebuildRunSections();
+  if (what == QLatin1String("run") || what == QLatin1String("screen")) rebuildRunSections();
   if (what == QLatin1String("hud")) rebuildHud();
   else if (what == QLatin1String("detail")) rebuildDetail();
   else if (what.startsWith(QLatin1String("tile:"))) emit tileStripsChanged();
@@ -1091,15 +1078,26 @@ void PluginsController::rebuildDetail() {
 void PluginsController::rebuildRunSections() {
   if (previewUi_) return;
   QVariantList out;
+  static const QStringList reservedTabs{QStringLiteral("board"), QStringLiteral("log")};
   for (const QString& id : std::as_const(runViewIds_)) {
     const auto info = infoFor(id);
-    if (!info || !info->manifest.ui.run) continue;
-    const QVariantMap tree = host_->uiTree(id, QStringLiteral("run"));
+    if (!info || !(info->manifest.ui.run || info->manifest.ui.screen)) continue;
+    // The run tab shows the plugin's "screen" tree when it declares ui.screen, otherwise its "run" tree.
+    const bool useScreen = info->manifest.ui.screen;
+    const QString slot = useScreen ? QStringLiteral("screen") : QStringLiteral("run");
+    const plugins::UiPluginState st = host_->uiState(id);
+    const QVariantMap tree = host_->uiTree(id, slot);
     const PluginStatus status = host_->consoleSnapshot(id).status;
-    const bool paused = host_->uiState(id).paused || status == PluginStatus::Paused;
+    const bool paused = st.paused || status == PluginStatus::Paused;
+    // Tab name: ui.screen title, then ui.run title, then the plugin name ("Board" and "Log" belong to Uzume).
+    QString title = useScreen ? st.titles.value(QStringLiteral("screen"), info->manifest.ui.screenTitle) : QString();
+    if (title.trimmed().isEmpty() && info->manifest.ui.run) title = info->manifest.ui.runTitle;
+    if (title.trimmed().isEmpty() || reservedTabs.contains(title.trimmed().toLower())) title = info->manifest.name;
     out.append(QVariantMap{{QStringLiteral("pluginId"), id},
                            {QStringLiteral("name"), info->manifest.name},
-                           {QStringLiteral("title"), info->manifest.ui.runTitle},
+                           {QStringLiteral("title"), title},
+                           {QStringLiteral("slot"), slot},
+                           {QStringLiteral("badge"), st.badge},
                            {QStringLiteral("origin"), info->origin}, {QStringLiteral("originText"), originText(info->origin)},
                            {QStringLiteral("tree"), tree},
                            {QStringLiteral("paused"), paused},

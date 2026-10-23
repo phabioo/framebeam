@@ -356,7 +356,6 @@ type pageData struct {
 	Conflicts           int    // open save conflicts (nav badge)
 	Firmware            int    // required firmware files missing or mismatching (nav badge, mode native)
 	ActiveRuns          int    // runs in status active (nav badge)
-	ShowRuns            bool   // the "Runs" nav item is shown (a plugin asks for run.state, or runs exist)
 	UpdateAvailable     bool   // a newer server version is known (nav dot on Settings)
 	IsAdmin             bool   // the signed-in user is an admin (members see only Play and Settings)
 	StatusProblem       string // title of the most urgent server problem (badge on Status), admins only
@@ -496,9 +495,6 @@ func (s *Server) base(r *http.Request, sess *session, nav, title string) pageDat
 		if n, err := s.svc.ActiveRunCount(r.Context()); err == nil {
 			d.ActiveRuns = n
 		}
-		if v, err := s.svc.RunsFeatureVisible(r.Context()); err == nil {
-			d.ShowRuns = v
-		}
 		d.UpdateAvailable = s.svc.UpdateAvailableBadge(r.Context())
 		d.IsAdmin = sess.User.Role == hub.RoleAdmin
 		if d.IsAdmin {
@@ -510,7 +506,7 @@ func (s *Server) base(r *http.Request, sess *session, nav, title string) pageDat
 			}
 		}
 		d.NavGroups = navGroups(navInput{Admin: d.IsAdmin, Active: nav, Conflicts: d.Conflicts, Firmware: d.Firmware, Pending: d.Pending,
-			ActiveRuns: d.ActiveRuns, ShowRuns: d.ShowRuns, UpdateAvailable: d.UpdateAvailable, StatusProblem: d.StatusProblem, NewReports: d.NewReports})
+			ActiveRuns: d.ActiveRuns, UpdateAvailable: d.UpdateAvailable, StatusProblem: d.StatusProblem, NewReports: d.NewReports})
 	}
 	return d
 }

@@ -376,8 +376,10 @@ FocusScope {
                                 }
                                 HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
                                 // The tab elides long slot names: the full name is the tooltip (R-P12).
-                                ToolTip.visible: tabHover.hovered && tabText.truncated
-                                ToolTip.text: tab.modelData.label
+                                // A run's slot shows as "Run: <name>"; the raw slot name is the secondary text.
+                                readonly property bool renamed: tab.modelData.value !== "default" && tab.modelData.label !== tab.modelData.value
+                                ToolTip.visible: tabHover.hovered && (tabText.truncated || tab.renamed)
+                                ToolTip.text: tab.renamed ? tab.modelData.label + " (" + tab.modelData.value + ")" : tab.modelData.label
                                 ToolTip.delay: 400
                                 TapHandler { enabled: tabs.changeable && !tab.active; onTapped: root.hist.selectSlot(tab.modelData.value) }
                                 Keys.onPressed: (event) => {

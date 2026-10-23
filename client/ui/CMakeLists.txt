@@ -151,7 +151,6 @@ qt_add_qml_module(uzume_ui
     PluginHudLayer.qml
     PluginToast.qml
     PluginTileStrip.qml
-    PluginScreen.qml
     UzFocusRing.qml
     UzGlyph.qml
     UzIconButton.qml

@@ -656,7 +656,7 @@ func (c *Client) Disconnect() {
 // is the one of the handshake response (BaseFeatures plus the per-request flags); turn_v1 is added here
 // exactly when turn_servers is sent.
 func helloAckFeatures(turn bool) []string {
-	f := []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1, FeatureICEUpdateV1, FeatureRunsV1, FeatureLocalROMsV1}
+	f := []string{FeatureSavesV1, FeatureSavesV2, FeatureSessionsV1, FeatureICEUpdateV1, FeatureRunsV1, FeatureRunsV2, FeatureLocalROMsV1}
 	if turn {
 		f = append(f, FeatureTURNV1)
 	}

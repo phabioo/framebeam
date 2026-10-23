@@ -274,6 +274,21 @@ Popup {
                 wrapMode: Text.WordWrap
             }
 
+            // Plugins that declare ui.screen show it as a run tab; outside a run it opens from here as a sheet.
+            UzButton {
+                textFormat: Text.PlainText
+                objectName: "pluginDetailOpen"
+                visible: root.info && root.info.hasScreen === true
+                implicitHeight: 32
+                enabled: root.info && root.info.enabled && !root.info.hasProblems
+                text: qsTr("Open")
+                onClicked: {
+                    const id = root.pluginId
+                    root.close()
+                    root.player.openPluginScreen(id)
+                }
+            }
+
             // Uninstall confirmation (the "⋯" menu opens it).
             Rectangle {
                 objectName: "pluginUninstallPanel"
