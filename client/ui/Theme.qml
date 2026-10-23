@@ -3,9 +3,8 @@ import QtQuick
 
 // Design tokens of the Uzume design system (docs/design/uzume/design-system.md, source of truth
 // docs/design/source/uzume/ds/uzume/tokens.json): direction Ma, themes Sumi (dark) and Kinari (light), IBM Plex.
-// New code uses the token names of the first block ("Design system tokens"). The legacy names below it (bg, text*, border*,
-// surface*, accent*, warn*, error*, game*, radius*, font*) are kept so every existing screen picks up the palette now;
-// they are remapped onto the tokens and are removed screen by screen in package 3b.
+// Screens use the token names ("Design system tokens", typography roles, spacing, sizes); the screen layout constants and
+// motion durations are in "Layout and motion". There are no legacy aliases left.
 QtObject {
     id: root
 
@@ -153,130 +152,7 @@ QtObject {
     readonly property int focusOuter: dark ? 0 : 1        // extra 1 px ink line outside the ring (Kinari)
     readonly property color focusOuterColor: kinari.ink
 
-    // ---- Legacy names, remapped onto the tokens ---------------------------------------------------------------------
-    readonly property color textOnAccent: inkOnAccent
-
-    readonly property color bg: ground
-    readonly property color bgSidebar: ground
-    readonly property color bgPanel: ground
-    // `surface` above doubles as the legacy card / field plane.
-    readonly property color surfaceRaised: hover
-    readonly property color surfaceHub: surface
-    readonly property color tile: placeholder
-    readonly property color tileStripe: placeholderRule
-
-    // Game view: always Sumi (design-system.md "Empty stage"), in both themes.
-    readonly property color gameBg: sumi.stage
-    readonly property color gameHeader: sumi.ground
-    readonly property color gameBorder: sumi.rule
-    readonly property color gameText: sumi.ink
-    readonly property color gameTextMuted: sumi.muted
-    readonly property color gameAccent: sumi.accent
-    readonly property color gameGroupBg: sumi.ground
-    readonly property color gameGroupBorder: sumi.rule
-    readonly property color gameHover: sumi.hover
-    readonly property color gameTrack: sumi.rule2
-    readonly property color gameSegmentOn: sumi.pressed
-    readonly property color gameDivider: sumi.rule2
-    readonly property color gameSplitDivider: sumi.rule
-    readonly property color gamePopover: sumi.surface
-    readonly property color gamePopoverBorder: sumi.rule
-    readonly property color gameOnBg: sumi.selected
-    readonly property color gameOnBorder: sumi.accent
-    readonly property color gameDangerBg: sumi.dangerTint
-    readonly property color gameDangerBorder: sumi.danger
-    readonly property color gameDanger: sumi.danger
-    readonly property color gameTile: sumi.stage
-    readonly property color gameTileBody: sumi.stage
-    readonly property color gameTileEdge: sumi.rule
-    readonly property color gameCard: withAlpha(sumi.surface, 0.88)
-    readonly property color gameSelection: sumi.ink
-    readonly property color gameChip: withAlpha(sumi.surface, 0.88)
-    readonly property color gameOk: sumi.ok
-    readonly property color gameOkBg: sumi.ground
-    readonly property color gameMeta: sumi.dim
-    readonly property color gameFaint: sumi.dim
-    readonly property color gameKeyLine: sumi.rule
-    readonly property color gameBadge: sumi.pressed
-    readonly property color gameBadgeText: sumi.ink2
-    readonly property color gameOverlayBg: sumi.scrim
-    // "Now running" strip in the sidebar
-    readonly property color accentBoxBorder: rule
-    readonly property color accentOutline: rule
-
-    readonly property color borderSidebar: rule
-    readonly property color borderCard: rule
-    readonly property color borderInput: rule
-    readonly property color borderButton: rule
-    readonly property color borderRow: rule2
-
-    readonly property color text: ink
-    readonly property color textSecondary: ink2
-    readonly property color textMuted: muted
-    readonly property color textFaint: dim
-    readonly property color textDisabled: disabledInk
-    readonly property color monogram: rule
-
-    // One yellow: warn is the accent (as text the Kinari variant accentText), no amber, no cyan. Danger is the muted red.
-    readonly property color warn: accentText
-    readonly property color warnBg: selected
-    readonly property color okBg: ground
-    readonly property color error: danger
-    readonly property color errorBg: dangerTint
-    readonly property color errorText: danger
-
-    readonly property color accentChipBg: selected
-    readonly property color accentBorder: rule
-    readonly property color infoBg: ground
-    readonly property color infoBorder: rule
-    readonly property color infoText: ink2
-    readonly property color neutralPillBg: pressed
-    readonly property color popupBg: surface
-    readonly property color borderPopup: rule
-    readonly property color textMeta: muted
-    readonly property color textTile: dim
-    readonly property color toolbarBg: withAlpha(ground, 0.92)
-
-    readonly property color confirmBorder: rule
-    readonly property color dangerBorder: danger
-    readonly property color rail: rule
-    readonly property color rowHover: hover
-    readonly property color borderGroup: rule
-
-    // Plugin "warning" tone is the accent (no amber).
-    readonly property color pluginWarn: accentText
-    readonly property color pluginWarnBg: selected
-    readonly property color amberRow: selected
-    readonly property color pluginWarnLine: accent
-    readonly property color pluginWarnText: ink2
-    readonly property color gamePluginWarn: sumi.accent
-    readonly property color gamePluginWarnBg: sumi.selected
-    readonly property color gamePluginWarnLine: sumi.accent
-
-    // Radii: every one is 0 (the names stay until the screens stop using them).
-    readonly property int radius4: 0
-    readonly property int radius5: 0
-    readonly property int radius6: 0
-    readonly property int radius7: 0
-    readonly property int radius8: 0
-    readonly property int radius9: 0
-    readonly property int radius10: 0
-    readonly property int radius11: 0
-    readonly property int radius12: 0
-    readonly property int radius16: 0
-    readonly property int radiusPill: 0
-
-    // Legacy gaps. The on-grid ones alias the tokens; 6, 10, 14, 20 and 28 are off the 8 px grid and stay until 3b.
-    readonly property int space6: 6
-    readonly property int space8: space1
-    readonly property int space10: 10
-    readonly property int space12: space15
-    readonly property int space14: 14
-    readonly property int space16: space2
-    readonly property int space20: 20
-    readonly property int space28: 28
-
-    // Layout
+    // ---- Layout and motion -----------------------------------------------------------------------------------------
     readonly property int sidebarWidth: sidebar
     readonly property int columnWidth: 300       // second column of 3e / 3f / 3p
     readonly property int detailWidth: 340       // Library detail column
@@ -289,18 +165,6 @@ QtObject {
     readonly property int settingsResetWidth: 72
     readonly property int settingsControlHeight: row32
     readonly property int settingsNarrowBelow: 640   // below this row width the control moves under the text
-
-    // Font size roles (legacy names onto the type scale)
-    readonly property int fontHero: 40      // start / pairing title (Light 40 on a full screen)
-    readonly property int fontDialog: 20    // dialog title
-    readonly property int fontPage: 40      // page title
-    readonly property int fontDetail: 20    // detail title
-    readonly property int fontCard: 16      // card title (header-title)
-    readonly property int fontSection: 14   // section / group title (item-title)
-    readonly property int fontBody: 14      // body, rows
-    readonly property int fontSmall: 13     // controls, secondary rows (input, button-sm)
-    readonly property int fontMeta: 12      // meta, help text (small)
-    readonly property int fontMono: 11      // eyebrow, slots, badges (meta-11)
 
     // Motion (short; never in the game view)
     readonly property int durFast: 120
@@ -315,21 +179,21 @@ QtObject {
     function toneColor(tone: string): color {
         switch (tone) {
         case "ok": return ok
-        case "warn": return warn
-        case "error": return error
+        case "warn": return accentText
+        case "error": return danger
         case "info": return ink2
-        case "amber": return pluginWarn
+        case "amber": return accentText
         default: return muted
         }
     }
     function toneBg(tone: string): color {
         switch (tone) {
-        case "ok": return okBg
-        case "info": return accentChipBg
-        case "amber": return pluginWarnBg
-        case "warn": return warnBg
-        case "error": return errorBg
-        default: return neutralPillBg
+        case "ok": return ground
+        case "info": return selected
+        case "amber": return selected
+        case "warn": return selected
+        case "error": return dangerTint
+        default: return pressed
         }
     }
 
