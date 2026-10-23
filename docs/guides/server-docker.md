@@ -13,7 +13,7 @@ The official image runs the Uzume server as a non-root container for `linux/amd6
 | Tag | Meaning |
 |---|---|
 | `X.Y.Z` | One exact version (every beta and release). Pin this for repeatable setups. |
-| `stable` and `latest` | The newest promoted release ("Promote to release", no rebuild). |
+| `stable` and `latest` | The newest promoted release ("Promote to release", no rebuild). They exist only after the first promotion; until then pin `X.Y.Z` (or use `beta`). |
 | `beta` | The newest build of `main`. Not for production. |
 
 The image of FrameBeam (`framebeam-hub`) is no longer pushed. Coming from it: start with a new volume, see [Coming from FrameBeam](server-install.md#coming-from-framebeam).
