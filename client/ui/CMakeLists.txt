@@ -66,6 +66,7 @@ qt_add_qml_module(uzume_ui
     HubCard.qml
     MoreMenu.qml
     StepCard.qml
+    ShareDialogs.qml
     ConnectionScreen.qml
     PairingScreen.qml
     StartFrame.qml

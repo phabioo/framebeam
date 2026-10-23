@@ -162,6 +162,16 @@ Rectangle {
                         }
                     }
 
+                    UzLabel {
+                        objectName: "runsPcOnlyNote"
+                        visible: root.player.localHub.onThisPcOnly
+                        Layout.fillWidth: true
+                        text: qsTr("Chat and people need a server.")
+                        color: Theme.textMuted
+                        font.pixelSize: Theme.fontSmall
+                        wrapMode: Text.WordWrap
+                    }
+
                     Repeater {
                         model: root.runs.invites
                         delegate: Rectangle {
@@ -575,6 +585,7 @@ Rectangle {
     RunStartDialog {
         id: startDialog
         runs: root.runs
+        pcOnly: root.player.localHub.onThisPcOnly
     }
 
     // Finish / abandon / leave ask first.

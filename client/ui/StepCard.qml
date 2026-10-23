@@ -9,10 +9,10 @@ Rectangle {
     default property alias content: body.data
 
     implicitHeight: row.implicitHeight + 32
-    radius: Theme.radius10
+    radius: 0
     color: Theme.surface
-    border.width: stage === "active" ? 1.5 : 1
-    border.color: stage === "active" ? Theme.accent : Theme.borderCard
+    border.width: 1
+    border.color: stage === "active" ? Theme.accent : Theme.rule
     Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
 
     RowLayout {

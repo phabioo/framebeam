@@ -75,6 +75,17 @@ class LocalHubController : public QObject {
   Q_PROPERTY(bool shareDone READ shareDone NOTIFY changed)
   // mode "service": "Stop sharing..." is offered.
   Q_PROPERTY(bool canStopSharing READ canStopSharing NOTIFY changed)
+  // Which "Share with others" dialog is open: "" | "intro" (8i-1) | "setup" (8i-2) | "stop" (8i-5). The progress (8i-3), done (8i-4), error
+  // (8i-6) and stopped dialogs follow sharePhase / shareDone / sharingStopped and need no state here.
+  Q_PROPERTY(QString shareDialog READ shareDialog NOTIFY changed)
+  // The port of the last share attempt (port_in_use names it) and the "Who can join" choice of the finished share ("home" | "internet").
+  Q_PROPERTY(int sharePort READ sharePort NOTIFY changed)
+  Q_PROPERTY(QString shareJoin READ shareJoin NOTIFY changed)
+  // After the installer step failed (declined, port taken, rolled back) the server already has the new name and password:
+  // retryShare() only repeats the installer step. False when the form must be filled again.
+  Q_PROPERTY(bool canRetryShare READ canRetryShare NOTIFY changed)
+  // "Stop sharing" finished: the server runs as the child on the data of the former service (8i-6e).
+  Q_PROPERTY(bool sharingStopped READ sharingStopped NOTIFY changed)
   // mode "child" on the data of a former service: "Share again..." is offered.
   Q_PROPERTY(bool shareAgainAvailable READ shareAgainAvailable NOTIFY changed)
 
@@ -117,10 +128,17 @@ class LocalHubController : public QObject {
   QString shareError() const { return shareError_; }
   int shareSuggestedPort() const { return shareSuggestedPort_; }
   bool shareDone() const { return shareDone_; }
+  QString shareDialog() const { return shareDialog_; }
+  int sharePort() const { return sharePort_; }
+  QString shareJoin() const { return shareJoin_; }
+  bool canRetryShare() const { return retryPort_ > 0 && mode() == QLatin1String("child"); }
+  bool sharingStopped() const { return sharingStopped_; }
   bool canStopSharing() const { return mode() == QLatin1String("service"); }
   bool shareAgainAvailable() const;
 
   update::HubSetupInstaller* installer() { return &installer_; }
+  // Characters the server accepts for a user name (^[A-Za-z0-9._-]{1,64}$); anything else is dropped, spaces become '_'; fallback "player".
+  static QString sanitizeUsername(const QString& raw);
   LocalServerProcess* serverProcess() { return &server_; }
   // Tests: replaces the elevated `grant-folder` call (exit code, error text).
   void setGrantRunner(std::function<int(const QString& program, const QStringList& args, QString* error)> f) { grant_ = std::move(f); }
@@ -131,6 +149,10 @@ class LocalHubController : public QObject {
   void setShareStarter(std::function<bool(const QStringList& msiProperties)> f) { shareStarter_ = std::move(f); }
   // Tests: "Share with others" is offered although this is not Windows.
   void setShareSupportedForTests(bool on) { shareSupportedTest_ = on; }
+  void failShareForTests(const QString& code, int port = 0) {
+    failShare(code, {}, port);
+    if (code == QLatin1String("port_in_use") && port > 0) { shareSuggestedPort_ = port + 1; emit changed(); }
+  }
   // Tests: changes the process settings (backoff, timeouts) before the child starts.
   void setServerConfigPatch(std::function<void(LocalServerProcess::Config&)> f) { serverConfigPatch_ = std::move(f); }
 
@@ -153,6 +175,11 @@ class LocalHubController : public QObject {
   // Runs on the child server (rename, password), stores the pending record, stops the child and launches the MSI with
   // INSTALL_HUB=1 HUB_PORT NETWORK_SHARING=1 IMPORT_SERVER_DATA; the app quits (quitRequested). The next start finishes it.
   Q_INVOKABLE void beginShare(const QString& serverName, const QString& yourName, const QString& password, const QString& join, int port);
+  Q_INVOKABLE void openShareDialog(const QString& which);  // intro | setup | stop
+  Q_INVOKABLE void closeShareDialog();
+  // Repeats the installer step with the same names and password (port 0 = the same port, else e.g. shareSuggestedPort).
+  Q_INVOKABLE void retryShare(int port = 0);
+  Q_INVOKABLE void acknowledgeStopped();
   Q_INVOKABLE void acknowledgeShareDone();
   Q_INVOKABLE void dismissShareError();
   // After "Confirm it's you": elevated `uzume-server sharing stop`, then back to the child process on the same data.
@@ -237,6 +264,12 @@ class LocalHubController : public QObject {
   QString shareError_;
   int shareSuggestedPort_ = 0;
   bool shareDone_ = false;
+  bool sharingStopped_ = false;
+  int sharePort_ = 0;
+  QString shareJoin_;
+  int retryPort_ = 0;
+  QString retryJoin_;
+  QString shareDialog_;
   bool shareSupportedTest_ = false;
   std::function<int(const QString&, const QStringList&, QString*)> sharing_;
   std::function<bool(const QStringList&)> shareStarter_;

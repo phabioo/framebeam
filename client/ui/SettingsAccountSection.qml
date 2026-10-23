@@ -14,6 +14,8 @@ ColumnLayout {
     readonly property var ac: player.accounts
     readonly property var account: ac.account
     readonly property bool hasServer: player.hubAddress !== ""
+    // The server of "Play on this PC" (child process): no account, password, PIN or devices (5a).
+    readonly property bool pcOnly: player.localHub.onThisPcOnly
     readonly property bool loaded: (account.userId || "") !== ""
     readonly property bool canLoad: hasServer && ac.supported
     readonly property bool isAdmin: account.isAdmin === true
@@ -80,8 +82,58 @@ ColumnLayout {
                               : qsTr("This server is too old for accounts. Update the server first.")
     }
 
+    // 5a On this PC only: "No account needed", the name for save files and screenshots, Share with others…
     ColumnLayout {
-        visible: root.hasServer
+        objectName: "accountPcOnly"
+        visible: root.pcOnly
+        Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        spacing: Theme.space14
+        UzLabel {
+            objectName: "accountPcOnlyNote"
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.settingsDotSlot
+            Layout.rightMargin: root.endMargin
+            wrapMode: Text.WordWrap
+            font.pixelSize: Theme.fontSmall
+            color: Theme.textMuted
+            text: qsTr("No account needed. Your games and saves stay on this PC.")
+        }
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            spacing: 0
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.borderRow }
+            UzSettingsRow {
+                objectName: "accountPcNameRow"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                resetMode: "none"
+                label: qsTr("Your name")
+                descriptionName: "accountPcNameValue"
+                description: root.account.displayName || root.player.userName
+                disabledReason: root.loaded ? "" : qsTr("Needs the server on this PC.")
+                ctrl: "buttons"
+                buttons: [{ name: "accountPcRename", text: qsTr("Rename…") }]
+                onButtonClicked: { renameField.text = root.account.displayName || ""; root.openDialog(renameDialog); renameField.field.forceActiveFocus(); renameField.field.selectAll() }
+            }
+            UzSettingsRow {
+                objectName: "accountPcShareRow"
+                visible: root.player.localHub.shareSupported
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                resetMode: "none"
+                label: qsTr("Share with others")
+                description: qsTr("Run a server on this PC so friends can join. Your name gets a password.")
+                ctrl: "buttons"
+                buttons: [{ name: "accountPcShare", text: qsTr("Share with others…") }]
+                onButtonClicked: root.player.localHub.openShareDialog("intro")
+            }
+        }
+    }
+
+    ColumnLayout {
+        visible: root.hasServer && !root.pcOnly
         Layout.fillWidth: true
         Layout.minimumWidth: 0
         spacing: Theme.space14

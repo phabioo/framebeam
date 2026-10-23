@@ -96,6 +96,10 @@ class AdminController : public QObject {
   Q_INVOKABLE QString sha256OfFile(const QString& fileUrlOrPath) const;  // lower-case hex, empty when unreadable
   Q_INVOKABLE qint64 sizeOfFile(const QString& fileUrlOrPath) const;     // -1 when unreadable
 
+  // "Confirm it's you" without an admin call of its own (Stop sharing runs a program, not a request): answers
+  // confirmationAnswered(id, true, "") at once while confirmed, otherwise opens the dialog and answers after it
+  // (false, "confirmation_cancelled" when it is cancelled).
+  Q_INVOKABLE int requireConfirmation();
   Q_INVOKABLE void confirm(const QString& password);
   Q_INVOKABLE void cancelConfirm();
   Q_INVOKABLE void resumeParked();
@@ -110,6 +114,7 @@ class AdminController : public QObject {
   void confirmChanged();
   void statusChanged();
   void countsChanged();
+  void confirmationAnswered(int id, bool ok, const QString& code);
   // data: parsed JSON object / array (QVariantMap / QVariantList), invalid when the answer has no JSON body.
   void replied(int id, bool ok, int status, const QVariant& data, const QString& code, const QString& message);
   void downloadFinished(int id, bool ok, const QString& filePath, const QString& message);

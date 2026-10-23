@@ -108,6 +108,26 @@ int AdminController::request(const QString& method, const QString& path, const Q
   return id;
 }
 
+int AdminController::requireConfirmation() {
+  Pending p;
+  p.id = nextId_++;
+  p.start = [this](const Pending& self) {
+    AdminApi::Result r;
+    if (secondsLeft_ > 0 || self.epoch < epoch_) {
+      r.ok = true;
+      r.status = 200;
+    } else {
+      r.status = 403;
+      r.code = QStringLiteral("confirmation_required");
+    }
+    onResult(self, r);
+  };
+  p.deliver = [this, id = p.id](const AdminApi::Result& r) { emit confirmationAnswered(id, r.ok, r.code); };
+  const int id = p.id;
+  launch(std::move(p));
+  return id;
+}
+
 int AdminController::download(const QString& path, const QString& fileUrlOrPath, const QString& method) {
   Pending p;
   p.id = nextId_++;

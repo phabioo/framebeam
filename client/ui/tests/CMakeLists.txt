@@ -307,6 +307,12 @@ uzume_add_test(ui_start_accounts start_accounts_test.cpp ${FB_NETTEST_DIR}/fakeh
 target_include_directories(test_ui_start_accounts PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_start_accounts PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
 
+# The package 10 screens: "On this PC" view, Share with others dialogs, Stop sharing, ConnectionScreen child states.
+uzume_add_test(ui_share share_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_share PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_share PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
 # "On this PC and sharing" (0.18 package 10): child server process, hidden admin, Share with others, Stop sharing; fake
 # server script + FakeHub, no window.
 uzume_add_test(ui_localserver localserver_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h

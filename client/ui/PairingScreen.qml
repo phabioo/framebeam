@@ -30,50 +30,55 @@ Rectangle {
         }
     }
 
-    Flickable {
-        id: flick
+    StartFrame {
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: column.implicitHeight + 64
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar { }
-
-        ColumnLayout {
-            id: column
-            width: Math.min(640, flick.width - 32)
-            x: (flick.width - width) / 2
-            y: Math.max(32, (flick.height - implicitHeight) / 2)
-            spacing: 14
+        screenLabel: root.localForm ? qsTr("Server on this PC") : (root.pairAgain ? qsTr("Pair again") : qsTr("Add a server"))
+        openLabel: "UZUME · PAIRING"
+        openLines: [qsTr("Check the certificate."), qsTr("Then the admin of the server approves this device.")]
+        contentMaxWidth: 640
+        contentSpacing: Theme.space2
 
             ColumnLayout {
-                spacing: 6
-                Layout.bottomMargin: 8
-                Eyebrow {
+                spacing: Theme.space2
+                Layout.fillWidth: true
+                Layout.bottomMargin: Theme.space1
+                UzSectionLabel {
                     objectName: "pairingEyebrow"
                     visible: root.pairAgain
-                    text: qsTr("%1 · pairing lost").arg((root.info.hubName || "").toUpperCase())
+                    Layout.fillWidth: true
+                    number: 1
+                    text: qsTr("%1 · pairing lost").arg(root.info.hubName || "")
                 }
-                UzLabel {
+                Text {
                     objectName: "pairingTitle"
-                    // A known Hub that lost its pairing says "Pair again" (P2); a new address is "Add hub".
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    // A known server that lost its pairing says "Pair again"; a new address is "Add server".
                     text: root.localForm ? qsTr("Server on this PC") : (root.pairAgain ? qsTr("Pair again") : qsTr("Add server"))
-                    font.pixelSize: Theme.fontHero
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: -0.6
+                    textFormat: Text.PlainText
+                    font.family: Theme.sans
+                    font.pixelSize: Theme.roles.title.size
+                    font.weight: Font.Light
+                    font.letterSpacing: Theme.roles.title.spacing
+                    lineHeight: Theme.roles.title.line
+                    lineHeightMode: Text.FixedHeight
+                    color: Theme.ink
                 }
-                UzLabel {
+                Text {
                     objectName: "pairingBody"
                     visible: root.pairAgain && !root.localForm
                     Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: Theme.textMuted
-                    font.pixelSize: Theme.fontBody
-                    lineHeight: 1.4
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font.family: Theme.sans
+                    font.pixelSize: Theme.roles.body.size
+                    lineHeight: Theme.roles.body.line
+                    lineHeightMode: Text.FixedHeight
+                    color: Theme.ink2
                     text: qsTr("%1 no longer knows this device. Its admin may have revoked it. Pair again to get a new approval; your local saves are kept.")
                               .arg(root.info.hubName || qsTr("The server"))
                 }
-                UzMono { text: root.info.address; color: Theme.textMuted; font.pixelSize: 13 }
+                UzMono { text: root.info.address; color: Theme.muted; font.pixelSize: Theme.fontMono }
             }
 
             // Step 1: hub found
@@ -318,6 +323,5 @@ Rectangle {
                     }
                 }
             }
-        }
     }
 }

@@ -8,6 +8,8 @@ Rectangle {
     id: root
     required property PlayerController player
     color: Theme.ground
+    // The server of this PC only ("Play on this PC", child process): no upload, invites, Online or Server group (8j-1).
+    readonly property bool thisPcOnly: root.player.localHub.onThisPcOnly
 
     // "Upload ROM": native file dialog (UploadFileDialog.qml, QtQuick.Dialogs) when the module is installed,
     // otherwise a path field. The dialog is its own file so that windeployqt sees the import.
@@ -59,9 +61,11 @@ Rectangle {
             UzSectionLabel {
                 objectName: "librarySectionLabel"
                 Layout.fillWidth: true
-                number: 1
-                text: qsTr("Library")
-                meta: root.player.library.totalCount > 0 ? Theme.plural(root.player.library.totalCount, qsTr("game"), qsTr("games")) : ""
+                number: root.thisPcOnly ? -1 : 1
+                text: root.thisPcOnly ? qsTr("On this PC") + " · " + Theme.plural(root.player.library.totalCount, qsTr("game"), qsTr("games"))
+                                        + " · " + Theme.plural(root.player.library.systemCount, qsTr("system"), qsTr("systems"))
+                                      : qsTr("Library")
+                meta: !root.thisPcOnly && root.player.library.totalCount > 0 ? Theme.plural(root.player.library.totalCount, qsTr("game"), qsTr("games")) : ""
             }
 
             // Header (3c-6): title, search and "Upload ROM" in one row while they fit, plain anchors (no RowLayout:
@@ -73,7 +77,7 @@ Rectangle {
                 objectName: "libraryHeader"
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                readonly property bool uploadShown: root.player.canUpload
+                readonly property bool uploadShown: root.player.canUpload && !root.thisPcOnly
                 readonly property int searchMin: 140
                 readonly property real buttonSpace: uploadShown ? uploadButton.implicitWidth + Theme.space15 : 0
                 readonly property bool wrapped: width < libraryTitle.implicitWidth + Theme.space2 + searchMin + buttonSpace
@@ -117,6 +121,17 @@ Rectangle {
                     placeholderText: qsTr("Search…")
                     onTextChanged: root.player.library.filterText = text
                 }
+            }
+
+            UzLabel {
+                objectName: "libraryOnThisPcNote"
+                visible: root.thisPcOnly
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                wrapMode: Text.WordWrap
+                text: qsTr("Upload, invites, Online and the Server group appear after Share with others.")
+                font.pixelSize: Theme.fontSmall
+                color: Theme.textMeta
             }
 
             // Filter chips with counts ("All · 10"), sort and "Ready first" on the same row; they wrap under the chips in a

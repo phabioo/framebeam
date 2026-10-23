@@ -429,15 +429,23 @@ void LocalHubController::clearHiddenAdmin() {
   if (deps_.credentials != nullptr) deps_.credentials->remove(hiddenTarget());
 }
 
+QString LocalHubController::sanitizeUsername(const QString& raw) {
+  // Server rule: ^[A-Za-z0-9._-]{1,64}$ (ASCII only).
+  QString name;
+  for (const QChar c : raw) {
+    const ushort u = c.unicode();
+    const bool ok = (u >= '0' && u <= '9') || (u >= 'A' && u <= 'Z') || (u >= 'a' && u <= 'z') || u == '.' || u == '_' || u == '-';
+    if (ok) name += c;
+    else if (c.isSpace()) name += QLatin1Char('_');
+  }
+  name.truncate(64);
+  return name.isEmpty() ? QStringLiteral("player") : name;
+}
+
 QString LocalHubController::osUserName() {
   QString raw = qEnvironmentVariable("USERNAME");
   if (raw.isEmpty()) raw = qEnvironmentVariable("USER");
-  QString name;
-  for (const QChar c : raw) {
-    if (c.isLetterOrNumber() || c == QLatin1Char('.') || c == QLatin1Char('_') || c == QLatin1Char('-')) name += c;
-    else if (c.isSpace()) name += QLatin1Char('_');
-  }
-  return name.isEmpty() ? QStringLiteral("player") : name;
+  return sanitizeUsername(raw);
 }
 
 QString LocalHubController::randomPassword() {
@@ -631,8 +639,8 @@ void LocalHubController::pairChild() {
     auto hidden = hiddenAdmin();
     if (!st.value(QStringLiteral("admin_exists")).toBool()) {
       if (!hidden) {
-        QString name = deps_.settings != nullptr ? deps_.settings->displayName() : QString();
-        if (name.isEmpty()) name = osUserName();
+        QString name = osUserName();
+        if (deps_.settings != nullptr && !deps_.settings->displayName().isEmpty()) name = sanitizeUsername(deps_.settings->displayName());
         hidden = HiddenAdmin{name, randomPassword()};
         storeHiddenAdmin(*hidden);  // before the call: a lost answer must not lose the password
       }
@@ -658,6 +666,7 @@ void LocalHubController::finishChild() {
     deps_.settings->setLocalServerHubId(deps_.conn->hubId());
     deps_.settings->setLocalServerPort(childPort_);
   }
+  if (sharePhase_ == QLatin1String("stopping")) sharingStopped_ = true;
   if (sharePhase_ == QLatin1String("resuming") || sharePhase_ == QLatin1String("stopping")) {
     sharePhase_ = QStringLiteral("idle");
   }
@@ -706,7 +715,8 @@ QString LocalHubController::shareCopy(const QString& code, const QString& detail
 void LocalHubController::failShare(const QString& code, const QString& text, int port) {
   sharePhase_ = QStringLiteral("failed");
   shareErrorCode_ = code;
-  shareError_ = shareCopy(code, text, port);
+  if (port > 0) sharePort_ = port;
+  shareError_ = shareCopy(code, text, port > 0 ? port : sharePort_);
   emit changed();
 }
 
@@ -714,6 +724,46 @@ void LocalHubController::setShareProgress(const QString& phase) {
   sharePhase_ = phase;
   shareErrorCode_.clear();
   shareError_.clear();
+  emit changed();
+}
+
+void LocalHubController::openShareDialog(const QString& which) {
+  if (which != QLatin1String("intro") && which != QLatin1String("setup") && which != QLatin1String("stop")) return;
+  if (sharePhase_ == QLatin1String("failed")) dismissShareError();
+  shareDialog_ = which;
+  emit changed();
+}
+
+void LocalHubController::closeShareDialog() {
+  shareDialog_.clear();
+  emit changed();
+}
+
+void LocalHubController::retryShare(int port) {
+  if (sharePhase_ == QLatin1String("preparing") || sharePhase_ == QLatin1String("installing") || sharePhase_ == QLatin1String("stopping") ||
+      sharePhase_ == QLatin1String("resuming")) {
+    return;
+  }
+  shareErrorCode_.clear();
+  shareError_.clear();
+  if (!shareSupported()) return failShare(QStringLiteral("not_supported"));
+  if (!canRetryShare() || deps_.settings == nullptr) return failShare(QStringLiteral("not_connected"));
+  const int p = port > 0 ? port : retryPort_;
+  if (p > 65535) return failShare(QStringLiteral("invalid_port"));
+  if (p != childPort_ && !portIsFree(p)) {
+    shareSuggestedPort_ = p < 65535 ? p + 1 : p - 1;
+    return failShare(QStringLiteral("port_in_use"), {}, p);
+  }
+  shareSuggestedPort_ = 0;
+  shareDialog_.clear();
+  setShareProgress(QStringLiteral("installing"));
+  retryPort_ = p;
+  deps_.settings->setPendingShare({p, retryJoin_, effectiveDataDir()});
+  launchShareInstaller(p);
+}
+
+void LocalHubController::acknowledgeStopped() {
+  sharingStopped_ = false;
   emit changed();
 }
 
@@ -728,7 +778,6 @@ void LocalHubController::dismissShareError() {
   sharePhase_ = QStringLiteral("idle");
   shareErrorCode_.clear();
   shareError_.clear();
-  shareSuggestedPort_ = 0;
   emit changed();
 }
 
@@ -770,6 +819,8 @@ void LocalHubController::beginShare(const QString& serverName, const QString& yo
   shareError_.clear();
   shareDone_ = false;
   shareSuggestedPort_ = 0;
+  retryPort_ = 0;
+  sharePort_ = port;
   if (!shareSupported()) return failShare(QStringLiteral("not_supported"));
   if (!onThisPcOnly()) return failShare(QStringLiteral("not_connected"));
   if (serverName.trimmed().isEmpty() || yourName.trimmed().isEmpty()) return failShare(QStringLiteral("invalid_input"));
@@ -784,6 +835,7 @@ void LocalHubController::beginShare(const QString& serverName, const QString& yo
     emit changed();
     return;
   }
+  shareDialog_.clear();
   setShareProgress(QStringLiteral("preparing"));
   shareSteps(serverName.trimmed(), yourName.trimmed(), password, join, port);
 }
@@ -846,6 +898,12 @@ void LocalHubController::shareSteps(const QString& serverName, const QString& yo
 void LocalHubController::launchShareInstaller(int port) {
   beforeStop();  // uploads the saves while the server still runs
   const QString dataDir = effectiveDataDir();
+  if (deps_.settings != nullptr) {
+    const PlayerSettings::PendingShare ps = deps_.settings->pendingShare();
+    retryPort_ = ps.port;
+    retryJoin_ = ps.join;
+  }
+  sharePort_ = port;
   childFlow_ = false;
   server_.stop();
   deps_.conn->disconnectFromHub();
@@ -881,6 +939,7 @@ bool LocalHubController::resolvePendingShare() {
   const bool moved = QFile::exists(QDir(ps.dataDir).filePath(QStringLiteral("moved.json")));
   if (info_.present() && moved) {
     goToService(info_.port);
+    shareJoin_ = ps.join;
     shareDone_ = true;
     sharePhase_ = QStringLiteral("done");
     emit changed();
@@ -890,6 +949,8 @@ bool LocalHubController::resolvePendingShare() {
   QString code = QStringLiteral("install_failed");
   if (!info_.present()) code = portIsFree(ps.port) ? QStringLiteral("admin_rights_refused") : QStringLiteral("port_in_use");
   if (deps_.settings->localServerMode().isEmpty()) deps_.settings->setLocalServerMode(QStringLiteral("child"));
+  retryPort_ = ps.port;
+  retryJoin_ = ps.join;
   failShare(code, {}, ps.port);
   if (code == QLatin1String("port_in_use")) shareSuggestedPort_ = ps.port < 65535 ? ps.port + 1 : ps.port - 1;
   active_ = false;
@@ -989,6 +1050,7 @@ void LocalHubController::stopSharing() {
   shareErrorCode_.clear();
   shareError_.clear();
   if (mode() != QLatin1String("service")) return failShare(QStringLiteral("not_connected"));
+  shareDialog_.clear();
   setShareProgress(QStringLiteral("stopping"));
   beforeStop();
   runSharing({QStringLiteral("sharing"), QStringLiteral("stop"), QStringLiteral("--grant-user"), userSpec()}, QStringLiteral("stop"),
@@ -1005,6 +1067,8 @@ void LocalHubController::shareAgain() {
   shareErrorCode_.clear();
   shareError_.clear();
   if (!shareAgainAvailable()) return failShare(QStringLiteral("not_connected"));
+  sharingStopped_ = false;
+  shareDialog_.clear();
   setShareProgress(QStringLiteral("resuming"));
   beforeStop();
   childFlow_ = false;

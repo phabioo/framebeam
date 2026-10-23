@@ -7,13 +7,17 @@ Uzume (`client/`, the app) connects to a server, keeps your library and saves in
 - **Windows:** run the installer from the [GitHub releases](https://github.com/phabioo/uzume/releases): the MSI `uzume-<version>-windows-x64.msi` (CI artifact `uzume-windows-x64-msi`); the portable zip works too. The default is a per-user app install, no admin rights. The installer is unsigned (SmartScreen warning). Neither ships an emulator core: the app downloads the core for a system from the server on first use. Installer details: [packaging.md](packaging.md).
 - **Linux:** builds and runs for development ([development.md](../development.md)). Credentials are kept in memory only, so pair again after a restart.
 
+## Play on this PC and share
+
+"Play on this PC" needs no installer rights: the app starts its own server as a child process on this PC only (loopback), keeps its data in the app's folder and stops it when the app closes. It never shares and has no service. "Share with others" (Windows) asks for admin rights once, installs the server as a service and moves your data (accounts, saves, library) over without overwriting anything; the app keeps your pairing. "Stop sharing" stops and disables the service. Accounts and saves stay and the app keeps running them for you alone. "Share again" turns the service back on. See [ADR 0030](../adr/0030-one-app-one-server-uzume.md) D6.
+
 ## Set up a server on this PC
 
 On the connection screen, "Set up a Hub on this PC" runs a server on the same computer without a pairing code ([ADR 0021](../adr/0021-one-windows-installer.md)):
 
 1. If no local server is installed, the app downloads the MSI of its own version, checks size and SHA-256 and runs it elevated (UAC prompt) with the server feature. The app then moves to Program Files; its data is copied once from the old portable folder and never overwritten.
 2. You choose an admin name and password; the app creates the first admin and pairs over localhost. The certificate is trusted automatically only for `127.0.0.1` on the registered port. With an existing local server, "Connect" asks for an admin's credentials instead.
-3. Standalone mode: network sharing starts off, so the server listens only on this PC. Pick a ROM folder (the server's import folder; the app asks for admin rights once to give the server service read access) and "Rescan folder" in the Library. Switch "Network sharing" on under Settings > servers ("This PC's server") or in the server web settings to let other apps connect. Cores come from the libretro buildbot through this server.
+3. Network sharing starts off, so the server listens only on this PC. Pick a ROM folder (the server's import folder; the app asks for admin rights once to give the server service read access) and "Rescan folder" in the Library. Switch "Network sharing" on under Settings > servers ("This PC's server") or in the server web settings to let other apps connect. Cores come from the libretro buildbot through this server.
 
 ## Connect and pair
 

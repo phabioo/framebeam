@@ -496,6 +496,7 @@ Item {
                     enabled: modelData.enabled !== false
                     busy: modelData.busy === true
                     busyOnClick: modelData.busyOnClick === true
+                    kind: modelData.kind || "outline"
                     implicitHeight: Theme.settingsControlHeight
                     hPadding: 28
                     implicitWidth: Math.min(labelNaturalWidth + hPadding, root.controlWidth)

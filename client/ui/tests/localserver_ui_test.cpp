@@ -112,6 +112,17 @@ class LocalServerUiTest : public QObject {
     qunsetenv("UZUME_LOCAL_SERVICE_DATA_DIR");
   }
 
+  void usernameSanitizingFollowsTheServerRule() {
+    const QRegularExpression rule(QStringLiteral("^[A-Za-z0-9._-]{1,64}$"));
+    for (const QString& in : {QString(), QStringLiteral("Max Muster"), QStringLiteral("Jörg"), QStringLiteral("日本語"), QStringLiteral("a/b\\c:d"),
+                              QString(100, QLatin1Char('x')), QStringLiteral("DOM\\user")}) {
+      const QString out = LocalHubController::sanitizeUsername(in);
+      QVERIFY2(rule.match(out).hasMatch(), qPrintable(in + " -> " + out));
+    }
+    QCOMPARE(LocalHubController::sanitizeUsername(QStringLiteral("Max Muster")), QStringLiteral("Max_Muster"));
+    QCOMPARE(LocalHubController::sanitizeUsername(QStringLiteral("日本語")), QStringLiteral("player"));
+  }
+
   // ------------------------------------------------------------ Play on this PC
 
   void playOnThisPcStartsTheChildAndPairsWithTheHiddenAdmin() {

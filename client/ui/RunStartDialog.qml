@@ -12,6 +12,7 @@ Popup {
     property string mode: "start"      // start | invite
     property string inviteRunId: ""
     readonly property bool inviting: mode === "invite"
+    property bool pcOnly: false         // the server of this PC only: nobody to invite (8j-4)
 
     parent: Window.window ? Window.window.contentItem : null
     anchors.centerIn: parent
@@ -241,13 +242,22 @@ Popup {
 
                 Eyebrow { text: qsTr("Players") }
                 UzLabel {
-                    visible: root.runs.startUsersLoading
+                    objectName: "runStartNeedsServer"
+                    visible: root.pcOnly
+                    Layout.fillWidth: true
+                    text: qsTr("Needs a server · Share with others or join one")
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontSmall
+                    wrapMode: Text.WordWrap
+                }
+                UzLabel {
+                    visible: !root.pcOnly && root.runs.startUsersLoading
                     text: qsTr("Loading players…")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSmall
                 }
                 UzLabel {
-                    visible: !root.runs.startUsersLoading && root.runs.startUsers.count === 0
+                    visible: !root.pcOnly && !root.runs.startUsersLoading && root.runs.startUsers.count === 0
                     Layout.fillWidth: true
                     text: qsTr("There is nobody else to invite yet.")
                     color: Theme.textMuted
@@ -260,6 +270,7 @@ Popup {
                         id: userRow
                         required property var model
                         objectName: "runUser_" + userRow.model.id
+                        enabled: !root.pcOnly
                         title: userRow.model.name
                         sub: userRow.model.online ? qsTr("Online") : ""
                         checked: userRow.model.checked
