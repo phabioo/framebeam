@@ -204,6 +204,7 @@ Rectangle {
         else if (action === "volumeUp") root.player.audio.volumeUp()
         else if (action === "volumeDown") root.player.audio.volumeDown()
         else if (action === "mute") root.player.audio.toggleMute()
+        else if (action === "screenshot") root.player.screenshots.capture()
         else return false
         return true
     }
@@ -433,6 +434,21 @@ Rectangle {
                         Connections {
                             target: root.player.audio
                             function onVolumeNotice(text) { volumeToast.text = text; volumeToastTimer.restart() }
+                        }
+                    }
+                    // Screenshot hotkey: "Screenshot saved", or that it waits on this PC for the server; goes after 3 s
+                    UzToast {
+                        id: screenshotToast
+                        objectName: "screenshotToast"
+                        visible: text !== ""
+                        width: Math.min(implicitWidth, toasts.maxToastWidth)
+                        kind: "done"
+                        closable: false
+                        text: ""
+                        Timer { id: screenshotToastTimer; interval: 3000; onTriggered: screenshotToast.text = "" }
+                        Connections {
+                            target: root.player.screenshots
+                            function onNotice(text) { screenshotToast.text = text; screenshotToastTimer.restart() }
                         }
                     }
                     UzToast {

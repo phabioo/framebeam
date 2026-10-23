@@ -845,6 +845,7 @@ const (
 	ErrorCodeImportDirUnreadable  ErrorCode = "import_dir_unreadable"
 	ErrorCodeInternal             ErrorCode = "internal"
 	ErrorCodeInvalidCredentials   ErrorCode = "invalid_credentials"
+	ErrorCodeInvalidImage         ErrorCode = "invalid_image"
 	ErrorCodeInvalidSetupCode     ErrorCode = "invalid_setup_code"
 	ErrorCodeInviteInvalid        ErrorCode = "invite_invalid"
 	ErrorCodeNotFound             ErrorCode = "not_found"
@@ -911,6 +912,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeInternal:
 		return true
 	case ErrorCodeInvalidCredentials:
+		return true
+	case ErrorCodeInvalidImage:
 		return true
 	case ErrorCodeInvalidSetupCode:
 		return true
@@ -3621,6 +3624,29 @@ type SaveSnapshotRequest struct {
 // SaveSyncReason defines model for SaveSyncReason.
 type SaveSyncReason string
 
+// Screenshot defines model for Screenshot.
+type Screenshot struct {
+	CreatedAt time.Time          `json:"created_at"`
+	GameId    openapi_types.UUID `json:"game_id"`
+	Height    int                `json:"height"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// RunId Run the screenshot is tagged with; null when untagged or the run was deleted
+	RunId     *openapi_types.UUID `json:"run_id"`
+	SizeBytes int64               `json:"size_bytes"`
+	UserId    string              `json:"user_id"`
+	UserName  string              `json:"user_name"`
+	Width     int                 `json:"width"`
+}
+
+// ScreenshotList defines model for ScreenshotList.
+type ScreenshotList struct {
+	Screenshots []Screenshot `json:"screenshots"`
+
+	// TotalBytes Summed size of the listed screenshots
+	TotalBytes int64 `json:"total_bytes"`
+}
+
 // Session defines model for Session.
 type Session struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -3917,6 +3943,9 @@ type RunPluginId = string
 // SaveSlotName defines model for SaveSlotName.
 type SaveSlotName = string
 
+// ScreenshotId defines model for ScreenshotId.
+type ScreenshotId = openapi_types.UUID
+
 // SessionId defines model for SessionId.
 type SessionId = openapi_types.UUID
 
@@ -4067,6 +4096,11 @@ type UploadSaveFileParams struct {
 
 	// XUzumeContentSHA256 Lowercase hex SHA-256 of the body; verified by the server.
 	XUzumeContentSHA256 string `json:"X-Uzume-Content-SHA256"`
+}
+
+// UploadScreenshotParams defines parameters for UploadScreenshot.
+type UploadScreenshotParams struct {
+	RunId *openapi_types.UUID `form:"run_id,omitempty" json:"run_id,omitempty"`
 }
 
 // GetPluginFileParams defines parameters for GetPluginFile.
@@ -5189,6 +5223,12 @@ type ServerInterface interface {
 	// Upload a save file (e.g. from another emulator) into a slot (`saves_v4`)
 	// (POST /api/v1/games/{game_id}/saves/{slot}/upload)
 	UploadSaveFile(w http.ResponseWriter, r *http.Request, gameId GameId, slot SaveSlotName, params UploadSaveFileParams)
+	// The caller's own screenshots of a game, newest first
+	// (GET /api/v1/games/{game_id}/screenshots)
+	ListScreenshots(w http.ResponseWriter, r *http.Request, gameId GameId)
+	// Store a screenshot of a game
+	// (POST /api/v1/games/{game_id}/screenshots)
+	UploadScreenshot(w http.ResponseWriter, r *http.Request, gameId GameId, params UploadScreenshotParams)
 	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(w http.ResponseWriter, r *http.Request)
@@ -5255,6 +5295,9 @@ type ServerInterface interface {
 	// Leave a run the caller joined (leaving again is a no-op); colour and state stay
 	// (POST /api/v1/runs/{run_id}/leave)
 	LeaveRun(w http.ResponseWriter, r *http.Request, runId RunId)
+	// Screenshots of all members of a run, newest first
+	// (GET /api/v1/runs/{run_id}/screenshots)
+	ListRunScreenshots(w http.ResponseWriter, r *http.Request, runId RunId)
 	// Replace the caller's own state of one plugin (JSON object, at most 64 KiB) against a base revision
 	// (PUT /api/v1/runs/{run_id}/state/{plugin_id})
 	PutRunState(w http.ResponseWriter, r *http.Request, runId RunId, pluginId string)
@@ -5264,6 +5307,12 @@ type ServerInterface interface {
 	// Save slots of the authenticated device's user
 	// (GET /api/v1/saves)
 	ListSaves(w http.ResponseWriter, r *http.Request)
+	// Delete a screenshot (owner only)
+	// (DELETE /api/v1/screenshots/{screenshot_id})
+	DeleteScreenshot(w http.ResponseWriter, r *http.Request, screenshotId ScreenshotId)
+	// The PNG of a screenshot
+	// (GET /api/v1/screenshots/{screenshot_id}/content)
+	DownloadScreenshotContent(w http.ResponseWriter, r *http.Request, screenshotId ScreenshotId)
 	// Active Sessions the caller may join or owns, plus Sessions inviting the caller
 	// (GET /api/v1/sessions)
 	ListSessions(w http.ResponseWriter, r *http.Request)
@@ -10213,6 +10262,86 @@ func (siw *ServerInterfaceWrapper) UploadSaveFile(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ListScreenshots operation middleware
+func (siw *ServerInterfaceWrapper) ListScreenshots(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListScreenshots(w, r, gameId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadScreenshot operation middleware
+func (siw *ServerInterfaceWrapper) UploadScreenshot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "game_id" -------------
+	var gameId GameId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "game_id", r.PathValue("game_id"), &gameId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "game_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UploadScreenshotParams
+
+	// ------------- Optional query parameter "run_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "run_id", r.URL.Query(), &params.RunId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "run_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadScreenshot(w, r, gameId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PostHandshake operation middleware
 func (siw *ServerInterfaceWrapper) PostHandshake(w http.ResponseWriter, r *http.Request) {
 
@@ -10850,6 +10979,38 @@ func (siw *ServerInterfaceWrapper) LeaveRun(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ListRunScreenshots operation middleware
+func (siw *ServerInterfaceWrapper) ListRunScreenshots(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "run_id" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "run_id", r.PathValue("run_id"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRunScreenshots(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PutRunState operation middleware
 func (siw *ServerInterfaceWrapper) PutRunState(w http.ResponseWriter, r *http.Request) {
 
@@ -10934,6 +11095,70 @@ func (siw *ServerInterfaceWrapper) ListSaves(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListSaves(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteScreenshot operation middleware
+func (siw *ServerInterfaceWrapper) DeleteScreenshot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "screenshot_id" -------------
+	var screenshotId ScreenshotId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "screenshot_id", r.PathValue("screenshot_id"), &screenshotId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "screenshot_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteScreenshot(w, r, screenshotId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadScreenshotContent operation middleware
+func (siw *ServerInterfaceWrapper) DownloadScreenshotContent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "screenshot_id" -------------
+	var screenshotId ScreenshotId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "screenshot_id", r.PathValue("screenshot_id"), &screenshotId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "screenshot_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadScreenshotContent(w, r, screenshotId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11792,6 +12017,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/rename", wrapper.RenameSaveSlot)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/snapshots", wrapper.CreateSaveSnapshot)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/saves/{slot}/upload", wrapper.UploadSaveFile)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/games/{game_id}/screenshots", wrapper.ListScreenshots)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/games/{game_id}/screenshots", wrapper.UploadScreenshot)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/handshake", wrapper.PostHandshake)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/invites/redeem", wrapper.RedeemInvite)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/local/pair", wrapper.LocalPair)
@@ -11814,9 +12041,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/invite", wrapper.InviteRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/join", wrapper.JoinRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/leave", wrapper.LeaveRun)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/runs/{run_id}/screenshots", wrapper.ListRunScreenshots)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/v1/runs/{run_id}/state/{plugin_id}", wrapper.PutRunState)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/runs/{run_id}/status", wrapper.SetRunStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/saves", wrapper.ListSaves)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/screenshots/{screenshot_id}", wrapper.DeleteScreenshot)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/screenshots/{screenshot_id}/content", wrapper.DownloadScreenshotContent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/sessions", wrapper.ListSessions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/sessions", wrapper.PublishSession)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/v1/sessions/{session_id}", wrapper.EndSession)
@@ -22073,6 +22303,136 @@ func (response UploadSaveFile413JSONResponse) VisitUploadSaveFileResponse(w http
 	return err
 }
 
+type ListScreenshotsRequestObject struct {
+	GameId GameId `json:"game_id"`
+}
+
+type ListScreenshotsResponseObject interface {
+	VisitListScreenshotsResponse(w http.ResponseWriter) error
+}
+
+type ListScreenshots200JSONResponse ScreenshotList
+
+func (response ListScreenshots200JSONResponse) VisitListScreenshotsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListScreenshots401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListScreenshots401JSONResponse) VisitListScreenshotsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListScreenshots404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListScreenshots404JSONResponse) VisitListScreenshotsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadScreenshotRequestObject struct {
+	GameId GameId `json:"game_id"`
+	Params UploadScreenshotParams
+	Body   io.Reader
+}
+
+type UploadScreenshotResponseObject interface {
+	VisitUploadScreenshotResponse(w http.ResponseWriter) error
+}
+
+type UploadScreenshot201JSONResponse Screenshot
+
+func (response UploadScreenshot201JSONResponse) VisitUploadScreenshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadScreenshot400JSONResponse Error
+
+func (response UploadScreenshot400JSONResponse) VisitUploadScreenshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadScreenshot401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UploadScreenshot401JSONResponse) VisitUploadScreenshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadScreenshot404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UploadScreenshot404JSONResponse) VisitUploadScreenshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadScreenshot413JSONResponse Error
+
+func (response UploadScreenshot413JSONResponse) VisitUploadScreenshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type PostHandshakeRequestObject struct {
 	Body *PostHandshakeJSONRequestBody
 }
@@ -23831,6 +24191,56 @@ func (response LeaveRun409JSONResponse) VisitLeaveRunResponse(w http.ResponseWri
 	return err
 }
 
+type ListRunScreenshotsRequestObject struct {
+	RunId RunId `json:"run_id"`
+}
+
+type ListRunScreenshotsResponseObject interface {
+	VisitListRunScreenshotsResponse(w http.ResponseWriter) error
+}
+
+type ListRunScreenshots200JSONResponse ScreenshotList
+
+func (response ListRunScreenshots200JSONResponse) VisitListRunScreenshotsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRunScreenshots401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListRunScreenshots401JSONResponse) VisitListRunScreenshotsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRunScreenshots404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListRunScreenshots404JSONResponse) VisitListRunScreenshotsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type PutRunStateRequestObject struct {
 	RunId    RunId  `json:"run_id"`
 	PluginId string `json:"plugin_id"`
@@ -24093,6 +24503,114 @@ func (response ListSaves401JSONResponse) VisitListSavesResponse(w http.ResponseW
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteScreenshotRequestObject struct {
+	ScreenshotId ScreenshotId `json:"screenshot_id"`
+}
+
+type DeleteScreenshotResponseObject interface {
+	VisitDeleteScreenshotResponse(w http.ResponseWriter) error
+}
+
+type DeleteScreenshot204Response struct {
+}
+
+func (response DeleteScreenshot204Response) VisitDeleteScreenshotResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteScreenshot401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteScreenshot401JSONResponse) VisitDeleteScreenshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteScreenshot404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteScreenshot404JSONResponse) VisitDeleteScreenshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadScreenshotContentRequestObject struct {
+	ScreenshotId ScreenshotId `json:"screenshot_id"`
+}
+
+type DownloadScreenshotContentResponseObject interface {
+	VisitDownloadScreenshotContentResponse(w http.ResponseWriter) error
+}
+
+type DownloadScreenshotContent200ResponseHeaders struct {
+	ContentLength *int64
+}
+
+type DownloadScreenshotContent200ImagepngResponse struct {
+	Body          io.Reader
+	Headers       DownloadScreenshotContent200ResponseHeaders
+	ContentLength int64
+}
+
+func (response DownloadScreenshotContent200ImagepngResponse) VisitDownloadScreenshotContentResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "image/png")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentLength != nil {
+		w.Header().Set("Content-Length", fmt.Sprint(*response.Headers.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadScreenshotContent401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DownloadScreenshotContent401JSONResponse) VisitDownloadScreenshotContentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadScreenshotContent404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DownloadScreenshotContent404JSONResponse) VisitDownloadScreenshotContentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -25943,6 +26461,12 @@ type StrictServerInterface interface {
 	// Upload a save file (e.g. from another emulator) into a slot (`saves_v4`)
 	// (POST /api/v1/games/{game_id}/saves/{slot}/upload)
 	UploadSaveFile(ctx context.Context, request UploadSaveFileRequestObject) (UploadSaveFileResponseObject, error)
+	// The caller's own screenshots of a game, newest first
+	// (GET /api/v1/games/{game_id}/screenshots)
+	ListScreenshots(ctx context.Context, request ListScreenshotsRequestObject) (ListScreenshotsResponseObject, error)
+	// Store a screenshot of a game
+	// (POST /api/v1/games/{game_id}/screenshots)
+	UploadScreenshot(ctx context.Context, request UploadScreenshotRequestObject) (UploadScreenshotResponseObject, error)
 	// Handshake with capability negotiation
 	// (POST /api/v1/handshake)
 	PostHandshake(ctx context.Context, request PostHandshakeRequestObject) (PostHandshakeResponseObject, error)
@@ -26009,6 +26533,9 @@ type StrictServerInterface interface {
 	// Leave a run the caller joined (leaving again is a no-op); colour and state stay
 	// (POST /api/v1/runs/{run_id}/leave)
 	LeaveRun(ctx context.Context, request LeaveRunRequestObject) (LeaveRunResponseObject, error)
+	// Screenshots of all members of a run, newest first
+	// (GET /api/v1/runs/{run_id}/screenshots)
+	ListRunScreenshots(ctx context.Context, request ListRunScreenshotsRequestObject) (ListRunScreenshotsResponseObject, error)
 	// Replace the caller's own state of one plugin (JSON object, at most 64 KiB) against a base revision
 	// (PUT /api/v1/runs/{run_id}/state/{plugin_id})
 	PutRunState(ctx context.Context, request PutRunStateRequestObject) (PutRunStateResponseObject, error)
@@ -26018,6 +26545,12 @@ type StrictServerInterface interface {
 	// Save slots of the authenticated device's user
 	// (GET /api/v1/saves)
 	ListSaves(ctx context.Context, request ListSavesRequestObject) (ListSavesResponseObject, error)
+	// Delete a screenshot (owner only)
+	// (DELETE /api/v1/screenshots/{screenshot_id})
+	DeleteScreenshot(ctx context.Context, request DeleteScreenshotRequestObject) (DeleteScreenshotResponseObject, error)
+	// The PNG of a screenshot
+	// (GET /api/v1/screenshots/{screenshot_id}/content)
+	DownloadScreenshotContent(ctx context.Context, request DownloadScreenshotContentRequestObject) (DownloadScreenshotContentResponseObject, error)
 	// Active Sessions the caller may join or owns, plus Sessions inviting the caller
 	// (GET /api/v1/sessions)
 	ListSessions(ctx context.Context, request ListSessionsRequestObject) (ListSessionsResponseObject, error)
@@ -30202,6 +30735,61 @@ func (sh *strictHandler) UploadSaveFile(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+// ListScreenshots operation middleware
+func (sh *strictHandler) ListScreenshots(w http.ResponseWriter, r *http.Request, gameId GameId) {
+	var request ListScreenshotsRequestObject
+
+	request.GameId = gameId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListScreenshots(ctx, request.(ListScreenshotsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListScreenshots")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListScreenshotsResponseObject); ok {
+		if err := validResponse.VisitListScreenshotsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadScreenshot operation middleware
+func (sh *strictHandler) UploadScreenshot(w http.ResponseWriter, r *http.Request, gameId GameId, params UploadScreenshotParams) {
+	var request UploadScreenshotRequestObject
+
+	request.GameId = gameId
+	request.Params = params
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadScreenshot(ctx, request.(UploadScreenshotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadScreenshot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadScreenshotResponseObject); ok {
+		if err := validResponse.VisitUploadScreenshotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PostHandshake operation middleware
 func (sh *strictHandler) PostHandshake(w http.ResponseWriter, r *http.Request) {
 	var request PostHandshakeRequestObject
@@ -30841,6 +31429,32 @@ func (sh *strictHandler) LeaveRun(w http.ResponseWriter, r *http.Request, runId 
 	}
 }
 
+// ListRunScreenshots operation middleware
+func (sh *strictHandler) ListRunScreenshots(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request ListRunScreenshotsRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListRunScreenshots(ctx, request.(ListRunScreenshotsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListRunScreenshots")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListRunScreenshotsResponseObject); ok {
+		if err := validResponse.VisitListRunScreenshotsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PutRunState operation middleware
 func (sh *strictHandler) PutRunState(w http.ResponseWriter, r *http.Request, runId RunId, pluginId string) {
 	var request PutRunStateRequestObject
@@ -30925,6 +31539,58 @@ func (sh *strictHandler) ListSaves(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListSavesResponseObject); ok {
 		if err := validResponse.VisitListSavesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteScreenshot operation middleware
+func (sh *strictHandler) DeleteScreenshot(w http.ResponseWriter, r *http.Request, screenshotId ScreenshotId) {
+	var request DeleteScreenshotRequestObject
+
+	request.ScreenshotId = screenshotId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteScreenshot(ctx, request.(DeleteScreenshotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteScreenshot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteScreenshotResponseObject); ok {
+		if err := validResponse.VisitDeleteScreenshotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadScreenshotContent operation middleware
+func (sh *strictHandler) DownloadScreenshotContent(w http.ResponseWriter, r *http.Request, screenshotId ScreenshotId) {
+	var request DownloadScreenshotContentRequestObject
+
+	request.ScreenshotId = screenshotId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadScreenshotContent(ctx, request.(DownloadScreenshotContentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadScreenshotContent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadScreenshotContentResponseObject); ok {
+		if err := validResponse.VisitDownloadScreenshotContentResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

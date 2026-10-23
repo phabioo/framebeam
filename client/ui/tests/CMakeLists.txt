@@ -325,3 +325,9 @@ uzume_add_test(ui_personal personal_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${
   LIBS ${FB_UI_TEST_LIBS})
 target_include_directories(test_ui_personal PRIVATE ${FB_NETTEST_DIR})
 target_compile_definitions(test_ui_personal PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")
+
+# Screenshots: the strip and viewer of the game page, the capture path with its pending queue (Uzume 0.19, no core needed).
+uzume_add_test(ui_screenshots screenshots_ui_test.cpp ${FB_NETTEST_DIR}/fakehub.cpp ${FB_NETTEST_DIR}/fakehub.h
+  LIBS ${FB_UI_TEST_LIBS})
+target_include_directories(test_ui_screenshots PRIVATE ${FB_NETTEST_DIR})
+target_compile_definitions(test_ui_screenshots PRIVATE FB_TEST_DATA_DIR="${FB_NETTEST_DIR}/testdata")

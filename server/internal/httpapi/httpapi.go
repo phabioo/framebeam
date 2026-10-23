@@ -78,6 +78,9 @@ func Register(mux *http.ServeMux, svc *hub.Service, log *slog.Logger, opts ...Op
 					(r.Method == http.MethodPost && strings.Contains(r.URL.Path, "/saves/") && strings.HasSuffix(r.URL.Path, "/upload")) {
 					limit = hub.MaxSaveBytes + 1 // the service answers 413 payload_too_large
 				}
+				if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/v1/games/") && strings.HasSuffix(r.URL.Path, "/screenshots") {
+					limit = hub.MaxScreenshotBytes + 1 // the service answers 413 payload_too_large
+				}
 				if r.Method == http.MethodPost && r.URL.Path == "/api/v1/reports" {
 					limit = hub.ReportMaxBytes + 1<<20 // attachments plus the multipart framing and meta
 				}
@@ -181,6 +184,7 @@ func (s *Server) authMiddleware(next api.StrictHandlerFunc, op string) api.Stric
 			"GetAdminFirmwareFile", "PutAdminFirmwareFile", "PinAdminFirmwareFile", "RemoveAdminFirmwareFile",
 			"ListAdminPlugins", "StageAdminPlugin", "OfferAdminPlugin", "DiscardAdminPlugin", "RemoveAdminPlugin", "RefreshAdminPluginIndex", "InstallAdminIndexPlugin",
 			"CreateAdminDiagnosticsBundle", "DeleteAdminGame", "RenameAdminGame", "GetAdminLibraryRescan", "StartAdminLibraryRescan", "ListAdminRuns", "DeleteAdminRun", "GetAdminRun", "ArchiveAdminRun", "ExportAdminRun", "FinishAdminRun", "RemoveAdminRunInvite", "ResendAdminRunInvite", "PauseAdminRun", "ResendAdminRunInvites", "ResumeAdminRun", "StartAdminRun", "UnarchiveAdminRun", "ListAdminSaves", "RenewAdminCertificate", "GetAdminSettings", "UpdateAdminSettings", "DeleteAdminExternalTurn", "SaveAdminExternalTurn", "ResetAdminExternalTurn", "RestartAdminServer", "ResetAdminNetSetting", "SetAdminNetSetting", "CheckAdminUpdates", "InstallAdminUpdate", "DeleteAdminSaveSlot", "GetAdminSaveSlot", "ResolveAdminSaveConflict", "DownloadAdminSaveContent", "ListAdminSaveHistory", "DeleteAdminSaveVersion", "DownloadAdminSaveHistoryContent", "RestoreAdminSaveVersion", "RenameAdminSaveSlot", "CreateAdminSaveSlot", "CreateAdminSaveSnapshot", "UploadAdminSaveFile",
+			"UploadScreenshot", "ListScreenshots", "ListRunScreenshots", "DownloadScreenshotContent", "DeleteScreenshot",
 			"AddFavorite", "RemoveFavorite", "ListCollections", "CreateCollection", "RenameCollection", "DeleteCollection", "AddCollectionGame", "RemoveCollectionGame",
 			"ListRuns", "CreateRun", "GetRun", "JoinRun", "DeclineRun", "LeaveRun", "InviteRun", "SetRunStatus", "PutRunState", "AppendRunEvent", "ListRunEvents", "PutRunBoard":
 			p, err := s.svc.Authenticate(ctx, tok)
@@ -243,7 +247,7 @@ func principal(ctx context.Context) hub.Principal {
 
 func httpStatus(c hub.Code) int {
 	switch c {
-	case hub.CodeBadRequest, hub.CodeImportDirUnreadable:
+	case hub.CodeBadRequest, hub.CodeImportDirUnreadable, hub.CodeInvalidImage:
 		return http.StatusBadRequest
 	case hub.CodeUnauthorized, hub.CodeDeviceRevoked, hub.CodeInvalidCredentials, hub.CodeUserDisabled, hub.CodeInvalidSetupCode:
 		return http.StatusUnauthorized
