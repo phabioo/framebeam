@@ -357,6 +357,12 @@ Rectangle {
                     }
                 }
 
+                ScreenshotStrip {
+                    player: root.player
+                    gameId: root.hasGame ? root.gameId : ""
+                    onOpenRequested: (id) => screenshotViewer.openAt(id)
+                }
+
                 SaveSummary {
                     player: root.player
                     Layout.maximumWidth: content.width
@@ -649,4 +655,5 @@ Rectangle {
     }
     CollectionDialogs { id: detailCollections; player: root.player }
     GameSettingsDialog { id: gameSettings; objectName: "detailGameSettings"; player: root.player }
+    ScreenshotViewer { id: screenshotViewer; player: root.player; parent: Window.contentItem }
 }

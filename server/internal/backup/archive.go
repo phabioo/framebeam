@@ -33,13 +33,14 @@ const DBMember = "database/uzume.db"
 
 // Groups of an archive, in the order they are written.
 const (
-	GroupDatabase = "database"
-	GroupSaves    = "saves"
-	GroupStates   = "states"
-	GroupPlugins  = "plugins"
-	GroupFirmware = "firmware"
-	GroupSettings = "settings"
-	GroupROMs     = "roms"
+	GroupDatabase    = "database"
+	GroupSaves       = "saves"
+	GroupStates      = "states"
+	GroupPlugins     = "plugins"
+	GroupFirmware    = "firmware"
+	GroupSettings    = "settings"
+	GroupScreenshots = "screenshots"
+	GroupROMs        = "roms"
 )
 
 // dataGroups maps data directories to groups. Optional groups are only written when the directory exists.
@@ -52,13 +53,14 @@ var dataGroups = []struct {
 	{GroupPlugins, "plugins", false},
 	{GroupFirmware, "firmware", false},
 	{GroupSettings, "tls", false},
+	{GroupScreenshots, "screenshots", true},
 	{GroupROMs, "roms", false},
 }
 
 // groupLabel is the text of the progress phase.
 var groupLabel = map[string]string{
 	GroupDatabase: "database", GroupSaves: "saves and snapshots", GroupStates: "save states", GroupPlugins: "plugins",
-	GroupFirmware: "firmware", GroupSettings: "settings", GroupROMs: "ROMs",
+	GroupFirmware: "firmware", GroupSettings: "settings", GroupScreenshots: "screenshots", GroupROMs: "ROMs",
 }
 
 // Member is one file of the archive.
@@ -96,12 +98,12 @@ func (m *Manifest) HasGroup(g string) bool {
 	return false
 }
 
-var groupShort = map[string]string{GroupSaves: "saves", GroupStates: "states", GroupPlugins: "plugins", GroupFirmware: "firmware", GroupSettings: "settings"}
+var groupShort = map[string]string{GroupSaves: "saves", GroupStates: "states", GroupPlugins: "plugins", GroupFirmware: "firmware", GroupSettings: "settings", GroupScreenshots: "screenshots"}
 
 // ContentsText is the "Database · saves · states · plugins" text of the list.
 func (m *Manifest) ContentsText() string {
 	parts := []string{"Database"}
-	for _, g := range []string{GroupSaves, GroupStates, GroupPlugins, GroupFirmware, GroupSettings} {
+	for _, g := range []string{GroupSaves, GroupStates, GroupPlugins, GroupFirmware, GroupSettings, GroupScreenshots} {
 		if m.HasGroup(g) {
 			parts = append(parts, groupShort[g])
 		}

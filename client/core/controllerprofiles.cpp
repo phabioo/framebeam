@@ -61,6 +61,7 @@ const QList<HotkeyDef>& hotkeyDefs() {
       {QStringLiteral("volumeUp"), QStringLiteral("Volume up"), Qt::Key_Plus, QStringLiteral("pad:dpup")},
       {QStringLiteral("volumeDown"), QStringLiteral("Volume down"), Qt::Key_Minus, QStringLiteral("pad:dpdown")},
       {QStringLiteral("mute"), QStringLiteral("Mute"), Qt::Key_M, QStringLiteral("pad:x")},
+      {QStringLiteral("screenshot"), QStringLiteral("Take screenshot"), Qt::Key_F12, QStringLiteral("pad:y")},
       {QStringLiteral("layout"), QStringLiteral("Screen layout"), Qt::Key_F7, QStringLiteral("pad:dpright")},  // Shift+F7 = swap screens
   };
   return defs;

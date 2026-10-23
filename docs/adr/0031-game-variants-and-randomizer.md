@@ -1,6 +1,6 @@
-# ADR 0031: Game variants and the randomizer (0.22)
+# ADR 0031: Game variants and the randomizer (0.21)
 
-- Status: Proposed. Fabio decided on 2026-10-23: a randomizer for every Pokémon generation from GB to 3DS, started from the game page and from New run (no sidebar row), before 1.0, each app builds its own variant, the engine is managed by Uzume and operated from a plugin. On the same day he accepted the design (canvas sheet 5 "Randomizer", [spec](../design/uzume/randomizer.md)) and the milestone order (option A: Randomizer is 0.22, Plugins move to 0.23, Platforms to 0.24). The details below follow the assessment of 2026-10-23; the spike decides D3 and D4.
+- Status: Proposed. Fabio decided on 2026-10-23: a randomizer for every Pokémon generation from GB to 3DS, started from the game page and from New run (no sidebar row), before 1.0, each app builds its own variant, the engine is managed by Uzume and operated from a plugin. On the same day he accepted the design (canvas sheet 5 "Randomizer", [spec](../design/uzume/randomizer.md)) and the milestone order (option A: Randomizer is 0.22, Plugins move to 0.23, Platforms to 0.24; see the amendment under Consequences). The details below follow the assessment of 2026-10-23; the spike decides D3 and D4.
 - Date: 2026-10-23
 - Deciders: Fabio
 
@@ -24,7 +24,7 @@ Randomizing itself is not rewritten. The Universal Pokémon Randomizer FVX (succ
 - A **variant** is a library game plus a **recipe**: tool and tool version, preset or settings string, seed, the SHA-256 of the base dump (GB to NDS) or the 3DS update version, and the owner. The server stores variants and recipes; it never stores ROM data, patches or spoiler logs of a variant.
 - Every variant plays in its **own save slot** named like the variant; a run variant plays in the run slot "Run: <Name>". Main is never touched. Deleting a variant asks and keeps the saves by default (10a-2); the recipe stays with kept saves so the variant can be built again.
 - Starting a variant starts exactly that variant, never another dump of the base game. The library shows one row per game with a variant count (10g-1); the slot picker lists Main, the variants and the runs (10g-2).
-- Variants are useful without the randomizer too (externally patched ROMs, fan patches); that use is not built in 0.22.
+- Variants are useful without the randomizer too (externally patched ROMs, fan patches); that use is not built in 0.21.
 
 ### D2 Output per generation
 
@@ -67,6 +67,7 @@ The 3DS update a variant is built for must match the one the app plays. Uzume ge
 ## Consequences
 
 - New milestone 0.22 "Randomizer" ([roadmap](../roadmap.md)); Plugins move to 0.23, Platforms to 0.24.
+- Amendment (2026-10-23): renumbered to 0.21 by Fabio; Plugins are 0.22, Together 0.23.
 - New server data (variants, recipes, run seed, tools catalog), new OpenAPI version and a migration; a new app storage area (variant cache).
 - [12-plugins.md](../architecture/12-plugins.md) 16.1, 16.4, 16.5 and 16.11 point here; the tool plugin type is replaced by the narrow build permission of D5.
 - SoulLink needs the variant in the run view and reads encounter data from the variant; Gen 1 to 5 SoulLink runs also need SoulLink Core adapters for those games (plugin repositories).

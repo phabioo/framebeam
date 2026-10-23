@@ -462,8 +462,23 @@ func (s *Service) deleteGameRows(ctx context.Context, g Game) error {
 			return internal(err)
 		}
 	}
+	// Screenshots go with the game (rows first: they reference it; the files are removed after the commit).
+	var shotUsers []string
+	urows, err := tx.QueryContext(ctx, `SELECT DISTINCT user_id FROM screenshots WHERE game_id = ?`, g.ID)
+	if err != nil {
+		return internal(err)
+	}
+	for urows.Next() {
+		var u string
+		if err := urows.Scan(&u); err != nil {
+			urows.Close()
+			return internal(err)
+		}
+		shotUsers = append(shotUsers, u)
+	}
+	urows.Close()
 	// Favorites and collection entries go with the game; play rows stay (the users' totals keep the time).
-	for _, q := range []string{`DELETE FROM favorites WHERE game_id = ?`, `DELETE FROM collection_games WHERE game_id = ?`, `DELETE FROM games WHERE id = ?`} {
+	for _, q := range []string{`DELETE FROM favorites WHERE game_id = ?`, `DELETE FROM collection_games WHERE game_id = ?`, `DELETE FROM screenshots WHERE game_id = ?`, `DELETE FROM games WHERE id = ?`} {
 		if _, err := tx.ExecContext(ctx, q, g.ID); err != nil {
 			return internal(err)
 		}
@@ -471,6 +486,7 @@ func (s *Service) deleteGameRows(ctx context.Context, g Game) error {
 	if err := tx.Commit(); err != nil {
 		return internal(err)
 	}
+	s.removeGameScreenshotFiles(shotUsers, g.ID)
 	return nil
 }
 

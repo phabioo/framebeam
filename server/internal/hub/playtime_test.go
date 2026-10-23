@@ -18,13 +18,15 @@ type playEnv struct {
 	svc    *hub.Service
 	clk    *hubtest.Clock
 	db     *sql.DB
+	dir    string
 	admin  hub.User
 	g1, g2 hub.Game
 }
 
 func newPlayEnv(t *testing.T, mod func(*hub.Options)) *playEnv {
 	t.Helper()
-	svc, clk, db := hubtest.OpenIn(t, t.TempDir(), mod)
+	dir := t.TempDir()
+	svc, clk, db := hubtest.OpenIn(t, dir, mod)
 	admin, err := svc.CreateAdmin(ctx, "admin", "secret-12345")
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +39,7 @@ func newPlayEnv(t *testing.T, mod func(*hub.Options)) *playEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &playEnv{t: t, svc: svc, clk: clk, db: db, admin: admin, g1: g1, g2: g2}
+	return &playEnv{t: t, svc: svc, clk: clk, db: db, dir: dir, admin: admin, g1: g1, g2: g2}
 }
 
 // client connects a new device of the user (hello done).

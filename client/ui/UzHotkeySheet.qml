@@ -9,7 +9,7 @@ Rectangle {
     id: root
     property string modifier: "Select"
     property var keys: [["A", qsTr("Save state")], ["B", qsTr("Load state")], ["L", qsTr("Previous slot")], ["R", qsTr("Next slot")],
-                        ["X", qsTr("Screenshot")], ["Y", qsTr("Fast forward")], ["UpDown", qsTr("Volume")], ["Start", qsTr("Pause menu")]]
+                        ["Y", qsTr("Screenshot")], ["X", qsTr("Mute")], ["UpDown", qsTr("Volume")], ["Start", qsTr("Pause menu")]]
     implicitWidth: 400
     implicitHeight: headBox.height + gridBox.implicitHeight + footBox.height + 2
     radius: 0

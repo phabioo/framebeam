@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Uzume server API
-  version: 1.36.0
+  version: 1.37.0
   description: |
     HTTPS/JSON API of the Uzume server (phase 1; phase 3 adds save sync under `saves`, advertised by the handshake feature `saves_v1`; phase 4 adds Session sharing under `sessions` and the WSS endpoint, advertised by the handshake feature `sessions_v1`; phase 5 adds invite redemption under `users` (`users_v1`), user ROM uploads (`uploads_v1`, only advertised when the caller may upload) and the systems registry with firmware download under `systems` (`firmware_v1`); 0.2 adds core packages served by the server under `cores` (`cores_v1`); 0.4 adds relay credentials for Sessions over the internet (`turn_v1`, `turn_servers` in `hello_ack` and the join response), save comfort (`saves_v2`: restore, manual snapshots, history labels, the `save_updated` WSS message) and the signed core index for app-side verification (`cores_index_v1`, `/api/v1/cores/index`, removed again in 0.8); 0.7 adds deleting manual snapshots (`saves_v3`) and the optional `user` in the handshake response; 0.8 adds uploading a save file from outside the sync flow (`saves_v4`, `POST /games/{game_id}/saves/{slot}/upload`); 0.8 also adds several cores per system from the libretro buildbot (`cores_v2`: `default_core_id` and `cores` in `SystemInfo`, core ids `^[a-z0-9][a-z0-9_-]{0,63}$`) and removes `cores_index_v1` and its endpoints `/api/v1/cores/index{,.sig}`); 0.9 adds the local setup endpoints under `local` for an app on the same PC as the server (`local_setup_v1`, loopback callers only); 0.10 adds the WSS message `ice_update` (`ice_update_v1`) so connected apps receive changed `ice_servers`/`turn_servers`, a default STUN list, and optional Cloudflare TURN next to the embedded TURN server; 0.10.x also adds renaming and deleting save slots and the upload lock during a Session (`saves_v5`); 0.15.x also adds deleting any history version and the main slot (`saves_v6`); 0.11 adds the plugin list and download under `plugins` (`plugins_v1`); 0.11 also adds runs under `runs` (`runs_v1`: run objects with per-participant, per-plugin state, an append-only event log and boards, the WSS messages `run_updated`, `run_state` and `run_event`, and the optional `runs` list in `hello` for catch-up); 0.12 adds local ROMs (`local_roms_v1`: games that exist only on app devices, `POST /games/register`, `DELETE /games/{game_id}/registration`, resumable uploads under `uploads`, `stored`/`on_hub`/`roms` and `game_version` in the game objects, visibility of local-only games); 0.17 adds problem reports (`reports_v1`: `POST /reports` from any paired device, the admin list, files, zip archive, seen mark and delete under `/admin/reports`); 0.18 adds the admin API under `/admin/...` (`admin_v1`: users and invites, pairing requests and devices, systems, cores and firmware, plugins and the plugin index; only advertised to admins); 0.18 also adds server accounts (`accounts_v1`: sign in with user name and password under `auth`, the own account, password, "Confirm it's you" and devices under `account`, an admin password reset and the password policy under `admin`; dangerous admin steps answer 403 `confirmation_required` until the caller confirmed); 0.18 also adds a zip export of all saves of a user for the admin to download before removing the person (`exportAdminUserSaves`, read-only, no confirmation); 0.18 also adds the setup code (`setup_code_v1`: `POST /setup` trades the setup code that a server without an admin prints at start and on `uzume-server setup-code` for the first admin and a paired device, `setup_required` in the server info). `protocol_version` is an integer (starting at 1),
     separate from the hub/player product version. All paths carry the `/api/v1` prefix explicitly;
@@ -728,6 +728,118 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         '204': { description: The game is not a favorite (also when it was not) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/games/{game_id}/screenshots:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    get:
+      operationId: listScreenshots
+      tags: [library]
+      summary: The caller's own screenshots of a game, newest first
+      description: '`total_bytes` is the summed file size of the listed screenshots. 404 for a game that does not exist or that the caller cannot see.'
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Screenshots
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScreenshotList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: uploadScreenshot
+      tags: [library]
+      summary: Store a screenshot of a game
+      description: |
+        Raw `image/png` body (at most 16 MiB; the server reads width and height from the PNG header and never decodes
+        the picture). 400 `invalid_image` when the body is not a PNG, 413 `payload_too_large` above the limit, 404 for a
+        game that does not exist or that the caller cannot see. With `run_id` the screenshot is tagged with that run:
+        the caller must have joined the run with this game, else 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: run_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: Stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Screenshot' }
+        '400':
+          description: The body is not a PNG image (`invalid_image`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: invalid_image, message: The body is not a PNG image } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413':
+          description: The screenshot is larger than 16 MiB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                default: { value: { error: { code: payload_too_large, message: Screenshot exceeds 16 MiB } } }
+  /api/v1/runs/{run_id}/screenshots:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    get:
+      operationId: listRunScreenshots
+      tags: [runs]
+      summary: Screenshots of all members of a run, newest first
+      description: 404 for everybody who has not joined the run.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Screenshots
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScreenshotList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/screenshots/{screenshot_id}/content:
+    parameters:
+      - $ref: '#/components/parameters/ScreenshotId'
+    get:
+      operationId: downloadScreenshotContent
+      tags: [library]
+      summary: The PNG of a screenshot
+      description: Allowed for the owner and for members of the screenshot's run; 404 for everybody else.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: PNG bytes
+          headers:
+            Content-Length: { schema: { type: integer, format: int64 } }
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/screenshots/{screenshot_id}:
+    parameters:
+      - $ref: '#/components/parameters/ScreenshotId'
+    delete:
+      operationId: deleteScreenshot
+      tags: [library]
+      summary: Delete a screenshot (owner only)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Row and file are removed }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/collections:
@@ -5153,6 +5265,11 @@ components:
       description: Slot name; always `default` in the PoC.
       schema: { type: string, pattern: '^[a-z0-9_-]{1,32}$' }
       example: default
+    ScreenshotId:
+      name: screenshot_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     RunId:
       name: run_id
       in: path
@@ -5402,7 +5519,7 @@ components:
     ErrorCode:
       type: string
       description: "`save_not_snapshot` is no longer returned since `saves_v6` (any history version can be deleted)."
-      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, save_slot_exists, save_slot_protected, session_running, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available, import_dir_unreadable, child_mode, run_not_active, state_conflict, too_large, confirmation_required, password_required, password_not_set, invalid_setup_code, setup_code_expired, already_set_up]
+      enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal, device_revoked, invalid_credentials, pairing_pending, pairing_denied, pairing_expired, player_too_old, hub_too_old, core_missing, core_version_mismatch, capability_missing, save_conflict, save_conflict_stale, save_not_snapshot, save_slot_exists, save_slot_protected, session_running, payload_too_large, session_not_found, session_forbidden, session_full, session_ended, invite_invalid, display_name_taken, user_disabled, uploads_disabled, core_package_not_found, core_file_not_available, import_dir_unreadable, child_mode, run_not_active, state_conflict, too_large, confirmation_required, password_required, password_not_set, invalid_setup_code, setup_code_expired, already_set_up, invalid_image]
     Error:
       type: object
       required: [error]
@@ -6028,6 +6145,27 @@ components:
         name: { type: string, minLength: 1, maxLength: 40 }
         game_ids: { type: array, items: { type: string, format: uuid }, description: In the order the games were added }
         created_at: { type: string, format: date-time }
+    Screenshot:
+      type: object
+      required: [id, game_id, run_id, user_id, user_name, created_at, width, height, size_bytes]
+      properties:
+        id: { type: string, format: uuid }
+        game_id: { type: string, format: uuid }
+        run_id: { type: string, format: uuid, nullable: true, description: Run the screenshot is tagged with; null when untagged or the run was deleted }
+        user_id: { type: string }
+        user_name: { type: string }
+        created_at: { type: string, format: date-time }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        size_bytes: { type: integer, format: int64, minimum: 0 }
+    ScreenshotList:
+      type: object
+      required: [screenshots, total_bytes]
+      properties:
+        screenshots:
+          type: array
+          items: { $ref: '#/components/schemas/Screenshot' }
+        total_bytes: { type: integer, format: int64, minimum: 0, description: Summed size of the listed screenshots }
     CollectionList:
       type: object
       required: [collections]

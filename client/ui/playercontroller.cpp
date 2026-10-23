@@ -385,6 +385,15 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   runClient_ = std::make_unique<RunClient>(conn_.get(), sessions_->socket(), profiles_->baseDir());
   runs_ = std::make_unique<RunsController>(runClient_.get(), plugins_.get(), library_.get(), conn_.get());
   personal_ = std::make_unique<PersonalController>(conn_.get(), &model_);
+  screenshots_ = std::make_unique<ScreenshotController>(conn_.get(), profiles_.get());
+  screenshots_->setGameSource(
+      [this]() { return session_.isActive() ? launchGame_.id : QString(); },
+      [this]() { return runStart_.pending() && runStart_.gameId == launchGame_.id ? runStart_.runId : QString(); },
+      [this](ScreenshotController::FrameCallback done) { session_.requestNativeFrame(std::move(done)); });
+  screenshots_->setRunNameLookup([this](const QString& runId) {
+    const auto run = runClient_ ? runClient_->run(runId) : std::nullopt;
+    return run ? run->name : QString();
+  });
   connect(&model_, &LibraryModel::collectionsChanged, this, &PlayerController::selectedGameChanged);
   connect(runs_.get(), &RunsController::launchRequested, this, &PlayerController::startRunGame);
   connect(runs_.get(), &RunsController::availableChanged, this, [this]() {
@@ -565,6 +574,7 @@ PlayerController::PlayerController(const Options& options, QObject* parent)
   liveTimer_->start();
   connect(library_.get(), &HubLibrary::cleared, this, [this]() {
     if (personal_) personal_->clear();
+    if (screenshots_) screenshots_->clear();
     model_.clear();
     emit selectedGameChanged();
   });

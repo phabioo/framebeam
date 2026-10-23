@@ -28,7 +28,7 @@ Non-goals:
 - Pokémon (or any game) knowledge in the core code.
 - Game data, sprites, maps or any ROM-derived content in any repository.
 - Switch / Gen 8 (no libretro core).
-- Randomizer plugin: planned for 0.22, without a generic `tool.exec` (see 16.11, [ADR 0031](../adr/0031-game-variants-and-randomizer.md)).
+- Randomizer plugin: planned for 0.21, without a generic `tool.exec` (see 16.11, [ADR 0031](../adr/0031-game-variants-and-randomizer.md)).
 - `memory.write` implementation in the first release: the API describes it, it is built later. `tool.exec` is not built: ADR 0031 replaces it with a narrow build permission.
 
 ### 16.2 Extension points in today's code
@@ -62,7 +62,7 @@ Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar ex
 | Type | Example | May | Source |
 |---|---|---|---|
 | Script plugin | SoulLink/Nuzlocke, tracker | Read memory, read ROM (for assets), UI, run state; runs in the Lua sandbox | Any source, including Hub upload |
-| Tool plugin | Randomizer (0.22) | Additionally ask Uzume to build a game variant with a tool from the server's tools catalog; the plugin never starts a program itself ([ADR 0031](../adr/0031-game-variants-and-randomizer.md) D5) | Signed official plugins only |
+| Tool plugin | Randomizer (0.21) | Additionally ask Uzume to build a game variant with a tool from the server's tools catalog; the plugin never starts a program itself ([ADR 0031](../adr/0031-game-variants-and-randomizer.md) D5) | Signed official plugins only |
 
 ### 16.5 Permissions
 
@@ -75,7 +75,7 @@ Core-side facts (3DS): see [ADR 0023](../adr/0023-plugins.md) context (Azahar ex
 | `video.capture` | Capture a screen or region of the game picture as PNG at native resolution (`fb.video`); on demand through the existing readback, no write to disk, 1 per second, local game only | API 1 addition |
 | `memory.write` | Write memory through a write queue | later (editor, raw cheat codes) |
 | `cheats` | Hand cheat codes to the core's own cheat engine (`retro_cheat_set`); consent, snapshot and run log as for `memory.write` | planned for 0.20 (see roadmap) |
-| `tool.exec` | Start an external program | not built; replaced by the variant build permission of [ADR 0031](../adr/0031-game-variants-and-randomizer.md) D5 (name open), signed official only, planned for 0.22 |
+| `tool.exec` | Start an external program | not built; replaced by the variant build permission of [ADR 0031](../adr/0031-game-variants-and-randomizer.md) D5 (name open), signed official only, planned for 0.21 |
 
 `memory.write`: all plugins' writes go through one queue applied on the emulation thread between two frames in a fixed order. If two plugins persistently set the same address, the Player shows the conflict instead of silently letting one win. Before the first write in a play session the Player takes a save snapshot (the Hub already versions saves). The consent ("Change game memory") is asked once per game. In a run, every change is written to the run log that all participants see ("cheat used" event), and a run rule can forbid memory writes; the plugin then stays off in that run.
 
@@ -213,7 +213,7 @@ The plugin computes the rules in the Player from the shared state; the Hub valid
 
 **Hub web.** The pages Plugins and Runs are admin-only. Runs: list, detail with status actions (the admin may Start now, Start without the players who have not joined, Pause/Resume, Finish, Archive and Delete any run, and may resend or remove open invitations), participants, the board of each plugin drawn by the JS renderer `static/plugin-blocks.js` (no framework, no external fetch, plugin strings only as text, images only `data:image/png;base64`; interactive blocks disabled, unknown block types shown as "Unsupported block"; a "Paused" banner) and the event log with a JSON export. The Hub board is read-only.
 
-- **Planned for 0.22:** randomizer plugin ([ADR 0031](../adr/0031-game-variants-and-randomizer.md)). A run stores a recipe and a run seed; each participant's app builds its own variant locally with the engine from the server's tools catalog, so no ROM or patch travels (the earlier idea of the run creator uploading patches is rejected there). Variants have their own save slots; 3DS variants are LayeredFS folders in the Azahar dir of the slot, and `fb.rom.*` lays them over the RomFS.
+- **Planned for 0.21:** randomizer plugin ([ADR 0031](../adr/0031-game-variants-and-randomizer.md)). A run stores a recipe and a run seed; each participant's app builds its own variant locally with the engine from the server's tools catalog, so no ROM or patch travels (the earlier idea of the run creator uploading patches is rejected there). Variants have their own save slots; 3DS variants are LayeredFS folders in the Azahar dir of the slot, and `fb.rom.*` lays them over the RomFS.
 
 ### 16.12 Security and trust model
 

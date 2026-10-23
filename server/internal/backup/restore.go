@@ -21,7 +21,7 @@ const (
 
 // swapItems are the top-level entries of the data directory a restore may replace.
 var swapItems = map[string]bool{"uzume.db": true, "saves": true, "states": true, "plugins": true,
-	"firmware": true, "tls": true, "roms": true, "restored-config": true}
+	"firmware": true, "tls": true, "screenshots": true, "roms": true, "restored-config": true}
 
 // walFiles belong to uzume.db and are moved away with it (the restored database is a plain file).
 var walFiles = []string{"uzume.db-wal", "uzume.db-shm"}

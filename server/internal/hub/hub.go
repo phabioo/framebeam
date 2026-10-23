@@ -187,7 +187,7 @@ func Open(ctx context.Context, db *sql.DB, o Options) (*Service, error) {
 		s.cleanReportStaging()
 		s.cleanStaging()
 	}
-	for _, d := range []string{"roms", "tmp"} {
+	for _, d := range []string{"roms", "tmp", "screenshots"} {
 		if err := os.MkdirAll(filepath.Join(s.dataDir, d), 0o750); err != nil {
 			return nil, internal(err)
 		}
