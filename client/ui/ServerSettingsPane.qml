@@ -281,7 +281,7 @@ ColumnLayout {
                 visible: (root.editSpec.label ?? "") !== ""
                 text: root.editSpec.label ?? ""
                 textFormat: Text.PlainText
-                font.pixelSize: Theme.fontMeta
+                font.pixelSize: Theme.roles.small.size
                 color: Theme.muted
             }
             UzField {
@@ -297,7 +297,7 @@ ColumnLayout {
                 visible: (root.editSpec.label2 ?? "") !== ""
                 text: root.editSpec.label2 ?? ""
                 textFormat: Text.PlainText
-                font.pixelSize: Theme.fontMeta
+                font.pixelSize: Theme.roles.small.size
                 color: Theme.muted
             }
             UzField {
@@ -341,9 +341,9 @@ ColumnLayout {
             objectName: "serverSettingsNavStatus_" + navItem.modelData.id
             Layout.fillWidth: true
             font.family: Theme.mono
-            font.pixelSize: Theme.fontMeta
+            font.pixelSize: Theme.roles.small.size
             elide: Text.ElideRight
-            color: Theme.textMuted
+            color: Theme.muted
             text: root.navStatus(navItem.modelData.id)
         }
     }
@@ -438,7 +438,7 @@ ColumnLayout {
                     visible: root.network.can_restart !== true
                     text: qsTr("This server can't restart itself. Restart it on the device.")
                     textFormat: Text.PlainText
-                    font.pixelSize: Theme.fontMeta
+                    font.pixelSize: Theme.roles.small.size
                     color: Theme.muted
                 }
             }

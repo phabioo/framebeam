@@ -369,7 +369,7 @@ Item {
                                 anchors.margins: Theme.space15
                                 spacing: Theme.space05
                                 UzMono { text: modelData.title.toUpperCase() }
-                                Text { Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.fontSmall; color: Theme.ink; text: modelData.device }
+                                Text { Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText; font.family: Theme.sans; font.pixelSize: Theme.roles.input.size; color: Theme.ink; text: modelData.device }
                                 UzMono { text: root.whenText(modelData.when) }
                                 UzButton {
                                     objectName: "savesAdminKeep" + modelData.name
